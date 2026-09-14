@@ -1,0 +1,65 @@
+<!doctype html><html lang="es"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mi VentaNexIA | Portal del cliente</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/portal.css">
+</head><body class="portal-body">
+<div id="portalLogin" class="portal-login">
+  <div class="portal-login-card"><a class="brand premium-brand" href="/"><span class="vmark">V</span><span><b>VentaNexIA</b><small>Client OS</small></span></a>
+  <h1>Tu sistema comercial, en un solo sitio.</h1><p>Introduce el email asociado a tu cuenta. Te enviaremos un acceso seguro de un solo uso.</p>
+  <form id="loginForm"><input id="loginEmail" type="email" required placeholder="tu@empresa.com"><button class="btn primary">Enviarme acceso →</button></form>
+  <div id="loginMsg" class="portal-msg"></div></div>
+</div>
+
+<div id="portalApp" class="portal-app" hidden>
+<aside class="portal-side">
+ <a class="portal-logo" href="/"><span class="vmark">V</span><b>VentaNexIA</b></a>
+ <nav><button class="pnav active" data-tab="home">Resumen</button><button class="pnav" data-tab="agents">Agentes</button><button class="pnav" data-tab="integrations">Integraciones</button><button class="pnav" data-tab="onboarding">Configuración inicial</button><button class="pnav" data-tab="social">Social Autopilot</button><button class="pnav" data-tab="requests">Pedir algo nuevo</button><button class="pnav" data-tab="billing">Plan y facturación</button></nav>
+ <button id="logoutBtn" class="portal-logout">Cerrar sesión</button>
+</aside>
+
+<main class="portal-main">
+ <header class="portal-top"><div><small>MI VENTANEXIA</small><h1 id="tenantName">—</h1></div><div class="license-pill" id="licensePill">Cargando…</div></header>
+
+ <section class="ptab active" data-panel="home">
+  <div id="trialBanner" class="trial-countdown" hidden><div><small>DEMO ACTIVA</small><strong id="trialClock">—</strong><span>Tu configuración no se pierde si contratas.</span></div><a href="/planes.html" class="btn primary">Activar plan →</a></div>
+  <div id="suspendBanner" class="trial-countdown suspended-banner" hidden><div><small>MODO SOLO LECTURA</small><strong>Servicio suspendido</strong><span>Tus datos y configuración se conservan. Las automatizaciones están pausadas.</span></div><button id="reactivateTop" class="btn primary">Reactivar plan →</button></div>
+  <div class="portal-metrics"><article><small>Agentes activos</small><strong id="paAgents">—</strong></article><article><small>Integraciones</small><strong id="paIntegrations">—</strong></article><article><small>Aprobaciones</small><strong id="paApprovals">—</strong></article><article><small>Estado</small><strong id="paState">—</strong></article></div>
+  <div class="portal-two"><section class="portal-card"><div class="card-head"><h2>Necesita tu atención</h2><span>Guardian</span></div><div id="approvalList" class="portal-list"></div></section>
+  <section class="portal-card"><div class="card-head"><h2>Próximas acciones</h2><span>VNX CORE</span></div><div id="nextActions" class="portal-list"></div></section></div>
+ </section>
+
+ <section class="ptab" data-panel="agents"><div class="portal-card"><h2>Tus agentes</h2><p>Cada agente trabaja dentro de tus permisos y reglas.</p><div id="agentGrid" class="portal-agent-grid"></div></div></section>
+
+ <section class="ptab" data-panel="integrations"><div class="portal-card"><h2>Integraciones</h2><p>VentaNexIA solo opera servicios que tu empresa haya autorizado.</p><div id="connectionGrid" class="portal-connection-grid"></div></div></section>
+
+
+ <section class="ptab" data-panel="onboarding">
+  <div class="portal-card request-new"><div class="eyebrow blue">ONBOARDING SEGURO</div><h2>Configura cómo debe trabajar VentaNexIA.</h2><p>No introduzcas contraseñas, tokens ni claves API. Las conexiones se autorizan aparte mediante OAuth o el proveedor correspondiente.</p>
+  <form id="onboardingForm" class="onboarding-form">
+   <label>Qué hace tu empresa<textarea id="obBusiness" rows="4" placeholder="Describe productos, servicios y proceso comercial."></textarea></label>
+   <label>Cliente ideal<textarea id="obTargets" rows="3" placeholder="Sectores, tamaño, cargos y señales de interés."></textarea></label>
+   <label>Web corporativa<input id="obWebsite" type="url" placeholder="https://..."></label>
+   <label>Tono de marca<textarea id="obVoice" rows="3" placeholder="Ej.: profesional, directo, técnico, sin exageraciones."></textarea></label>
+   <label>Afirmaciones o temas prohibidos<textarea id="obForbidden" rows="3" placeholder="Qué no debe prometer, afirmar o publicar."></textarea></label>
+   <label>Fuentes de conocimiento (una URL por línea)<textarea id="obKnowledge" rows="4" placeholder="https://tuweb.es/catalogo
+https://tuweb.es/faq"></textarea></label>
+   <fieldset><legend>Canales que quieres conectar</legend><div class="channel-checks"><label><input type="checkbox" value="email"> Email</label><label><input type="checkbox" value="crm"> CRM</label><label><input type="checkbox" value="calendar"> Calendario</label><label><input type="checkbox" value="social"> Redes sociales</label><label><input type="checkbox" value="analytics"> Analítica</label><label><input type="checkbox" value="website"> Web</label><label><input type="checkbox" value="payments"> Pagos</label><label><input type="checkbox" value="support"> Soporte</label></div></fieldset>
+   <label>Reglas comerciales adicionales<textarea id="obRules" rows="3" placeholder="Ej.: nunca aplicar descuentos sin aprobación."></textarea></label>
+   <div class="guard-rules"><label><input id="obDiscount" type="checkbox" checked> Descuentos requieren aprobación</label><label><input id="obContracts" type="checkbox" checked> Contratos requieren aprobación</label><label><input id="obBulk" type="checkbox" checked> Envíos masivos requieren aprobación</label></div>
+   <button class="btn primary">Guardar configuración →</button>
+  </form><div id="onboardingMsg" class="portal-msg"></div></div>
+ </section>
+ <section class="ptab" data-panel="social"><div class="portal-card"><div class="card-head"><h2>Social Autopilot</h2><span>Calendario</span></div><p>Contenido preparado, aprobado o programado por canal.</p><div id="socialList" class="social-portal-list"></div></div></section>
+
+ <section class="ptab" data-panel="requests">
+  <div class="portal-card request-new"><div class="eyebrow blue">VNX BUILDER</div><h2>Pide lo que quieras que haga tu sistema.</h2><p>No necesitas conocer la tecnología. Describe el resultado.</p>
+  <form id="requestForm"><textarea id="newRequest" rows="7" required minlength="15" placeholder="Ejemplo: quiero que cada viernes analice los leads sin respuesta, prepare un seguimiento personalizado y me mande un resumen."></textarea>
+  <div class="request-row"><select id="requestPriority"><option value="normal">Prioridad normal</option><option value="high">Alta</option><option value="urgent">Urgente</option></select><button class="btn primary">Analizar y añadir →</button></div></form>
+  <div id="requestMsg" class="portal-msg"></div></div>
+  <div class="portal-card"><h2>Solicitudes recientes</h2><div id="requestList" class="portal-list"></div></div>
+ </section>
+
+ <section class="ptab" data-panel="billing"><div class="portal-card billing-card"><div><small>PLAN ACTUAL</small><h2 id="currentPlan">—</h2><p id="billingState">—</p><small id="usageSummary"></small></div><div><a href="/planes.html" class="btn outline darktext">Ver planes</a><button id="reactivateBilling" class="btn primary" hidden>Reactivar plan</button><button id="manageBilling" class="btn primary">Gestionar facturación</button></div></div></section>
+</main></div>
+<script src="/assets/portal.js"></script><script src="/assets/launch.js"></script></body></html>

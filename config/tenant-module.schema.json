@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VentaNexIA Tenant Module",
+  "type": "object",
+  "required": [
+    "module_key",
+    "name",
+    "version",
+    "capabilities",
+    "triggers",
+    "actions",
+    "approval_policy"
+  ],
+  "properties": {
+    "module_key": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "triggers": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "approval_policy": {
+      "type": "object"
+    },
+    "config": {
+      "type": "object"
+    },
+    "rollback": {
+      "type": "object"
+    }
+  }
+}

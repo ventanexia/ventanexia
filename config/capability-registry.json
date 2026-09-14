@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "categories": {
+    "sales": [
+      "lead_capture",
+      "prospecting",
+      "enrichment",
+      "qualification",
+      "crm_sync",
+      "pipeline_management",
+      "followup",
+      "proposal_generation",
+      "scheduling"
+    ],
+    "marketing": [
+      "seo",
+      "content_generation",
+      "social_planning",
+      "social_publishing",
+      "landing_pages",
+      "email_campaigns",
+      "analytics"
+    ],
+    "operations": [
+      "task_automation",
+      "document_generation",
+      "data_sync",
+      "reporting",
+      "alerts",
+      "workflow_orchestration"
+    ],
+    "commerce": [
+      "checkout",
+      "subscriptions",
+      "invoicing",
+      "payment_status",
+      "customer_portal"
+    ],
+    "customer_success": [
+      "inbox_triage",
+      "support_drafts",
+      "onboarding",
+      "renewal_monitoring",
+      "churn_risk"
+    ],
+    "web": [
+      "widget_install",
+      "forms",
+      "tracking",
+      "webhooks",
+      "custom_api"
+    ],
+    "social": [
+      "social_strategy",
+      "content_calendar",
+      "brand_voice",
+      "content_generation",
+      "image_brief",
+      "video_script",
+      "channel_adaptation",
+      "post_scheduling",
+      "post_publishing",
+      "utm_tagging",
+      "hashtag_strategy",
+      "social_analytics",
+      "comment_triage",
+      "dm_triage",
+      "reputation_monitoring",
+      "approval_workflows",
+      "content_repurposing"
+    ],
+    "communications": [
+      "whatsapp_workflows",
+      "webchat",
+      "sms_workflows",
+      "email_sequences",
+      "inbox_triage",
+      "review_requests"
+    ],
+    "customer_operations": [
+      "customer_onboarding",
+      "support_triage",
+      "renewal_monitoring",
+      "review_management",
+      "nps_workflows",
+      "knowledge_base"
+    ]
+  }
+}

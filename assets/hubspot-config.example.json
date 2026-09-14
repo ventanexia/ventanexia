@@ -1,0 +1,67 @@
+{
+  "project": "VentaNexIA",
+  "legal_entity": "ECOJAFER S.L.",
+  "crm": {
+    "provider": "HubSpot",
+    "portal_id": 149327209,
+    "pipeline_id": "default",
+    "pipeline_label": "VentaNexIA · Pipeline Comercial",
+    "currency": "EUR",
+    "timezone": "Europe/Madrid",
+    "stages": {
+      "QUALIFIED": {
+        "label": "Oportunidad cualificada",
+        "id": "appointmentscheduled",
+        "probability": 0.3
+      },
+      "PRIORITY": {
+        "label": "Prioridad alta",
+        "id": "qualifiedtobuy",
+        "probability": 0.5
+      },
+      "MEETING_BOOKED": {
+        "label": "Reunión agendada",
+        "id": "presentationscheduled",
+        "probability": 0.6
+      },
+      "DISCOVERY": {
+        "label": "Diagnóstico realizado",
+        "id": "decisionmakerboughtin",
+        "probability": 0.7
+      },
+      "PROPOSAL": {
+        "label": "Propuesta enviada",
+        "id": "contractsent",
+        "probability": 0.8
+      },
+      "NEGOTIATION": {
+        "label": "Negociación",
+        "id": "6048857294",
+        "probability": 0.9
+      },
+      "WON": {
+        "label": "Ganado",
+        "id": "closedwon",
+        "probability": 1.0
+      },
+      "LOST": {
+        "label": "Perdido",
+        "id": "closedlost",
+        "probability": 0.0
+      }
+    }
+  },
+  "email": {
+    "sales": "ventas@ventanexia.es",
+    "assistant": "asistente@ventanexia.es",
+    "demo": "demo@ventanexia.es",
+    "privacy": "privacidad@ventanexia.es",
+    "authentication_verified": {
+      "spf": "PASS",
+      "dkim": "PASS",
+      "dmarc": "PASS",
+      "verified_date": "2026-09-14"
+    }
+  },
+  "secrets": "NEVER_STORE_SECRETS_IN_THIS_FILE"
+}
