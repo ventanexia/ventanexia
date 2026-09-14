@@ -1,0 +1,106 @@
+{
+  "version": "1.0",
+  "score": {
+    "weights": {
+      "fit": 30,
+      "intent": 25,
+      "value": 20,
+      "authority": 15,
+      "timing": 10
+    },
+    "bands": [
+      {
+        "min": 85,
+        "max": 100,
+        "state": "PRIORITY"
+      },
+      {
+        "min": 70,
+        "max": 84,
+        "state": "QUALIFIED"
+      },
+      {
+        "min": 50,
+        "max": 69,
+        "state": "NURTURE"
+      },
+      {
+        "min": 0,
+        "max": 49,
+        "state": "LOW_FIT"
+      }
+    ]
+  },
+  "confidence": {
+    "auto_low_risk_min": 90,
+    "restricted_low_risk_min": 75,
+    "below_75": "ASK_OR_ESCALATE"
+  },
+  "deal_creation": {
+    "requires": [
+      "identified_company_or_valid_individual",
+      "concrete_need",
+      "sufficient_fit"
+    ],
+    "predeal_states": [
+      "NEW",
+      "ENGAGED",
+      "QUALIFYING",
+      "NURTURE",
+      "DO_NOT_CONTACT"
+    ]
+  },
+  "transition_guardrails": {
+    "QUALIFIED": [
+      "need_identified",
+      "fit_sufficient"
+    ],
+    "PRIORITY": [
+      "objective_priority_signal"
+    ],
+    "MEETING_BOOKED": [
+      "confirmed_meeting_datetime"
+    ],
+    "DISCOVERY": [
+      "meeting_completed",
+      "summary_present",
+      "next_step_present"
+    ],
+    "PROPOSAL": [
+      "proposal_sent",
+      "amount_present",
+      "next_step_present"
+    ],
+    "NEGOTIATION": [
+      "real_post_proposal_activity"
+    ],
+    "WON": [
+      "acceptance_evidence",
+      "closed_won_reason_present"
+    ],
+    "LOST": [
+      "close_decision",
+      "closed_lost_reason_present"
+    ]
+  },
+  "never_autonomous": [
+    "change_prices",
+    "grant_discounts",
+    "accept_contracts",
+    "make_legal_commitments",
+    "ignore_do_not_contact"
+  ],
+  "guardian_checks": [
+    "recipient_identity",
+    "deduplication",
+    "lawful_contact_basis_or_allowed_context",
+    "do_not_contact",
+    "followup_cadence",
+    "approved_prices_and_terms",
+    "claims",
+    "sensitive_data",
+    "confidence",
+    "autonomy_permissions",
+    "crm_state"
+  ]
+}

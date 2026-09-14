@@ -1,0 +1,119 @@
+{
+  "version": "1.0",
+  "agents": [
+    {
+      "id": "guardian",
+      "name": "VNX Guardian",
+      "mission": "Control de autonomía, cumplimiento, riesgo y aprobaciones.",
+      "mode": "EXECUTE_WITHIN_POLICY",
+      "approval_actions": [
+        "pricing_change",
+        "discount",
+        "bulk_outbound",
+        "legal_sensitive",
+        "credential_rotation",
+        "data_delete",
+        "new_channel_publish"
+      ]
+    },
+    {
+      "id": "scout",
+      "name": "VNX Scout",
+      "mission": "Descubrir empresas objetivo y señales de compra en fuentes permitidas.",
+      "mode": "AUTONOMOUS",
+      "approval_actions": []
+    },
+    {
+      "id": "enrich",
+      "name": "VNX Enrich",
+      "mission": "Enriquecer cuentas y contactos con datos empresariales permitidos y validar calidad.",
+      "mode": "AUTONOMOUS",
+      "approval_actions": []
+    },
+    {
+      "id": "outreach",
+      "name": "VNX Outreach",
+      "mission": "Preparar y ejecutar captación B2B dentro de políticas, límites y base legal.",
+      "mode": "EXECUTE_WITHIN_POLICY",
+      "approval_actions": [
+        "first_campaign",
+        "bulk_outbound",
+        "new_outbound_domain"
+      ]
+    },
+    {
+      "id": "inbox",
+      "name": "VNX Inbox",
+      "mission": "Clasificar y responder consultas dentro del conocimiento aprobado.",
+      "mode": "EXECUTE_WITHIN_POLICY",
+      "approval_actions": [
+        "legal_sensitive",
+        "complaint",
+        "pricing_exception"
+      ]
+    },
+    {
+      "id": "qualify",
+      "name": "VNX Qualify",
+      "mission": "Puntuar, priorizar y decidir siguiente acción comercial.",
+      "mode": "AUTONOMOUS",
+      "approval_actions": []
+    },
+    {
+      "id": "scheduler",
+      "name": "VNX Scheduler",
+      "mission": "Gestionar disponibilidad, reservas, recordatorios y no-shows.",
+      "mode": "EXECUTE_WITHIN_POLICY",
+      "approval_actions": []
+    },
+    {
+      "id": "crm",
+      "name": "VNX CRM",
+      "mission": "Mantener CRM, pipeline, next best action y trazabilidad.",
+      "mode": "EXECUTE_WITHIN_POLICY",
+      "approval_actions": [
+        "close_won_without_payment",
+        "mass_edit"
+      ]
+    },
+    {
+      "id": "proposal",
+      "name": "VNX Proposal",
+      "mission": "Preparar propuestas y seguimiento sin inventar condiciones.",
+      "mode": "PREPARE",
+      "approval_actions": [
+        "send_proposal",
+        "pricing_change",
+        "discount"
+      ]
+    },
+    {
+      "id": "content",
+      "name": "VNX Content",
+      "mission": "Crear SEO, artículos, landing pages y contenidos sociales alineados con marca.",
+      "mode": "EXECUTE_WITHIN_POLICY",
+      "approval_actions": [
+        "new_channel_publish",
+        "sensitive_claim"
+      ]
+    },
+    {
+      "id": "analyst",
+      "name": "VNX Analyst",
+      "mission": "Medir adquisición, conversión, pipeline, ROI y recomendar cambios.",
+      "mode": "AUTONOMOUS",
+      "approval_actions": []
+    },
+    {
+      "id": "provision",
+      "name": "VNX Provision",
+      "mission": "Dar de alta nuevos clientes, generar instalación y coordinar integraciones.",
+      "mode": "PREPARE",
+      "approval_actions": [
+        "tenant_activate",
+        "credential_write",
+        "production_install"
+      ]
+    }
+  ]
+}
