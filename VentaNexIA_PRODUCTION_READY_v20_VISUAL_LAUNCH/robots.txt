@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Sitemap: https://www.ventanexia.es/sitemap.xml
+
+Disallow: /control.html
+Disallow: /api/admin-

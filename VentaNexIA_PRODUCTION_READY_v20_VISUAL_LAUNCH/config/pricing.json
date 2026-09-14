@@ -1,0 +1,45 @@
+{
+  "currency": "EUR",
+  "vat_note": "Precios sin IVA. Los impuestos se aplicarán según corresponda.",
+  "trial_days": 3,
+  "plans": {
+    "start": {
+      "name": "VNX Start",
+      "monthly": 490,
+      "setup": 790,
+      "agents_included": 3,
+      "integrations_included": 2,
+      "description": "Para pequeñas empresas que quieren automatizar un proceso comercial principal."
+    },
+    "core": {
+      "name": "VNX Core",
+      "monthly": 990,
+      "setup": 1490,
+      "agents_included": 6,
+      "integrations_included": 5,
+      "description": "Plan recomendado para automatización comercial continua y coordinada."
+    },
+    "scale": {
+      "name": "VNX Scale",
+      "monthly": 1990,
+      "setup": 2990,
+      "agents_included": 12,
+      "integrations_included": 10,
+      "description": "Para procesos complejos, varios equipos o módulos personalizados."
+    },
+    "enterprise": {
+      "name": "VNX Enterprise",
+      "monthly_from": 3990,
+      "setup": "custom",
+      "agents_included": "custom",
+      "integrations_included": "custom",
+      "description": "Arquitectura a medida para multiempresa, alto volumen o requisitos especiales."
+    }
+  },
+  "addons": {
+    "extra_agent": {
+      "monthly": 150,
+      "description": "Agente VNX estándar adicional sobre los incluidos en el plan."
+    }
+  }
+}
