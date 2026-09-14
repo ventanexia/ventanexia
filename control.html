@@ -1,0 +1,18 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>VNX Control · VentaNexIA</title><link rel="stylesheet" href="/assets/control.css"></head>
+<body><main class="shell">
+<header><div><div class="brand">VentaNexIA <span>CONTROL</span></div><p>Centro de mando multiempresa · agentes · aprobaciones · provisionamiento</p></div><button id="logout" class="ghost" hidden>Salir</button></header>
+<section id="login" class="login card"><h1>VNX Control</h1><p>Acceso administrativo protegido.</p><form id="loginForm"><input id="password" type="password" placeholder="Contraseña" required autocomplete="current-password"><button>Entrar</button><div id="loginMsg"></div></form></section>
+<section id="app" hidden>
+<div class="status" id="status"></div>
+<div class="grid metrics"><article class="card"><span>Clientes</span><strong id="tenantCount">—</strong></article><article class="card"><span>Aprobaciones</span><strong id="approvalCount">—</strong></article><article class="card"><span>Trabajos activos</span><strong id="jobCount">—</strong></article><article class="card"><span>Modo</span><strong>Guardian</strong></article></div>
+<div class="two">
+<section class="card"><h2>Nuevo cliente</h2><p>Genera el tenant, agentes y cola de instalación. Producción exige aprobación.</p><form id="tenantForm"><input name="name" placeholder="Empresa" required><input name="domain" placeholder="dominio.es"><select name="autonomy_level"><option value="execute_within_policy">Ejecutar dentro de política</option><option value="prepare">Preparar y pedir aprobación</option><option value="full_after_approval">Máxima autonomía tras aprobación</option></select><button>Preparar alta</button></form><pre id="install"></pre></section>
+<section class="card"><h2>Integraciones</h2><div id="integrations" class="integrations"></div></section>
+</div>
+<section class="card"><div class="row"><div><h2>Aprobaciones pendientes</h2><p>Solo aparecen acciones que Guardian considera sensibles.</p></div><button id="refresh" class="ghost">Actualizar</button></div><div id="approvals"></div></section>
+<section class="card"><h2>Clientes</h2><div id="tenants"></div></section>
+<section class="card"><h2>Agentes activos por defecto</h2><div class="agents">
+<div><b>Guardian</b><span>política y riesgo</span></div><div><b>Scout</b><span>prospección</span></div><div><b>Enrich</b><span>datos</span></div><div><b>Outreach</b><span>captación</span></div><div><b>Inbox</b><span>respuestas</span></div><div><b>Qualify</b><span>scoring</span></div><div><b>Scheduler</b><span>agenda</span></div><div><b>CRM</b><span>pipeline</span></div><div><b>Proposal</b><span>propuestas</span></div><div><b>Content</b><span>SEO/social</span></div><div><b>Analyst</b><span>ROI</span></div><div><b>Provision</b><span>altas</span></div>
+</div></section>
+</section></main><script src="/assets/control.js"></script></body></html>

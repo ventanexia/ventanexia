@@ -1,0 +1,55 @@
+VENTANEXIA — CHECKLIST DE PUBLICACIÓN
+
+YA PREPARADO
+- Home responsive.
+- Diseño corporativo VentaNexIA.
+- Dashboard VNX CORE de demostración sin atribuir datos ficticios a clientes reales.
+- Formulario conectado a /api/lead.
+- Endpoint serverless preparado para HubSpot.
+- Pipeline HubSpot mapeado.
+- HTTPS esperado mediante Vercel.
+- robots.txt + sitemap.xml.
+- Cabeceras básicas de seguridad.
+- 404.
+- Páginas legales base.
+- Dominio ventanexia.es ya adquirido.
+- SPF / DKIM / DMARC previamente verificados.
+
+PARA ACTIVAR EL CRM EN PRODUCCIÓN
+Variable de entorno en Vercel:
+HUBSPOT_ACCESS_TOKEN=<token privado de HubSpot>
+
+No escribir el token en ningún archivo ni en el repositorio.
+
+ANTES DE PUBLICAR COMO WEB DEFINITIVA
+- Completar CIF, domicilio social y datos registrales oficiales de ECOJAFER S.L. en aviso legal/privacidad.
+- Retirar el rótulo de BORRADOR en páginas legales cuando los datos estén validados.
+- Conectar dominio ventanexia.es / www.ventanexia.es al proyecto.
+- Probar envío de formulario y creación de contacto/negocio en HubSpot.
+- Conectar calendario de demos.
+- Añadir analítica únicamente con el consentimiento/categorías de cookies que correspondan.
+
+PAGOS / AUTOMATIZACIÓN
+[ ] Conectar Stripe con Ecojafer S.L.
+[ ] Añadir cuenta bancaria de cobro/payout directamente en Stripe (NO en el código).
+[ ] Crear productos/precios Stripe definitivos tras validar oferta.
+[ ] Configurar STRIPE_PRICE_SETUP y STRIPE_PRICE_MONTHLY en Vercel.
+[ ] Configurar STRIPE_SECRET_KEY y STRIPE_WEBHOOK_SECRET en Vercel.
+[ ] Crear AUTOMATION_WEBHOOK_SECRET largo/aleatorio.
+[ ] Conectar N8N_AUTOMATION_WEBHOOK cuando exista.
+[ ] Configurar BOOKING_URL.
+[ ] Ejecutar una reserva de prueba.
+[ ] Ejecutar un pago de prueba.
+[ ] Confirmar que HubSpot pasa a Ganado solo tras evento de pago válido.
+
+
+
+VNX CONTROL / MULTIEMPRESA
+[ ] Conectar Supabase.
+[ ] Ejecutar supabase/migrations/001_vnx_control.sql.
+[ ] Configurar SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY.
+[ ] Configurar ADMIN_PASSWORD y ADMIN_SESSION_SECRET.
+[ ] Verificar que /control.html no se indexa.
+[ ] Crear primer tenant de prueba.
+[ ] Verificar aprobación Guardian -> ejecución.
+[ ] Instalar script VNX en un entorno piloto antes de clientes.
