@@ -1,0 +1,68 @@
+{
+  "linkedin": {
+    "content": [
+      "text",
+      "image",
+      "video",
+      "document",
+      "article",
+      "multi_image",
+      "poll"
+    ],
+    "auth": "oauth",
+    "notes": "Requires appropriate member/organization permissions and page role.",
+    "approval_default": "approval_required"
+  },
+  "instagram": {
+    "content": [
+      "image",
+      "video",
+      "reel",
+      "carousel"
+    ],
+    "auth": "oauth",
+    "notes": "Professional/business account capabilities depend on Meta app permissions and account setup.",
+    "approval_default": "approval_required"
+  },
+  "facebook": {
+    "content": [
+      "text",
+      "image",
+      "video",
+      "link"
+    ],
+    "auth": "oauth",
+    "notes": "Page publishing depends on Meta app permissions and page authorization.",
+    "approval_default": "approval_required"
+  },
+  "tiktok": {
+    "content": [
+      "video",
+      "photo"
+    ],
+    "auth": "oauth",
+    "notes": "Direct Post requires approved scope; unaudited clients can be restricted to private visibility.",
+    "approval_default": "approval_required"
+  },
+  "x": {
+    "content": [
+      "text",
+      "image",
+      "video",
+      "thread"
+    ],
+    "auth": "oauth",
+    "notes": "Publishing requires an approved developer app and user access token; API usage may carry provider cost.",
+    "approval_default": "approval_required"
+  },
+  "metricool": {
+    "content": [
+      "scheduler",
+      "analytics",
+      "recommended_times"
+    ],
+    "auth": "oauth_or_provider_connection",
+    "notes": "Optional orchestration/scheduling layer when connected.",
+    "approval_default": "approval_required"
+  }
+}
