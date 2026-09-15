@@ -25,6 +25,14 @@ async function stripePost(path,params,idempotencyKey){
   if(!r.ok) throw new Error(data?.error?.message||`Stripe ${r.status}`);
   return data;
 }
+async function stripeGet(path){
+  const key=process.env.STRIPE_SECRET_KEY;
+  if(!key) throw new Error("STRIPE_NOT_CONFIGURED");
+  const r=await fetch(`https://api.stripe.com/v1${path}`,{headers:{"Authorization":`Bearer ${key}`}});
+  const data=await r.json();
+  if(!r.ok) throw new Error(data?.error?.message||`Stripe ${r.status}`);
+  return data;
+}
 
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
@@ -37,9 +45,9 @@ export default async function handler(req,res){
   if(!dealId||!email) return res.status(400).json({error:"dealId y email son obligatorios"});
 
   const priceMap={
-    start:{monthly:process.env.STRIPE_PRICE_START_MONTHLY},
-    core:{monthly:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY},
-    scale:{monthly:process.env.STRIPE_PRICE_SCALE_MONTHLY}
+    start:{monthly:process.env.STRIPE_PRICE_START_MONTHLY,expectedAmount:35000},
+    core:{monthly:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,expectedAmount:90000},
+    scale:{monthly:process.env.STRIPE_PRICE_SCALE_MONTHLY,expectedAmount:175000}
   };
   const chosen=priceMap[plan];
   if(!chosen) return res.status(400).json({error:"Plan no válido"});
@@ -77,6 +85,10 @@ export default async function handler(req,res){
   }
 
   try{
+    const configuredPrice=await stripeGet(`/prices/${encodeURIComponent(monthly)}`);
+    if(configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==chosen.expectedAmount||configuredPrice.recurring?.interval!=="month"){
+      throw new Error("STRIPE_PRICE_MISMATCH");
+    }
     const session=await stripePost("/checkout/sessions",params,`vnx-${dealId}-${plan}`);
     console.log(JSON.stringify({event:"checkout_created",dealId,sessionId:session.id,ts:new Date().toISOString()}));
     return res.status(200).json({ok:true,sessionId:session.id,checkoutUrl:session.url});
