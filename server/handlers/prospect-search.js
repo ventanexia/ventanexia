@@ -2,14 +2,6 @@ function clean(value, max = 220) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
 }
 
-function stripHtml(s = "") {
-  return String(s).replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/\s+/g, " ").trim();
-}
-
-function decodeXml(s = "") {
-  return String(s).replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
-}
-
 function extractJson(text) {
   const raw = String(text || "").trim();
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -20,15 +12,33 @@ function extractJson(text) {
   return JSON.parse(candidate.slice(first, last + 1));
 }
 
+const BLOCKED_HOSTS = [
+  "reddit.com", "wikipedia.org", "facebook.com", "instagram.com", "linkedin.com",
+  "youtube.com", "x.com", "twitter.com", "pinterest.", "tiktok.com", "bing.com", "google."
+];
+
+function isBlockedUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return BLOCKED_HOSTS.some(x => host.includes(x));
+  } catch {
+    return true;
+  }
+}
+
 function normalizeLead(item) {
-  const sources = Array.isArray(item?.sources) ? item.sources.map(x => clean(x, 500)).filter(x => /^https?:\/\//i.test(x)).slice(0, 5) : [];
+  const sources = Array.isArray(item?.sources)
+    ? item.sources.map(x => clean(x, 500)).filter(x => /^https?:\/\//i.test(x) && !isBlockedUrl(x)).slice(0, 5)
+    : [];
+
+  const website = clean(item?.website, 380);
   return {
     name: clean(item?.name, 160),
     activity: clean(item?.activity, 220),
     address: clean(item?.address, 280),
     phone: clean(item?.phone, 120),
     email: clean(item?.email, 200),
-    website: clean(item?.website, 380),
+    website: website && !isBlockedUrl(website) ? website : "",
     fit: clean(item?.fit, 420),
     sources
   };
@@ -57,25 +67,103 @@ function userNeed({ request, sells, clientType, zone }) {
   return request || structured;
 }
 
+async function fetchOk(url, timeout = 7000) {
+  if (!url || isBlockedUrl(url)) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const r = await fetch(url, {
+      signal: controller.signal,
+      redirect: "follow",
+      headers: {
+        "user-agent": "Mozilla/5.0 (compatible; VentaNexIA/1.0; +https://www.ventanexia.es)",
+        "accept-language": "es-ES,es;q=0.9"
+      }
+    });
+    return r.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function looksLikeRealBusinessName(name) {
+  const n = String(name || "").toLowerCase();
+  if (!n || n.length < 2) return false;
+  const bad = ["reddit", "wiki", "wikipedia", "forum", "foro", "thread", "r/", "quora", "claustrophobic"];
+  return !bad.some(x => n.includes(x));
+}
+
+async function verifyLeads(items) {
+  const out = [];
+  for (const raw of items || []) {
+    const lead = normalizeLead(raw);
+    if (!looksLikeRealBusinessName(lead.name)) continue;
+
+    const urls = [lead.website, ...lead.sources].filter(Boolean);
+    if (!urls.length) continue;
+
+    let verifiedUrl = "";
+    for (const url of urls.slice(0, 3)) {
+      if (await fetchOk(url)) {
+        verifiedUrl = url;
+        break;
+      }
+    }
+    if (!verifiedUrl) continue;
+
+    if (!lead.website) lead.website = verifiedUrl;
+    if (!lead.sources.length) lead.sources = [verifiedUrl];
+    out.push(lead);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
 async function callOpenAI(input) {
   const key = String(process.env.OPENAI_API_KEY || "").trim();
   if (!key) return null;
   const need = userNeed(input);
-  const prompt = `Eres el motor de prospección comercial de VentaNexIA. Entiende la necesidad aunque esté escrita de forma coloquial. Busca exactamente 3 compradores potenciales REALES en internet. No busques competidores ni vendedores del mismo producto salvo que se pida. Verifica cada empresa con fuentes públicas. Nunca inventes datos. Devuelve SOLO JSON válido con interpreted{sells,clientType,zone,summary} y leads[{name,activity,address,phone,email,website,fit,sources}].\n\nPETICIÓN: ${need}`;
+  const prompt = `Eres el motor de prospección comercial de VentaNexIA.
+
+OBJETIVO: encontrar empresas REALES que encajen exactamente con lo que pide el usuario y que puedan ser clientes potenciales.
+
+REGLAS OBLIGATORIAS:
+- Interpreta la intención completa, no palabras sueltas. Ejemplo: si vende muebles de cocina y busca tiendas, debes buscar tiendas reales de muebles de cocina, estudios de cocina o distribuidores adecuados; NO cualquier "tienda".
+- Devuelve SOLO empresas o negocios reales. Nunca artículos, foros, Reddit, Wikipedia, directorios genéricos, páginas informativas o resultados editoriales.
+- Cada resultado debe tener una web oficial o una fuente pública verificable de la propia empresa.
+- No inventes nombre, dirección, teléfono, email ni web. Si un dato no aparece públicamente, déjalo como cadena vacía.
+- La zona debe corresponder a la petición. No escribas una ciudad como dirección si no has encontrado una dirección real.
+- No devuelvas competidores o vendedores del mismo producto salvo que precisamente sean el tipo de cliente solicitado.
+- Es preferible devolver 1 o 2 empresas correctas antes que completar 3 con resultados dudosos.
+- En fit explica en una frase concreta por qué esa empresa encaja con la búsqueda.
+
+Devuelve SOLO JSON válido con:
+interpreted{sells,clientType,zone,summary}
+leads[{name,activity,address,phone,email,website,fit,sources}]
+
+PETICIÓN DEL USUARIO: ${need}`;
+
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 28000);
+  const timer = setTimeout(() => controller.abort(), 30000);
   try {
     const r = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       signal: controller.signal,
       headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ model: "gpt-5.6-luna", tools: [{ type: "web_search" }], input: prompt, max_output_tokens: 2800 })
+      body: JSON.stringify({
+        model: "gpt-5.6-luna",
+        tools: [{ type: "web_search" }],
+        input: prompt,
+        max_output_tokens: 3000
+      })
     });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(`OPENAI_${r.status}:${clean(data?.error?.message || "", 180)}`);
     const parsed = extractJson(responseText(data));
-    const leads = Array.isArray(parsed?.leads) ? parsed.leads.map(normalizeLead).filter(x => x.name).slice(0, 3) : [];
-    if (!leads.length) throw new Error("OPENAI_NO_RESULTS");
+    const leads = await verifyLeads(Array.isArray(parsed?.leads) ? parsed.leads : []);
+    if (!leads.length) throw new Error("OPENAI_NO_VERIFIED_BUSINESSES");
     return {
       interpreted: {
         sells: clean(parsed?.interpreted?.sells || input.sells, 180),
@@ -86,7 +174,58 @@ async function callOpenAI(input) {
       leads,
       provider: "openai-web-search"
     };
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function callGooglePlaces(input) {
+  const key = String(process.env.GOOGLE_PLACES_API_KEY || "").trim();
+  if (!key || !input.zone) return null;
+
+  const target = clean(input.clientType || input.request, 300);
+  if (!target) return null;
+
+  const query = input.sells && input.clientType
+    ? `${input.clientType} de ${input.sells} en ${input.zone}, España`
+    : `${target} en ${input.zone}, España`;
+
+  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": key,
+      "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.types"
+    },
+    body: JSON.stringify({ textQuery: query, languageCode: "es", regionCode: "ES", pageSize: 8 })
+  });
+  if (!r.ok) throw new Error(`GOOGLE_PLACES_${r.status}`);
+  const data = await r.json();
+
+  const raw = (data?.places || []).map(p => ({
+    name: p?.displayName?.text,
+    activity: input.clientType || target,
+    address: p?.formattedAddress || "",
+    phone: p?.nationalPhoneNumber || "",
+    email: "",
+    website: p?.websiteUri || "",
+    fit: `Negocio localizado en ${input.zone} mediante Google Places y relacionado con la búsqueda solicitada.`,
+    sources: [p?.websiteUri, p?.googleMapsUri].filter(Boolean)
+  }));
+
+  const leads = raw.map(normalizeLead).filter(x => x.name && (x.website || x.sources.length)).slice(0, 3);
+  if (!leads.length) return null;
+
+  return {
+    interpreted: {
+      sells: clean(input.sells),
+      clientType: clean(input.clientType || target),
+      zone: clean(input.zone),
+      summary: clean(userNeed(input), 420)
+    },
+    leads,
+    provider: "google-places"
+  };
 }
 
 async function callSonar(input) {
@@ -98,147 +237,28 @@ async function callSonar(input) {
     headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "perplexity/sonar-pro",
-      messages: [{ role: "user", content: `Busca en la web 3 compradores potenciales REALES para esta petición: ${need}. No inventes datos. Devuelve SOLO JSON con interpreted{sells,clientType,zone,summary} y leads[{name,activity,address,phone,email,website,fit,sources}].` }],
-      temperature: 0.1,
-      max_tokens: 2600
+      messages: [{
+        role: "user",
+        content: `Busca empresas REALES que encajen exactamente con esta petición comercial: ${need}. Interpreta la necesidad completa. Si vende muebles de cocina y busca tiendas, busca tiendas/estudios reales de muebles de cocina, no resultados que contengan simplemente la palabra tienda. Prohibido devolver Reddit, Wikipedia, foros, artículos, directorios genéricos o páginas editoriales. Cada empresa debe tener web oficial o fuente pública verificable. No inventes datos y deja vacío lo que no encuentres. Es mejor devolver menos de 3 que incluir un resultado dudoso. Devuelve SOLO JSON con interpreted{sells,clientType,zone,summary} y leads[{name,activity,address,phone,email,website,fit,sources}].`
+      }],
+      temperature: 0,
+      max_tokens: 2800
     })
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`SONAR_${r.status}`);
   const parsed = extractJson(data?.choices?.[0]?.message?.content || "");
-  const leads = Array.isArray(parsed?.leads) ? parsed.leads.map(normalizeLead).filter(x => x.name).slice(0, 3) : [];
-  if (!leads.length) throw new Error("SONAR_NO_RESULTS");
+  const leads = await verifyLeads(Array.isArray(parsed?.leads) ? parsed.leads : []);
+  if (!leads.length) throw new Error("SONAR_NO_VERIFIED_BUSINESSES");
   return {
     interpreted: {
       sells: clean(parsed?.interpreted?.sells || input.sells, 180),
       clientType: clean(parsed?.interpreted?.clientType || input.clientType, 180),
       zone: clean(parsed?.interpreted?.zone || input.zone, 180),
       summary: clean(parsed?.interpreted?.summary || need, 420)
-    }, leads, provider: "sonar-web-search"
-  };
-}
-
-async function callGooglePlaces(input) {
-  const key = String(process.env.GOOGLE_PLACES_API_KEY || "").trim();
-  if (!key || !input.clientType || !input.zone) return null;
-  const r = await fetch("https://places.googleapis.com/v1/places:searchText", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri" },
-    body: JSON.stringify({ textQuery: `${input.clientType} en ${input.zone}, España`, languageCode: "es", regionCode: "ES", pageSize: 8 })
-  });
-  if (!r.ok) throw new Error(`GOOGLE_PLACES_${r.status}`);
-  const data = await r.json();
-  const leads = (data?.places || []).slice(0, 3).map(p => normalizeLead({
-    name: p?.displayName?.text,
-    activity: input.clientType,
-    address: p?.formattedAddress,
-    phone: p?.nationalPhoneNumber,
-    email: "",
-    website: p?.websiteUri,
-    fit: `Por su actividad en ${input.zone}, puede ser un posible comprador de ${input.sells || "lo que ofrece el visitante"}.`,
-    sources: [p?.websiteUri || p?.googleMapsUri].filter(Boolean)
-  })).filter(x => x.name);
-  if (!leads.length) return null;
-  return { interpreted: { sells: clean(input.sells), clientType: clean(input.clientType), zone: clean(input.zone), summary: userNeed(input) }, leads, provider: "google-places" };
-}
-
-async function fetchText(url, timeout = 7000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  try {
-    const r = await fetch(url, { signal: controller.signal, redirect: "follow", headers: { "user-agent": "Mozilla/5.0 (compatible; VentaNexIA/1.0; +https://www.ventanexia.es)", "accept-language": "es-ES,es;q=0.9" } });
-    if (!r.ok) throw new Error(`HTTP_${r.status}`);
-    return await r.text();
-  } finally { clearTimeout(timer); }
-}
-
-function parseBingRss(xml) {
-  const items = [];
-  const re = /<item>([\s\S]*?)<\/item>/gi;
-  let m;
-  while ((m = re.exec(xml)) && items.length < 12) {
-    const block = m[1];
-    const title = decodeXml(block.match(/<title>([\s\S]*?)<\/title>/i)?.[1] || "");
-    const link = decodeXml(block.match(/<link>([\s\S]*?)<\/link>/i)?.[1] || "");
-    const description = stripHtml(decodeXml(block.match(/<description>([\s\S]*?)<\/description>/i)?.[1] || ""));
-    if (/^https?:\/\//i.test(link) && title) items.push({ title: clean(title, 180), url: clean(link, 500), description: clean(description, 500) });
-  }
-  return items;
-}
-
-const BLOCKED = ["bing.com","google.","youtube.com","facebook.com","instagram.com","linkedin.com","wikipedia.org","x.com","twitter.com"];
-function acceptableUrl(url) {
-  try { const h = new URL(url).hostname.toLowerCase(); return !BLOCKED.some(x => h.includes(x)); } catch { return false; }
-}
-
-function extractContact(html) {
-  const text = stripHtml(html).slice(0, 100000);
-  const email = (text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i) || [""])[0];
-  const phone = (text.match(/(?:\+34[\s.-]?)?(?:[6789]\d{2})[\s.-]?\d{3}[\s.-]?\d{3}/) || [""])[0];
-  const siteName = html.match(/<meta[^>]+property=["']og:site_name["'][^>]+content=["']([^"']+)["']/i)?.[1];
-  const title = stripHtml(siteName || html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || "").split(/[|–—]/)[0];
-  return { title: clean(title, 160), email: clean(email, 180), phone: clean(phone, 100), text };
-}
-
-async function callBingFallback(input) {
-  const need = userNeed(input);
-  const queries = [];
-  if (input.clientType && input.zone) {
-    queries.push(`${input.clientType} ${input.zone} contacto`);
-    queries.push(`${input.clientType} ${input.zone} empresa`);
-  }
-  if (input.request) queries.push(`${input.request} España empresa contacto`);
-  if (!queries.length) queries.push(`${need} España empresa contacto`);
-
-  const seen = new Set();
-  const candidates = [];
-  for (const q of queries.slice(0, 3)) {
-    try {
-      const xml = await fetchText(`https://www.bing.com/search?format=rss&setlang=es&q=${encodeURIComponent(q)}`, 7000);
-      for (const row of parseBingRss(xml)) {
-        if (!acceptableUrl(row.url)) continue;
-        let host = "";
-        try { host = new URL(row.url).hostname.replace(/^www\./, "").toLowerCase(); } catch {}
-        if (!host || seen.has(host)) continue;
-        seen.add(host); candidates.push(row);
-      }
-    } catch (e) { console.error("bing-rss", e); }
-    if (candidates.length >= 8) break;
-  }
-
-  const leads = [];
-  for (const row of candidates.slice(0, 10)) {
-    let name = row.title, email = "", phone = "", website = row.url;
-    try {
-      const html = await fetchText(row.url, 5500);
-      const c = extractContact(html);
-      name = c.title || name; email = c.email; phone = c.phone;
-      try { website = new URL(row.url).origin + "/"; } catch {}
-    } catch {}
-    const lower = `${row.title} ${row.description}`.toLowerCase();
-    if (input.zone && !lower.includes(input.zone.toLowerCase()) && leads.length >= 2) continue;
-    leads.push(normalizeLead({
-      name,
-      activity: input.clientType || "Posible comprador",
-      address: input.zone || "",
-      phone,
-      email,
-      website,
-      fit: `Encaja con la búsqueda solicitada y puede ser un posible comprador de ${input.sells || "lo que ofrece el visitante"}.`,
-      sources: [row.url]
-    }));
-    if (leads.length >= 3) break;
-  }
-  if (!leads.length) return null;
-  return {
-    interpreted: {
-      sells: clean(input.sells, 180),
-      clientType: clean(input.clientType || "Compradores potenciales", 180),
-      zone: clean(input.zone, 180),
-      summary: clean(need, 420)
     },
     leads,
-    provider: "bing-web-fallback"
+    provider: "sonar-web-search"
   };
 }
 
@@ -247,8 +267,7 @@ async function findProspects(input) {
   for (const [name, fn] of [
     ["openai", callOpenAI],
     ["google", callGooglePlaces],
-    ["sonar", callSonar],
-    ["bing", callBingFallback]
+    ["sonar", callSonar]
   ]) {
     try {
       const result = await fn(input);
@@ -258,21 +277,34 @@ async function findProspects(input) {
       console.error("prospect-search-provider", name, e);
     }
   }
-  throw new Error(errors.join(" | ") || "NO_SEARCH_RESULTS");
+  throw new Error(errors.join(" | ") || "NO_VERIFIED_SEARCH_RESULTS");
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido" });
+
   const request = clean(req.body?.request, 900);
   const sells = clean(req.body?.sells, 180);
   const clientType = clean(req.body?.clientType, 180);
   const zone = clean(req.body?.zone, 180);
-  if (!request && !(sells && clientType && zone)) return res.status(400).json({ error: "Escribe qué quieres encontrar o completa qué vendes, tipo de cliente y zona." });
+
+  if (!request && !(sells && clientType && zone)) {
+    return res.status(400).json({ error: "Escribe qué quieres encontrar o completa qué vendes, tipo de cliente y zona." });
+  }
+
   try {
     const result = await findProspects({ request, sells, clientType, zone });
-    return res.status(200).json({ query: result.interpreted, leads: result.leads, verified: true, sourceMode: result.provider });
+    return res.status(200).json({
+      query: result.interpreted,
+      leads: result.leads,
+      verified: true,
+      sourceMode: result.provider,
+      verificationMessage: "Solo mostramos empresas con una fuente pública comprobable. Si un dato no está publicado, no lo inventamos."
+    });
   } catch (error) {
     console.error("prospect-search", error);
-    return res.status(502).json({ error: "No hemos podido completar la búsqueda ahora mismo. Prueba de nuevo con una descripción un poco más concreta del tipo de cliente y la zona." });
+    return res.status(502).json({
+      error: "No hemos encontrado empresas que podamos comprobar con suficiente seguridad. Prueba a concretar el tipo de cliente y la zona."
+    });
   }
 }
