@@ -1,5 +1,7 @@
-function clean(v,max=1200){return String(v||"").trim().slice(0,max)}
+import { generateText } from "ai";
+import { gateway } from "@ai-sdk/gateway";
 
+function clean(v,max=1200){return String(v||"").trim().slice(0,max)}
 function extractText(data){
   if(typeof data?.output_text==="string"&&data.output_text.trim()) return data.output_text.trim();
   const out=Array.isArray(data?.output)?data.output:[];
@@ -13,7 +15,6 @@ function extractText(data){
   }
   return parts.join("\n").trim();
 }
-
 function parseJson(text){
   const s=String(text||"").trim().replace(/^```json\s*/i,"").replace(/```$/i,"").trim();
   try{return JSON.parse(s)}catch{}
@@ -22,15 +23,18 @@ function parseJson(text){
   return null;
 }
 
-async function runWithSearch(prompt){
+const systemPrompt=`Eres el analista comercial de VentaNexIA. Tu trabajo es generar oportunidades reales y trabajo comercial útil. Para empresas, webs, direcciones, teléfonos, emails o cualquier dato actual debes usar búsqueda web. Nunca inventes contactos. Solo usa emails empresariales publicados públicamente. Si un dato no aparece de forma fiable, escribe "No publicado". Distingue hechos verificados de hipótesis comerciales. Devuelve SOLO JSON válido, sin markdown.`;
+
+async function nativeWebSearch(prompt){
   const token=String(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||"");
   if(!token) throw new Error("AI_GATEWAY_NOT_CONFIGURED");
   const body={
     model:"openai/gpt-5.6-sol",
-    instructions:`Eres el analista comercial de VentaNexIA. Tu trabajo es generar oportunidades reales y trabajo comercial útil. Usa búsqueda web siempre que necesites identificar empresas, webs, direcciones, teléfonos, emails o cualquier dato actual. Nunca inventes contactos. Solo usa emails empresariales publicados públicamente. Si un dato no aparece de forma fiable, escribe "No publicado". Distingue siempre entre hechos verificados e hipótesis comerciales. Devuelve SOLO JSON válido, sin markdown.`,
+    instructions:systemPrompt,
     input:prompt,
     tools:[{type:"web_search"}],
-    max_output_tokens:3000,
+    tool_choice:"required",
+    max_output_tokens:3200,
     reasoning:{effort:"medium"}
   };
   const r=await fetch("https://ai-gateway.vercel.sh/v1/responses",{
@@ -39,25 +43,40 @@ async function runWithSearch(prompt){
     body:JSON.stringify(body)
   });
   const data=await r.json().catch(()=>({}));
-  if(!r.ok){
-    const msg=data?.error?.message||data?.message||`GATEWAY_${r.status}`;
-    console.error("free-value-gateway",r.status,msg);
-    throw new Error(msg);
-  }
-  const text=extractText(data);
-  const parsed=parseJson(text);
-  if(!parsed){
-    console.error("free-value-invalid-output",text.slice(0,500));
-    throw new Error("INVALID_AI_OUTPUT");
-  }
+  if(!r.ok) throw new Error(data?.error?.message||data?.message||`GATEWAY_${r.status}`);
+  const parsed=parseJson(extractText(data));
+  if(!parsed) throw new Error("INVALID_NATIVE_OUTPUT");
   return parsed;
+}
+
+async function perplexityFallback(prompt){
+  const result=await generateText({
+    model:"openai/gpt-5.6-sol",
+    system:systemPrompt,
+    prompt:`Usa obligatoriamente la herramienta de búsqueda web antes de responder.\n\n${prompt}`,
+    tools:{perplexity_search:gateway.tools.perplexitySearch()},
+    toolChoice:"required",
+    maxOutputTokens:3200
+  });
+  const parsed=parseJson(result.text);
+  if(!parsed) throw new Error("INVALID_FALLBACK_OUTPUT");
+  return parsed;
+}
+
+async function runWithSearch(prompt){
+  try{
+    return await nativeWebSearch(prompt);
+  }catch(first){
+    console.error("native-web-search-failed",first?.message||first);
+    return await perplexityFallback(prompt);
+  }
 }
 
 async function prospects({offer,buyerType,area,website}){
   const buyerInstruction=buyerType
-    ?`El usuario ha indicado que quiere vender principalmente a este tipo de cliente: ${buyerType}. Respeta esa preferencia y busca compradores reales dentro de ese perfil.`
-    :`El usuario no ha indicado un tipo de cliente concreto. Deduce tú los perfiles de comprador con más sentido a partir de lo que vende.`;
-  const prompt=`El usuario vende u ofrece esto:\n${offer}\n\n${buyerInstruction}\n\nZona preferida: ${area||"España"}\nWeb del usuario: ${website||"No indicada"}\n\nBusca EXACTAMENTE 3 empresas reales de la zona que puedan ser oportunidades razonables. Si el usuario ha elegido particulares, no inventes personas privadas: busca canales o empresas que permitan llegar a particulares, como tiendas, distribuidores, marketplaces, colectivos o puntos de venta apropiados.\n\nNo busques empresas del mismo sector para revenderles sin sentido. Busca compradores potenciales o canales de venta plausibles. Para cada oportunidad:\n- verifica nombre y actividad;\n- dirección pública;\n- web oficial;\n- teléfono público;\n- email comercial público si existe;\n- explica por qué podría encajar, sin afirmar que sabemos que necesita comprar;\n- redacta el asunto y el email exacto que dejarías en BORRADORES;\n- propone una imagen o material comercial útil para acompañar el email;\n- indica la siguiente acción si no responde;\n- incluye URLs de las fuentes públicas que has usado.\n\nDevuelve EXACTAMENTE esta estructura JSON:\n{"agent_name":"Agente Captador de Clientes","agent_goal":"Identifica quién puede necesitar lo que vendes, encuentra oportunidades reales y deja el contacto preparado","title":"3 oportunidades comerciales reales","summary":"Explica brevemente qué perfil de comprador se ha buscado y por qué.","items":[{"name":"","fit":"Encaja mucho|Encaja|Encaja poco","why":"","address":"","website":"","phone":"","email":"","sales_angle":"","email_subject":"","email_body":"","image_concept":"","image_text":"","next_action":"","sources":["https://..."]}],"trust_note":"Datos empresariales obtenidos de fuentes públicas. Conviene verificarlos antes de contactar y nada se envía sin aprobación."}`;
+    ?`El usuario quiere vender principalmente a este perfil: ${buyerType}. Respeta ese criterio como filtro prioritario.`
+    :`El usuario no ha indicado un perfil concreto. Deduce tú los compradores con más sentido.`;
+  const prompt=`El usuario vende u ofrece esto:\n${offer}\n\n${buyerInstruction}\n\nZona preferida: ${area||"España"}\nWeb del usuario: ${website||"No indicada"}\n\nHaz una búsqueda real online y devuelve EXACTAMENTE 3 oportunidades reales de la zona. Deben ser compradores potenciales o canales de venta plausibles, no simples empresas del mismo sector. Si el usuario ha elegido particulares, busca empresas o canales que permitan llegar a particulares; no uses datos de personas privadas.\n\nPara cada oportunidad verifica con fuentes públicas: nombre, actividad, dirección, web oficial, teléfono y email comercial público si existe. Explica por qué puede encajar sin afirmar que sabemos que necesita comprar. Redacta el asunto y el email exacto que dejarías en BORRADORES. Propón una imagen o material comercial útil y la siguiente acción si no responde. Incluye URLs de las fuentes usadas.\n\nDevuelve exactamente:\n{"agent_name":"Agente Captador de Clientes","agent_goal":"Identifica compradores potenciales, encuentra oportunidades reales y deja el contacto preparado","title":"3 oportunidades comerciales reales","summary":"Explica qué perfil se ha buscado y por qué.","items":[{"name":"","fit":"Encaja mucho|Encaja|Encaja poco","why":"","address":"","website":"","phone":"","email":"","sales_angle":"","email_subject":"","email_body":"","image_concept":"","image_text":"","next_action":"","sources":["https://..."]}],"trust_note":"Datos empresariales obtenidos de fuentes públicas. Conviene verificarlos antes de contactar y nada se envía sin aprobación."}`;
   const result=await runWithSearch(prompt);
   if(!Array.isArray(result?.items)||result.items.length!==3) throw new Error("INVALID_PROSPECT_COUNT");
   return result;
@@ -82,6 +101,6 @@ export default async function handler(req,res){
     return res.status(200).json({ok:true,mode,result});
   }catch(e){
     console.error("free-value",e?.message||e);
-    return res.status(503).json({error:"La búsqueda no ha podido completarse ahora mismo. No voy a inventarte empresas ni datos. Vuelve a probar en unos segundos."});
+    return res.status(503).json({error:"No he podido completar la búsqueda online con datos suficientemente fiables. No voy a inventar empresas. Vuelve a intentarlo en unos segundos."});
   }
 }
