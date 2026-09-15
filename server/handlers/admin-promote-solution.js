@@ -1,23 +1,5 @@
-import crypto from "node:crypto";
-function parseCookies(req){
-  return Object.fromEntries(String(req.headers.cookie||"").split(";").map(x=>x.trim()).filter(Boolean).map(x=>{
-    const i=x.indexOf("="); return i<0?[x,""]:[x.slice(0,i),decodeURIComponent(x.slice(i+1))];
-  }));
-}
-function verifyAdmin(req){
-  const secret=process.env.ADMIN_SESSION_SECRET;
-  if(!secret) return false;
-  const token=parseCookies(req).vnx_admin;
-  if(!token) return false;
-  const [payload,sig]=token.split(".");
-  if(!payload||!sig) return false;
-  const expected=crypto.createHmac("sha256",secret).update(payload).digest("base64url");
-  try{
-    if(sig.length!==expected.length||!crypto.timingSafeEqual(Buffer.from(sig),Buffer.from(expected))) return false;
-    const data=JSON.parse(Buffer.from(payload,"base64url").toString("utf8"));
-    return data?.exp>Date.now() && data?.role==="admin";
-  }catch{return false}
-}
+import {verifyAdmin} from "../../lib/admin-auth.js";
+import {requireSameOrigin} from "../../lib/request-security.js";
 
 function sb(){
   const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
@@ -65,6 +47,7 @@ async function queueAutomation(payload){
 }
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
+  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
   if(!verifyAdmin(req)) return res.status(401).json({error:"No autorizado"});
   const solutionId=clean(req.body?.solutionId,100);
   const domain=clean(req.body?.domain,300);
