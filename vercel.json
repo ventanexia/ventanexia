@@ -47,7 +47,7 @@
         },
         {
           "key": "Cache-Control",
-          "value": "no-store"
+          "value": "no-store, no-cache, must-revalidate"
         }
       ]
     },
@@ -60,7 +60,7 @@
         },
         {
           "key": "Cache-Control",
-          "value": "no-store"
+          "value": "no-store, no-cache, must-revalidate"
         }
       ]
     },
@@ -69,7 +69,20 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store"
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/whatsapp-prueba.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        },
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
         }
       ]
     },
@@ -78,7 +91,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store"
+          "value": "no-store, no-cache, must-revalidate"
         }
       ]
     }
