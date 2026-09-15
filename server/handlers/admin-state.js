@@ -1,4 +1,4 @@
-import {verifyAdmin} from "../../lib/admin-auth.js";
+import {authenticateAdmin} from "../../lib/admin-auth.js";
 import {requireSameOrigin} from "../../lib/request-security.js";
 
 function sb(){
@@ -18,7 +18,7 @@ async function sbFetch(path,options={}){
 
 export default async function handler(req,res){
   if(req.method!=="GET") return res.status(405).json({error:"Método no permitido"});
-  if(!verifyAdmin(req)) return res.status(401).json({error:"No autorizado"});
+  if(!await authenticateAdmin(req)) return res.status(401).json({error:"No autorizado"});
   try{
     const [tenants,approvals,jobs]=await Promise.all([
       sbFetch("vnx_tenants?select=id,public_key,name,domain,status,autonomy_level,created_at&order=created_at.desc&limit=50"),
