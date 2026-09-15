@@ -84,6 +84,21 @@ async function readRaw(req) {
 
 async function prepareBody(req) {
   if (["GET", "HEAD", "OPTIONS"].includes(String(req.method || "GET").toUpperCase())) return;
+
+  // Some Vercel runtimes (notably `vercel dev`) may already provide a parsed body.
+  // Preserve it instead of consuming an already-drained request stream and replacing it with {}.
+  if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) return;
+  if (typeof req.body === "string" && req.body.length) {
+    const type = String(req.headers["content-type"] || "").toLowerCase();
+    if (type.includes("application/json") || type.includes("+json")) {
+      try { req.body = JSON.parse(req.body); }
+      catch { req.body = {}; }
+    } else if (type.includes("application/x-www-form-urlencoded")) {
+      req.body = Object.fromEntries(new URLSearchParams(req.body));
+    }
+    return;
+  }
+
   const raw = await readRaw(req);
   if (!raw.length) {
     req.body = {};
