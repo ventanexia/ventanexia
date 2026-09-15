@@ -2,8 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Demo interactiva de VentaNexIA | VNX CORE</title>
-<meta name="description" content="Prueba una simulación de VNX CORE: lead, cualificación, siguiente mejor acción, agenda y pipeline comercial.">
+<title>Demo interactiva de VentaNexIA</title>
+<meta name="description" content="Prueba una simulación sencilla de VentaNexIA: entra un posible cliente, se ordena la información, se prepara el siguiente paso y se propone una reunión.">
 <meta name="robots" content="index,follow"><link rel="canonical" href="https://www.ventanexia.es/demo.html">
 <link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/demo.css">
 </head>
@@ -14,76 +14,76 @@
 <a class="btn primary small" href="/#demo">Solicitar demo real →</a>
 </div></header>
 <main>
-<section class="demo-hero"><div class="wrap"><div class="eyebrow blue">DEMO INTERACTIVA · SIN DATOS REALES</div><h1>Mira cómo piensa VNX CORE cuando entra una oportunidad.</h1><p>Esta simulación no escribe en tu CRM ni envía correos. Sirve para enseñar el flujo real de decisión: detectar, cualificar, priorizar, agendar y recomendar el siguiente paso.</p></div></section>
+<section class="demo-hero"><div class="wrap"><div class="eyebrow blue">DEMO INTERACTIVA · SIN DATOS REALES</div><h1>Mira qué hace VentaNexIA cuando entra un posible cliente.</h1><p>Esta prueba no toca tus correos ni tus datos. Solo te enseña, paso a paso, cómo puede ordenar una consulta, detectar si hay interés real, preparar una respuesta y proponer el siguiente paso.</p></div></section>
 
 <section class="demo-shell wrap">
   <aside class="demo-sidebar">
-    <div class="demo-brand"><span class="vmark">V</span><b>VNX CORE</b><small>Modo demostración</small></div>
+    <div class="demo-brand"><span class="vmark">V</span><b>VentaNexIA</b><small>Modo demostración</small></div>
     <button class="demo-nav active" data-tab="overview">⌂ Resumen</button>
-    <button class="demo-nav" data-tab="leads">◎ Leads</button>
-    <button class="demo-nav" data-tab="pipeline">↗ Oportunidades</button>
-    <button class="demo-nav" data-tab="agents">✦ Agentes IA</button>
-    <button class="demo-nav" data-tab="audit">▦ Auditoría</button>
+    <button class="demo-nav" data-tab="leads">◎ Posibles clientes</button>
+    <button class="demo-nav" data-tab="pipeline">↗ Ventas en marcha</button>
+    <button class="demo-nav" data-tab="agents">✦ Ayudantes</button>
+    <button class="demo-nav" data-tab="audit">▦ Qué ha hecho</button>
   </aside>
 
   <div class="demo-main">
-    <div class="demo-topline"><div><small>VENTANEXIA · DEMO</small><h2 id="demoTitle">Resumen comercial</h2></div><button id="simulateLead" class="btn primary">Simular nuevo lead</button></div>
+    <div class="demo-topline"><div><small>VENTANEXIA · DEMO</small><h2 id="demoTitle">Resumen comercial</h2></div><button id="simulateLead" class="btn primary">Simular nuevo posible cliente</button></div>
 
     <div class="demo-panel active" data-panel="overview">
       <div class="metric-grid">
-        <article><small>Leads nuevos</small><strong id="mLeads">12</strong><span>simulación</span></article>
+        <article><small>Posibles clientes nuevos</small><strong id="mLeads">12</strong><span>simulación</span></article>
         <article><small>Reuniones</small><strong id="mMeetings">4</strong><span>simulación</span></article>
-        <article><small>Oportunidades</small><strong id="mOpps">6</strong><span>simulación</span></article>
-        <article><small>Acciones pendientes</small><strong id="mActions">3</strong><span>Guardian</span></article>
+        <article><small>Ventas en marcha</small><strong id="mOpps">6</strong><span>simulación</span></article>
+        <article><small>Decisiones pendientes</small><strong id="mActions">3</strong><span>necesitan revisión</span></article>
       </div>
       <div class="demo-two">
-        <section class="demo-card"><div class="card-head"><h3>Siguiente mejor acción</h3><span class="demo-pill">IA</span></div>
-          <div id="nba" class="nba"><b>Contactar a Director Comercial de empresa objetivo</b><p>Motivo: encaje alto + interés explícito + timing inmediato.</p><button class="micro-btn" id="prepareAction">Preparar respuesta</button></div>
+        <section class="demo-card"><div class="card-head"><h3>Qué conviene hacer ahora</h3><span class="demo-pill">Ayuda digital</span></div>
+          <div id="nba" class="nba"><b>Contactar al responsable comercial de una empresa interesada</b><p>Motivo: parece encajar bien, ha mostrado interés y quiere avanzar pronto.</p><button class="micro-btn" id="prepareAction">Preparar respuesta</button></div>
         </section>
         <section class="demo-card"><div class="card-head"><h3>Actividad reciente</h3><span>Demo</span></div><div class="activity" id="activity">
-          <div><i>✓</i><span><b>Lead cualificado</b><small>Hace 12 min · simulación</small></span></div>
+          <div><i>✓</i><span><b>Posible cliente con interés real</b><small>Hace 12 min · simulación</small></span></div>
           <div><i>✉</i><span><b>Seguimiento preparado</b><small>Hace 31 min · simulación</small></span></div>
           <div><i>↗</i><span><b>Reunión propuesta</b><small>Hace 1 h · simulación</small></span></div>
         </div></section>
       </div>
-      <section class="demo-card"><div class="card-head"><h3>Pipeline demo</h3><span>Sin datos reales</span></div>
+      <section class="demo-card"><div class="card-head"><h3>En qué punto están las posibles ventas</h3><span>Sin datos reales</span></div>
         <div class="pipeline-demo">
-          <div><span>Oportunidad cualificada</span><b>2</b></div><div><span>Prioridad alta</span><b>1</b></div><div><span>Reunión agendada</span><b>2</b></div><div><span>Propuesta enviada</span><b>1</b></div><div><span>Negociación</span><b>0</b></div>
+          <div><span>Con interés real</span><b>2</b></div><div><span>Prioridad alta</span><b>1</b></div><div><span>Reunión reservada</span><b>2</b></div><div><span>Propuesta enviada</span><b>1</b></div><div><span>Negociando</span><b>0</b></div>
         </div>
       </section>
     </div>
 
     <div class="demo-panel" data-panel="leads">
-      <section class="demo-card"><h3>Lead demo</h3><div class="lead-sheet">
-        <div><small>Empresa</small><b id="leadCompany">Norte Industrial</b></div><div><small>Rol</small><b id="leadRole">Director Comercial</b></div><div><small>Necesidad</small><b id="leadNeed">Seguimiento y CRM</b></div><div><small>Clasificación</small><b id="leadBand">QUALIFIED</b></div>
-      </div><div class="score-bar"><span id="scoreFill"></span></div><p id="scoreText">Score interno de demostración: 76/100. Este dato no se muestra al prospecto.</p></section>
+      <section class="demo-card"><h3>Ejemplo de posible cliente</h3><div class="lead-sheet">
+        <div><small>Empresa</small><b id="leadCompany">Norte Industrial</b></div><div><small>Cargo</small><b id="leadRole">Director Comercial</b></div><div><small>Qué necesita</small><b id="leadNeed">Seguimiento de clientes</b></div><div><small>Nivel de interés</small><b id="leadBand">ALTO</b></div>
+      </div><div class="score-bar"><span id="scoreFill"></span></div><p id="scoreText">Valor interno de la demostración: 76/100. Sirve para ordenar prioridades; el cliente no lo ve.</p></section>
     </div>
 
     <div class="demo-panel" data-panel="pipeline">
-      <section class="demo-card"><h3>Política de pipeline</h3><p>No todo contacto debe convertirse en negocio. VNX crea oportunidad solo cuando existe encaje y necesidad suficientes.</p>
-      <div class="policy-flow"><span>NEW</span><i>→</i><span>QUALIFYING</span><i>→</i><span>QUALIFIED</span><i>→</i><span>MEETING</span><i>→</i><span>PROPOSAL</span><i>→</i><span>WON</span></div></section>
+      <section class="demo-card"><h3>Cómo avanza una posible venta</h3><p>No toda consulta acaba siendo una venta. VentaNexIA solo la marca como una posible venta cuando hay suficiente interés y encaje.</p>
+      <div class="policy-flow"><span>NUEVO</span><i>→</i><span>REVISANDO</span><i>→</i><span>INTERÉS REAL</span><i>→</i><span>REUNIÓN</span><i>→</i><span>PROPUESTA</span><i>→</i><span>VENTA</span></div></section>
     </div>
 
     <div class="demo-panel" data-panel="agents">
       <div class="agent-grid demo-agents">
-        <article><b>Scout</b><span>Busca cuentas y señales.</span></article><article><b>Enrich</b><span>Completa contexto empresarial.</span></article>
-        <article><b>Outreach</b><span>Prepara captación dentro de política.</span></article><article><b>Inbox</b><span>Clasifica y responde consultas.</span></article>
-        <article><b>Qualify</b><span>Puntúa y prioriza.</span></article><article><b>Scheduler</b><span>Agenda y recuerda.</span></article>
-        <article><b>CRM</b><span>Mantiene pipeline y siguiente paso.</span></article><article><b>Guardian</b><span>Controla riesgo y aprobaciones.</span></article>
+        <article><b>Buscador</b><span>Encuentra posibles empresas y señales de interés.</span></article><article><b>Preparador de datos</b><span>Completa la información útil de cada empresa.</span></article>
+        <article><b>Primer contacto</b><span>Prepara mensajes de presentación siguiendo tus reglas.</span></article><article><b>Correo</b><span>Ordena y prepara respuestas a consultas.</span></article>
+        <article><b>Prioridades</b><span>Coloca primero a quien parece necesitar más atención.</span></article><article><b>Agenda</b><span>Propone horarios y recuerda citas.</span></article>
+        <article><b>Clientes</b><span>Mantiene los datos y el siguiente paso ordenados.</span></article><article><b>Supervisor</b><span>Frena acciones importantes hasta que una persona las apruebe.</span></article>
       </div>
     </div>
 
     <div class="demo-panel" data-panel="audit">
-      <section class="demo-card"><h3>Auditoría de decisiones</h3><div class="audit-table">
-        <div><b>Actor</b><b>Acción</b><b>Política</b><b>Resultado</b></div>
-        <div><span>Qualify</span><span>score_lead</span><span>autonomous</span><span>QUALIFIED</span></div>
-        <div><span>CRM</span><span>update_next_step</span><span>within_policy</span><span>OK</span></div>
-        <div><span>Guardian</span><span>send_proposal</span><span>approval_required</span><span>PENDING</span></div>
+      <section class="demo-card"><h3>Qué ha hecho el sistema</h3><div class="audit-table">
+        <div><b>Ayudante</b><b>Qué hizo</b><b>¿Podía hacerlo solo?</b><b>Resultado</b></div>
+        <div><span>Prioridades</span><span>Revisó interés</span><span>Sí</span><span>INTERÉS REAL</span></div>
+        <div><span>Clientes</span><span>Actualizó siguiente paso</span><span>Sí</span><span>HECHO</span></div>
+        <div><span>Supervisor</span><span>Enviar propuesta</span><span>Necesita permiso</span><span>PENDIENTE</span></div>
       </div></section>
     </div>
   </div>
 </section>
 
-<section class="demo-bottom"><div class="wrap"><h2>Esto es solo la simulación.</h2><p>En producción, VNX CORE trabaja con tus integraciones, conocimiento aprobado y reglas comerciales.</p><a href="/#demo" class="btn primary">Solicitar diagnóstico →</a></div></section>
+<section class="demo-bottom"><div class="wrap"><h2>Esto es solo una simulación.</h2><p>En una cuenta real, VentaNexIA trabaja solo con las herramientas, datos y reglas que tú autorices.</p><a href="/#demo" class="btn primary">Quiero verlo con mi empresa →</a></div></section>
 </main>
 <script src="/assets/demo.js"></script><script src="/assets/launch.js"></script></body></html>
