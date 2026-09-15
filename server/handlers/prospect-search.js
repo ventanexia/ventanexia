@@ -1,4 +1,4 @@
-import { generateText, stepCountIs, gateway } from "ai";
+import { generateText, gateway } from "ai";
 
 function clean(value, max = 160) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
@@ -43,33 +43,30 @@ export default async function handler(req, res) {
   const prompt = `
 Actúa como investigador comercial B2B de VentaNexIA.
 
-OBJETIVO
-Busca EN LA WEB exactamente 3 empresas REALES que puedan ser posibles clientes para esta búsqueda:
-- Qué vende el visitante: ${sells}
-- Tipo de cliente que busca: ${clientType}
+Busca en la web exactamente 3 empresas REALES que puedan ser posibles clientes para:
+- Producto o servicio que vende el visitante: ${sells}
+- Tipo de cliente solicitado: ${clientType}
 - Zona: ${zone}
 
-REGLAS OBLIGATORIAS
-1. Debes usar la herramienta de búsqueda web antes de responder.
-2. Los 3 resultados deben corresponder al tipo de cliente solicitado y estar en la zona indicada, o atender claramente esa zona.
-3. No reutilices ejemplos fijos ni inventes empresas.
-4. Usa solo datos empresariales publicados públicamente por la propia empresa o fuentes públicas fiables.
-5. No inventes email, teléfono, dirección ni web. Si un dato no aparece publicado, devuelve cadena vacía para ese campo.
-6. Prioriza la web oficial de cada empresa. Añade las URLs de las fuentes verificadas.
-7. Explica en una frase por qué cada empresa encaja como posible comprador de lo que vende el visitante.
-8. No incluyas particulares ni datos personales no publicados como contacto empresarial.
-9. Devuelve SOLO JSON válido, sin markdown ni texto adicional, con esta forma exacta:
+Reglas:
+- Haz una búsqueda web real antes de responder.
+- Los resultados deben ser empresas reales del tipo solicitado y de la zona indicada, o que operen claramente en ella.
+- No uses ejemplos fijos y no inventes empresas.
+- Usa solo datos empresariales públicos.
+- No inventes email, teléfono, dirección ni web. Si no encuentras un dato, deja ese campo vacío.
+- Prioriza la web oficial y añade las URLs usadas en sources.
+- Explica en una frase por qué cada empresa encaja como posible comprador.
+- Devuelve SOLO JSON válido con esta estructura:
 {
-  "query": {"sells":"...","clientType":"...","zone":"..."},
   "leads": [
     {
-      "name":"...",
-      "activity":"...",
-      "address":"...",
-      "phone":"...",
-      "email":"...",
-      "website":"...",
-      "fit":"...",
+      "name":"",
+      "activity":"",
+      "address":"",
+      "phone":"",
+      "email":"",
+      "website":"",
+      "fit":"",
       "sources":["https://..."]
     }
   ]
@@ -82,13 +79,17 @@ REGLAS OBLIGATORIAS
       prompt,
       tools: {
         tako_search: gateway.tools.takoSearch()
-      },
-      stopWhen: stepCountIs(5)
+      }
     });
 
     const parsed = extractJson(result.text);
-    const leads = Array.isArray(parsed?.leads) ? parsed.leads.map(normalizeLead).filter(x => x.name).slice(0, 3) : [];
-    if (!leads.length) return res.status(502).json({ error: "No se pudieron verificar resultados para esa búsqueda." });
+    const leads = Array.isArray(parsed?.leads)
+      ? parsed.leads.map(normalizeLead).filter(x => x.name).slice(0, 3)
+      : [];
+
+    if (leads.length < 1) {
+      return res.status(502).json({ error: "No se pudieron verificar resultados para esa búsqueda." });
+    }
 
     return res.status(200).json({
       query: { sells, clientType, zone },
@@ -97,6 +98,9 @@ REGLAS OBLIGATORIAS
     });
   } catch (error) {
     console.error("prospect-search", error);
-    return res.status(500).json({ error: "No se pudo completar la búsqueda ahora mismo. Inténtalo de nuevo." });
+    return res.status(500).json({
+      error: "No se pudo completar la búsqueda ahora mismo. Inténtalo de nuevo.",
+      detail: process.env.NODE_ENV === "development" ? String(error?.message || error) : undefined
+    });
   }
 }
