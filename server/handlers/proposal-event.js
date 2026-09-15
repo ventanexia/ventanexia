@@ -19,6 +19,11 @@ async function hsPatch(dealId,properties){
 async function stripeCheckout(dealId,email,solutionRequestId){
   const key=process.env.STRIPE_SECRET_KEY, monthly=process.env.STRIPE_PRICE_MONTHLY;
   if(!key||!monthly||!email) return null;
+  const priceResponse=await fetch(`https://api.stripe.com/v1/prices/${encodeURIComponent(monthly)}`,{headers:{"Authorization":`Bearer ${key}`}});
+  const configuredPrice=await priceResponse.json();
+  if(!priceResponse.ok||configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==90000||configuredPrice.recurring?.interval!=="month"){
+    throw new Error("STRIPE_PRICE_MISMATCH");
+  }
   const p=new URLSearchParams();
   const success=process.env.CHECKOUT_SUCCESS_URL||"https://www.ventanexia.es/?payment=success";
   const cancel=process.env.CHECKOUT_CANCEL_URL||"https://www.ventanexia.es/?payment=cancelled";
