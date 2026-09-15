@@ -1,7 +1,19 @@
-import { generateText } from "ai";
-import { gateway } from "@ai-sdk/gateway";
-
 function clean(v,max=1200){return String(v||"").trim().slice(0,max)}
+
+function extractText(data){
+  if(typeof data?.output_text==="string"&&data.output_text.trim()) return data.output_text.trim();
+  const out=Array.isArray(data?.output)?data.output:[];
+  const parts=[];
+  for(const item of out){
+    if(item?.type==="message"&&Array.isArray(item.content)){
+      for(const c of item.content){
+        if(typeof c?.text==="string"&&c.text.trim()) parts.push(c.text.trim());
+      }
+    }
+  }
+  return parts.join("\n").trim();
+}
+
 function parseJson(text){
   const s=String(text||"").trim().replace(/^```json\s*/i,"").replace(/```$/i,"").trim();
   try{return JSON.parse(s)}catch{}
@@ -13,21 +25,41 @@ function parseJson(text){
 async function runWithSearch(prompt){
   const token=String(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||"");
   if(!token) throw new Error("AI_GATEWAY_NOT_CONFIGURED");
-  const result=await generateText({
+
+  const body={
     model:"openai/gpt-5.6-sol",
-    system:`Eres el analista comercial de VentaNexIA. Tu trabajo es ayudar antes de vender nada. Piensa como un director comercial excelente. Usa búsqueda web para cualquier empresa, dirección, teléfono, email, web o dato actual. Nunca inventes contactos. Si no encuentras un dato, escribe "No publicado". Solo usa emails empresariales publicados públicamente. No uses emails personales privados. Devuelve SOLO JSON válido, sin markdown.`,
-    prompt,
-    tools:{perplexity_search:gateway.tools.perplexitySearch()},
-    maxOutputTokens:2600
+    instructions:`Eres el analista comercial de VentaNexIA. Tu trabajo es generar oportunidades reales y trabajo comercial útil. Usa búsqueda web siempre que necesites identificar empresas, webs, direcciones, teléfonos, emails o cualquier dato actual. Nunca inventes contactos. Solo usa emails empresariales publicados públicamente. Si un dato no aparece de forma fiable, escribe "No publicado". Distingue siempre entre hechos verificados e hipótesis comerciales. Devuelve SOLO JSON válido, sin markdown.`,
+    input:prompt,
+    tools:[{type:"web_search"}],
+    max_output_tokens:3000,
+    reasoning:{effort:"medium"}
+  };
+
+  const r=await fetch("https://ai-gateway.vercel.sh/v1/responses",{
+    method:"POST",
+    headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
+    body:JSON.stringify(body)
   });
-  const parsed=parseJson(result.text);
-  if(!parsed) throw new Error("INVALID_AI_OUTPUT");
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok){
+    const msg=data?.error?.message||data?.message||`GATEWAY_${r.status}`;
+    console.error("free-value-gateway",r.status,msg);
+    throw new Error(msg);
+  }
+  const text=extractText(data);
+  const parsed=parseJson(text);
+  if(!parsed){
+    console.error("free-value-invalid-output",text.slice(0,500));
+    throw new Error("INVALID_AI_OUTPUT");
+  }
   return parsed;
 }
 
 async function prospects({offer,area,website}){
-  const prompt=`El usuario quiere vender esto:\n${offer}\n\nZona preferida: ${area||"España"}\nWeb del usuario: ${website||"No indicada"}\n\nIMPORTANTE: el usuario NO tiene por qué saber quién es su cliente ideal. Primero deduce tú qué tipos de empresas tienen más probabilidad de necesitar lo que vende. Después usa búsqueda web para encontrar EXACTAMENTE 3 empresas reales de la zona que encajen. No elijas empresas solo porque sean del mismo sector: explica la necesidad concreta que podría tener cada una.\n\nPara cada empresa busca y verifica: nombre, actividad, dirección pública, web oficial, teléfono público y email comercial público si existe. Si no hay email fiable, pon "No publicado". Prepara un ángulo comercial personalizado, un asunto de email, un borrador de email breve y profesional, una propuesta de imagen/material comercial que tendría sentido adjuntar y una siguiente acción. No afirmes que sabes que necesitan comprar; habla de encaje potencial basado en su actividad.\n\nDevuelve exactamente esta estructura JSON:\n{"agent_name":"Agente Captador de Clientes","agent_goal":"Identifica quién puede necesitar lo que vendes, encuentra oportunidades reales y deja el contacto preparado","title":"3 oportunidades comerciales reales","summary":"Incluye también en esta frase qué perfil de comprador has decidido buscar y por qué.","items":[{"name":"","fit":"Encaja mucho|Encaja|Encaja poco","why":"","address":"","website":"","phone":"","email":"","sales_angle":"","email_subject":"","email_body":"","image_concept":"","image_text":"","next_action":"","sources":["https://..."]}],"trust_note":"Datos empresariales obtenidos de fuentes públicas y pendientes de verificación antes de contactar."}`;
-  return runWithSearch(prompt);
+  const prompt=`El usuario vende u ofrece esto:\n${offer}\n\nZona preferida: ${area||"España"}\nWeb del usuario: ${website||"No indicada"}\n\nNo preguntes al usuario qué tipo de cliente quiere. DEDÚCELO tú a partir de lo que vende. Primero identifica mentalmente los perfiles de comprador con más sentido y después busca EXACTAMENTE 3 empresas reales de la zona que puedan ser oportunidades razonables.\n\nNo busques empresas del mismo sector para revenderles sin sentido. Busca compradores potenciales. Ejemplo: si vende muebles de cocina, piensa en promotoras, constructoras, estudios de interiorismo, reformas, apartamentos turísticos u otros compradores plausibles según la zona. Si vende mobiliario sanitario, piensa en clínicas, centros médicos, residencias, fisioterapia u otros compradores plausibles.\n\nPara cada oportunidad:\n- verifica nombre y actividad;\n- dirección pública;\n- web oficial;\n- teléfono público;\n- email comercial público si existe;\n- explica por qué podría encajar, sin afirmar que sabemos que necesita comprar;\n- redacta el asunto y el email exacto que dejarías en BORRADORES;\n- propone una imagen o material comercial útil para acompañar el email;\n- indica la siguiente acción si no responde;\n- incluye URLs de las fuentes públicas que has usado.\n\nDevuelve EXACTAMENTE esta estructura JSON:\n{"agent_name":"Agente Captador de Clientes","agent_goal":"Identifica quién puede necesitar lo que vendes, encuentra oportunidades reales y deja el contacto preparado","title":"3 oportunidades comerciales reales","summary":"Explica brevemente qué perfil de comprador has decidido buscar y por qué.","items":[{"name":"","fit":"Encaja mucho|Encaja|Encaja poco","why":"","address":"","website":"","phone":"","email":"","sales_angle":"","email_subject":"","email_body":"","image_concept":"","image_text":"","next_action":"","sources":["https://..."]}],"trust_note":"Datos empresariales obtenidos de fuentes públicas. Conviene verificarlos antes de contactar y nada se envía sin aprobación."}`;
+  const result=await runWithSearch(prompt);
+  if(!Array.isArray(result?.items)||result.items.length!==3) throw new Error("INVALID_PROSPECT_COUNT");
+  return result;
 }
 
 async function genericIdeas({mode,offer,area,website,problem}){
@@ -49,6 +81,6 @@ export default async function handler(req,res){
     return res.status(200).json({ok:true,mode,result});
   }catch(e){
     console.error("free-value",e?.message||e);
-    return res.status(503).json({error:"No he podido completar la búsqueda con datos públicos fiables ahora mismo. No voy a inventarte clientes. Inténtalo de nuevo en unos segundos."});
+    return res.status(503).json({error:"La búsqueda no ha podido completarse ahora mismo. No voy a inventarte empresas ni datos. Vuelve a probar en unos segundos."});
   }
 }
