@@ -54,15 +54,21 @@ function simpleBand(x){
 function prefillFromPortada(){
   try{
     const raw=sessionStorage.getItem("vnx_builder_prefill");
-    if(!raw)return;
-    const d=JSON.parse(raw);const form=$("#builderForm");if(!form)return;
+    if(!raw)return false;
+    const d=JSON.parse(raw);const form=$("#builderForm");if(!form)return false;
     const values={company:d.company,name:d.name,email:d.email,role:d.role,volume:d.volume,request:d.request};
     Object.entries(values).forEach(([name,value])=>{const el=form.querySelector(`[name="${name}"]`);if(el&&value&&!el.value)el.value=value});
+    const fromPortada=new URLSearchParams(location.search).get("desde")==="portada";
+    if(fromPortada){
+      const consent=form.querySelector('[name="consent"]');
+      if(consent)consent.checked=true;
+    }
     sessionStorage.removeItem("vnx_builder_prefill");
-    const m=$("#builderMsg");if(m)m.textContent="Ya hemos traído los datos que escribiste. Revisa que estén bien, marca la casilla y pulsa “Ver mi propuesta”.";
-  }catch{}
+    const m=$("#builderMsg");if(m)m.textContent=fromPortada?"Estamos preparando tu propuesta…":"Ya hemos traído los datos que escribiste.";
+    return Boolean(fromPortada&&d.company&&d.name&&d.email&&d.request);
+  }catch{return false}
 }
-prefillFromPortada();
+const autoFromPortada=prefillFromPortada();
 
 $("#builderForm").onsubmit=async e=>{
  e.preventDefault();const f=new FormData(e.currentTarget),m=$("#builderMsg");
@@ -85,6 +91,11 @@ $("#builderForm").onsubmit=async e=>{
   if(lastRequestId&&lastTrialToken)$("#startTrial").hidden=false; $("#outputReady").scrollIntoView({behavior:"smooth",block:"nearest"});
  }catch(err){m.textContent=err.message||"No hemos podido preparar la propuesta. Inténtalo de nuevo."}
 };
+
+if(autoFromPortada){
+  setTimeout(()=>$("#builderForm")?.requestSubmit(),80);
+}
+
 const trialBtn=$("#startTrial");
 if(trialBtn) trialBtn.onclick=async()=>{
  if(!lastRequestId)return;
