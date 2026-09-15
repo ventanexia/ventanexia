@@ -179,3 +179,36 @@ footer{background:#03101d;color:#b6c6d5;padding:48px 0}.footer-grid{display:grid
   .mobile-sticky-cta a{display:block;text-align:center;background:#0b75e8;color:#fff;text-decoration:none;font-weight:900;padding:13px;border-radius:12px;box-shadow:0 12px 35px rgba(8,70,150,.28)}
 }
 @media(max-width:560px){.tour-grid,.trust-grid{grid-template-columns:1fr}.product-tour h2{font-size:34px}}
+
+/* Tutorial sencillo y explicación de agentes */
+.tutorial-section{padding:92px 0;background:linear-gradient(180deg,#f4f9ff 0%,#fff 100%)}
+.tutorial-grid{display:grid;grid-template-columns:.82fr 1.18fr;gap:58px;align-items:center}
+.tutorial-copy h2,.agents-simple h2{font-size:clamp(38px,4vw,58px);line-height:1.05;letter-spacing:-2px;margin:14px 0}
+.tutorial-copy>p{font-size:18px;line-height:1.7;color:#5e7085}
+.tutorial-benefits{display:grid;gap:10px;margin:24px 0;color:#31465d;font-weight:700}
+.tutorial-benefits span{display:block}
+.tutorial-player{background:#061627;border:1px solid #16436b;border-radius:24px;padding:16px;box-shadow:0 28px 70px rgba(5,35,65,.2)}
+.tutorial-screen{background:#fff;border-radius:16px;overflow:hidden;min-height:430px;display:flex;flex-direction:column}
+.tutorial-top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:15px 18px;background:#f6f9fc;border-bottom:1px solid #e0e9f2;color:#31455a;font-size:13px}
+.tutorial-logo{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#087cf8,#22b9f5);color:#fff;font-weight:900}
+.tutorial-top>span:last-child{color:#6a7e92;font-size:12px}
+.tutorial-scene{padding:42px 42px 32px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;flex:1}
+.scene-icon{display:grid;place-items:center;width:66px;height:66px;border-radius:20px;background:#eaf5ff;color:#087cf8;font-size:30px;margin-bottom:20px}
+.tutorial-scene small{font-weight:900;letter-spacing:1.4px;color:#0875e7}
+.tutorial-scene h3{font-size:30px;letter-spacing:-.8px;margin:10px 0;color:#0b1c31}
+.tutorial-scene p{font-size:16px;line-height:1.65;color:#5e7085;margin:0}
+.scene-example{margin-top:20px;padding:14px 16px;border-radius:12px;background:#f0f7ff;border-left:4px solid #1188f7;color:#25445f;font-weight:700;width:100%}
+.tutorial-progress{height:6px;background:#dce8f3}.tutorial-progress i{display:block;height:100%;width:16.66%;background:linear-gradient(90deg,#087cf8,#29c1ef);transition:width .35s ease}
+.tutorial-controls{display:flex;align-items:center;gap:9px;padding:14px 4px 1px;flex-wrap:wrap}
+.tutorial-controls button{border:1px solid #284863;background:#0c2339;color:#fff;border-radius:10px;min-height:42px;padding:0 14px;font-weight:800;cursor:pointer}
+.tutorial-controls button:hover{background:#12314d}.tutorial-controls .tutorial-play{background:#0b82ff;border-color:#0b82ff;min-width:132px}.tutorial-controls .tutorial-speak{margin-left:auto;color:#bfe1ff}
+.agents-simple{padding:84px 0;background:#fff}
+.agents-simple .section-center>p{font-size:18px;max-width:760px;margin:0 auto;line-height:1.65}
+.agent-simple-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:38px}
+.agent-simple-grid article{border:1px solid #dfe8f2;background:#f8fbff;border-radius:18px;padding:24px}
+.agent-simple-grid article>span{display:grid;place-items:center;width:48px;height:48px;border-radius:14px;background:#e8f4ff;font-size:23px}
+.agent-simple-grid h3{font-size:18px;margin:17px 0 8px}.agent-simple-grid p{margin:0;color:#62758a;line-height:1.6}
+.simple-callout{max-width:980px;margin:22px auto 0;padding:17px 20px;border:1px solid #bfe0ff;border-radius:14px;background:#edf7ff;color:#31506b;line-height:1.55;text-align:center}
+@media(max-width:1000px){.tutorial-grid{grid-template-columns:1fr}.agent-simple-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.tutorial-section,.agents-simple{padding:62px 0}.tutorial-player{padding:10px;border-radius:18px}.tutorial-screen{min-height:440px}.tutorial-scene{padding:30px 22px}.tutorial-scene h3{font-size:25px}.tutorial-controls .tutorial-speak{margin-left:0;width:100%}.agent-simple-grid{grid-template-columns:1fr}.tutorial-copy .btn{width:100%}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.tutorial-progress i{transition:none}}
