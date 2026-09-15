@@ -17,7 +17,7 @@ async function hsPatch(dealId,properties){
   if(!r.ok) throw new Error(`HubSpot ${r.status}`);
 }
 async function stripeCheckout(dealId,email,solutionRequestId){
-  const key=process.env.STRIPE_SECRET_KEY, monthly=process.env.STRIPE_PRICE_MONTHLY, setup=process.env.STRIPE_PRICE_SETUP;
+  const key=process.env.STRIPE_SECRET_KEY, monthly=process.env.STRIPE_PRICE_MONTHLY;
   if(!key||!monthly||!email) return null;
   const p=new URLSearchParams();
   const success=process.env.CHECKOUT_SUCCESS_URL||"https://www.ventanexia.es/?payment=success";
@@ -28,7 +28,6 @@ async function stripeCheckout(dealId,email,solutionRequestId){
     "metadata[deal_id]":dealId,"subscription_data[metadata][deal_id]":dealId,
     ...(solutionRequestId?{"metadata[solution_request_id]":solutionRequestId,"subscription_data[metadata][solution_request_id]":solutionRequestId}:{})
   }).forEach(([k,v])=>p.append(k,v));
-  if(setup){p.append("line_items[1][price]",setup);p.append("line_items[1][quantity]","1")}
   const r=await fetch("https://api.stripe.com/v1/checkout/sessions",{
     method:"POST",headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":`vnx-accepted-${dealId}`},body:p
   });

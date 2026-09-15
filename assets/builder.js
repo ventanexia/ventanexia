@@ -28,8 +28,7 @@ $("#builderForm").onsubmit=async e=>{
   if(j.planRecommendation){
     const p=j.planRecommendation;
     const price=p.monthly?`${p.monthly.toLocaleString("es-ES")} €/mes + IVA`:`Desde ${p.monthlyFrom?.toLocaleString("es-ES")} €/mes`;
-    const setup=typeof p.setup==="number"?` · Implantación ${p.setup.toLocaleString("es-ES")} € + IVA`:" · Implantación a medida";
-    $("#planRecommendation").innerHTML=`<b>${escapeHtml(p.name)}</b><span>${escapeHtml(price+setup)}</span><small>${escapeHtml(p.reason||"")}</small>`;
+    $("#planRecommendation").innerHTML=`<b>${escapeHtml(p.name)}</b><span>${escapeHtml(price)}</span><small>${escapeHtml(p.reason||"")}</small>`;
   }m.textContent="Blueprint inicial generado. No se ha instalado ni modificado ningún sistema.";
   if(lastRequestId&&lastTrialToken)$("#startTrial").hidden=false; $("#outputReady").scrollIntoView({behavior:"smooth",block:"nearest"});
  }catch(err){m.textContent=err.message||"No se pudo generar. Inténtalo de nuevo."}

@@ -37,14 +37,13 @@ export default async function handler(req,res){
   if(!dealId||!email) return res.status(400).json({error:"dealId y email son obligatorios"});
 
   const priceMap={
-    start:{monthly:process.env.STRIPE_PRICE_START_MONTHLY,setup:process.env.STRIPE_PRICE_START_SETUP},
-    core:{monthly:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,setup:process.env.STRIPE_PRICE_CORE_SETUP||process.env.STRIPE_PRICE_SETUP},
-    scale:{monthly:process.env.STRIPE_PRICE_SCALE_MONTHLY,setup:process.env.STRIPE_PRICE_SCALE_SETUP}
+    start:{monthly:process.env.STRIPE_PRICE_START_MONTHLY},
+    core:{monthly:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY},
+    scale:{monthly:process.env.STRIPE_PRICE_SCALE_MONTHLY}
   };
   const chosen=priceMap[plan];
   if(!chosen) return res.status(400).json({error:"Plan no válido"});
   const monthly=chosen.monthly;
-  const setup=chosen.setup;
   const extraAgents=Math.max(0,Math.min(20,Number(req.body?.extraAgents||0)||0));
   const extraAgentPrice=process.env.STRIPE_PRICE_EXTRA_AGENT;
   const appUrl=String(process.env.PUBLIC_APP_URL||"https://ventanexia.vercel.app").replace(/\/$/,"");
@@ -70,11 +69,6 @@ export default async function handler(req,res){
     allow_promotion_codes:"false"
   };
   let line=1;
-  if(setup){
-    params[`line_items[${line}][price]`]=setup;
-    params[`line_items[${line}][quantity]`]="1";
-    line++;
-  }
   if(extraAgents>0&&extraAgentPrice){
     params[`line_items[${line}][price]`]=extraAgentPrice;
     params[`line_items[${line}][quantity]`]=String(extraAgents);
