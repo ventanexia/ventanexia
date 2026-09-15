@@ -34,6 +34,7 @@ import solutionBuilder from "../server/handlers/solution-builder.js";
 import startTrial from "../server/handlers/start-trial.js";
 import stripeWebhook from "../server/handlers/stripe-webhook.js";
 import trialSweep from "../server/handlers/trial-sweep.js";
+import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -73,7 +74,8 @@ const handlers = {
   "solution-builder": solutionBuilder,
   "start-trial": startTrial,
   "stripe-webhook": stripeWebhook,
-  "trial-sweep": trialSweep
+  "trial-sweep": trialSweep,
+  "whatsapp-simulator": whatsappSimulator
 };
 
 async function readRaw(req) {
@@ -84,9 +86,6 @@ async function readRaw(req) {
 
 async function prepareBody(req) {
   if (["GET", "HEAD", "OPTIONS"].includes(String(req.method || "GET").toUpperCase())) return;
-
-  // Some Vercel runtimes (notably `vercel dev`) may already provide a parsed body.
-  // Preserve it instead of consuming an already-drained request stream and replacing it with {}.
   if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) return;
   if (typeof req.body === "string" && req.body.length) {
     const type = String(req.headers["content-type"] || "").toLowerCase();
@@ -98,12 +97,8 @@ async function prepareBody(req) {
     }
     return;
   }
-
   const raw = await readRaw(req);
-  if (!raw.length) {
-    req.body = {};
-    return;
-  }
+  if (!raw.length) { req.body = {}; return; }
   const type = String(req.headers["content-type"] || "").toLowerCase();
   const text = raw.toString("utf8");
   if (type.includes("application/json") || type.includes("+json")) {
@@ -120,12 +115,9 @@ export default async function router(req, res) {
   const endpoint = String(req.query?.endpoint || "").trim();
   const handler = handlers[endpoint];
   if (!handler) return res.status(404).json({ error: "Endpoint no encontrado" });
-
-  // Stripe signature verification requires the untouched raw request stream.
   if (endpoint !== "stripe-webhook") {
     try { await prepareBody(req); }
     catch { return res.status(400).json({ error: "Cuerpo de solicitud no válido" }); }
   }
-
   return handler(req, res);
 }
