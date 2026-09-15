@@ -1,4 +1,4 @@
-import {createAdminSession,isAdminLoginBlocked,recordAdminLogin,setAdminCookie,verifyAdminPassword} from "../../lib/admin-auth.js";
+import {createAdminSession,isAdminLoginBlocked,recordAdminLogin,registerAdminSession,setAdminCookie,verifyAdminPassword} from "../../lib/admin-auth.js";
 import {requireSameOrigin} from "../../lib/request-security.js";
 
 export default async function handler(req,res){
@@ -15,7 +15,9 @@ export default async function handler(req,res){
     const ok=verifyAdminPassword(String(req.body?.password||""));
     await recordAdminLogin(req,ok);
     if(!ok)return res.status(401).json({error:"Credenciales no válidas"});
-    setAdminCookie(res,createAdminSession());
+    const session=createAdminSession();
+    await registerAdminSession(session);
+    setAdminCookie(res,session.token);
     return res.status(200).json({ok:true});
   }catch(e){
     console.error("admin_login",String(e?.message||e).slice(0,200));
