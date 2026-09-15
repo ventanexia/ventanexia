@@ -1,4 +1,8 @@
+import {clearAdminCookie} from "../../lib/admin-auth.js";
+import {requireSameOrigin} from "../../lib/request-security.js";
 export default async function handler(req,res){
-  res.setHeader("Set-Cookie","vnx_admin=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0");
+  if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
+  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
+  clearAdminCookie(res);
   return res.status(200).json({ok:true});
 }
