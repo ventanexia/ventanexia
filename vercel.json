@@ -88,5 +88,11 @@
       "source": "/api/:endpoint",
       "destination": "/api/router?endpoint=:endpoint"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/trial-sweep",
+      "schedule": "0 0 * * *"
+    }
   ]
 }
