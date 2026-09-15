@@ -10,6 +10,7 @@ import clientLead from "../server/handlers/client-lead.js";
 import createCheckout from "../server/handlers/create-checkout.js";
 import customerPortal from "../server/handlers/customer-portal.js";
 import entitlementStatus from "../server/handlers/entitlement-status.js";
+import freeValue from "../server/handlers/free-value.js";
 import health from "../server/handlers/health.js";
 import lead from "../server/handlers/lead.js";
 import meetingEvent from "../server/handlers/meeting-event.js";
@@ -51,6 +52,7 @@ const handlers = {
   "create-checkout": createCheckout,
   "customer-portal": customerPortal,
   "entitlement-status": entitlementStatus,
+  "free-value": freeValue,
   "health": health,
   "lead": lead,
   "meeting-event": meetingEvent,
