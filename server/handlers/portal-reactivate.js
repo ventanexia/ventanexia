@@ -1,4 +1,5 @@
-import {readPortalSession,pdb} from "../../lib/portal-auth.js";
+import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
+import {requireSameOrigin} from "../../lib/request-security.js";
 async function stripePost(params,idempotencyKey){
   const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("STRIPE_NOT_CONFIGURED");
   const body=new URLSearchParams();for(const [k,v] of Object.entries(params))if(v!==undefined&&v!==null&&v!=="")body.append(k,String(v));
@@ -7,7 +8,8 @@ async function stripePost(params,idempotencyKey){
 }
 export default async function handler(req,res){
   if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
-  const s=readPortalSession(req);if(!s)return res.status(401).json({error:"No autorizado"});
+  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
+  const s=await authenticatePortal(req);if(!s)return res.status(401).json({error:"No autorizado"});
   try{
     const ents=await pdb(`vnx_entitlements?tenant_id=eq.${encodeURIComponent(s.tenantId)}&select=state,plan_key,stripe_customer_id`);
     const ent=ents?.[0];if(!ent)return res.status(404).json({error:"Licencia no encontrada"});

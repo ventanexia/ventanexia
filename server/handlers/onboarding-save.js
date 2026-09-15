@@ -1,10 +1,12 @@
-import {readPortalSession,pdb} from "../../lib/portal-auth.js";
+import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
+import {requireSameOrigin} from "../../lib/request-security.js";
 function clean(v,n=2000){return String(v||"").trim().slice(0,n)}
 function arr(v,max=12,n=300){return (Array.isArray(v)?v:[]).slice(0,max).map(x=>clean(x,n)).filter(Boolean)}
 const CHANNELS=new Set(["email","crm","calendar","social","analytics","website","payments","support"]);
 export default async function handler(req,res){
   if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
-  const s=readPortalSession(req);if(!s)return res.status(401).json({error:"No autorizado"});
+  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
+  const s=await authenticatePortal(req);if(!s)return res.status(401).json({error:"No autorizado"});
   try{
     const ents=await pdb(`vnx_entitlements?tenant_id=eq.${encodeURIComponent(s.tenantId)}&select=state`);
     const state=ents?.[0]?.state;

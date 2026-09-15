@@ -1,5 +1,6 @@
-import {readPortalSession,pdb} from "../../lib/portal-auth.js";
+import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
 import {recommendPlan} from "../../lib/pricing.js";
+import {requireSameOrigin} from "../../lib/request-security.js";
 function clean(v,n=6000){return String(v||"").trim().slice(0,n)}
 async function ai(requirement,current={}){
  const key=process.env.OPENAI_API_KEY;
@@ -21,7 +22,8 @@ async function forward(payload){
 }
 export default async function handler(req,res){
  if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
- const s=readPortalSession(req);if(!s)return res.status(401).json({error:"No autorizado"});
+  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
+ const s=await authenticatePortal(req);if(!s)return res.status(401).json({error:"No autorizado"});
  const requestText=clean(req.body?.request,6000),priority=clean(req.body?.priority||"normal",20);
  if(requestText.length<15)return res.status(400).json({error:"Describe con algo más de detalle lo que necesitas."});
  try{
