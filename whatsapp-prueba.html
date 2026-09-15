@@ -22,7 +22,7 @@
 <body>
 <div class="top"><div class="brand"><b>V</b> VentaNexIA</div><a href="/">Volver a la web</a></div>
 <main class="wrap">
-  <section class="intro"><h1>Prueba cómo respondería VentaNexIA por WhatsApp</h1><p>Es una simulación: escribe como si fueras un cliente. VentaNexIA puede responder dudas sencillas y se detiene cuando necesita tu permiso.</p></section>
+  <section class="intro"><h1>Prueba cómo respondería VentaNexIA por WhatsApp</h1><p>Es una simulación: escribe como si fueras un cliente. VentaNexIA recuerda lo que vas diciendo, hace preguntas útiles y se detiene cuando necesita tu permiso.</p></section>
   <div class="grid">
     <section class="phone">
       <div class="phone-head"><div class="avatar">V</div><div><b>VentaNexIA</b><small>Ayudante de WhatsApp · prueba</small></div></div>
@@ -34,17 +34,17 @@
     </section>
     <aside class="rules">
       <h2>Qué hará en esta prueba</h2>
-      <div class="card"><b class="ok">✓ Puede responder solo</b><span>Preguntas generales, horarios, pedir datos, organizar una reunión o confirmar que ha recibido una consulta.</span></div>
+      <div class="card"><b class="ok">✓ Puede responder solo</b><span>Preguntas generales, pedidos, horarios, pedir datos, organizar una reunión o confirmar que ha recibido una consulta.</span></div>
       <div class="card"><b class="stop">⚠ Te pide permiso</b><span>Precios, descuentos, condiciones especiales, compromisos comerciales, devoluciones importantes o cualquier respuesta sensible.</span></div>
       <h2>Pruebas rápidas</h2>
       <div class="quick">
         <button data-q="Hola, quiero información">Información</button>
+        <button data-q="Quiero hacer un pedido">Pedido</button>
         <button data-q="¿Qué precio tienen 20 unidades?">Precio</button>
         <button data-q="Quiero una reunión mañana">Reunión</button>
-        <button data-q="Quiero reclamar un pedido">Reclamación</button>
       </div>
       <div class="approval" id="approval"><b>VentaNexIA necesita tu permiso</b><div id="approvalText" style="margin-top:6px"></div><button class="approve" id="approve">Aprobar respuesta</button><button class="reject" id="reject">No enviar</button></div>
-      <p class="note">Cuando conectemos un número real de WhatsApp Business, esta misma lógica se podrá aplicar a conversaciones reales. Esta página sirve para decidir primero qué puede hacer solo y qué debe pedirte permiso.</p>
+      <p class="note">La conversación recuerda lo que el cliente ya ha dicho para no repetir preguntas. Cuando conectemos un WhatsApp Business real, aplicaremos esta misma lógica a conversaciones reales.</p>
     </aside>
   </div>
 </main>
@@ -52,29 +52,52 @@
 const chat=document.getElementById('chat'),input=document.getElementById('input'),send=document.getElementById('send');
 const approval=document.getElementById('approval'),approvalText=document.getElementById('approvalText');
 let pending='';
+const state={intent:null,product:null,quantity:null,buyerType:null};
 function add(text,type){const d=document.createElement('div');d.className='msg '+type;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
+function requestApproval(prepared,notice){pending=prepared;add(notice,'bot');approvalText.textContent='Respuesta preparada: “'+pending+'”';approval.classList.add('show')}
+function findQuantity(t){const m=t.match(/\b(\d{1,5})\s*(?:unidades|uds|u\.)?\b/i);return m?m[1]:null}
 function answer(text){
- const t=text.toLowerCase();
- if(/precio|descuento|oferta|20 unidades|tarifa|condiciones/.test(t)){
-   pending='Perfecto. Para darte el precio correcto de 20 unidades, voy a preparar la propuesta y una persona del equipo la aprobará antes de enviártela.';
-   add('Perfecto. Ya tengo tu consulta. Como se trata de un precio o una condición comercial, voy a pedir aprobación antes de responderte.', 'bot');
-   approvalText.textContent='Respuesta preparada: “'+pending+'”';approval.classList.add('show');return;
+ const t=text.toLowerCase().trim();
+ const qty=findQuantity(t);if(qty)state.quantity=qty;
+ if(/empresa|profesional|autónom|autonom/.test(t))state.buyerType='empresa';
+ if(/particular/.test(t))state.buyerType='particular';
+
+ if(/qué puedes hacer|que puedes hacer|qué haces|que haces|a ver que puedes|a ver qué puedes/.test(t)){
+   add('Puedo atender consultas, ayudar a hacer pedidos, pedir los datos que falten, organizar reuniones y hacer seguimiento. Si me piden precios, descuentos o una condición especial, no me los invento: preparo la respuesta y pido permiso antes de enviarla.','bot');return;
+ }
+ if(/precio|descuento|oferta|tarifa|condiciones/.test(t)){
+   const q=state.quantity?` para ${state.quantity} unidades`:'';
+   requestApproval(
+     `Gracias. Voy a revisar el precio correcto${q} y te lo confirmamos enseguida.`,
+     'Perfecto. Ya tengo la consulta. Como se trata de un precio o una condición comercial, preparo la respuesta y pido aprobación antes de enviarla.'
+   );return;
  }
  if(/reclam|devoluci|problema|queja/.test(t)){
-   pending='Siento lo ocurrido. Voy a pasar tu caso al equipo para que lo revise y te dé una respuesta correcta.';
-   add('He registrado tu reclamación. Como es un caso importante, voy a pedir que una persona del equipo lo revise antes de darte una respuesta definitiva.','bot');
-   approvalText.textContent='Respuesta preparada: “'+pending+'”';approval.classList.add('show');return;
+   requestApproval('Siento lo ocurrido. Hemos pasado tu caso al equipo para revisarlo y darte una respuesta correcta.','He registrado tu reclamación. Como es un caso importante, pido que una persona del equipo revise la respuesta antes de enviarla.');return;
  }
- if(/reuni|cita|mañana|agenda/.test(t)){add('Claro. Dime qué horario te va mejor y te ayudo a dejar la reunión preparada.','bot');return}
- if(/horario/.test(t)){add('Puedo ayudarte con el horario. Dime de qué servicio o departamento necesitas información.','bot');return}
- if(/hola|informaci|interes|interés/.test(t)){add('Hola. Claro. Para ayudarte mejor, dime qué producto o servicio te interesa y si compras como empresa o como particular.','bot');return}
+ if(/pedido|comprar|compra|encargar/.test(t)){
+   state.intent='order';
+   if(/\b([a-z0-9][a-z0-9+\- ]{2,})\b/.test(t) && !/quiero hacer un pedido|hacer un pedido/.test(t)) state.product=text;
+   if(!state.product&&!state.quantity){add('Claro. ¿Qué producto quieres pedir y cuántas unidades necesitas?','bot');return}
+   if(!state.product){add(`Perfecto, ${state.quantity} unidades. ¿De qué producto?`,'bot');return}
+   if(!state.quantity){add('Perfecto. ¿Cuántas unidades necesitas?','bot');return}
+   add(`Perfecto. Tengo anotado el pedido de ${state.quantity} unidades. ¿Lo compras como empresa o como particular?`,'bot');return;
+ }
+ if(state.intent==='order'){
+   if(!state.product && t.length>2 && !/empresa|particular/.test(t)){state.product=text;add(state.quantity?`Perfecto: ${state.quantity} unidades de ${text}. ¿Lo compras como empresa o como particular?`:`Perfecto. ¿Cuántas unidades de ${text} necesitas?`,'bot');return}
+   if(state.product&&!state.quantity&&qty){add(`Perfecto: ${qty} unidades. ¿Lo compras como empresa o como particular?`,'bot');return}
+   if(state.product&&state.quantity&&state.buyerType){add(`Perfecto. Ya tengo los datos principales del pedido: ${state.quantity} unidades y compra como ${state.buyerType}. Si quieres, dime tu nombre y empresa y dejo la solicitud preparada.`,'bot');return}
+ }
+ if(/reuni|cita|mañana|agenda/.test(t)){add('Claro. ¿Qué día y a qué hora te viene bien? Si me das dos opciones, te ayudo a dejar la reunión preparada.','bot');return}
+ if(/horario/.test(t)){add('Claro. Dime de qué servicio o departamento necesitas el horario y te ayudo.','bot');return}
+ if(/hola|informaci|interes|interés/.test(t)){add('Hola. Claro. Dime qué producto o servicio te interesa y qué necesitas exactamente.','bot');return}
  if(/empresa/.test(t)){add('Perfecto. ¿Qué producto o servicio te interesa y aproximadamente qué cantidad necesitas?','bot');return}
- add('Entendido. Para ayudarte bien, ¿puedes darme un poco más de detalle sobre lo que necesitas?','bot');
+ add('Te sigo. Cuéntame qué quieres conseguir y te haré la siguiente pregunta necesaria, sin hacerte repetir lo que ya me hayas dicho.','bot');
 }
-function submit(){const t=input.value.trim();if(!t)return;add(t,'customer');input.value='';setTimeout(()=>answer(t),350)}
+function submit(){const t=input.value.trim();if(!t)return;add(t,'customer');input.value='';setTimeout(()=>answer(t),250)}
 send.onclick=submit;input.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
 document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{input.value=b.dataset.q;submit()});
-document.getElementById('approve').onclick=()=>{approval.classList.remove('show');add('Aprobado por Javier · '+pending,'system');setTimeout(()=>add(pending,'bot'),250);pending=''};
+document.getElementById('approve').onclick=()=>{approval.classList.remove('show');add('Respuesta aprobada · se puede enviar al cliente.','system');setTimeout(()=>add(pending,'bot'),200);pending=''};
 document.getElementById('reject').onclick=()=>{approval.classList.remove('show');add('Respuesta no enviada. Queda pendiente para revisión humana.','system');pending=''};
 </script>
 </body></html>
