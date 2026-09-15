@@ -1,5 +1,5 @@
 import {getMonthlyUsage} from "../../lib/entitlement.js";
-import {readPortalSession,pdb} from "../../lib/portal-auth.js";
+import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
 function remain(end){
   if(!end)return null;
   const ms=Math.max(0,new Date(end).getTime()-Date.now());
@@ -7,7 +7,7 @@ function remain(end){
 }
 export default async function handler(req,res){
   if(req.method!=="GET")return res.status(405).json({error:"Método no permitido"});
-  const s=readPortalSession(req);if(!s)return res.status(401).json({authenticated:false});
+  const s=await authenticatePortal(req);if(!s)return res.status(401).json({authenticated:false});
   try{
     const [tenants,ents,agents,connections,approvals,posts,changes,usage,onboarding,monthlyUsage]=await Promise.all([
       pdb(`vnx_tenants?id=eq.${encodeURIComponent(s.tenantId)}&select=id,name,status,autonomy_level,settings`),
