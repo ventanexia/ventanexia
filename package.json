@@ -1,9 +1,13 @@
 {
   "name": "ventanexia",
-  "version": "21.0.0",
+  "version": "21.1.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": "24.x"
+  },
+  "dependencies": {
+    "ai": "latest",
+    "@ai-sdk/gateway": "latest"
   }
 }
