@@ -6,6 +6,11 @@ async function stripePost(params,idempotencyKey){
   const r=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":idempotencyKey},body});
   const j=await r.json();if(!r.ok)throw new Error(j?.error?.message||`Stripe ${r.status}`);return j;
 }
+async function stripePrice(envId,lookupKey){
+  const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("STRIPE_NOT_CONFIGURED");
+  const r=await fetch(`https://api.stripe.com/v1/prices?active=true&limit=1&lookup_keys[]=${encodeURIComponent(lookupKey)}`,{headers:{"Authorization":`Bearer ${key}`}});
+  const j=await r.json();if(!r.ok)throw new Error(j?.error?.message||`Stripe ${r.status}`);return j?.data?.[0]?.id||envId||null;
+}
 export default async function handler(req,res){
   if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
   if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
@@ -15,8 +20,9 @@ export default async function handler(req,res){
     const ent=ents?.[0];if(!ent)return res.status(404).json({error:"Licencia no encontrada"});
     if(ent.state==="active")return res.status(409).json({error:"La suscripción ya está activa"});
     if(!ent.stripe_customer_id)return res.status(409).json({code:"INITIAL_ACTIVATION_REQUIRED",error:"Esta cuenta todavía no tiene una suscripción previa. Actívala desde la página de planes."});
-    const prices={start:process.env.STRIPE_PRICE_START_MONTHLY,core:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,scale:process.env.STRIPE_PRICE_SCALE_MONTHLY};
-    const price=prices[ent.plan_key];if(!price)return res.status(503).json({error:"Precio del plan no configurado"});
+    const prices={start:[process.env.STRIPE_PRICE_START_MONTHLY,"vnx_inicio_monthly"],core:[process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,"vnx_crecimiento_monthly"],scale:[process.env.STRIPE_PRICE_SCALE_MONTHLY,"vnx_empresa_monthly"]};
+    const selected=prices[ent.plan_key];if(!selected)return res.status(503).json({error:"Precio del plan no configurado"});
+    const price=await stripePrice(selected[0],selected[1]);if(!price)return res.status(503).json({error:"Precio del plan no configurado"});
     const base=process.env.PUBLIC_APP_URL||"https://www.ventanexia.es";
     const session=await stripePost({mode:"subscription",customer:ent.stripe_customer_id,success_url:`${base}/portal.html?reactivated=1`,cancel_url:`${base}/portal.html?reactivated=0`,"line_items[0][price]":price,"line_items[0][quantity]":"1","metadata[tenant_id]":s.tenantId,"metadata[plan]":ent.plan_key,"metadata[reactivation]":"true","subscription_data[metadata][tenant_id]":s.tenantId,"subscription_data[metadata][plan]":ent.plan_key,integration_identifier:"ventanexia_reactivate_rjfnuzke"},`vnx-reactivate-${s.tenantId}-${ent.plan_key}`);
     return res.status(200).json({ok:true,url:session.url});

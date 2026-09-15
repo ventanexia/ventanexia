@@ -33,6 +33,10 @@ async function stripeGet(path){
   if(!r.ok) throw new Error(data?.error?.message||`Stripe ${r.status}`);
   return data;
 }
+async function resolvePrice(envId,lookupKey){
+  const data=await stripeGet(`/prices?active=true&limit=1&lookup_keys[]=${encodeURIComponent(lookupKey)}`);
+  return data?.data?.[0]?.id||envId||null;
+}
 
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
@@ -45,21 +49,22 @@ export default async function handler(req,res){
   if(!dealId||!email) return res.status(400).json({error:"dealId y email son obligatorios"});
 
   const priceMap={
-    start:{monthly:process.env.STRIPE_PRICE_START_MONTHLY,expectedAmount:35000},
-    core:{monthly:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,expectedAmount:90000},
-    scale:{monthly:process.env.STRIPE_PRICE_SCALE_MONTHLY,expectedAmount:175000}
+    start:{envId:process.env.STRIPE_PRICE_START_MONTHLY,lookupKey:"vnx_inicio_monthly",expectedAmount:35000},
+    core:{envId:process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,lookupKey:"vnx_crecimiento_monthly",expectedAmount:90000},
+    scale:{envId:process.env.STRIPE_PRICE_SCALE_MONTHLY,lookupKey:"vnx_empresa_monthly",expectedAmount:175000}
   };
   const chosen=priceMap[plan];
   if(!chosen) return res.status(400).json({error:"Plan no válido"});
-  const monthly=chosen.monthly;
+  let monthly=null;
   const extraAgents=Math.max(0,Math.min(20,Number(req.body?.extraAgents||0)||0));
   const extraAgentPrice=process.env.STRIPE_PRICE_EXTRA_AGENT;
   const appUrl=String(process.env.PUBLIC_APP_URL||"https://ventanexia.vercel.app").replace(/\/$/,"");
   const success=process.env.CHECKOUT_SUCCESS_URL||`${appUrl}/?payment=success`;
   const cancel=process.env.CHECKOUT_CANCEL_URL||`${appUrl}/?payment=cancelled`;
-  if(!monthly) return res.status(503).json({code:"NOT_CONFIGURED",error:"Precio recurrente no configurado"});
-
-  const params={
+  try{
+    monthly=await resolvePrice(chosen.envId,chosen.lookupKey);
+    if(!monthly) return res.status(503).json({code:"NOT_CONFIGURED",error:"Precio recurrente no configurado"});
+    const params={
     mode:"subscription",
     customer_email:email,
     client_reference_id:dealId,
@@ -75,16 +80,14 @@ export default async function handler(req,res){
     "subscription_data[metadata][plan]":plan,
     integration_identifier:"ventanexia_checkout_kqmdxvpa",
     allow_promotion_codes:"false"
-  };
-  let line=1;
-  if(extraAgents>0&&extraAgentPrice){
-    params[`line_items[${line}][price]`]=extraAgentPrice;
-    params[`line_items[${line}][quantity]`]=String(extraAgents);
-    params["metadata[extra_agents]"]=String(extraAgents);
-    params["subscription_data[metadata][extra_agents]"]=String(extraAgents);
-  }
-
-  try{
+    };
+    let line=1;
+    if(extraAgents>0&&extraAgentPrice){
+      params[`line_items[${line}][price]`]=extraAgentPrice;
+      params[`line_items[${line}][quantity]`]=String(extraAgents);
+      params["metadata[extra_agents]"]=String(extraAgents);
+      params["subscription_data[metadata][extra_agents]"]=String(extraAgents);
+    }
     const configuredPrice=await stripeGet(`/prices/${encodeURIComponent(monthly)}`);
     if(configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==chosen.expectedAmount||configuredPrice.recurring?.interval!=="month"){
       throw new Error("STRIPE_PRICE_MISMATCH");
