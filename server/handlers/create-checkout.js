@@ -47,8 +47,9 @@ export default async function handler(req,res){
   const setup=chosen.setup;
   const extraAgents=Math.max(0,Math.min(20,Number(req.body?.extraAgents||0)||0));
   const extraAgentPrice=process.env.STRIPE_PRICE_EXTRA_AGENT;
-  const success=process.env.CHECKOUT_SUCCESS_URL||"https://www.ventanexia.es/?payment=success";
-  const cancel=process.env.CHECKOUT_CANCEL_URL||"https://www.ventanexia.es/?payment=cancelled";
+  const appUrl=String(process.env.PUBLIC_APP_URL||"https://ventanexia.vercel.app").replace(/\/$/,"");
+  const success=process.env.CHECKOUT_SUCCESS_URL||`${appUrl}/?payment=success`;
+  const cancel=process.env.CHECKOUT_CANCEL_URL||`${appUrl}/?payment=cancelled`;
   if(!monthly) return res.status(503).json({code:"NOT_CONFIGURED",error:"Precio recurrente no configurado"});
 
   const params={
@@ -65,6 +66,7 @@ export default async function handler(req,res){
     "subscription_data[metadata][deal_id]":dealId,
     ...(solutionRequestId?{"subscription_data[metadata][solution_request_id]":solutionRequestId}:{}),
     "subscription_data[metadata][plan]":plan,
+    integration_identifier:"ventanexia_checkout_kqmdxvpa",
     allow_promotion_codes:"false"
   };
   let line=1;
