@@ -7,6 +7,14 @@ create table if not exists vnx_portal_sessions (
   created_at timestamptz not null default now()
 );
 
+create table if not exists vnx_admin_sessions (
+  id uuid primary key default gen_random_uuid(),
+  session_hash text not null unique,
+  expires_at timestamptz not null,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists vnx_auth_attempts (
   id bigint generated always as identity primary key,
   attempt_key text not null,
@@ -16,8 +24,10 @@ create table if not exists vnx_auth_attempts (
 
 alter table vnx_portal_sessions enable row level security;
 alter table vnx_auth_attempts enable row level security;
+alter table vnx_admin_sessions enable row level security;
 
 create index if not exists vnx_portal_sessions_hash_idx on vnx_portal_sessions(session_hash);
+create index if not exists vnx_admin_sessions_hash_idx on vnx_admin_sessions(session_hash);
 create index if not exists vnx_auth_attempts_key_time_idx on vnx_auth_attempts(attempt_key,created_at desc);
 
 create or replace function vnx_consume_portal_login_token(p_token_hash text)
