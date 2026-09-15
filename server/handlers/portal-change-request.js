@@ -1,17 +1,16 @@
 import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
 import {recommendPlan} from "../../lib/pricing.js";
 import {requireSameOrigin} from "../../lib/request-security.js";
+import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
 function clean(v,n=6000){return String(v||"").trim().slice(0,n)}
 async function ai(requirement,current={}){
- const key=process.env.OPENAI_API_KEY;
- if(!key)return {summary:"Solicitud recibida para análisis.",agents:[],integrations_required:[],complexity:"Por validar",automations:[requirement],next_step:"Analizar alcance"};
- const model=process.env.OPENAI_MODEL||"gpt-5.6-terra";
+ if(!aiConfigured())return {summary:"Solicitud recibida para análisis.",agents:[],integrations_required:[],complexity:"Por validar",automations:[requirement],next_step:"Analizar alcance"};
  const instructions=`Eres VNX Change Architect. Convierte una petición de un cliente existente en un blueprint incremental.
 No inventes accesos ni capacidades. No incluyas secretos. No prometas resultados.
 Devuelve SOLO JSON con summary,agents[],integrations_required[],automations[],data_needed[],approvals_required[],complexity,next_step.
 La petición es incremental: conserva lo existente y especifica solo lo nuevo o modificado.`;
- const r=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model,store:false,max_output_tokens:900,instructions,input:JSON.stringify({requirement,current})})});
- const j=await r.json();if(!r.ok)throw new Error("AI_ERROR");
+ const r=await createAIResponse({store:false,max_output_tokens:900,instructions,input:JSON.stringify({requirement,current})});
+ const j=r.data;if(!r.ok)throw new Error("AI_ERROR");
  const t=j.output_text||"",a=t.indexOf("{"),b=t.lastIndexOf("}");if(a<0||b<a)throw new Error("BAD_JSON");
  return JSON.parse(t.slice(a,b+1));
 }
