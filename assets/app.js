@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   form?.addEventListener("submit",async e=>{
     e.preventDefault();
     const submit=form.querySelector('button[type="submit"]');
-    submit.disabled=true; msg.className="form-msg"; msg.textContent="Analizando y registrando tu solicitud…"; booking.hidden=true; booking.innerHTML="";
+    submit.disabled=true; msg.className="form-msg"; msg.textContent="Preparando tu solicitud…"; booking.hidden=true; booking.innerHTML="";
     syncChatContext?.();
     const data=Object.fromEntries(new FormData(form).entries());
     data.consentimiento=!!form.querySelector('[name="consentimiento"]').checked;
@@ -62,21 +62,22 @@ document.addEventListener("DOMContentLoaded",()=>{
       if(r.ok){
         msg.className="form-msg success";
         const highIntent=j.qualification?.band==="PRIORITY"||j.qualification?.band==="QUALIFIED";
-        msg.textContent=highIntent?"Solicitud analizada. Tu caso encaja para continuar con diagnóstico.":"Solicitud recibida. Revisaremos el encaje y te contactaremos con el siguiente paso.";
+        msg.textContent=highIntent?"Hemos recibido tu solicitud. Tu caso encaja bien y te mostraremos el siguiente paso.":"Hemos recibido tu solicitud. Te explicaremos cómo podría ayudarte VentaNexIA con tu caso.";
         if(j.bookingUrl&&highIntent){
           booking.hidden=false;
-          booking.innerHTML='<b>Siguiente paso recomendado: reserva tu diagnóstico.</b><br><a class="btn primary" target="_blank" rel="noopener" href="'+encodeURI(j.bookingUrl)+'">Elegir horario →</a>';
+          booking.innerHTML='<b>Si quieres, elige un horario para que te lo expliquemos.</b><br><a class="btn primary" target="_blank" rel="noopener" href="'+encodeURI(j.bookingUrl)+'">Elegir horario →</a>';
         }
         const keep={empresa:data.empresa,nombre:data.nombre,email:data.email,telefono:data.telefono};
         form.reset();
         ["empresa","nombre","email","telefono"].forEach(k=>{const el=form.querySelector(`[name="${k}"]`);if(el)el.value=keep[k]||""});
         calcValues();
       } else if(j.code==="NOT_CONFIGURED"){
-        msg.innerHTML='La automatización CRM está preparada pero pendiente de activación. Puedes escribir ahora a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a>.';
+        msg.className="form-msg success";
+        msg.innerHTML='Hemos preparado tu solicitud, pero el envío automático todavía no está activado. Puedes escribirnos a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a> y te ayudaremos.';
       } else throw new Error(j.error||"Error");
     }catch(err){
       msg.className="form-msg error";
-      msg.innerHTML='No se pudo enviar automáticamente. Escríbenos a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a>.';
+      msg.innerHTML='No hemos podido enviar la solicitud ahora mismo. Puedes escribirnos a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a> y te ayudaremos.';
     }finally{submit.disabled=false}
   });
 
@@ -87,7 +88,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   const input=document.getElementById("vnxAiInput");
   const messagesEl=document.getElementById("vnxAiMessages");
   const demoLink=document.getElementById("vnxAiDemo");
-  const history=[{role:"assistant",content:"Hola. Soy VentaNexIA AI. Puedo ayudarte a detectar qué parte de tu proceso comercial merece automatizarse primero. ¿A qué se dedica tu empresa?"}];
+  const history=[{role:"assistant",content:"Hola. Soy el ayudante de VentaNexIA. Puedo ayudarte a ver qué tareas de tu empresa podrías dejar de hacer a mano. ¿A qué se dedica tu empresa?"}];
   function syncChatContext(){
     const field=document.getElementById("formChatContext");
     if(!field)return;
@@ -98,14 +99,14 @@ document.addEventListener("DOMContentLoaded",()=>{
   function addMsg(text,type){const d=document.createElement("div");d.className=`vnx-msg ${type}`;d.textContent=text;messagesEl.appendChild(d);messagesEl.scrollTop=messagesEl.scrollHeight;return d}
   async function sendChat(){
     const text=input.value.trim();if(!text)return;
-    addMsg(text,"user");history.push({role:"user",content:text});syncChatContext();input.value="";send.disabled=true;const wait=addMsg("Analizando…","bot");
+    addMsg(text,"user");history.push({role:"user",content:text});syncChatContext();input.value="";send.disabled=true;const wait=addMsg("Pensando…","bot");
     try{
       const r=await fetch("/api/chat",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({messages:history.slice(-12)})});
       const j=await r.json();wait.remove();
       if(r.ok&&j.reply){addMsg(j.reply,"bot");history.push({role:"assistant",content:j.reply});syncChatContext()}
-      else if(j.code==="NOT_CONFIGURED")addMsg("El asistente real está preparado pero todavía pendiente de activar su credencial segura. Puedes solicitar el diagnóstico directamente desde el formulario.","error");
+      else if(j.code==="NOT_CONFIGURED")addMsg("Este ayudante todavía no está activado. Puedes contarnos tu caso en el formulario y te explicaremos cómo podría ayudarte VentaNexIA.","error");
       else throw new Error(j.error||"error");
-    }catch(e){wait.remove();addMsg("Ahora mismo no puedo responder. Puedes solicitar un diagnóstico y el equipo continuará contigo.","error")}
+    }catch(e){wait.remove();addMsg("Ahora mismo no puedo responder. Puedes contarnos tu caso en el formulario y seguiremos contigo desde ahí.","error")}
     finally{send.disabled=false;input.focus()}
   }
   launch?.addEventListener("click",()=>toggle(true));close?.addEventListener("click",()=>toggle(false));demoLink?.addEventListener("click",()=>{syncChatContext();toggle(false)});send?.addEventListener("click",sendChat);input?.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}});
@@ -115,7 +116,7 @@ document.addEventListener("DOMContentLoaded",()=>{
     {icon:"⌕",label:"PASO 2 · ENTIENDE LA PETICIÓN",title:"VentaNexIA ordena lo importante",text:"Identifica quién escribe, qué necesita y si parece urgente. Si falta información, prepara una pregunta sencilla.",example:"Necesidad: mejorar el seguimiento · Prioridad: revisar hoy"},
     {icon:"▤",label:"PASO 3 · GUARDA LOS DATOS",title:"La ficha queda preparada",text:"Nombre, empresa, petición y mensajes aparecen juntos. Tu equipo ya no tiene que copiar la misma información en varios sitios.",example:"Cliente y consulta reunidos en una sola ficha"},
     {icon:"✎",label:"PASO 4 · PREPARA LA RESPUESTA",title:"Tu equipo empieza con el trabajo adelantado",text:"El ayudante propone una respuesta usando solo la información que has aprobado. Tú puedes revisarla antes de enviarla.",example:"Respuesta preparada · Pendiente de tu aprobación"},
-    {icon:"⏰",label:"PASO 5 · RECUERDA EL SEGUIMIENTO",title:"Ninguna oportunidad queda olvidada",text:"Si la persona no responde o falta una tarea, VentaNexIA avisa al responsable en el momento adecuado.",example:"Recordatorio: volver a contactar el jueves a las 10:00"},
+    {icon:"⏰",label:"PASO 5 · RECUERDA EL SEGUIMIENTO",title:"Ningún posible cliente queda olvidado",text:"Si la persona no responde o falta una tarea, VentaNexIA avisa al responsable en el momento adecuado.",example:"Recordatorio: volver a contactar el jueves a las 10:00"},
     {icon:"✓",label:"PASO 6 · TU EQUIPO DECIDE",title:"Las personas mantienen el control",text:"Tu equipo ve qué necesita atención, aprueba lo importante, habla con el cliente y cierra el acuerdo. El sistema se ocupa del orden.",example:"Hoy: 3 respuestas para revisar · 2 llamadas pendientes"}
   ];
   const tutorial={
