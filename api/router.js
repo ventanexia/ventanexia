@@ -26,6 +26,7 @@ import portalReactivate from "../server/handlers/portal-reactivate.js";
 import portalRequestLink from "../server/handlers/portal-request-link.js";
 import portalState from "../server/handlers/portal-state.js";
 import proposalEvent from "../server/handlers/proposal-event.js";
+import prospectSearch from "../server/handlers/prospect-search.js";
 import qualify from "../server/handlers/qualify.js";
 import socialPlan from "../server/handlers/social-plan.js";
 import socialPublish from "../server/handlers/social-publish.js";
@@ -68,6 +69,7 @@ const handlers = {
   "portal-request-link": portalRequestLink,
   "portal-state": portalState,
   "proposal-event": proposalEvent,
+  "prospect-search": prospectSearch,
   "qualify": qualify,
   "social-plan": socialPlan,
   "social-publish": socialPublish,
