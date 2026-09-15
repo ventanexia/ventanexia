@@ -1,5 +1,4 @@
-import { generateText, stepCountIs } from "ai";
-import { gateway } from "@ai-sdk/gateway";
+import { generateText, stepCountIs, gateway } from "ai";
 
 function clean(value, max = 160) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
@@ -82,9 +81,8 @@ REGLAS OBLIGATORIAS
       model: "openai/gpt-5.6-sol",
       prompt,
       tools: {
-        web_search: gateway.tools.takoSearch()
+        tako_search: gateway.tools.takoSearch()
       },
-      toolChoice: "required",
       stopWhen: stepCountIs(5)
     });
 
