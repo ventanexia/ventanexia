@@ -9,129 +9,45 @@
 :root{--navy:#071a2c;--blue:#1498ff;--bg:#eef4fb;--line:#d7e2ef;--text:#0a1a2b;--muted:#66788d;--green:#dcf8c6;--white:#fff}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
 .top{height:74px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 6vw}.brand{font-size:24px;font-weight:800}.brand b{color:var(--blue)}.top a{color:var(--text);text-decoration:none;font-weight:700}
-.wrap{max-width:1180px;margin:34px auto;padding:0 20px}.intro{text-align:center;margin-bottom:24px}.intro h1{font-size:42px;margin:0 0 10px}.intro p{color:var(--muted);font-size:18px;max-width:760px;margin:0 auto}
-.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}.phone,.rules{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 16px 40px rgba(24,55,90,.08)}
-.phone{overflow:hidden}.phone-head{background:#075e54;color:#fff;padding:17px 20px;display:flex;align-items:center;gap:12px}.avatar{width:42px;height:42px;border-radius:50%;background:#fff;color:#075e54;display:grid;place-items:center;font-weight:800}.phone-head small{display:block;opacity:.85;margin-top:3px}
-.chat{height:520px;overflow:auto;padding:20px;background:#efeae2}.msg{max-width:78%;padding:11px 13px;border-radius:12px;margin:8px 0;line-height:1.4;box-shadow:0 1px 1px rgba(0,0,0,.08)}.customer{background:#fff;border-top-left-radius:3px}.bot{background:var(--green);margin-left:auto;border-top-right-radius:3px}.system{background:#fff3cd;color:#665100;max-width:92%;margin:12px auto;text-align:center;font-size:14px}
-.composer{display:flex;gap:10px;padding:14px;background:#f7f8fa;border-top:1px solid var(--line)}.composer input{flex:1;border:1px solid var(--line);border-radius:24px;padding:13px 16px;font-size:16px}.composer button,.quick button{border:0;border-radius:12px;background:var(--blue);color:#fff;font-weight:800;padding:12px 16px;cursor:pointer}.composer button:hover,.quick button:hover{filter:brightness(.96)}
-.rules{padding:22px}.rules h2{margin-top:0}.card{border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}.card b{display:block;margin-bottom:5px}.card span{color:var(--muted);font-size:14px}.ok{color:#0b7a45}.stop{color:#b06a00}.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.quick button{background:#0b2740}.note{font-size:14px;color:var(--muted);margin-top:15px;line-height:1.45}
-.approval{display:none;margin-top:14px;background:#fff7e6;border:1px solid #ffd08a;border-radius:14px;padding:14px}.approval.show{display:block}.approval button{margin-top:10px;margin-right:8px;border:0;border-radius:9px;padding:10px 12px;font-weight:800;cursor:pointer}.approve{background:#0d8b5b;color:#fff}.reject{background:#e9eef4;color:#24364b}
+.wrap{max-width:1180px;margin:34px auto;padding:0 20px}.intro{text-align:center;margin-bottom:24px}.intro h1{font-size:42px;margin:0 0 10px}.intro p{color:var(--muted);font-size:18px;max-width:800px;margin:0 auto}.grid{display:grid;grid-template-columns:1.15fr .85fr;gap:22px}
+.phone,.rules{background:#fff;border:1px solid var(--line);border-radius:22px;box-shadow:0 16px 40px rgba(24,55,90,.08)}.phone{overflow:hidden}.phone-head{background:#075e54;color:#fff;padding:17px 20px;display:flex;align-items:center;gap:12px}.avatar{width:42px;height:42px;border-radius:50%;background:#fff;color:#075e54;display:grid;place-items:center;font-weight:800}.phone-head small{display:block;opacity:.85;margin-top:3px}
+.chat{height:520px;overflow:auto;padding:20px;background:#efeae2}.msg{max-width:84%;padding:11px 13px;border-radius:12px;margin:8px 0;line-height:1.45;white-space:pre-wrap;box-shadow:0 1px 1px rgba(0,0,0,.08)}.customer{background:#fff;border-top-left-radius:3px}.bot{background:var(--green);margin-left:auto;border-top-right-radius:3px}.system{background:#fff3cd;color:#665100;max-width:94%;margin:12px auto;text-align:center;font-size:14px}
+.composer{display:flex;gap:10px;padding:14px;background:#f7f8fa;border-top:1px solid var(--line)}.composer input{flex:1;border:1px solid var(--line);border-radius:24px;padding:13px 16px;font-size:16px}.composer button,.quick button,.approval button{border:0;border-radius:12px;color:#fff;font-weight:800;padding:12px 16px;cursor:pointer}.composer button{background:var(--blue)}
+.rules{padding:22px}.rules h2{margin-top:0}.card{border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0}.card b{display:block;margin-bottom:5px}.card span{color:var(--muted);font-size:14px}.ok{color:#0b7a45}.stop{color:#b06a00}.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.quick button{background:#0b2740}.note{font-size:14px;color:var(--muted);margin-top:15px;line-height:1.45}.approval{display:none;margin-top:14px;background:#fff7e6;border:1px solid #ffd08a;border-radius:14px;padding:14px}.approval.show{display:block}.approve{background:#0d8b5b}.reject{background:#708090;margin-left:6px}.status{font-size:13px;color:var(--muted);margin-top:10px}
 @media(max-width:850px){.grid{grid-template-columns:1fr}.intro h1{font-size:32px}.chat{height:460px}}
 </style>
 </head>
 <body>
 <div class="top"><div class="brand"><b>V</b> VentaNexIA</div><a href="/">Volver a la web</a></div>
 <main class="wrap">
-  <section class="intro"><h1>Prueba cómo respondería VentaNexIA por WhatsApp</h1><p>Es una simulación: escribe como si fueras un cliente. VentaNexIA intenta resolver la petición, pide solo los datos que faltan y se detiene cuando necesita tu permiso.</p></section>
-  <div class="grid">
-    <section class="phone">
-      <div class="phone-head"><div class="avatar">V</div><div><b>VentaNexIA</b><small>Ayudante de WhatsApp · prueba</small></div></div>
-      <div class="chat" id="chat">
-        <div class="msg system">Esta prueba no envía mensajes reales por WhatsApp.</div>
-        <div class="msg bot">Hola. Dime qué necesitas. Intentaré resolvértelo directamente y solo te pediré los datos imprescindibles.</div>
-      </div>
-      <div class="composer"><input id="input" placeholder="Escribe como si fueras un cliente…"><button id="send">Enviar</button></div>
-    </section>
-    <aside class="rules">
-      <h2>Qué hará en esta prueba</h2>
-      <div class="card"><b class="ok">✓ Busca una solución</b><span>Pedidos, publicaciones, reuniones, seguimiento, entregas, facturas, información, organización y tareas habituales.</span></div>
-      <div class="card"><b class="stop">⚠ Te pide permiso</b><span>Precios, descuentos, condiciones especiales, devoluciones sensibles o compromisos comerciales.</span></div>
-      <h2>Pruebas rápidas</h2>
-      <div class="quick">
-        <button data-q="Necesito que me prepares publicaciones para Instagram">Instagram</button>
-        <button data-q="Quiero hacer un pedido">Pedido</button>
-        <button data-q="¿Qué precio tienen 20 unidades?">Precio</button>
-        <button data-q="Quiero una reunión mañana">Reunión</button>
-        <button data-q="¿Dónde está mi pedido?">Seguimiento</button>
-        <button data-q="Necesito una factura">Factura</button>
-      </div>
-      <div class="approval" id="approval"><b>VentaNexIA necesita tu permiso</b><div id="approvalText" style="margin-top:6px"></div><button class="approve" id="approve">Aprobar respuesta</button><button class="reject" id="reject">No enviar</button></div>
-      <p class="note">La idea es que el cliente reciba una solución útil, no respuestas vacías. Si falta un dato, se pregunta solo por ese dato y se continúa desde ahí.</p>
-    </aside>
-  </div>
+<section class="intro"><h1>Prueba cómo respondería VentaNexIA por WhatsApp</h1><p>Escribe como un cliente real. La prueba debe darte una solución concreta, no decirte simplemente lo que podría hacer.</p></section>
+<div class="grid">
+<section class="phone">
+<div class="phone-head"><div class="avatar">V</div><div><b>VentaNexIA</b><small>Ayudante de WhatsApp · prueba</small></div></div>
+<div class="chat" id="chat"><div class="msg system">Simulación: no envía mensajes reales por WhatsApp.</div><div class="msg bot">Hola. Dime qué necesitas y voy directo a resolverlo.</div></div>
+<div class="composer"><input id="input" placeholder="Escribe como si fueras un cliente…"><button id="send">Enviar</button></div>
+</section>
+<aside class="rules">
+<h2>Qué debe hacer</h2>
+<div class="card"><b class="ok">✓ Entregar una solución</b><span>Si pides un texto, lo escribe. Si pides un mockup, lo propone. Si pides ideas, las da. Si falta un dato, pregunta solo ese dato.</span></div>
+<div class="card"><b class="stop">⚠ Pedir permiso solo cuando toca</b><span>Precios, descuentos, devoluciones sensibles o compromisos comerciales.</span></div>
+<h2>Pruebas rápidas</h2>
+<div class="quick"><button data-q="Necesito 3 publicaciones para Instagram de una tienda de muebles">Instagram</button><button data-q="Hazme un mockup para promocionar un sofá moderno">Mockup</button><button data-q="Quiero hacer un pedido de 20 sillas">Pedido</button><button data-q="¿Qué precio me haces por 20 sillas?">Precio</button><button data-q="Quiero una reunión mañana">Reunión</button><button data-q="Necesito una factura">Factura</button></div>
+<div class="approval" id="approval"><b>Esta respuesta necesita tu aprobación</b><div id="approvalText" class="status"></div><button class="approve" id="approve">Aprobar y enviar</button><button class="reject" id="reject">No enviar</button></div>
+<p class="note">La conversación usa inteligencia artificial y recuerda lo anterior. El objetivo es que avance y produzca algo útil en cada turno.</p>
+</aside>
+</div>
 </main>
 <script>
 const chat=document.getElementById('chat'),input=document.getElementById('input'),send=document.getElementById('send');
 const approval=document.getElementById('approval'),approvalText=document.getElementById('approvalText');
 let pending='';
-const state={intent:'',product:'',qty:'',topic:'',business:'',orderId:'',meetingTime:''};
-function add(text,type){const d=document.createElement('div');d.className='msg '+type;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight}
-function askApproval(text,visible){pending=text;add(visible,'bot');approvalText.textContent='Respuesta preparada: “'+pending+'”';approval.classList.add('show')}
-function numberFrom(t){const m=t.match(/\b(\d{1,5})\b/);return m?m[1]:''}
-function has(t,...words){return words.some(w=>t.includes(w))}
-function answer(text){
- const t=text.toLowerCase().trim();
- const n=numberFrom(t); if(n&&!state.qty&&state.intent==='order')state.qty=n;
-
- if(has(t,'qué puedes hacer','que puedes hacer','qué haces','que haces','a ver que puedes hacer','ayudarme')){
-   add('Puedo responder clientes, preparar pedidos, organizar reuniones, crear publicaciones para redes, hacer seguimientos, pedir datos que falten, recordar tareas y preparar respuestas. Si hay un precio, descuento o condición especial, te pido permiso antes de enviarlo. Dime qué quieres resolver y voy directo a ello.','bot');return;
- }
-
- if(has(t,'instagram','facebook','linkedin','redes','publicacion','publicaciones','post','contenido')){
-   state.intent='social';
-   if(!state.business){add('Sí. Puedo prepararte las publicaciones. Para empezar necesito saber a qué se dedica tu empresa o qué producto quieres promocionar. Con eso te preparo ideas de publicaciones, textos, llamadas a la acción y un calendario sencillo.','bot');return}
- }
- if(state.intent==='social'){
-   if(!state.business){state.business=text;add('Perfecto. Para '+text+' te propondría 3 tipos de contenido: 1) explicar beneficios del producto o servicio, 2) resolver dudas frecuentes y 3) publicaciones que inviten a pedir información o comprar. Si quieres, dime qué quieres promocionar primero y te preparo un ejemplo concreto.','bot');return}
-   add('Perfecto. Te prepararía el texto de la publicación, una idea visual, el mensaje principal y una llamada a la acción. Después podríamos dejar varias publicaciones listas para revisar y programar.','bot');return;
- }
-
- if(has(t,'hacer un pedido','quiero un pedido','pedido nuevo','comprar','necesito pedir')){
-   state.intent='order';
-   if(!state.product){add('Claro. Dime qué producto necesitas y cuántas unidades quieres. Con esos dos datos te dejo el pedido preparado.','bot');return}
- }
- if(state.intent==='order'){
-   if(!state.product){state.product=text; if(!state.qty){add('Perfecto. ¿Cuántas unidades de '+state.product+' necesitas?','bot');return}}
-   if(!state.qty&&n){state.qty=n}
-   if(!state.qty){add('¿Cuántas unidades necesitas?','bot');return}
-   add('Perfecto. Dejo preparado el pedido de '+state.qty+' unidades de '+state.product+'. El siguiente paso sería confirmar dirección de entrega y forma de pago.','bot');return;
- }
-
- if(has(t,'precio','precios','descuento','oferta','tarifa','condiciones comerciales')){
-   const qty=n||state.qty||'la cantidad indicada';
-   askApproval('He preparado la consulta para '+qty+' unidades. Antes de enviarte un precio o descuento, lo revisará una persona del equipo para asegurarnos de darte la condición correcta.','Entendido. Ya tengo la cantidad. Como hablamos de precio o descuento, preparo la respuesta y la dejo pendiente de aprobación para no darte una cifra incorrecta.');return;
- }
-
- if(has(t,'reunion','reunión','cita','agenda','videollamada','llamada')){
-   state.intent='meeting';
-   if(has(t,'mañana','manana')){add('Perfecto. Puedo dejar preparada una reunión para mañana. Dime qué hora te va bien o, si prefieres, te propongo mañana a las 10:00, 12:00 o 16:00.','bot');return}
-   add('Claro. Dime qué día y a qué hora te va bien. Si quieres, también puedo proponerte varios horarios disponibles para que elijas.','bot');return;
- }
- if(state.intent==='meeting'&&/\d{1,2}[:.]?\d{0,2}/.test(t)){
-   state.meetingTime=text;add('Perfecto. Dejo preparada la reunión para '+text+'. Solo faltaría confirmar el correo o teléfono de la persona que asistirá.','bot');return;
- }
-
- if(has(t,'dónde está mi pedido','donde esta mi pedido','seguimiento','tracking','no me ha llegado','no ha llegado','entrega')){
-   state.intent='tracking';add('Te ayudo a localizarlo. Pásame el número de pedido o el correo con el que se hizo la compra y te indico el estado y la fecha prevista de entrega.','bot');return;
- }
- if(state.intent==='tracking'){
-   state.orderId=text;add('Gracias. Con ese dato buscaría el pedido y te devolvería el estado, la agencia de transporte y la fecha prevista. Si hubiera una incidencia, la dejaría registrada para que el equipo la resuelva.','bot');return;
- }
-
- if(has(t,'factura','facturación','facturacion','duplicado de factura')){
-   state.intent='invoice';add('Claro. Pásame el número de pedido o el nombre de la empresa y te preparo la factura o te indico dónde descargarla.','bot');return;
- }
- if(state.intent==='invoice'){
-   add('Perfecto. Con esos datos localizaría la operación y te enviaría la factura correspondiente o avisaría al equipo si falta algún dato fiscal.','bot');return;
- }
-
- if(has(t,'reclam','devoluci','queja','problema','defectuoso','roto','mal estado')){
-   askApproval('Siento lo ocurrido. Ya he dejado registrada la incidencia y el equipo revisará el caso para darte una solución concreta lo antes posible.','He registrado el problema. Como puede implicar una devolución o una decisión comercial, preparo el caso y lo dejo para revisión antes de prometerte una solución que no esté autorizada.');return;
- }
-
- if(has(t,'horario','abierto','abrís','abris','cerráis','cerrais')){add('Puedo darte el horario exacto si me indicas qué tienda, oficina o departamento quieres consultar.','bot');return}
- if(has(t,'pago','pagar','transferencia','tarjeta','bizum')){add('Puedo ayudarte con el pago. Si me dices qué opción quieres usar, te indico los pasos o te preparo el enlace correspondiente cuando esté conectado al sistema de cobros.','bot');return}
- if(has(t,'stock','disponible','disponibilidad','hay unidades')){add('Puedo comprobar disponibilidad cuando esté conectado al inventario. Dime el producto y la cantidad que necesitas y te responderé con el stock disponible o una alternativa.','bot');return}
- if(has(t,'correo','email','whatsapp','mensajes')){add('Sí. Puedo responder consultas sencillas, pedir los datos que falten, recordar seguimientos y preparar respuestas. Las respuestas delicadas, precios o compromisos se dejan para tu aprobación.','bot');return}
- if(has(t,'recordar','seguimiento','volver a contactar')){add('Puedo dejar un recordatorio automático para volver a contactar al cliente en la fecha adecuada y avisarte si no ha respondido. Dime cuándo quieres que se haga el seguimiento.','bot');return}
- if(has(t,'hola','información','informacion','interesa','interés','interes')){add('Hola. Claro. Dime qué necesitas exactamente y buscaré la forma más rápida de resolvértelo.','bot');return}
-
- add('Puedo ayudarte con eso. Lo haría así: primero identifico exactamente qué necesitas, después preparo la acción o respuesta y, si hay algo que requiere tu autorización, te lo enseño antes de enviarlo. Dime cuál es el resultado que quieres conseguir y te propongo una solución concreta.','bot');
-}
-function submit(){const t=input.value.trim();if(!t)return;add(t,'customer');input.value='';setTimeout(()=>answer(t),250)}
-send.onclick=submit;input.addEventListener('keydown',e=>{if(e.key==='Enter')submit()});
-document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{input.value=b.dataset.q;submit()});
-document.getElementById('approve').onclick=()=>{approval.classList.remove('show');add('Respuesta aprobada','system');setTimeout(()=>add(pending,'bot'),200);pending=''};
-document.getElementById('reject').onclick=()=>{approval.classList.remove('show');add('Respuesta no enviada. Queda pendiente para revisión humana.','system');pending=''};
+const history=[{role:'assistant',content:'Hola. Dime qué necesitas y voy directo a resolverlo.'}];
+function add(text,type){const d=document.createElement('div');d.className='msg '+type;d.textContent=text;chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d}
+function fallback(text){const t=text.toLowerCase();if(t.includes('mockup'))return 'MOCKUP PROPUESTO\n\nImagen: salón luminoso con un sofá moderno como protagonista.\nTexto sobre la imagen: “Tu salón puede sentirse nuevo sin cambiarlo todo”.\nSubtexto: “Diseño, comodidad y estilo para cada día”.\nBotón: “Descubre la colección”.\n\nCOPY:\nHaz que tu salón sea el lugar al que siempre apetece volver. Sofás cómodos, líneas actuales y opciones para distintos espacios. Escríbenos y te ayudamos a elegir el que mejor encaja contigo.\n\n#Muebles #Decoración #Sofás #Hogar';if(t.includes('instagram')||t.includes('publicacion'))return 'Aquí tienes 3 publicaciones listas para usar:\n\n1) “Renueva tu salón sin complicarte”\nTexto: Un buen sofá cambia todo el ambiente. Te ayudamos a elegir medida, estilo y acabado. Escríbenos y te asesoramos.\n\n2) “3 claves para elegir sofá”\nTexto: Mide bien el espacio, piensa en el uso diario y elige un tejido que encaje con tu ritmo de vida. Si quieres, te ayudamos a decidir.\n\n3) “Tu casa, más tuya”\nTexto: Pequeños cambios pueden transformar una habitación. Descubre piezas pensadas para vivirlas cada día.';return 'Te ayudo. Dime el resultado exacto que quieres conseguir y te doy una propuesta concreta ahora mismo.'}
+async function answer(text){const wait=add('Pensando…','bot');try{const r=await fetch('/api/whatsapp-simulator',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:history.slice(-16)})});const j=await r.json();wait.remove();if(!r.ok)throw new Error(j.error||'error');pending=j.reply||'';if(j.requiresApproval){approvalText.textContent=pending;approval.classList.add('show');add('He preparado una respuesta concreta, pero como afecta a precio, descuento o una condición sensible, la dejo pendiente de tu aprobación.','bot');}else{add(pending,'bot');history.push({role:'assistant',content:pending});}}catch(e){wait.remove();const fb=fallback(text);add(fb,'bot');history.push({role:'assistant',content:fb});}}
+function submit(){const t=input.value.trim();if(!t)return;add(t,'customer');history.push({role:'user',content:t});input.value='';answer(t)}
+send.onclick=submit;input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();submit()}});document.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{input.value=b.dataset.q;submit()});
+document.getElementById('approve').onclick=()=>{approval.classList.remove('show');add('Aprobado','system');add(pending,'bot');history.push({role:'assistant',content:pending});pending=''};document.getElementById('reject').onclick=()=>{approval.classList.remove('show');add('No enviado. Queda pendiente para revisión.','system');pending=''};
 </script>
 </body></html>
