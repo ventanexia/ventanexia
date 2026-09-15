@@ -1,4 +1,4 @@
-import { generateText, gateway } from "ai";
+import { generateText, gateway, stepCountIs } from "ai";
 
 function clean(value, max = 160) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, max);
@@ -48,15 +48,15 @@ Busca en la web exactamente 3 empresas REALES que puedan ser posibles clientes p
 - Tipo de cliente solicitado: ${clientType}
 - Zona: ${zone}
 
-Reglas:
-- Haz una búsqueda web real antes de responder.
+Reglas obligatorias:
+- Debes usar tako_search antes de responder.
 - Los resultados deben ser empresas reales del tipo solicitado y de la zona indicada, o que operen claramente en ella.
 - No uses ejemplos fijos y no inventes empresas.
 - Usa solo datos empresariales públicos.
 - No inventes email, teléfono, dirección ni web. Si no encuentras un dato, deja ese campo vacío.
 - Prioriza la web oficial y añade las URLs usadas en sources.
 - Explica en una frase por qué cada empresa encaja como posible comprador.
-- Devuelve SOLO JSON válido con esta estructura:
+- Tras recibir los resultados de tako_search, devuelve SOLO JSON válido con esta estructura:
 {
   "leads": [
     {
@@ -75,11 +75,13 @@ Reglas:
 
   try {
     const result = await generateText({
-      model: "openai/gpt-5.6-sol",
+      model: "openai/gpt-5.5",
       prompt,
       tools: {
         tako_search: gateway.tools.takoSearch()
-      }
+      },
+      toolChoice: "auto",
+      stopWhen: stepCountIs(4)
     });
 
     const parsed = extractJson(result.text);
@@ -99,8 +101,7 @@ Reglas:
   } catch (error) {
     console.error("prospect-search", error);
     return res.status(500).json({
-      error: "No se pudo completar la búsqueda ahora mismo. Inténtalo de nuevo.",
-      detail: process.env.NODE_ENV === "development" ? String(error?.message || error) : undefined
+      error: "No se pudo completar la búsqueda ahora mismo. Inténtalo de nuevo."
     });
   }
 }
