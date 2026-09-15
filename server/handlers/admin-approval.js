@@ -1,4 +1,4 @@
-import {verifyAdmin} from "../../lib/admin-auth.js";
+import {authenticateAdmin} from "../../lib/admin-auth.js";
 import {requireSameOrigin} from "../../lib/request-security.js";
 
 function sb(){
@@ -27,7 +27,7 @@ async function fire(payload){
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
   if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
-  if(!verifyAdmin(req)) return res.status(401).json({error:"No autorizado"});
+  if(!await authenticateAdmin(req)) return res.status(401).json({error:"No autorizado"});
   const id=clean(req.body?.id,100), decision=clean(req.body?.decision,30), note=clean(req.body?.note,1000);
   if(!id||!["approve","reject"].includes(decision)) return res.status(400).json({error:"Solicitud inválida"});
   try{
