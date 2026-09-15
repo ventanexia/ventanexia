@@ -4,6 +4,11 @@ document.addEventListener("DOMContentLoaded",()=>{
   function closeNav(){mainNav?.classList.remove("open");navToggle?.setAttribute("aria-expanded","false");}
   navToggle?.addEventListener("click",()=>{const open=!mainNav?.classList.contains("open");mainNav?.classList.toggle("open",open);navToggle?.setAttribute("aria-expanded",open?"true":"false")});
   mainNav?.querySelectorAll("a").forEach(a=>a.addEventListener("click",closeNav));
+  if(mainNav&&!mainNav.querySelector('a[href="/captador-clientes-ia.html"]')){
+    const demo=mainNav.querySelector('a[href="/demo.html"]');
+    const finder=document.createElement("a");finder.href="/captador-clientes-ia.html";finder.textContent="Buscar clientes con IA";
+    if(demo)demo.insertAdjacentElement("beforebegin",finder);else mainNav.appendChild(finder);
+  }
 
   const eur=new Intl.NumberFormat("es-ES",{style:"currency",currency:"EUR",maximumFractionDigits:0});
   const qs=new URLSearchParams(location.search);
