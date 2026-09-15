@@ -109,4 +109,44 @@ document.addEventListener("DOMContentLoaded",()=>{
     finally{send.disabled=false;input.focus()}
   }
   launch?.addEventListener("click",()=>toggle(true));close?.addEventListener("click",()=>toggle(false));demoLink?.addEventListener("click",()=>{syncChatContext();toggle(false)});send?.addEventListener("click",sendChat);input?.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat()}});
+
+  const tutorialSteps=[
+    {icon:"✉",label:"PASO 1 · LLEGA UNA CONSULTA",title:"Una persona pide información",text:"Puede escribir desde tu web, un formulario o un correo. La consulta entra en un único lugar para que nadie tenga que buscarla.",example:"“Hola, necesito información para mi empresa.”"},
+    {icon:"⌕",label:"PASO 2 · ENTIENDE LA PETICIÓN",title:"VentaNexIA ordena lo importante",text:"Identifica quién escribe, qué necesita y si parece urgente. Si falta información, prepara una pregunta sencilla.",example:"Necesidad: mejorar el seguimiento · Prioridad: revisar hoy"},
+    {icon:"▤",label:"PASO 3 · GUARDA LOS DATOS",title:"La ficha queda preparada",text:"Nombre, empresa, petición y mensajes aparecen juntos. Tu equipo ya no tiene que copiar la misma información en varios sitios.",example:"Cliente y consulta reunidos en una sola ficha"},
+    {icon:"✎",label:"PASO 4 · PREPARA LA RESPUESTA",title:"Tu equipo empieza con el trabajo adelantado",text:"El ayudante propone una respuesta usando solo la información que has aprobado. Tú puedes revisarla antes de enviarla.",example:"Respuesta preparada · Pendiente de tu aprobación"},
+    {icon:"⏰",label:"PASO 5 · RECUERDA EL SEGUIMIENTO",title:"Ninguna oportunidad queda olvidada",text:"Si la persona no responde o falta una tarea, VentaNexIA avisa al responsable en el momento adecuado.",example:"Recordatorio: volver a contactar el jueves a las 10:00"},
+    {icon:"✓",label:"PASO 6 · TU EQUIPO DECIDE",title:"Las personas mantienen el control",text:"Tu equipo ve qué necesita atención, aprueba lo importante, habla con el cliente y cierra el acuerdo. El sistema se ocupa del orden.",example:"Hoy: 3 respuestas para revisar · 2 llamadas pendientes"}
+  ];
+  const tutorial={
+    icon:document.getElementById("tutorialIcon"),label:document.getElementById("tutorialLabel"),
+    title:document.getElementById("tutorialTitle"),text:document.getElementById("tutorialText"),
+    example:document.getElementById("tutorialExample"),counter:document.getElementById("tutorialCounter"),
+    progress:document.getElementById("tutorialProgress"),play:document.getElementById("tutorialPlay")
+  };
+  let tutorialIndex=0,tutorialTimer=null;
+  function renderTutorial(){
+    const step=tutorialSteps[tutorialIndex];
+    if(!tutorial.title)return;
+    tutorial.icon.textContent=step.icon;tutorial.label.textContent=step.label;tutorial.title.textContent=step.title;
+    tutorial.text.textContent=step.text;tutorial.example.textContent=step.example;
+    tutorial.counter.textContent=`${tutorialIndex+1} de ${tutorialSteps.length}`;
+    tutorial.progress.style.width=`${((tutorialIndex+1)/tutorialSteps.length)*100}%`;
+  }
+  function stopTutorial(){if(tutorialTimer)clearInterval(tutorialTimer);tutorialTimer=null;if(tutorial.play)tutorial.play.textContent="▶ Reproducir"}
+  function startTutorial(){
+    if(tutorialTimer){stopTutorial();return}
+    if(tutorial.play)tutorial.play.textContent="❚❚ Pausar";
+    tutorialTimer=setInterval(()=>{tutorialIndex=(tutorialIndex+1)%tutorialSteps.length;renderTutorial()},7000);
+  }
+  document.getElementById("tutorialPrev")?.addEventListener("click",()=>{tutorialIndex=(tutorialIndex-1+tutorialSteps.length)%tutorialSteps.length;renderTutorial()});
+  document.getElementById("tutorialNext")?.addEventListener("click",()=>{tutorialIndex=(tutorialIndex+1)%tutorialSteps.length;renderTutorial()});
+  tutorial.play?.addEventListener("click",startTutorial);
+  document.getElementById("tutorialSpeak")?.addEventListener("click",()=>{
+    if(!("speechSynthesis" in window))return;
+    speechSynthesis.cancel();
+    const step=tutorialSteps[tutorialIndex];
+    const voice=new SpeechSynthesisUtterance(`${step.title}. ${step.text}`);voice.lang="es-ES";voice.rate=.95;speechSynthesis.speak(voice);
+  });
+  renderTutorial();
 });
