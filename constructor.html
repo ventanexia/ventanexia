@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Diseña tu sistema comercial con IA | VentaNexIA</title>
-<meta name="description" content="Explica qué quieres automatizar y VentaNexIA genera un blueprint inicial de agentes, integraciones y automatizaciones para tu empresa.">
+<title>Diseña qué quieres que haga VentaNexIA</title>
+<meta name="description" content="Cuéntanos con tus palabras qué tareas quieres dejar de hacer a mano. VentaNexIA te propone qué ayudantes necesitas y cómo empezar.">
 <meta name="robots" content="index,follow"><link rel="canonical" href="https://www.ventanexia.es/constructor.html">
 <link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/builder.css"></head>
 <body class="builder-body">
@@ -11,47 +11,47 @@
 <a class="btn primary small" href="/#demo">Hablar con nosotros →</a></div></header>
 <main>
 <section class="builder-hero"><div class="wrap builder-intro">
-<div class="eyebrow blue">VNX ARCHITECT</div>
-<h1>Dinos qué quieres automatizar.<br><span>VentaNexIA diseña el sistema.</span></h1>
-<p>Escribe tu necesidad como se la explicarías a una persona. VNX Architect la convierte en un blueprint inicial con agentes, automatizaciones, integraciones y puntos de aprobación.</p>
-<div class="builder-guard"><b>Sin acceso a tus sistemas en esta fase.</b> No pedimos contraseñas ni claves y no instalamos nada en producción hasta que exista autorización.</div>
+<div class="eyebrow blue">DISEÑA TU VENTANEXIA</div>
+<h1>Cuéntanos qué quieres dejar de hacer a mano.<br><span>Te enseñamos cómo podría hacerlo VentaNexIA.</span></h1>
+<p>Escribe tu necesidad como se la explicarías a una persona. Te proponemos qué ayudantes digitales necesitarías, qué herramientas habría que conectar y qué cosas seguirían necesitando tu permiso.</p>
+<div class="builder-guard"><b>En este paso no entramos en tus cuentas.</b> No pedimos contraseñas ni instalamos nada. Primero te enseñamos la propuesta y tú decides.</div>
 </div></section>
 
 <section class="builder-section"><div class="wrap builder-grid">
 <form id="builderForm" class="builder-form card-like">
 <h2>¿Qué quieres conseguir?</h2>
 <div class="fields2"><label>Empresa<input name="company" required placeholder="Nombre de la empresa"></label><label>Tu nombre<input name="name" required placeholder="Nombre y apellidos"></label></div>
-<div class="fields2"><label>Email<input name="email" type="email" required placeholder="tu@empresa.com"></label><label>Cargo<input name="role" placeholder="Director comercial, CEO…"></label></div>
-<div class="fields2"><label>Leads / oportunidades al mes<input name="volume" inputmode="numeric" placeholder="Ej. 50"></label><label>Herramientas actuales<input name="tools" placeholder="HubSpot, Gmail, Calendario…"></label></div>
-<label>Explícanos qué quieres que haga el sistema
-<textarea name="request" required minlength="20" rows="8" placeholder="Ejemplo: quiero que busque empresas de mi sector, identifique al responsable comercial, prepare el primer contacto, haga seguimiento, agende reuniones y mantenga HubSpot actualizado."></textarea></label>
+<div class="fields2"><label>Email<input name="email" type="email" required placeholder="tu@empresa.com"></label><label>Tu trabajo en la empresa<input name="role" placeholder="Ej. gerente, comercial, administración…"></label></div>
+<div class="fields2"><label>Posibles clientes al mes<input name="volume" inputmode="numeric" placeholder="Ej. 50"></label><label>Programas que ya utilizas<input name="tools" placeholder="Ej. correo, agenda, programa de clientes…"></label></div>
+<label>Explícanos qué quieres que haga VentaNexIA
+<textarea name="request" required minlength="20" rows="8" placeholder="Ejemplo: quiero que responda las primeras consultas, guarde los datos, recuerde a quién volver a llamar, proponga reuniones y mantenga ordenada la información de los clientes."></textarea></label>
 <input name="website" tabindex="-1" autocomplete="off" class="hp">
-<label class="consent"><input name="consent" type="checkbox" required> Acepto que VentaNexIA trate estos datos para preparar el diagnóstico y contactar conmigo.</label>
-<button class="btn primary builder-submit">Generar mi blueprint →</button>
+<label class="consent"><input name="consent" type="checkbox" required> Acepto que VentaNexIA trate estos datos para preparar una propuesta y contactar conmigo.</label>
+<button class="btn primary builder-submit">Ver mi propuesta →</button>
 <div id="builderMsg" class="builder-msg"></div>
 </form>
 
 <aside class="builder-output card-like">
-<div class="output-empty" id="outputEmpty"><span>✦</span><h2>Tu arquitectura aparecerá aquí</h2><p>VNX Architect analizará el objetivo, propondrá agentes, integraciones, automatizaciones y qué acciones requerirán aprobación.</p></div>
+<div class="output-empty" id="outputEmpty"><span>✦</span><h2>Tu propuesta aparecerá aquí</h2><p>VentaNexIA analizará lo que necesitas y te mostrará, en lenguaje sencillo, qué ayudantes podrían hacerlo, qué herramientas harían falta y qué acciones necesitarían tu permiso.</p></div>
 <div id="outputReady" hidden>
-<div class="output-head"><div><small>BLUEPRINT INICIAL</small><h2 id="bpSummary">—</h2></div><span class="fit-pill" id="fitBand">—</span></div>
-<div class="bp-block"><h3>Objetivos</h3><div id="bpGoals" class="chips"></div></div>
-<div class="bp-block"><h3>Módulos</h3><div id="bpModules" class="chips"></div></div>
-<div class="bp-block"><h3>Agentes VNX</h3><div id="bpAgents" class="chips agents"></div></div>
-<div class="bp-block"><h3>Automatizaciones propuestas</h3><ul id="bpAutomations"></ul></div>
-<div class="bp-block"><h3>Integraciones necesarias</h3><ul id="bpIntegrations"></ul></div>
-<div class="bp-block"><h3>Aprobación obligatoria</h3><ul id="bpApprovals"></ul></div>
-<div class="bp-block"><h3>Plan recomendado</h3><div id="planRecommendation" class="plan-recommendation">—</div></div><div class="bp-next"><small>SIGUIENTE PASO</small><b id="bpNext">—</b><span>La activación en producción siempre queda bajo VNX Guardian.</span></div><button id="startTrial" class="btn primary trial-btn" hidden>Iniciar demo de 3 días →</button><div id="trialMsg" class="builder-msg"></div>
+<div class="output-head"><div><small>PROPUESTA INICIAL</small><h2 id="bpSummary">—</h2></div><span class="fit-pill" id="fitBand">—</span></div>
+<div class="bp-block"><h3>Qué quieres conseguir</h3><div id="bpGoals" class="chips"></div></div>
+<div class="bp-block"><h3>Trabajos que haría VentaNexIA</h3><div id="bpModules" class="chips"></div></div>
+<div class="bp-block"><h3>Ayudantes que necesitarías</h3><div id="bpAgents" class="chips agents"></div></div>
+<div class="bp-block"><h3>Tareas que podemos dejar preparadas</h3><ul id="bpAutomations"></ul></div>
+<div class="bp-block"><h3>Programas o servicios que habría que conectar</h3><ul id="bpIntegrations"></ul></div>
+<div class="bp-block"><h3>Cosas que siempre necesitarán tu permiso</h3><ul id="bpApprovals"></ul></div>
+<div class="bp-block"><h3>Plan que mejor encaja</h3><div id="planRecommendation" class="plan-recommendation">—</div></div><div class="bp-next"><small>SIGUIENTE PASO</small><b id="bpNext">—</b><span>Nada importante se activa sin tu autorización.</span></div><button id="startTrial" class="btn primary trial-btn" hidden>Probarlo gratis 3 días →</button><div id="trialMsg" class="builder-msg"></div>
 </div>
 </aside>
 </div></section>
 
-<section class="builder-flow"><div class="wrap"><h2>De una frase a un sistema operativo comercial.</h2><div class="builder-steps">
-<div><span>01</span><b>Describe</b><p>Explicas el resultado que buscas.</p></div>
-<div><span>02</span><b>Arquitectura</b><p>VNX diseña agentes, reglas e integraciones.</p></div>
-<div><span>03</span><b>Diagnóstico</b><p>Validamos datos, alcance y condiciones.</p></div>
-<div><span>04</span><b>Guardian</b><p>Las acciones sensibles requieren autorización.</p></div>
-<div><span>05</span><b>Provision</b><p>Tras aprobación, se prepara la instalación y onboarding.</p></div>
+<section class="builder-flow"><div class="wrap"><h2>De una frase a un sistema preparado para ayudarte.</h2><div class="builder-steps">
+<div><span>01</span><b>Nos lo cuentas</b><p>Explicas qué quieres conseguir con tus palabras.</p></div>
+<div><span>02</span><b>Te proponemos cómo hacerlo</b><p>Te mostramos qué ayudantes y conexiones harían falta.</p></div>
+<div><span>03</span><b>Lo revisamos contigo</b><p>Confirmamos qué se hará, qué no se hará y cuánto costará.</p></div>
+<div><span>04</span><b>Tú pones los límites</b><p>Las acciones importantes siempre pueden quedar pendientes de tu permiso.</p></div>
+<div><span>05</span><b>Lo dejamos preparado</b><p>Solo después de tu aprobación conectamos lo necesario y empezamos.</p></div>
 </div></div></section>
 </main>
 <script src="/assets/builder.js"></script><script src="/assets/launch.js"></script></body></html>
