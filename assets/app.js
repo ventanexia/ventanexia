@@ -37,7 +37,7 @@ document.addEventListener("DOMContentLoaded",()=>{
   document.getElementById("calcToDemo")?.addEventListener("click",()=>{
     const form=document.getElementById("leadForm");
     if(form){
-      const v=calcValues();
+      calcValues();
       const volume=form.querySelector('[name="volumen"]'); const ticket=form.querySelector('[name="ticket"]');
       if(volume&&!volume.value) volume.value=calc.leads.value;
       if(ticket&&!ticket.value) ticket.value=calc.ticket.value;
@@ -57,6 +57,12 @@ document.addEventListener("DOMContentLoaded",()=>{
     const data=Object.fromEntries(new FormData(form).entries());
     data.consentimiento=!!form.querySelector('[name="consentimiento"]').checked;
     try{
+      sessionStorage.setItem("vnx_builder_prefill",JSON.stringify({
+        company:data.empresa||"",name:data.nombre||"",email:data.email||"",role:data.rol||"",
+        volume:data.volumen||"",request:data.necesidad||""
+      }));
+    }catch{}
+    try{
       const r=await fetch("/api/lead",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(data)});
       const j=await r.json();
       if(r.ok){
@@ -72,12 +78,12 @@ document.addEventListener("DOMContentLoaded",()=>{
         ["empresa","nombre","email","telefono"].forEach(k=>{const el=form.querySelector(`[name="${k}"]`);if(el)el.value=keep[k]||""});
         calcValues();
       } else if(j.code==="NOT_CONFIGURED"){
-        msg.className="form-msg success";
-        msg.innerHTML='Hemos preparado tu solicitud, pero el envío automático todavía no está activado. Puedes escribirnos a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a> y te ayudaremos.';
+        location.href="/constructor.html?desde=portada";
+        return;
       } else throw new Error(j.error||"Error");
     }catch(err){
       msg.className="form-msg error";
-      msg.innerHTML='No hemos podido enviar la solicitud ahora mismo. Puedes escribirnos a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a> y te ayudaremos.';
+      msg.innerHTML='No hemos podido continuar ahora mismo. Puedes probar de nuevo o escribirnos a <a href="mailto:demo@ventanexia.es">demo@ventanexia.es</a>.';
     }finally{submit.disabled=false}
   });
 

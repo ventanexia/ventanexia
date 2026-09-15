@@ -51,6 +51,18 @@ function simpleBand(x){
   const m={PRIORITY:"Encaja muy bien",QUALIFIED:"Buen encaje",NURTURE:"Podría encajar",DISCOVERY:"Hay que revisarlo"};
   return m[String(x||"").toUpperCase()]||"Propuesta preparada";
 }
+function prefillFromPortada(){
+  try{
+    const raw=sessionStorage.getItem("vnx_builder_prefill");
+    if(!raw)return;
+    const d=JSON.parse(raw);const form=$("#builderForm");if(!form)return;
+    const values={company:d.company,name:d.name,email:d.email,role:d.role,volume:d.volume,request:d.request};
+    Object.entries(values).forEach(([name,value])=>{const el=form.querySelector(`[name="${name}"]`);if(el&&value&&!el.value)el.value=value});
+    sessionStorage.removeItem("vnx_builder_prefill");
+    const m=$("#builderMsg");if(m)m.textContent="Ya hemos traído los datos que escribiste. Revisa que estén bien, marca la casilla y pulsa “Ver mi propuesta”.";
+  }catch{}
+}
+prefillFromPortada();
 
 $("#builderForm").onsubmit=async e=>{
  e.preventDefault();const f=new FormData(e.currentTarget),m=$("#builderMsg");
