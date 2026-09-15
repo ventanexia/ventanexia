@@ -1,7 +1,7 @@
-import {readPortalSession,pdb} from "../../lib/portal-auth.js";
+import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
 export default async function handler(req,res){
   if(req.method!=="GET") return res.status(405).json({error:"Método no permitido"});
-  const s=readPortalSession(req);if(!s)return res.status(401).json({error:"No autorizado"});
+  const s=await authenticatePortal(req);if(!s)return res.status(401).json({error:"No autorizado"});
   try{
     const [profiles,connections,ents]=await Promise.all([
       pdb(`vnx_onboarding_profiles?tenant_id=eq.${encodeURIComponent(s.tenantId)}&select=*`),
