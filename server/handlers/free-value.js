@@ -25,7 +25,6 @@ function parseJson(text){
 async function runWithSearch(prompt){
   const token=String(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN||"");
   if(!token) throw new Error("AI_GATEWAY_NOT_CONFIGURED");
-
   const body={
     model:"openai/gpt-5.6-sol",
     instructions:`Eres el analista comercial de VentaNexIA. Tu trabajo es generar oportunidades reales y trabajo comercial útil. Usa búsqueda web siempre que necesites identificar empresas, webs, direcciones, teléfonos, emails o cualquier dato actual. Nunca inventes contactos. Solo usa emails empresariales publicados públicamente. Si un dato no aparece de forma fiable, escribe "No publicado". Distingue siempre entre hechos verificados e hipótesis comerciales. Devuelve SOLO JSON válido, sin markdown.`,
@@ -34,7 +33,6 @@ async function runWithSearch(prompt){
     max_output_tokens:3000,
     reasoning:{effort:"medium"}
   };
-
   const r=await fetch("https://ai-gateway.vercel.sh/v1/responses",{
     method:"POST",
     headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
@@ -55,8 +53,11 @@ async function runWithSearch(prompt){
   return parsed;
 }
 
-async function prospects({offer,area,website}){
-  const prompt=`El usuario vende u ofrece esto:\n${offer}\n\nZona preferida: ${area||"España"}\nWeb del usuario: ${website||"No indicada"}\n\nNo preguntes al usuario qué tipo de cliente quiere. DEDÚCELO tú a partir de lo que vende. Primero identifica mentalmente los perfiles de comprador con más sentido y después busca EXACTAMENTE 3 empresas reales de la zona que puedan ser oportunidades razonables.\n\nNo busques empresas del mismo sector para revenderles sin sentido. Busca compradores potenciales. Ejemplo: si vende muebles de cocina, piensa en promotoras, constructoras, estudios de interiorismo, reformas, apartamentos turísticos u otros compradores plausibles según la zona. Si vende mobiliario sanitario, piensa en clínicas, centros médicos, residencias, fisioterapia u otros compradores plausibles.\n\nPara cada oportunidad:\n- verifica nombre y actividad;\n- dirección pública;\n- web oficial;\n- teléfono público;\n- email comercial público si existe;\n- explica por qué podría encajar, sin afirmar que sabemos que necesita comprar;\n- redacta el asunto y el email exacto que dejarías en BORRADORES;\n- propone una imagen o material comercial útil para acompañar el email;\n- indica la siguiente acción si no responde;\n- incluye URLs de las fuentes públicas que has usado.\n\nDevuelve EXACTAMENTE esta estructura JSON:\n{"agent_name":"Agente Captador de Clientes","agent_goal":"Identifica quién puede necesitar lo que vendes, encuentra oportunidades reales y deja el contacto preparado","title":"3 oportunidades comerciales reales","summary":"Explica brevemente qué perfil de comprador has decidido buscar y por qué.","items":[{"name":"","fit":"Encaja mucho|Encaja|Encaja poco","why":"","address":"","website":"","phone":"","email":"","sales_angle":"","email_subject":"","email_body":"","image_concept":"","image_text":"","next_action":"","sources":["https://..."]}],"trust_note":"Datos empresariales obtenidos de fuentes públicas. Conviene verificarlos antes de contactar y nada se envía sin aprobación."}`;
+async function prospects({offer,buyerType,area,website}){
+  const buyerInstruction=buyerType
+    ?`El usuario ha indicado que quiere vender principalmente a este tipo de cliente: ${buyerType}. Respeta esa preferencia y busca compradores reales dentro de ese perfil.`
+    :`El usuario no ha indicado un tipo de cliente concreto. Deduce tú los perfiles de comprador con más sentido a partir de lo que vende.`;
+  const prompt=`El usuario vende u ofrece esto:\n${offer}\n\n${buyerInstruction}\n\nZona preferida: ${area||"España"}\nWeb del usuario: ${website||"No indicada"}\n\nBusca EXACTAMENTE 3 empresas reales de la zona que puedan ser oportunidades razonables. Si el usuario ha elegido particulares, no inventes personas privadas: busca canales o empresas que permitan llegar a particulares, como tiendas, distribuidores, marketplaces, colectivos o puntos de venta apropiados.\n\nNo busques empresas del mismo sector para revenderles sin sentido. Busca compradores potenciales o canales de venta plausibles. Para cada oportunidad:\n- verifica nombre y actividad;\n- dirección pública;\n- web oficial;\n- teléfono público;\n- email comercial público si existe;\n- explica por qué podría encajar, sin afirmar que sabemos que necesita comprar;\n- redacta el asunto y el email exacto que dejarías en BORRADORES;\n- propone una imagen o material comercial útil para acompañar el email;\n- indica la siguiente acción si no responde;\n- incluye URLs de las fuentes públicas que has usado.\n\nDevuelve EXACTAMENTE esta estructura JSON:\n{"agent_name":"Agente Captador de Clientes","agent_goal":"Identifica quién puede necesitar lo que vendes, encuentra oportunidades reales y deja el contacto preparado","title":"3 oportunidades comerciales reales","summary":"Explica brevemente qué perfil de comprador se ha buscado y por qué.","items":[{"name":"","fit":"Encaja mucho|Encaja|Encaja poco","why":"","address":"","website":"","phone":"","email":"","sales_angle":"","email_subject":"","email_body":"","image_concept":"","image_text":"","next_action":"","sources":["https://..."]}],"trust_note":"Datos empresariales obtenidos de fuentes públicas. Conviene verificarlos antes de contactar y nada se envía sin aprobación."}`;
   const result=await runWithSearch(prompt);
   if(!Array.isArray(result?.items)||result.items.length!==3) throw new Error("INVALID_PROSPECT_COUNT");
   return result;
@@ -73,11 +74,11 @@ export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
   const b=req.body||{};
   const mode=["prospects","diagnosis","ideas"].includes(String(b.mode))?String(b.mode):"ideas";
-  const offer=clean(b.offer,1000),area=clean(b.area,250),website=clean(b.website,600),problem=clean(b.problem,1200);
+  const offer=clean(b.offer,1000),buyerType=clean(b.buyerType,300),area=clean(b.area,250),website=clean(b.website,600),problem=clean(b.problem,1200);
   if(mode==="prospects"&&!offer) return res.status(400).json({error:"Cuéntame qué vendes o qué servicio ofreces."});
   if(mode!=="prospects"&&!offer&&!problem&&!website) return res.status(400).json({error:"Cuéntame al menos qué vendes, tu problema o tu web."});
   try{
-    const result=mode==="prospects"?await prospects({offer,area,website}):await genericIdeas({mode,offer,area,website,problem});
+    const result=mode==="prospects"?await prospects({offer,buyerType,area,website}):await genericIdeas({mode,offer,area,website,problem});
     return res.status(200).json({ok:true,mode,result});
   }catch(e){
     console.error("free-value",e?.message||e);
