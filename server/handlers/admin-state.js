@@ -1,5 +1,6 @@
 import {authenticateAdmin} from "../../lib/admin-auth.js";
 import {requireSameOrigin} from "../../lib/request-security.js";
+import {aiConfigured} from "../../lib/ai-client.js";
 
 function sb(){
   const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
@@ -29,7 +30,7 @@ export default async function handler(req,res){
       ok:true,tenants,approvals,jobs,
       integrations:{
         hubspot:!!process.env.HUBSPOT_ACCESS_TOKEN,
-        openai:!!process.env.OPENAI_API_KEY,
+        openai:aiConfigured(),
         calendar:!!process.env.BOOKING_URL,
         stripe:!!process.env.STRIPE_SECRET_KEY,
         supabase:!!process.env.SUPABASE_SERVICE_ROLE_KEY,

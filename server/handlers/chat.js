@@ -1,3 +1,5 @@
+import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
+
 const SYSTEM = `
 Eres VentaNexIA AI, el asistente comercial inteligente de VentaNexIA.
 Tu función es atender a responsables de empresas B2B, entender su proceso comercial y detectar si un diagnóstico de automatización puede aportar valor.
@@ -56,26 +58,20 @@ function extractOutputText(data){
 
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
-  const key=process.env.OPENAI_API_KEY;
-  if(!key) return res.status(503).json({code:"NOT_CONFIGURED",error:"Asistente no configurado"});
+  if(!aiConfigured()) return res.status(503).json({code:"NOT_CONFIGURED",error:"Asistente no configurado"});
   const messages=Array.isArray(req.body?.messages)?req.body.messages.slice(-10):[];
   if(!messages.length) return res.status(400).json({error:"Conversación vacía"});
   const input=messages
     .filter(m=>["user","assistant"].includes(m?.role) && typeof m?.content==="string")
     .map(m=>({role:m.role,content:[{type:"input_text",text:m.content.slice(0,5000)}]}));
   try{
-    const r=await fetch("https://api.openai.com/v1/responses",{
-      method:"POST",
-      headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},
-      body:JSON.stringify({
-        model:process.env.OPENAI_MODEL||"gpt-5.6-terra",
+    const r=await createAIResponse({
         instructions:SYSTEM,
         input,
         max_output_tokens:350,
         store:false
-      })
     });
-    const data=await r.json();
+    const data=r.data;
     if(!r.ok) return res.status(502).json({error:"No se pudo obtener respuesta del asistente"});
     const text=extractOutputText(data);
     if(!text) return res.status(502).json({error:"Respuesta vacía"});

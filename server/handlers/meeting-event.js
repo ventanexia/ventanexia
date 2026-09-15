@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
 
 function clean(v,max=6000){return String(v||"").trim().slice(0,max)}
 function auth(req){
@@ -17,19 +18,13 @@ async function hsPatch(dealId,properties){
   if(!r.ok) throw new Error(`HubSpot ${r.status}`);
 }
 async function generate(kind,input){
-  const key=process.env.OPENAI_API_KEY;
-  if(!key) return null;
-  const model=process.env.OPENAI_MODEL||"gpt-5.6-terra";
+  if(!aiConfigured()) return null;
   const instruction=kind==="brief"
     ?"Crea un briefing comercial breve en español de España. Incluye: empresa, contexto, hipótesis de dolor, preguntas de diagnóstico, riesgos, siguiente objetivo. No inventes hechos."
     :"Redacta un borrador de seguimiento comercial breve. Resume lo acordado, siguiente paso y CTA. No inventes precios, compromisos ni fechas.";
-  const r=await fetch("https://api.openai.com/v1/responses",{
-    method:"POST",
-    headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},
-    body:JSON.stringify({model,store:false,max_output_tokens:500,instructions:instruction,input})
-  });
+  const r=await createAIResponse({store:false,max_output_tokens:500,instructions:instruction,input});
   if(!r.ok) return null;
-  const j=await r.json();
+  const j=r.data;
   return j.output_text||null;
 }
 async function forward(payload){

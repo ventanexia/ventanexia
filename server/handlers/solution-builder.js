@@ -1,5 +1,6 @@
 import {issueTrialToken} from "../../lib/trial-token.js";
 import {recommendPlan} from "../../lib/pricing.js";
+import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
 function clean(v,max=6000){return String(v||"").trim().slice(0,max)}
 function emailOk(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)}
 function scoreRequest({company,requestText,volume,role}){
@@ -37,9 +38,7 @@ function fallbackBlueprint(requestText){
   };
 }
 async function aiBlueprint(input){
-  const key=process.env.OPENAI_API_KEY;
-  if(!key) return fallbackBlueprint(input.requestText);
-  const model=process.env.OPENAI_MODEL||"gpt-5.6-terra";
+  if(!aiConfigured()) return fallbackBlueprint(input.requestText);
   const instructions=`Eres VNX Architect, arquitecto de automatización B2B de VentaNexIA.
 Convierte la petición del prospecto en un blueprint comercial/técnico conservador.
 No inventes capacidades, precios, integraciones conectadas, resultados ni plazos.
@@ -59,19 +58,15 @@ complexity:"Baja"|"Media"|"Alta"|"Por validar",
 risk_notes:string[],
 next_step:string.
 Los agentes disponibles son: Guardian, Scout, Enrich, Outreach, Inbox, Qualify, Scheduler, CRM, Proposal, Content, Analyst, Provision.`;
-  const r=await fetch("https://api.openai.com/v1/responses",{
-    method:"POST",
-    headers:{"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},
-    body:JSON.stringify({
-      model,store:false,max_output_tokens:900,instructions,
+  const r=await createAIResponse({
+      store:false,max_output_tokens:900,instructions,
       input:JSON.stringify({
         company:input.company,role:input.role,request:input.requestText,
         monthly_leads:input.volume||null,current_tools:input.tools||null
       })
-    })
   });
   if(!r.ok) return fallbackBlueprint(input.requestText);
-  const j=await r.json();
+  const j=r.data;
   const text=j.output_text||"";
   try{
     const start=text.indexOf("{"), end=text.lastIndexOf("}");
