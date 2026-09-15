@@ -17,8 +17,12 @@ async function hsPatch(dealId,properties){
   if(!r.ok) throw new Error(`HubSpot ${r.status}`);
 }
 async function stripeCheckout(dealId,email,solutionRequestId){
-  const key=process.env.STRIPE_SECRET_KEY, monthly=process.env.STRIPE_PRICE_MONTHLY;
-  if(!key||!monthly||!email) return null;
+  const key=process.env.STRIPE_SECRET_KEY;
+  if(!key||!email) return null;
+  const lookup=await fetch("https://api.stripe.com/v1/prices?active=true&limit=1&lookup_keys[]=vnx_crecimiento_monthly",{headers:{"Authorization":`Bearer ${key}`}});
+  const lookupData=await lookup.json();
+  const monthly=lookupData?.data?.[0]?.id||process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY;
+  if(!monthly) throw new Error("STRIPE_PRICE_NOT_CONFIGURED");
   const priceResponse=await fetch(`https://api.stripe.com/v1/prices/${encodeURIComponent(monthly)}`,{headers:{"Authorization":`Bearer ${key}`}});
   const configuredPrice=await priceResponse.json();
   if(!priceResponse.ok||configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==90000||configuredPrice.recurring?.interval!=="month"){
