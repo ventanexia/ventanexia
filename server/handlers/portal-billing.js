@@ -1,8 +1,10 @@
-import {readPortalSession,pdb} from "../../lib/portal-auth.js";
+import {authenticatePortal,pdb} from "../../lib/portal-auth.js";
+import {requireSameOrigin} from "../../lib/request-security.js";
 function stripeBody(obj){return Object.entries(obj).map(([k,v])=>`${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&")}
 export default async function handler(req,res){
  if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
- const s=readPortalSession(req);if(!s)return res.status(401).json({error:"No autorizado"});
+  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
+ const s=await authenticatePortal(req);if(!s)return res.status(401).json({error:"No autorizado"});
  const key=process.env.STRIPE_SECRET_KEY;if(!key)return res.status(503).json({error:"Facturación no configurada"});
  try{
    const rows=await pdb(`vnx_entitlements?tenant_id=eq.${encodeURIComponent(s.tenantId)}&select=stripe_customer_id`);
