@@ -20,6 +20,15 @@ REGLA COMERCIAL PRINCIPAL
 - Cuando la respuesta sea «no directamente» o dependa de algo, explica el motivo y el flujo alternativo para resolverlo.
 - Nunca cierres con «no tengo esa información». Si falta un dato: buscar en fuente autorizada -> probar identificadores alternativos -> pedir solo el dato mínimo -> escalar al responsable configurado con contexto completo.
 
+POLÍTICA ANTES DE ACCIÓN
+- Antes de actuar, identifica qué política ha definido la empresa para esa situación: por ejemplo, cuándo puede emitirse una factura, qué documento se puede enviar, a qué canal y qué nivel de autenticación exige.
+- Una respuesta profesional no presupone que una operación está permitida. Primero consulta la regla configurada y después actúa.
+- Para documentos o datos sensibles, verifica identidad antes de revelar o enviar información si la política de la empresa así lo exige.
+- La autenticación debe configurarse por empresa y por nivel de riesgo. Puede incluir coincidencia de teléfono/email, CIF/NIF/DNI, dirección, número de pedido u otros datos autorizados por la empresa. No inventes un método universal.
+- Si el cliente ya está autenticado en un canal o portal fiable, reutiliza ese estado cuando la integración lo permita; no le hagas repetir comprobaciones innecesarias.
+- Para enviar documentos: prioriza el email que conste en la ficha del cliente cuando la política lo establezca. Si no existe o el canal permitido es WhatsApp, verifica primero identidad según las reglas y después entrega el documento por el canal autorizado.
+- Si el documento todavía no existe porque la política contable/comercial de la empresa no permite emitirlo en ese momento, explica qué documento alternativo procede (por ejemplo proforma, pedido o justificante) solo si esa empresa lo ha configurado así; si no, escala a Administración.
+
 CÓMO FUNCIONA VENTANEXIA COMO AGENTE
 - Trabaja con conocimiento autorizado de cada empresa: catálogo, tarifas, PDFs, FAQs, políticas, procedimientos, CRM, ERP, ecommerce, correo, calendario, logística u otras integraciones disponibles.
 - Distingue entre preparar una acción, ejecutarla automáticamente y pedir aprobación humana.
@@ -117,13 +126,35 @@ function getLastUserMessage(messages) {
   return "";
 }
 
+function specialDemoGuide(message = "") {
+  const t = String(message).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/(factura|facturacion)/.test(t) && /(antes|previa|todavia no|aun no)/.test(t) && /(recibir|entrega|pedido|llegar)/.test(t)) {
+    return `Lo primero sería aplicar la política de facturación que haya definido tu empresa. No asumiría que puedo emitir o enviar una factura antes de la entrega solo porque el cliente la pida.
+
+En tu plan contratado: consultaría en el ERP o sistema de facturación si ese pedido ya tiene una factura válida y si está permitido entregarla en ese momento. Si la política exige otro documento previo —por ejemplo una proforma— seguiría esa regla; si no existe una regla clara, lo escalaría a Administración antes de comprometer nada.
+
+Si la factura está autorizada, identificaría al cliente con los datos disponibles. Si escribe por WhatsApp, usaría primero el número del remitente para localizar su ficha. Antes de enviar un documento sensible aplicaría el nivel de autenticación que tú hayas definido: por ejemplo coincidencia de teléfono o email y, si hace falta, CIF/NIF/DNI, dirección, número de pedido u otro dato autorizado.
+
+Si queda verificado, buscaría la factura y la enviaría al email que conste en la ficha del cliente. Si no hay email y tu política permite WhatsApp, la enviaría por ese canal una vez autenticado.
+
+Ejemplo de email:
+Asunto: Factura de su pedido [nº pedido]
+Hola, [Nombre]. Hemos verificado sus datos y le adjuntamos la factura correspondiente al pedido [nº]. Si necesita cualquier aclaración, puede responder a este mismo correo.
+Un saludo,
+[Empresa]
+
+Si no pudiera autenticar al cliente o localizar el documento, prepararía el caso para Administración con todas las comprobaciones ya realizadas.`;
+  }
+  return "";
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido" });
   const messages = Array.isArray(req.body?.messages) ? req.body.messages.slice(-20) : [];
   if (!messages.length) return res.status(400).json({ error: "Conversación vacía" });
 
   const lastUserMessage = getLastUserMessage(messages);
-  const playbookAnswer = demoPlaybookAnswer(lastUserMessage);
+  const playbookAnswer = specialDemoGuide(lastUserMessage) || demoPlaybookAnswer(lastUserMessage);
 
   if (!aiConfigured()) {
     return res.status(200).json({ reply: playbookAnswer, requiresApproval: false, source: "playbook" });
