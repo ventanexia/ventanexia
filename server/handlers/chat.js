@@ -93,6 +93,12 @@ function fallbackReply(message=""){
   const raw=String(message||"");
   const t=raw.toLowerCase();
 
+  if(/secretaria virtual|secretaría virtual|cliente pregunta|responde como secretaria/.test(t)){
+    const business=matchField(raw,"Responde como secretaria virtual de una","Cliente pregunta")||"empresa";
+    const question=matchField(raw,"Cliente pregunta","Da una respuesta")||"su consulta";
+    return `Claro. Para ${business}, respondería así:\n\n“Gracias por su consulta. Sobre ${question}, voy a comprobar las condiciones y el plazo real antes de confirmarle una fecha. Si se trata de un pedido de gran volumen, revisaré disponibilidad, capacidad y fecha prevista de entrega para darle una respuesta correcta. ¿Me indica, por favor, la cantidad aproximada que necesita?”\n\nDespués, VentaNexIA consultaría la información autorizada de la empresa y respondería por el canal configurado, o dejaría la respuesta preparada para revisión si así lo habéis definido.`;
+  }
+
   if(/email comercial|escribe un email|crear email|incluye asunto/.test(t)){
     const product=matchField(raw,"Vendo","Empresa objetivo")||"nuestros productos o servicios";
     const target=matchField(raw,"Empresa objetivo","Objetivo")||"su empresa";
@@ -110,7 +116,7 @@ function fallbackReply(message=""){
     return `PUBLICACIÓN PROPUESTA\n\nTenemos una novedad que queremos compartir contigo.\n\nHemos preparado esta propuesta para ayudarte a conocer mejor el producto o servicio y valorar si encaja contigo.\n\n👉 Escríbenos y te damos toda la información.\n\n#Empresa #Novedades #Soluciones\n\nEn una cuenta configurada, VentaNexIA usaría tu marca, tono, productos, imágenes y promociones aprobadas, y la dejaría en borrador o la publicaría según los permisos que hayas definido.`;
   }
 
-  return "He preparado una respuesta de respaldo porque el asistente principal no está disponible en este momento. VentaNexIA mantendría la tarea y continuaría con una respuesta útil o la dejaría preparada para revisión, en lugar de mostrar un error al cliente.";
+  return "Te ayudo con ello. Primero comprobaría la información autorizada de la empresa relacionada con la consulta, aplicaría las reglas configuradas y prepararía la respuesta o siguiente acción. Si faltara un dato necesario, pediría solo lo imprescindible o lo escalaría al responsable correspondiente con todo el contexto ya preparado.";
 }
 
 function lastUserMessage(messages=[]){
