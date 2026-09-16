@@ -4,6 +4,7 @@ import adminLogout from "../server/handlers/admin-logout.js";
 import adminPromoteSolution from "../server/handlers/admin-promote-solution.js";
 import adminState from "../server/handlers/admin-state.js";
 import adminTenants from "../server/handlers/admin-tenants.js";
+import appQuoteRequest from "../server/handlers/app-quote-request.js";
 import chat from "../server/handlers/chat.js";
 import clientConfig from "../server/handlers/client-config.js";
 import clientLead from "../server/handlers/client-lead.js";
@@ -47,6 +48,7 @@ const handlers = {
   "admin-promote-solution": adminPromoteSolution,
   "admin-state": adminState,
   "admin-tenants": adminTenants,
+  "app-quote-request": appQuoteRequest,
   "chat": chat,
   "client-config": clientConfig,
   "client-lead": clientLead,
