@@ -8,6 +8,7 @@ import appQuoteRequest from "../server/handlers/app-quote-request.js";
 import chat from "../server/handlers/chat.js";
 import clientConfig from "../server/handlers/client-config.js";
 import clientLead from "../server/handlers/client-lead.js";
+import contractAccept from "../server/handlers/contract-accept.js";
 import createCheckout from "../server/handlers/create-checkout.js";
 import customerPortal from "../server/handlers/customer-portal.js";
 import entitlementStatus from "../server/handlers/entitlement-status.js";
@@ -52,6 +53,7 @@ const handlers = {
   "chat": chat,
   "client-config": clientConfig,
   "client-lead": clientLead,
+  "contract-accept": contractAccept,
   "create-checkout": createCheckout,
   "customer-portal": customerPortal,
   "entitlement-status": entitlementStatus,
