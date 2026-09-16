@@ -77,11 +77,55 @@ function extractOutputText(data){
   return "";
 }
 
+function cleanValue(value=""){
+  return String(value||"").replace(/\s+/g," ").trim();
+}
+
+function matchField(text,label,nextLabel){
+  const safeLabel=label.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const safeNext=nextLabel?nextLabel.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"):null;
+  const re=new RegExp(`${safeLabel}\\s*:\\s*(.+?)${safeNext?`(?=\\.\\s*${safeNext}\\s*:|$)`:`(?=\\.|$)`}`,"i");
+  const m=String(text||"").match(re);
+  return cleanValue(m?.[1]||"");
+}
+
+function fallbackReply(message=""){
+  const raw=String(message||"");
+  const t=raw.toLowerCase();
+
+  if(/email comercial|escribe un email|crear email|incluye asunto/.test(t)){
+    const product=matchField(raw,"Vendo","Empresa objetivo")||"nuestros productos o servicios";
+    const target=matchField(raw,"Empresa objetivo","Objetivo")||"su empresa";
+    const goal=matchField(raw,"Objetivo","No inventes")||"presentarle una propuesta";
+    return `Asunto: ${product}: propuesta para ${target}\n\nHola,\n\nMe pongo en contacto contigo porque creo que ${product} puede encajar con las necesidades de ${target}.\n\nLa idea es ${goal}. Si te parece, puedo enviarte la información de forma breve y concreta para que la valores sin compromiso.\n\n¿Te viene bien que te lo prepare o prefieres que lo comentemos en una llamada corta?\n\nUn saludo,\n[Tu nombre]\n[Tu empresa]\n\nEn una cuenta configurada, VentaNexIA adaptaría automáticamente este email con tu tono, firma, productos, condiciones y datos autorizados antes de dejarlo en borrador o enviarlo según tus permisos.`;
+  }
+
+  if(/atención al cliente|atencion al cliente|usa solo esta información aprobada|usa solo esta informacion aprobada/.test(t)){
+    const info=matchField(raw,"Usa SOLO esta información aprobada","Pregunta")||matchField(raw,"Usa SOLO esta informacion aprobada","Pregunta");
+    const question=matchField(raw,"Pregunta","Si la respuesta")||"la consulta del cliente";
+    if(info) return `Respuesta propuesta al cliente:\n\nGracias por escribirnos. Sobre tu consulta —${question}—, la información aprobada que tenemos es: ${info}\n\nSi tu caso necesita una excepción o un dato que no conste ahí, lo pasaría a una persona del equipo antes de confirmarte nada que no esté verificado.`;
+  }
+
+  if(/crea una publicación|crea una publicacion|instagram|linkedin|facebook/.test(t)){
+    return `PUBLICACIÓN PROPUESTA\n\nTenemos una novedad que queremos compartir contigo.\n\nHemos preparado esta propuesta para ayudarte a conocer mejor el producto o servicio y valorar si encaja contigo.\n\n👉 Escríbenos y te damos toda la información.\n\n#Empresa #Novedades #Soluciones\n\nEn una cuenta configurada, VentaNexIA usaría tu marca, tono, productos, imágenes y promociones aprobadas, y la dejaría en borrador o la publicaría según los permisos que hayas definido.`;
+  }
+
+  return "He preparado una respuesta de respaldo porque el asistente principal no está disponible en este momento. VentaNexIA mantendría la tarea y continuaría con una respuesta útil o la dejaría preparada para revisión, en lugar de mostrar un error al cliente.";
+}
+
+function lastUserMessage(messages=[]){
+  for(let i=messages.length-1;i>=0;i--){
+    if(messages[i]?.role==="user" && typeof messages[i]?.content==="string") return messages[i].content;
+  }
+  return "";
+}
+
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
-  if(!aiConfigured()) return res.status(503).json({code:"NOT_CONFIGURED",error:"Asistente no configurado"});
   const messages=Array.isArray(req.body?.messages)?req.body.messages.slice(-20):[];
   if(!messages.length) return res.status(400).json({error:"Conversación vacía"});
+  const fallback=fallbackReply(lastUserMessage(messages));
+  if(!aiConfigured()) return res.status(200).json({reply:fallback,source:"fallback"});
   const input=messages
     .filter(m=>["user","assistant"].includes(m?.role) && typeof m?.content==="string")
     .map(m=>({role:m.role,content:[{type:"input_text",text:m.content.slice(0,7000)}]}));
@@ -92,11 +136,11 @@ export default async function handler(req,res){
       max_output_tokens:1000,
       store:false
     });
-    if(!r.ok) return res.status(502).json({error:"No se pudo obtener respuesta del asistente"});
+    if(!r.ok) return res.status(200).json({reply:fallback,source:"fallback"});
     const text=extractOutputText(r.data);
-    if(!text) return res.status(502).json({error:"Respuesta vacía"});
-    return res.status(200).json({reply:text});
+    if(!text) return res.status(200).json({reply:fallback,source:"fallback"});
+    return res.status(200).json({reply:text,source:"ai"});
   }catch(e){
-    return res.status(500).json({error:"Error temporal del asistente"});
+    return res.status(200).json({reply:fallback,source:"fallback"});
   }
 }
