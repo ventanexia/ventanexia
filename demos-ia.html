@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VentaNexIA | Demos reales</title>
+<meta name="description" content="Prueba demos reales de VentaNexIA: emails, redes sociales, presupuestos, secretaria virtual, atención al cliente y automatización.">
+<style>
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#173e75 0,#071d33 34%,#031523 72%);color:#fff;font-family:Inter,system-ui,-apple-system,Segoe UI,Arial,sans-serif}.wrap{width:min(1080px,92%);margin:auto}a{color:inherit}header{border-bottom:1px solid #174560;background:#031523e8;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}.nav{min-height:72px;display:flex;align-items:center;gap:14px}.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:900;font-size:20px}.brand img{width:54px;height:42px;object-fit:contain}.brand b{background:linear-gradient(90deg,#e7fbff,#52d8ff,#9747ff);-webkit-background-clip:text;color:transparent}.back{margin-left:auto;text-decoration:none;border:1px solid #2a6d94;border-radius:10px;padding:9px 12px;color:#d8edf9}main{padding:48px 0 70px}.intro{max-width:760px;margin-bottom:28px}.ey{display:inline-block;border:1px solid #2cc8f5;border-radius:999px;padding:6px 10px;color:#57dcff;font-size:11px;font-weight:900}h1{font-size:46px;line-height:1.05;margin:14px 0}.intro p{color:#b7cddd;font-size:17px;line-height:1.6}.layout{display:grid;grid-template-columns:280px 1fr;gap:22px}.menu{border:1px solid #1e5b82;background:#071e34;border-radius:18px;padding:12px;height:max-content}.choice{width:100%;display:flex;gap:10px;align-items:center;text-align:left;border:0;background:transparent;color:#dcecf6;border-radius:11px;padding:12px;cursor:pointer;font-weight:800}.choice:hover,.choice.active{background:#0c3558;color:#fff}.choice span{font-size:20px}.panel{border:1px solid #2677a5;background:linear-gradient(180deg,#092945,#061a2e);border-radius:20px;padding:24px;min-height:540px}.panel h2{margin:0 0 7px;font-size:28px}.panel .desc{color:#a9c5d7;margin:0 0 20px;line-height:1.55}label{display:grid;gap:7px;font-size:12px;font-weight:900;color:#d8edf9;margin:13px 0}input,textarea{width:100%;border:1px solid #23678f;background:#031522;color:#fff;border-radius:10px;padding:13px;font:inherit;outline:none}textarea{min-height:110px;resize:vertical}input:focus,textarea:focus{border-color:#34d6ff;box-shadow:0 0 0 3px #34d6ff22}.btn{border:0;border-radius:11px;padding:14px 18px;background:linear-gradient(90deg,#22bdf5,#8436ff);color:#fff;font-weight:900;cursor:pointer;margin-top:8px}.status{min-height:20px;color:#92b7ca;margin-top:12px;font-size:13px}.result{display:none;margin-top:18px;border:1px solid #255d7c;background:#031522;border-radius:14px;padding:18px}.result.show{display:block}.result h3{margin:0 0 10px;color:#5fe0ff}.result pre{white-space:pre-wrap;font:inherit;line-height:1.65;color:#e5f3fa;margin:0}.note{margin-top:14px;border:1px solid #214b66;background:#061a2d;border-radius:12px;padding:12px;color:#97b6c9;font-size:12px;line-height:1.5}@media(max-width:800px){.layout{grid-template-columns:1fr}.menu{display:grid;grid-template-columns:1fr 1fr}h1{font-size:38px}}@media(max-width:520px){.menu{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a class="brand" href="/"><b>VentaNexIA</b></a><a class="back" href="/">← Volver a inicio</a></div></header>
+<main><div class="wrap">
+<div class="intro"><span class="ey">PRUÉBALO ANTES DE CONTRATAR</span><h1>Demos reales de VentaNexIA.</h1><p>Elige una tarea, escribe un ejemplo de tu negocio y la IA prepara el resultado delante de ti. No son capturas: puedes probarlo.</p></div>
+<div class="layout">
+<nav class="menu" id="demoMenu">
+<button class="choice" data-type="email"><span>✉️</span>Responder emails</button>
+<button class="choice" data-type="social"><span>📱</span>Publicar en redes</button>
+<button class="choice" data-type="quote"><span>🧾</span>Preparar presupuestos</button>
+<button class="choice" data-type="secretary"><span>📅</span>Secretaria virtual</button>
+<button class="choice" data-type="support"><span>🎧</span>Atención al cliente</button>
+<button class="choice" data-type="automation"><span>⚙️</span>Automatizar tareas</button>
+</nav>
+<section class="panel">
+<h2 id="title"></h2><p class="desc" id="desc"></p>
+<div id="fields"></div>
+<button class="btn" id="run">✨ Crear resultado con IA</button>
+<div class="status" id="status"></div>
+<div class="result" id="result"><h3>Resultado preparado</h3><pre id="output"></pre></div>
+<div class="note">Esta demo prepara un borrador para revisar. No envía emails, publica contenido, crea citas ni ejecuta acciones externas sin autorización.</div>
+</section>
+</div></div></main>
+<script>
+const configs={
+email:{title:'Responder emails',desc:'Pega un mensaje de un cliente y dinos qué quieres responder. VentaNexIA te prepara el correo.',fields:[['Mensaje recibido','textarea','Ej. Hola, quisiera información sobre vuestros servicios...'],['Qué quieres conseguir','input','Ej. explicar el servicio y proponer una llamada']],prompt:v=>`Prepara una respuesta de email profesional en español de España. Mensaje recibido: ${v[0]}. Objetivo de la respuesta: ${v[1]}. No inventes precios, plazos ni condiciones. Incluye asunto y cuerpo.`},
+social:{title:'Publicar en redes',desc:'Dinos qué hace tu empresa y qué quieres contar. La IA prepara una publicación.',fields:[['A qué se dedica tu empresa','input','Ej. clínica dental'],['Qué quieres comunicar','textarea','Ej. nueva promoción de higiene dental']],prompt:v=>`Crea una publicación profesional y natural para redes sociales en español de España. Empresa: ${v[0]}. Tema: ${v[1]}. Incluye un CTA breve y 3 hashtags. No inventes ofertas ni condiciones.`},
+quote:{title:'Preparar presupuestos',desc:'Escribe los conceptos y precios. VentaNexIA los ordena y redacta un presupuesto claro.',fields:[['Cliente o proyecto','input','Ej. Reforma oficina García'],['Conceptos y precios','textarea','Ej. Diseño 600 €, instalación 900 €, soporte 200 €']],prompt:v=>`Prepara un presupuesto comercial claro en español. Proyecto/cliente: ${v[0]}. Usa EXCLUSIVAMENTE estos conceptos y precios: ${v[1]}. No inventes cantidades ni impuestos. Ordena conceptos, calcula solo si las cifras son inequívocas y añade una nota de revisión antes de enviar.`},
+secretary:{title:'Secretaria virtual',desc:'Pega una consulta y la IA extrae lo importante y propone el siguiente paso.',fields:[['Mensaje del cliente','textarea','Ej. Soy Laura de Clínica Norte y quisiera una demo el jueves por la mañana']],prompt:v=>`Actúa como secretaria virtual. A partir de este mensaje: ${v[0]}. Devuelve: nombre si aparece, empresa si aparece, qué necesita, datos que faltan, urgencia aparente y siguiente paso recomendado. No inventes nada.`},
+support:{title:'Atención al cliente',desc:'Escribe la pregunta y la información autorizada. La IA responde usando solo esa información.',fields:[['Pregunta del cliente','textarea','Ej. ¿Cuánto tarda el envío?'],['Información autorizada','textarea','Ej. Los pedidos salen en 24-48 h laborables. El transporte tarda 2-3 días.']],prompt:v=>`Redacta una respuesta de atención al cliente usando SOLO esta información autorizada: ${v[1]}. Pregunta: ${v[0]}. Si falta un dato, dilo claramente y pide lo mínimo necesario. No inventes.`},
+automation:{title:'Automatizar tareas',desc:'Cuéntanos una tarea repetitiva y la IA te enseña cómo podría simplificarse.',fields:[['Tarea repetitiva','textarea','Ej. cada vez que entra un formulario copio los datos, aviso al comercial y pongo un recordatorio']],prompt:v=>`Diseña un flujo de automatización sencillo para esta tarea: ${v[0]}. Explícalo en lenguaje no técnico, paso a paso, indicando qué hace automáticamente y qué debe aprobar una persona. No afirmes que ya está conectado.`}
+};
+let current='email';const $=id=>document.getElementById(id);
+function show(type){current=type;document.querySelectorAll('.choice').forEach(b=>b.classList.toggle('active',b.dataset.type===type));const c=configs[type];$('title').textContent=c.title;$('desc').textContent=c.desc;$('fields').innerHTML=c.fields.map((f,i)=>`<label>${f[0]}${f[1]==='textarea'?`<textarea data-i="${i}" placeholder="${f[2]}"></textarea>`:`<input data-i="${i}" placeholder="${f[2]}">`}</label>`).join('');$('result').classList.remove('show');$('status').textContent='';}
+document.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>show(b.dataset.type)));
+$('run').addEventListener('click',async()=>{const vals=[...$('fields').querySelectorAll('[data-i]')].map(x=>x.value.trim());if(vals.some(v=>!v)){$('status').textContent='Completa los campos para probarlo.';return}$('run').disabled=true;$('status').textContent='La IA está preparando el resultado…';$('result').classList.remove('show');try{const prompt=configs[current].prompt(vals);const r=await fetch('/api/router?endpoint=chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:prompt}]})});const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||'No se pudo generar el resultado.');$('output').textContent=d.reply||'No se ha recibido respuesta.';$('result').classList.add('show');$('status').textContent='✓ Resultado creado. Puedes cambiar los datos y volver a probar.';}catch(e){$('status').textContent=e.message||'Error temporal.'}finally{$('run').disabled=false}});
+const q=new URLSearchParams(location.search).get('demo');show(configs[q]?q:'email');
+</script>
+</body></html>
