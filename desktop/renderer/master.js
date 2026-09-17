@@ -35,11 +35,11 @@
       b.disabled=true;b.textContent='Comprobando…';
       try{const r=await window.vnx.checkPortal(b.dataset.id);$m('#portalMsg').textContent=r.status==='connected'?'Portal conectado correctamente. VentaNexIA ya puede consultarlo en modo lectura desde “Habla con tu equipo”.':'La sesión necesita volver a iniciarse.';}
       catch(e){$m('#portalMsg').textContent=e.message||'No se pudo comprobar el portal'}
-      finally{b.disabled=false;b.textContent='Comprobar';await renderMasterPortals()}
+      finally{b.disabled=false;b.textContent='Comprobar';await renderMasterPortals();refreshChatConnections()}
     });
     $$m('.master-portal-remove').forEach(b=>b.onclick=async()=>{
       if(!confirm('¿Quitar esta conexión y borrar su sesión guardada de este ordenador?'))return;
-      await window.vnx.removePortal(b.dataset.id);await renderMasterPortals();
+      await window.vnx.removePortal(b.dataset.id);await renderMasterPortals();refreshChatConnections();
     });
   }
   async function savePortalFromFields(connectAfter=false){
@@ -48,7 +48,7 @@
     try{
       const p=await window.vnx.savePortal({name,url,mode});
       if(msg)msg.textContent=mode==='read'?'Conexión guardada en SOLO LECTURA. VentaNexIA no realizará modificaciones automáticas.':'Conexión guardada.';
-      await renderMasterPortals();
+      await renderMasterPortals();refreshChatConnections();
       if(connectAfter){await window.vnx.connectPortal(p.id);if(msg)msg.textContent='Ventana segura abierta. Inicia sesión y, cuando vuelvas, pulsa “Comprobar”.';}
     }catch(e){if(msg)msg.textContent=e.message||'No se pudo guardar la conexión'}
   }
@@ -58,6 +58,39 @@
     const save=$m('#savePortal'),open=$m('#openPortal');
     if(save)save.onclick=()=>savePortalFromFields(false);
     if(open){open.textContent='Conectar / iniciar sesión';open.onclick=()=>savePortalFromFields(true);}
+  }
+
+  function getRealSourcesForChat(){
+    try{return JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')}catch{return {}}
+  }
+  function chatConnections(){
+    const out=[];
+    for(const p of masterPortals||[]){if(['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});}
+    const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
+    const real=getRealSourcesForChat();
+    for(const [key,v] of Object.entries(real)){
+      if(v&&v.url)out.push({type:'url',key:key,name:labels[key]||key,url:v.url});
+      else if(v&&v.folder)out.push({type:'folder',key:key,name:labels[key]||key,folder:v.folder});
+    }
+    const seen=new Set();
+    return out.filter(x=>{const k=x.type==='portal'?'p:'+x.id:x.type==='url'?'u:'+x.url:'f:'+x.folder;if(seen.has(k))return false;seen.add(k);return true;});
+  }
+  function refreshChatConnections(){
+    const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
+    const items=chatConnections(),previous=sel.value;
+    sel.innerHTML='<option value="">Selecciona una conexión…</option>'+items.map((x,i)=>'<option value="'+i+'">'+escM(x.name)+(x.url?' · '+escM((()=>{try{return new URL(x.url).hostname}catch{return x.url}})()):'')+'</option>').join('');
+    if(previous!==''&&Number(previous)<items.length)sel.value=previous;
+    if(items.length===1){sel.value='0';if(hint)hint.textContent='Conexión seleccionada: '+items[0].name;}
+    else if(items.length>1){if(hint)hint.textContent='Tienes varias conexiones. Elige con cuál quieres trabajar antes de enviar la consulta.';}
+    else if(hint)hint.textContent='Todavía no hay conexiones reales disponibles.';
+  }
+  function selectedChatScope(){
+    const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||sel.value==='')return null;
+    const item=items[Number(sel.value)];if(!item)return null;
+    if(item.type==='portal')return {type:'portal',id:item.id,name:item.name};
+    if(item.type==='url')return {type:'url',key:item.key,name:item.name,url:item.url};
+    if(item.type==='folder')return {type:'folder',key:item.key,name:item.name,folder:item.folder};
+    return null;
   }
 
   function renderMasterMessages(){
@@ -74,15 +107,17 @@
     renderMasterMessages();
     form.onsubmit=async e=>{
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
+      const connections=chatConnections(),scope=selectedChatScope();
+      if(connections.length>1&&!scope){masterMessages.push({role:'assistant',content:'Tienes varias conexiones activas. Elige primero con cuál quieres trabajar: '+connections.map(x=>x.name).join(', ')+'.'});renderMasterMessages();return;}
       masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Consultando…';
       try{
         const payload=masterMessages.map(({role,content})=>({role,content}));
-        const r=await window.vnx.sendChat(payload);
+        const r=await window.vnx.sendChat(payload,scope);
         let reply=r.reply||'Sin respuesta';
         if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
           try{
-            const verified=await window.vnx.verifiedProductCount(text);
+            const verified=await window.vnx.verifiedProductCount(text,scope&&scope.type==='portal'?{portalId:scope.id}:null);
             if(verified.status==='verified')reply=`${verified.name} tiene ${verified.count} productos según el portal conectado. Total verificado${verified.pagesScanned>1?` recorriendo ${verified.pagesScanned} páginas`:''}.`;
             else if(verified.status==='uncertain')reply=`He encontrado ${verified.visible||verified.rowsSeen||0} productos visibles, pero no puedo confirmar todavía que sea el total completo del catálogo. No voy a presentar ese número como total hasta verificar toda la paginación.`;
           }catch{}
@@ -100,6 +135,7 @@
     setupMasterPortalUi();
     setupMasterChat();
     await renderMasterPortals();
+    refreshChatConnections();
     setInterval(()=>{if($m('#portalList')&&document.visibilityState==='visible')renderMasterPortals()},12000);
   }
   setTimeout(start,350);
