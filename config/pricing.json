@@ -8,28 +8,32 @@
       "monthly": 350,
       "agents_included": 3,
       "integrations_included": 2,
-      "description": "Para pequeñas empresas que quieren automatizar un proceso comercial principal."
+      "description": "VentaNexIA Desktop para empezar con 3 funciones estándar y hasta 2 conexiones externas.",
+      "devices_included": 1
     },
     "core": {
       "name": "VNX Crecimiento",
       "monthly": 900,
       "agents_included": 6,
       "integrations_included": 5,
-      "description": "Plan recomendado para automatización comercial continua y coordinada."
+      "description": "VentaNexIA Desktop con 6 funciones estándar, coordinación y hasta 5 conexiones externas.",
+      "devices_included": 3
     },
     "scale": {
       "name": "VNX Empresa",
       "monthly": 1750,
       "agents_included": 12,
       "integrations_included": 10,
-      "description": "Para procesos complejos, varios equipos o módulos personalizados."
+      "description": "VentaNexIA Desktop con todo el catálogo estándar y hasta 10 conexiones externas.",
+      "devices_included": 5
     },
     "enterprise": {
       "name": "VNX Enterprise",
       "monthly_from": 1750,
       "agents_included": "custom",
       "integrations_included": "custom",
-      "description": "Arquitectura a medida para multiempresa, alto volumen o requisitos especiales."
+      "description": "Arquitectura a medida para multiempresa, alto volumen o requisitos especiales.",
+      "devices_included": "custom"
     }
   },
   "addons": {
@@ -37,5 +41,9 @@
       "monthly": 150,
       "description": "Agente VNX estándar adicional sobre los incluidos en el plan."
     }
-  }
+  },
+  "delivery_model": "VentaNexIA Desktop",
+  "activation": "ID de cliente + activación por dispositivo",
+  "installation_fee": 0,
+  "device_addon_monthly": 49
 }
