@@ -1,13 +1,34 @@
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-let state={permissions:{folders:[]},activity:[],paired:false};
+let state={permissions:{folders:[]},activity:[],paired:false,license:{}};
 let messages=[];
 let browsingFolder=null;
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
-function bindTabs(){ $$('.nav').forEach(b=>b.onclick=()=>{$$('.nav').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.tab').forEach(x=>x.classList.remove('active'));$('#'+b.dataset.tab).classList.add('active')}) }
+function openTab(name){
+  $$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+  $$('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
+}
+function bindTabs(){
+  $$('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
+  $$('[data-tab-jump]').forEach(b=>b.onclick=()=>openTab(b.dataset.tabJump));
+}
+function renderLicense(){
+  const l=state.license||{};
+  const activated=Boolean(l.activated);
+  $('#homeLicenseState').textContent=activated?'Activa':'Sin activar';
+  $('#licenseCustomer').textContent=l.customerId||'Sin activar';
+  $('#licenseDevice').textContent=l.deviceId?String(l.deviceId).slice(0,12):'—';
+  $('#licenseDevices').textContent=l.limit?`${l.activeCount||0} / ${l.limit}`:'0 / 0';
+  $('#licensePlan').textContent=l.plan||'—';
+  if(l.customerId&&!$('#customerIdInput').value)$('#customerIdInput').value=l.customerId;
+  if(activated){
+    $('#licenseMsg').textContent=`Licencia activa. Quedan ${Math.max(0,l.available||0)} plaza(s) de dispositivo disponibles. Dispositivo adicional: ${Number(l.extraDeviceMonthlyEur||49).toFixed(0)} €/mes.`;
+  }
+}
 function renderState(){
   $('#pairState').textContent=state.paired?'Vinculado':'Sin vincular';
   $('#folderCount').textContent=state.permissions?.folders?.length||0;
+  renderLicense();
   const list=state.permissions?.folders||[];
   $('#permissionList').innerHTML=list.length?list.map(f=>`<div class="listrow"><div><b>${esc(f)}</b><span>Lectura y escritura de prueba autorizadas</span></div><button class="mini revoke" data-folder="${esc(f)}">Revocar</button></div>`).join(''):'<div class="empty">No hay carpetas autorizadas.</div>';
   $('#folderSelect').innerHTML=list.length?list.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join(''):'<option value="">Autoriza una carpeta primero</option>';
@@ -25,6 +46,28 @@ async function init(){
 
 $('#pairBtn').onclick=async()=>{const r=await window.vnx.pairDemo();await refresh();alert(`Equipo vinculado en modo prueba. ID: ${r.deviceId}`)};
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
+
+$('#activateLicenseBtn').onclick=async()=>{
+  const customerId=$('#customerIdInput').value.trim();
+  const activationCode=$('#activationCodeInput').value.trim();
+  const msg=$('#licenseMsg'),btn=$('#activateLicenseBtn');
+  if(!customerId||!activationCode){msg.textContent='Introduce el ID de cliente y el código de activación.';return;}
+  btn.disabled=true;btn.textContent='Activando…';msg.textContent='Comprobando licencia y plazas disponibles…';
+  try{
+    const license=await window.vnx.activateLicense({customerId,activationCode});
+    state.license=license;$('#activationCodeInput').value='';renderState();
+    msg.textContent=`Dispositivo activado correctamente. ${license.activeCount} de ${license.limit} plazas utilizadas.`;
+  }catch(e){
+    const d=e?.data||{};
+    msg.textContent=d.code==='DEVICE_LIMIT_REACHED'?`${d.message} Dispositivo adicional: ${d.extraDeviceMonthlyEur||49} €/mes.`:(e.message||'No se pudo activar el dispositivo');
+  }finally{btn.disabled=false;btn.textContent='Activar este dispositivo'}
+};
+$('#refreshLicenseBtn').onclick=async()=>{
+  const btn=$('#refreshLicenseBtn'),msg=$('#licenseMsg');btn.disabled=true;btn.textContent='Comprobando…';
+  try{state.license=await window.vnx.refreshLicense();renderState();msg.textContent=state.license.activated?'Licencia comprobada correctamente.':'Este dispositivo todavía no está activado.'}
+  catch(e){msg.textContent=e.message||'No se pudo comprobar la licencia'}
+  finally{btn.disabled=false;btn.textContent='Comprobar licencia'}
+};
 
 async function showFolder(folder){
   $('#fileMsg').textContent='';
