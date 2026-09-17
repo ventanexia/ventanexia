@@ -1,6 +1,9 @@
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 let state={permissions:{folders:[]},activity:[],paired:false};
 let messages=[];
+let browserRoot='';
+let browserFolder='';
+let browserItems=[];
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function bindTabs(){ $$('.nav').forEach(b=>b.onclick=()=>{$$('.nav').forEach(x=>x.classList.remove('active'));b.classList.add('active');$$('.tab').forEach(x=>x.classList.remove('active'));$('#'+b.dataset.tab).classList.add('active')}) }
@@ -18,7 +21,39 @@ async function init(){bindTabs();const sys=await window.vnx.systemStatus();$('#e
 
 $('#pairBtn').onclick=async()=>{const r=await window.vnx.pairDemo();await refresh();alert(`Equipo vinculado en modo prueba. ID: ${r.deviceId}`)};
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
-$('#listFiles').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return;$('#fileMsg').textContent='';try{const items=await window.vnx.listFolder(f);$('#fileList').innerHTML=items.map(x=>`<div class="listrow"><div><b>${x.type==='folder'?'📁':'📄'} ${esc(x.name)}</b><span>${esc(x.type)}</span></div></div>`).join('')||'<div class="empty">Carpeta vacía.</div>';await refresh()}catch(e){$('#fileMsg').textContent=e.message}};
+
+function renderFolderBrowser(){
+  const rows=[];
+  if(browserFolder&&browserRoot&&browserFolder!==browserRoot){
+    rows.push(`<div class="listrow foldernav" data-action="up"><div><b>⬆ Volver</b><span>${esc(browserRoot)}</span></div></div>`);
+  }
+  browserItems.forEach((x,i)=>rows.push(`<div class="listrow ${x.type==='folder'?'foldernav':''}" data-index="${i}"><div><b>${x.type==='folder'?'📁':'📄'} ${esc(x.name)}</b><span>${x.type==='folder'?'Abrir carpeta':'Archivo'}</span></div></div>`));
+  $('#fileList').innerHTML=rows.join('')||'<div class="empty">Carpeta vacía.</div>';
+  $('#fileMsg').textContent=browserFolder?`Viendo: ${browserFolder}`:'';
+  $$('#fileList .foldernav').forEach(row=>row.onclick=async()=>{
+    if(row.dataset.action==='up'){
+      const parent=browserFolder.substring(0,Math.max(browserFolder.lastIndexOf('\\'),browserFolder.lastIndexOf('/')));
+      await openFolder(parent||browserRoot);
+      return;
+    }
+    const item=browserItems[Number(row.dataset.index)];
+    if(item?.type==='folder')await openFolder(item.path);
+  });
+}
+
+async function openFolder(folder){
+  try{
+    const result=await window.vnx.listFolder(folder);
+    browserRoot=result.root;
+    browserFolder=result.folder;
+    browserItems=result.items||[];
+    renderFolderBrowser();
+    await refresh();
+  }catch(e){$('#fileMsg').textContent=e.message}
+}
+
+$('#listFiles').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return;browserRoot=f;browserFolder=f;await openFolder(f)};
+$('#folderSelect').onchange=()=>{browserRoot='';browserFolder='';browserItems=[];$('#fileList').innerHTML='';$('#fileMsg').textContent=''};
 $('#createTest').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return;if(!confirm('VentaNexIA va a crear un archivo .txt de prueba dentro de esta carpeta. ¿Lo autorizas?'))return;try{const file=await window.vnx.createTestFile(f);$('#fileMsg').textContent=`Creado: ${file}`;await refresh()}catch(e){$('#fileMsg').textContent=e.message}};
 $('#supportBtn').onclick=async()=>{if(!confirm('Se abrirá Asistencia rápida de Windows. Ninguna persona podrá controlar tu equipo hasta que tú aceptes la sesión dentro de Windows. ¿Continuar?'))return;await window.vnx.openQuickAssist();$('#supportMsg').textContent='Asistencia rápida abierta. Acepta solo si reconoces al técnico y el código de sesión.';await refresh()};
 $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMsg').textContent='Fin de asistencia registrado. Cierra también Asistencia rápida si siguiera abierta.';await refresh()};
