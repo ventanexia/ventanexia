@@ -2,6 +2,8 @@ const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('vnx',{
   systemStatus:()=>ipcRenderer.invoke('system:status'),
   getState:()=>ipcRenderer.invoke('state:get'),
+  activateLicense:(payload)=>ipcRenderer.invoke('license:activate',payload),
+  refreshLicense:()=>ipcRenderer.invoke('license:status'),
   chooseFolder:()=>ipcRenderer.invoke('folder:choose'),
   revokeFolder:(folder)=>ipcRenderer.invoke('folder:revoke',folder),
   listFolder:(folder)=>ipcRenderer.invoke('folder:list',folder),
