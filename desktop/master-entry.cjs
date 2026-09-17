@@ -3,6 +3,7 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 require('./master.cjs');
 require('./portal-adaptive.cjs');
+require('./portal-pagination-fix.cjs');
 require('./export.cjs');
 
 app.on('browser-window-created',(_event,win)=>{
