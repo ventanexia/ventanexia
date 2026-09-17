@@ -6,6 +6,7 @@
     <button class="nav active" data-tab="home">Resumen</button>
     <button class="nav" data-tab="chat">Habla con tu equipo</button>
     <button class="nav" data-tab="agents">Agentes y conexiones</button>
+    <button class="nav" data-tab="onboarding">Alta de cliente</button>
     <button class="nav" data-tab="webcommerce">Web & Ecommerce</button>
     <button class="nav" data-tab="permissions">Permisos</button>
     <button class="nav" data-tab="discovery">Encontrar mis datos</button>
@@ -40,7 +41,35 @@
           <article class="modulecard"><b>🎯 Captación</b><span>Buscar y organizar prospectos, calificarlos, sincronizarlos con CRM y preparar seguimientos comerciales.</span><button class="btn outline" disabled>Configurar captación · próximamente</button></article>
           <article class="modulecard"><b>👥 CRM</b><span>Clientes, empresas, oportunidades, tareas, notas y pipeline en plataformas compatibles.</span><button class="btn outline" disabled>Conectar CRM · próximamente</button></article>
           <article class="modulecard"><b>🧠 Datos locales</b><span>FacturaPlus, Sage, FactuSOL y otros programas mediante carpetas autorizadas, exportaciones y conectores específicos.</span><button class="btn outline" data-tab-jump="discovery">Encontrar mis datos</button></article>
+          <article class="modulecard"><b>🌐 Portal privado / ERP web</b><span>Para portales de agentes, extranets, ERPs web y aplicaciones privadas. Puede configurarse en solo lectura para consultar sin modificar nada.</span><button class="btn outline" id="showPortalSetup">Añadir portal</button></article>
         </div>
+        <div id="portalSetup" class="notice" style="display:none;margin-top:18px">
+          <b>Añadir portal privado</b>
+          <div class="formgrid" style="margin-top:12px">
+            <label>Nombre de la conexión<input id="portalName" placeholder="Ej.: Portal de agentes"></label>
+            <label>URL de acceso<input id="portalUrl" placeholder="https://..."></label>
+            <label>Permisos<select id="portalMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label>
+          </div>
+          <div class="row"><button class="btn primary" id="savePortal">Guardar conexión</button><button class="btn outline" id="openPortal">Abrir portal para iniciar sesión</button></div>
+          <div id="portalMsg"></div>
+          <div id="portalList" class="list"></div>
+          <small>VentaNexIA no guarda la contraseña del portal en esta pantalla. La conexión real de datos deberá usar sesión autorizada, API o un conector compatible. En modo solo lectura se bloquearán las acciones de modificación.</small>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="onboarding">
+      <div class="card"><div class="eyebrow">ALTA DE NUEVO CLIENTE</div><h2>Así verá un cliente su puesta en marcha</h2><p>Esta pantalla reproduce el recorrido que queremos para un cliente nuevo: contratar, instalar, activar su equipo y conectar únicamente las herramientas autorizadas.</p>
+        <div class="steps">
+          <article><b>1. Contratación</b><span>El cliente elige plan y módulos. El servidor crea su Customer ID y su licencia.</span></article>
+          <article><b>2. Instalación</b><span>Descarga VentaNexIA Desktop e instala el programa en los equipos incluidos.</span></article>
+          <article><b>3. Activación</b><span>Introduce Customer ID + código de activación. Cada ordenador consume una plaza.</span></article>
+          <article><b>4. Conexiones</b><span>Autoriza correo, WhatsApp, CRM, carpetas, Shopify o portales privados según lo contratado.</span></article>
+          <article><b>5. Permisos</b><span>Selecciona solo lectura o escritura por conexión. Las operaciones sensibles pueden requerir confirmación.</span></article>
+          <article><b>6. Funcionamiento</b><span>Ya puede pedir: “qué pedidos hay hoy”, “qué clientes son nuevos”, “responde este correo” o cualquier función habilitada.</span></article>
+        </div>
+        <div class="notice"><b>Prueba recomendada:</b> para una empresa real podemos conectar primero un portal en modo <b>solo lectura</b>, comprobar clientes/pedidos/ventas y después añadir otras integraciones sin dar permisos de modificación.</div>
+        <button class="btn primary" data-tab-jump="agents">Probar una conexión ahora</button>
       </div>
     </section>
 
@@ -56,42 +85,15 @@
       </div>
     </section>
 
-    <section class="tab" id="permissions">
-      <div class="card"><div class="eyebrow">SECURECORE</div><h2>Permisos de este ordenador</h2><p>VentaNexIA no recibe acceso general al equipo. Tú eliges las carpetas que puede consultar.</p><button id="chooseFolder" class="btn primary">Autorizar una carpeta</button><div id="permissionList" class="list"></div></div>
-    </section>
+    <section class="tab" id="permissions"><div class="card"><div class="eyebrow">SECURECORE</div><h2>Permisos de este ordenador</h2><p>VentaNexIA no recibe acceso general al equipo. Tú eliges las carpetas que puede consultar.</p><button id="chooseFolder" class="btn primary">Autorizar una carpeta</button><div id="permissionList" class="list"></div></div></section>
 
-    <section class="tab" id="discovery">
-      <div class="card">
-        <div class="eyebrow">ASISTENTE DE DETECCIÓN</div>
-        <h2>No sé dónde guarda mi programa los datos</h2>
-        <p>Si usas FacturaPlus, ContaPlus, Sage, A3, FactuSOL, un CRM, un ERP u otro programa, VentaNexIA puede buscar qué carpetas parecen contener datos de empresa.</p>
-        <div class="notice"><b>Privacidad:</b> durante esta búsqueda solo se analizan localmente nombres de carpetas y archivos, tipos, fechas y tamaños. No se abre el contenido de los documentos y no se envían esos datos a Internet. Tú decides después qué carpeta autorizar.</div>
-        <div class="row"><button id="scanCommon" class="btn primary">Buscar automáticamente</button><button id="scanChoose" class="btn outline">Elegir dónde buscar</button></div>
-        <div id="discoveryStatus" class="notice"></div>
-        <div id="discoveryList" class="list"></div>
-      </div>
-    </section>
+    <section class="tab" id="discovery"><div class="card"><div class="eyebrow">ASISTENTE DE DETECCIÓN</div><h2>No sé dónde guarda mi programa los datos</h2><p>Si usas FacturaPlus, ContaPlus, Sage, A3, FactuSOL, un CRM, un ERP u otro programa, VentaNexIA puede buscar qué carpetas parecen contener datos de empresa.</p><div class="notice"><b>Privacidad:</b> durante esta búsqueda solo se analizan localmente nombres de carpetas y archivos, tipos, fechas y tamaños. No se abre el contenido de los documentos y no se envían esos datos a Internet. Tú decides después qué carpeta autorizar.</div><div class="row"><button id="scanCommon" class="btn primary">Buscar automáticamente</button><button id="scanChoose" class="btn outline">Elegir dónde buscar</button></div><div id="discoveryStatus" class="notice"></div><div id="discoveryList" class="list"></div></div></section>
 
-    <section class="tab" id="files">
-      <div class="card"><h2>Archivos autorizados</h2><p>Selecciona una carpeta autorizada para comprobar qué puede ver VentaNexIA.</p><select id="folderSelect"></select><div class="row"><button id="listFiles" class="btn outline">Ver contenido</button><button id="createTest" class="btn warning">Crear archivo de prueba</button></div><div id="fileList" class="list"></div><div id="fileMsg" class="notice"></div></div>
-    </section>
+    <section class="tab" id="files"><div class="card"><h2>Archivos autorizados</h2><p>Selecciona una carpeta autorizada para comprobar qué puede ver VentaNexIA.</p><select id="folderSelect"></select><div class="row"><button id="listFiles" class="btn outline">Ver contenido</button><button id="createTest" class="btn warning">Crear archivo de prueba</button></div><div id="fileList" class="list"></div><div id="fileMsg" class="notice"></div></div></section>
 
-    <section class="tab" id="license">
-      <div class="card"><div class="eyebrow">LICENCIA Y DISPOSITIVOS</div><h2>Activa este ordenador</h2><p>Cada ordenador consume una plaza de dispositivo. VentaNexIA identifica al cliente y al equipo para aplicar los módulos contratados, controlar el número de instalaciones y facilitar el soporte.</p>
-        <div id="licenseActivation" class="licensebox">
-          <label>ID de cliente<input id="customerIdInput" autocomplete="off" placeholder="Ej.: VNX-C-12AB34CD"></label>
-          <label>Código de activación<input id="activationCodeInput" type="password" autocomplete="off" placeholder="Código entregado al contratar"></label>
-          <div class="row"><button id="activateLicenseBtn" class="btn primary">Activar este dispositivo</button><button id="refreshLicenseBtn" class="btn outline">Comprobar licencia</button></div>
-          <div id="licenseMsg" class="notice"></div>
-        </div>
-        <div class="grid4"><article><small>Cliente</small><strong id="licenseCustomer">Sin activar</strong></article><article><small>Dispositivo</small><strong id="licenseDevice">—</strong></article><article><small>Dispositivos usados</small><strong id="licenseDevices">0 / 0</strong></article><article><small>Plan</small><strong id="licensePlan">—</strong></article></div>
-        <div class="notice"><b>Política de dispositivos:</b> VNX Inicio incluye 1 equipo, VNX Crecimiento 3 y VNX Empresa 5. Los dispositivos adicionales están planteados a 49 €/mes por equipo. Si se alcanza el límite, un nuevo ordenador no podrá activarse hasta ampliar plazas o desactivar uno anterior.</div>
-      </div>
-    </section>
+    <section class="tab" id="license"><div class="card"><div class="eyebrow">LICENCIA Y DISPOSITIVOS</div><h2>Activa este ordenador</h2><p>Cada ordenador consume una plaza de dispositivo. VentaNexIA identifica al cliente y al equipo para aplicar los módulos contratados, controlar el número de instalaciones y facilitar el soporte.</p><div id="licenseActivation" class="licensebox"><label>ID de cliente<input id="customerIdInput" autocomplete="off" placeholder="Ej.: VNX-C-12AB34CD"></label><label>Código de activación<input id="activationCodeInput" type="password" autocomplete="off" placeholder="Código entregado al contratar"></label><div class="row"><button id="activateLicenseBtn" class="btn primary">Activar este dispositivo</button><button id="refreshLicenseBtn" class="btn outline">Comprobar licencia</button></div><div id="licenseMsg" class="notice"></div></div><div class="grid4"><article><small>Cliente</small><strong id="licenseCustomer">Sin activar</strong></article><article><small>Dispositivo</small><strong id="licenseDevice">—</strong></article><article><small>Dispositivos usados</small><strong id="licenseDevices">0 / 0</strong></article><article><small>Plan</small><strong id="licensePlan">—</strong></article></div><div class="notice"><b>Política de dispositivos:</b> VNX Inicio incluye 1 equipo, VNX Crecimiento 3 y VNX Empresa 5. Los dispositivos adicionales están planteados a 49 €/mes por equipo. Si se alcanza el límite, un nuevo ordenador no podrá activarse hasta ampliar plazas o desactivar uno anterior.</div></div></section>
 
-    <section class="tab" id="support">
-      <div class="card"><div class="eyebrow">ASISTENCIA SEGURA</div><h2>Ayuda remota solo cuando tú la autorizas</h2><p>VentaNexIA no mantiene acceso remoto permanente. La asistencia se inicia desde el equipo del cliente, queda vinculada a su identidad y puede cerrarse en cualquier momento.</p><div class="supportbox"><div><b>Permiso temporal</b><span>El soporte debe pedirte un código y tú debes aceptar la conexión en la herramienta de Windows.</span></div><button id="supportBtn" class="btn primary">Abrir Asistencia rápida</button></div><button id="supportStop" class="btn danger">Registrar fin de asistencia</button><div id="supportMsg" class="notice"></div></div>
-    </section>
+    <section class="tab" id="support"><div class="card"><div class="eyebrow">ASISTENCIA SEGURA</div><h2>Ayuda remota solo cuando tú la autorizas</h2><p>VentaNexIA no mantiene acceso remoto permanente. La asistencia se inicia desde el equipo del cliente, queda vinculada a su identidad y puede cerrarse en cualquier momento.</p><div class="supportbox"><div><b>Permiso temporal</b><span>El soporte debe pedirte un código y tú debes aceptar la conexión en la herramienta de Windows.</span></div><button id="supportBtn" class="btn primary">Abrir Asistencia rápida</button></div><button id="supportStop" class="btn danger">Registrar fin de asistencia</button><div id="supportMsg" class="notice"></div></div></section>
 
     <section class="tab" id="activity"><div class="card"><h2>Registro de actividad</h2><p>Los accesos locales, conexiones y acciones ejecutadas por VentaNexIA deben quedar trazados para el cliente y para soporte.</p><button id="refreshActivity" class="btn outline">Actualizar</button><div id="activityList" class="list"></div></div></section>
   </main>
