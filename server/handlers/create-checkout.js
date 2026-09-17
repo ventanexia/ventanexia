@@ -46,11 +46,13 @@ export default async function handler(req,res){
   const internal=authorized(req);
   if(!contract&&!internal) return res.status(401).json({error:"Contrato no aceptado o autorización no válida"});
 
-  let dealId,email,plan,solutionRequestId="",extras=[],contractId="",minMonths="",contractVersion="";
+  let dealId,email,phone="",plan,solutionRequestId="",extras=[],contractId="",minMonths="",contractVersion="";
   if(contract){
+    if(contract.recurringChargeAccepted!==true) return res.status(400).json({error:"Falta autorización de cobro recurrente"});
     dealId=contract.contractId;
     contractId=contract.contractId;
     email=contract.email;
+    phone=clean(contract.phone,40);
     plan=CONTRACT_PLAN[contract.plan];
     extras=Array.isArray(contract.extras)?contract.extras.filter(x=>EXTRA_PRICES[x]):[];
     minMonths=String(contract.minMonths||"");
@@ -74,7 +76,14 @@ export default async function handler(req,res){
     if(configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==chosen.expectedAmount||configuredPrice.recurring?.interval!=="month") throw new Error("STRIPE_PRICE_MISMATCH");
     const params={mode:"subscription",customer_email:email,client_reference_id:dealId,success_url:success,cancel_url:cancel,"line_items[0][price]":monthly,"line_items[0][quantity]":"1","metadata[deal_id]":dealId,"metadata[plan]":plan,"subscription_data[metadata][deal_id]":dealId,"subscription_data[metadata][plan]":plan,integration_identifier:"ventanexia_checkout_kqmdxvpa",allow_promotion_codes:"false"};
     if(solutionRequestId){params["metadata[solution_request_id]"]=solutionRequestId;params["subscription_data[metadata][solution_request_id]"]=solutionRequestId}
-    if(contractId){params["metadata[contract_id]"]=contractId;params["subscription_data[metadata][contract_id]"]=contractId;params["metadata[contract_version]"]=contractVersion;params["subscription_data[metadata][contract_version]"]=contractVersion;params["metadata[minimum_term_months]"]=minMonths;params["subscription_data[metadata][minimum_term_months]"]=minMonths}
+    if(contractId){
+      params["metadata[contract_id]"]=contractId;params["subscription_data[metadata][contract_id]"]=contractId;
+      params["metadata[contract_version]"]=contractVersion;params["subscription_data[metadata][contract_version]"]=contractVersion;
+      params["metadata[minimum_term_months]"]=minMonths;params["subscription_data[metadata][minimum_term_months]"]=minMonths;
+      params["metadata[recurring_charge_authorized]"]="true";params["subscription_data[metadata][recurring_charge_authorized]"]="true";
+      params["metadata[customer_email]"]=email;params["subscription_data[metadata][customer_email]"]=email;
+      if(phone){params["metadata[customer_phone]"]=phone;params["subscription_data[metadata][customer_phone]"]=phone}
+    }
     let line=1;
     for(const key of extras){const x=EXTRA_PRICES[key];params[`line_items[${line}][price_data][currency]`]="eur";params[`line_items[${line}][price_data][unit_amount]`]=String(x.amount);params[`line_items[${line}][price_data][recurring][interval]`]="month";params[`line_items[${line}][price_data][product_data][name]`]=x.name;params[`line_items[${line}][quantity]`]="1";line++}
     if(internal){const extraAgents=Math.max(0,Math.min(20,Number(req.body?.extraAgents||0)||0));const extraAgentPrice=process.env.STRIPE_PRICE_EXTRA_AGENT;if(extraAgents>0&&extraAgentPrice){params[`line_items[${line}][price]`]=extraAgentPrice;params[`line_items[${line}][quantity]`]=String(extraAgents);params["metadata[extra_agents]"]=String(extraAgents);params["subscription_data[metadata][extra_agents]"]=String(extraAgents)}}
