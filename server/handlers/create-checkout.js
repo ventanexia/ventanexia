@@ -1,97 +1,27 @@
 import crypto from "node:crypto";
 import {verifyContract} from "../../lib/contract-token.js";
-
 function clean(v,max=1000){return String(v||"").trim().slice(0,max)}
-function authorized(req){
-  const expected=process.env.AUTOMATION_WEBHOOK_SECRET;
-  if(!expected) return false;
-  const got=clean(req.headers["x-vnx-automation-key"]||req.headers["authorization"]||"",500).replace(/^Bearer\s+/i,"");
-  if(!got) return false;
-  const a=Buffer.from(got),b=Buffer.from(expected);
-  return a.length===b.length&&crypto.timingSafeEqual(a,b);
-}
-async function stripePost(path,params,idempotencyKey){
-  const key=process.env.STRIPE_SECRET_KEY;
-  if(!key) throw new Error("STRIPE_NOT_CONFIGURED");
-  const body=new URLSearchParams();
-  for(const [k,v] of Object.entries(params)){if(v!==undefined&&v!==null&&v!=="")body.append(k,String(v))}
-  const r=await fetch(`https://api.stripe.com/v1${path}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded",...(idempotencyKey?{"Idempotency-Key":idempotencyKey}:{})},body});
-  const data=await r.json();
-  if(!r.ok) throw new Error(data?.error?.message||`Stripe ${r.status}`);
-  return data;
-}
-async function stripeGet(path){
-  const key=process.env.STRIPE_SECRET_KEY;
-  if(!key) throw new Error("STRIPE_NOT_CONFIGURED");
-  const r=await fetch(`https://api.stripe.com/v1${path}`,{headers:{Authorization:`Bearer ${key}`}});
-  const data=await r.json();
-  if(!r.ok) throw new Error(data?.error?.message||`Stripe ${r.status}`);
-  return data;
-}
-async function resolvePrice(envId,lookupKey){
-  const data=await stripeGet(`/prices?active=true&limit=1&lookup_keys[]=${encodeURIComponent(lookupKey)}`);
-  return data?.data?.[0]?.id||envId||null;
-}
-const PRICE_MAP={
-  start:{envId:()=>process.env.STRIPE_PRICE_START_MONTHLY,lookupKey:"vnx_inicio_monthly",expectedAmount:35000},
-  core:{envId:()=>process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,lookupKey:"vnx_crecimiento_monthly",expectedAmount:90000},
-  scale:{envId:()=>process.env.STRIPE_PRICE_SCALE_MONTHLY,lookupKey:"vnx_empresa_monthly",expectedAmount:175000}
-};
+function authorized(req){const expected=process.env.AUTOMATION_WEBHOOK_SECRET;if(!expected)return false;const got=clean(req.headers["x-vnx-automation-key"]||req.headers["authorization"]||"",500).replace(/^Bearer\s+/i,"");if(!got)return false;const a=Buffer.from(got),b=Buffer.from(expected);return a.length===b.length&&crypto.timingSafeEqual(a,b)}
+async function stripePost(path,params,idempotencyKey){const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("STRIPE_NOT_CONFIGURED");const body=new URLSearchParams();for(const[k,v]of Object.entries(params)){if(v!==undefined&&v!==null&&v!=="")body.append(k,String(v))}const r=await fetch(`https://api.stripe.com/v1${path}`,{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/x-www-form-urlencoded",...(idempotencyKey?{"Idempotency-Key":idempotencyKey}:{})},body});const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||`Stripe ${r.status}`);return data}
+async function stripeGet(path){const key=process.env.STRIPE_SECRET_KEY;if(!key)throw new Error("STRIPE_NOT_CONFIGURED");const r=await fetch(`https://api.stripe.com/v1${path}`,{headers:{Authorization:`Bearer ${key}`}});const data=await r.json();if(!r.ok)throw new Error(data?.error?.message||`Stripe ${r.status}`);return data}
+async function resolvePrice(envId,lookupKey){const data=await stripeGet(`/prices?active=true&limit=1&lookup_keys[]=${encodeURIComponent(lookupKey)}`);return data?.data?.[0]?.id||envId||null}
+const PRICE_MAP={start:{envId:()=>process.env.STRIPE_PRICE_START_MONTHLY,lookupKey:"vnx_inicio_monthly",expectedAmount:35000},core:{envId:()=>process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,lookupKey:"vnx_crecimiento_monthly",expectedAmount:90000},scale:{envId:()=>process.env.STRIPE_PRICE_SCALE_MONTHLY,lookupKey:"vnx_empresa_monthly",expectedAmount:175000}};
 const CONTRACT_PLAN={inicio:"start",crecimiento:"core",empresa:"scale"};
 const EXTRA_PRICES={buscador:{name:"Buscador de clientes",amount:14400},whatsapp:{name:"WhatsApp",amount:11400},email:{name:"Email / bandeja",amount:9000},agenda:{name:"Agenda y seguimiento",amount:9000},atencion:{name:"Atención al cliente",amount:11400},presupuestos:{name:"Presupuestos",amount:13200},redes:{name:"Redes sociales",amount:10800},informes:{name:"Informes",amount:10200},seo:{name:"SEO y visibilidad",amount:11400},administracion:{name:"Administración",amount:13200},automatizacion:{name:"Automatizaciones",amount:14400},voz:{name:"Secretaria con voz",amount:21000},conexion:{name:"Conexión externa adicional",amount:4200},coordinacion:{name:"Coordinación entre ayudantes",amount:10800}};
-
 export default async function handler(req,res){
-  if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
-  const contract=verifyContract(clean(req.body?.contractToken,30000));
-  const internal=authorized(req);
-  if(!contract&&!internal) return res.status(401).json({error:"Contrato no aceptado o autorización no válida"});
-
-  let dealId,email,phone="",plan,solutionRequestId="",extras=[],contractId="",minMonths="",contractVersion="";
-  if(contract){
-    if(contract.recurringChargeAccepted!==true) return res.status(400).json({error:"Falta autorización de cobro recurrente"});
-    dealId=contract.contractId;
-    contractId=contract.contractId;
-    email=contract.email;
-    phone=clean(contract.phone,40);
-    plan=CONTRACT_PLAN[contract.plan];
-    extras=Array.isArray(contract.extras)?contract.extras.filter(x=>EXTRA_PRICES[x]):[];
-    minMonths=String(contract.minMonths||"");
-    contractVersion=clean(contract.version,80);
-  }else{
-    dealId=clean(req.body?.dealId,100);
-    email=clean(req.body?.email,320).toLowerCase();
-    plan=clean(req.body?.plan||"core",80);
-    solutionRequestId=clean(req.body?.solutionRequestId,100);
-    if(!dealId||!email) return res.status(400).json({error:"dealId y email son obligatorios"});
-  }
-  const chosen=PRICE_MAP[plan];
-  if(!chosen) return res.status(400).json({error:"Plan no válido"});
-  const appUrl=String(process.env.PUBLIC_APP_URL||"https://ventanexia.es").replace(/\/$/,"");
-  const success=process.env.CHECKOUT_SUCCESS_URL||`${appUrl}/?payment=success`;
-  const cancel=process.env.CHECKOUT_CANCEL_URL||`${appUrl}/planes.html?payment=cancelled`;
+  if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
+  const contract=verifyContract(clean(req.body?.contractToken,30000)),internal=authorized(req);if(!contract&&!internal)return res.status(401).json({error:"Contrato no aceptado o autorización no válida"});
+  let dealId,email,phone="",company="",taxid="",plan,solutionRequestId="",extras=[],included=[],contractId="",minMonths="",contractVersion="";
+  if(contract){if(contract.recurringChargeAccepted!==true)return res.status(400).json({error:"Falta autorización de cobro recurrente"});dealId=contract.contractId;contractId=contract.contractId;email=contract.email;phone=clean(contract.phone,40);company=clean(contract.company,200);taxid=clean(contract.taxid,80);plan=CONTRACT_PLAN[contract.plan];extras=Array.isArray(contract.extras)?contract.extras.filter(x=>EXTRA_PRICES[x]):[];included=Array.isArray(contract.included)?contract.included:[];minMonths=String(contract.minMonths||"");contractVersion=clean(contract.version,80)}else{dealId=clean(req.body?.dealId,100);email=clean(req.body?.email,320).toLowerCase();plan=clean(req.body?.plan||"core",80);solutionRequestId=clean(req.body?.solutionRequestId,100);if(!dealId||!email)return res.status(400).json({error:"dealId y email son obligatorios"})}
+  const chosen=PRICE_MAP[plan];if(!chosen)return res.status(400).json({error:"Plan no válido"});
+  const appUrl=String(process.env.PUBLIC_APP_URL||"https://ventanexia.es").replace(/\/$/,""),success=process.env.CHECKOUT_SUCCESS_URL||`${appUrl}/?payment=success`,cancel=process.env.CHECKOUT_CANCEL_URL||`${appUrl}/planes.html?payment=cancelled`;
   try{
-    const monthly=await resolvePrice(chosen.envId(),chosen.lookupKey);
-    if(!monthly) return res.status(503).json({code:"NOT_CONFIGURED",error:"Precio recurrente no configurado"});
-    const configuredPrice=await stripeGet(`/prices/${encodeURIComponent(monthly)}`);
-    if(configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==chosen.expectedAmount||configuredPrice.recurring?.interval!=="month") throw new Error("STRIPE_PRICE_MISMATCH");
-    const params={mode:"subscription",customer_email:email,client_reference_id:dealId,success_url:success,cancel_url:cancel,"line_items[0][price]":monthly,"line_items[0][quantity]":"1","metadata[deal_id]":dealId,"metadata[plan]":plan,"subscription_data[metadata][deal_id]":dealId,"subscription_data[metadata][plan]":plan,integration_identifier:"ventanexia_checkout_kqmdxvpa",allow_promotion_codes:"false"};
+    const monthly=await resolvePrice(chosen.envId(),chosen.lookupKey);if(!monthly)return res.status(503).json({code:"NOT_CONFIGURED",error:"Precio recurrente no configurado"});const configuredPrice=await stripeGet(`/prices/${encodeURIComponent(monthly)}`);if(configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==chosen.expectedAmount||configuredPrice.recurring?.interval!=="month")throw new Error("STRIPE_PRICE_MISMATCH");
+    const params={mode:"subscription",customer_email:email,client_reference_id:dealId,success_url:success,cancel_url:cancel,"line_items[0][price]":monthly,"line_items[0][quantity]":"1","metadata[deal_id]":dealId,"metadata[plan]":plan,"subscription_data[metadata][deal_id]":dealId,"subscription_data[metadata][plan]":plan,integration_identifier:"ventanexia_checkout_kqmdxvpa",allow_promotion_codes:"false",billing_address_collection:"required","tax_id_collection[enabled]":"true","phone_number_collection[enabled]":"true"};
     if(solutionRequestId){params["metadata[solution_request_id]"]=solutionRequestId;params["subscription_data[metadata][solution_request_id]"]=solutionRequestId}
-    if(contractId){
-      params["metadata[contract_id]"]=contractId;params["subscription_data[metadata][contract_id]"]=contractId;
-      params["metadata[contract_version]"]=contractVersion;params["subscription_data[metadata][contract_version]"]=contractVersion;
-      params["metadata[minimum_term_months]"]=minMonths;params["subscription_data[metadata][minimum_term_months]"]=minMonths;
-      params["metadata[recurring_charge_authorized]"]="true";params["subscription_data[metadata][recurring_charge_authorized]"]="true";
-      params["metadata[customer_email]"]=email;params["subscription_data[metadata][customer_email]"]=email;
-      if(phone){params["metadata[customer_phone]"]=phone;params["subscription_data[metadata][customer_phone]"]=phone}
-    }
-    let line=1;
-    for(const key of extras){const x=EXTRA_PRICES[key];params[`line_items[${line}][price_data][currency]`]="eur";params[`line_items[${line}][price_data][unit_amount]`]=String(x.amount);params[`line_items[${line}][price_data][recurring][interval]`]="month";params[`line_items[${line}][price_data][product_data][name]`]=x.name;params[`line_items[${line}][quantity]`]="1";line++}
-    if(internal){const extraAgents=Math.max(0,Math.min(20,Number(req.body?.extraAgents||0)||0));const extraAgentPrice=process.env.STRIPE_PRICE_EXTRA_AGENT;if(extraAgents>0&&extraAgentPrice){params[`line_items[${line}][price]`]=extraAgentPrice;params[`line_items[${line}][quantity]`]=String(extraAgents);params["metadata[extra_agents]"]=String(extraAgents);params["subscription_data[metadata][extra_agents]"]=String(extraAgents)}}
-    const session=await stripePost("/checkout/sessions",params,`vnx-${dealId}-${plan}`);
-    console.log(JSON.stringify({event:"checkout_created",dealId,contractId,sessionId:session.id,ts:new Date().toISOString()}));
-    return res.status(200).json({ok:true,sessionId:session.id,checkoutUrl:session.url});
-  }catch(e){
-    console.error(JSON.stringify({event:"checkout_error",dealId,error:String(e?.message||e).slice(0,400)}));
-    return res.status(e?.message==="STRIPE_NOT_CONFIGURED"?503:500).json({error:"No se pudo crear el pago seguro"});
-  }
+    if(contractId){const compactIncluded=included.join(",").slice(0,450),compactExtras=extras.join(",").slice(0,450);for(const [k,v] of Object.entries({contract_id:contractId,contract_version:contractVersion,minimum_term_months:minMonths,recurring_charge_authorized:"true",customer_email:email,customer_phone:phone,company,taxid,included:compactIncluded,extras:compactExtras})){if(v){params[`metadata[${k}]`]=v;params[`subscription_data[metadata][${k}]`]=v}}}
+    let line=1;for(const key of extras){const x=EXTRA_PRICES[key];params[`line_items[${line}][price_data][currency]`]="eur";params[`line_items[${line}][price_data][unit_amount]`]=String(x.amount);params[`line_items[${line}][price_data][recurring][interval]`]="month";params[`line_items[${line}][price_data][product_data][name]`]=x.name;params[`line_items[${line}][quantity]`]="1";line++}
+    if(internal){const extraAgents=Math.max(0,Math.min(20,Number(req.body?.extraAgents||0)||0)),extraAgentPrice=process.env.STRIPE_PRICE_EXTRA_AGENT;if(extraAgents>0&&extraAgentPrice){params[`line_items[${line}][price]`]=extraAgentPrice;params[`line_items[${line}][quantity]`]=String(extraAgents);params["metadata[extra_agents]"]=String(extraAgents);params["subscription_data[metadata][extra_agents]"]=String(extraAgents)}}
+    const session=await stripePost("/checkout/sessions",params,`vnx-${dealId}-${plan}`);return res.status(200).json({ok:true,sessionId:session.id,checkoutUrl:session.url});
+  }catch(e){console.error(JSON.stringify({event:"checkout_error",dealId,error:String(e?.message||e).slice(0,400)}));return res.status(e?.message==="STRIPE_NOT_CONFIGURED"?503:500).json({error:"No se pudo crear el pago seguro"})}
 }
