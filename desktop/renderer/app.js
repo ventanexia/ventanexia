@@ -64,9 +64,43 @@ function setupPortalUi(){
   renderPortals();
 }
 
+function getMasterTestConnections(){
+  try{return JSON.parse(localStorage.getItem('vnx_master_test_connections')||'{}')}catch{return {}}
+}
+function setMasterTestConnection(key,value){const all=getMasterTestConnections();all[key]=value;localStorage.setItem('vnx_master_test_connections',JSON.stringify(all));}
+function setupMasterTestMode(){
+  const map=[
+    {match:'Conectar email',key:'email',label:'Email'},
+    {match:'Conectar WhatsApp',key:'whatsapp',label:'WhatsApp Business'},
+    {match:'Conectar redes',key:'social',label:'Redes sociales'},
+    {match:'Configurar captación',key:'prospecting',label:'Captación'},
+    {match:'Conectar CRM',key:'crm',label:'CRM'},
+    {match:'Conectar Shopify',key:'shopify',label:'Shopify'},
+    {match:'Conectar WordPress',key:'wordpress',label:'WordPress / WooCommerce'},
+    {match:'Conectar proyecto',key:'github_vercel',label:'GitHub / Vercel'}
+  ];
+  const saved=getMasterTestConnections();
+  $$('button').forEach(btn=>{
+    const cfg=map.find(x=>btn.textContent.includes(x.match));
+    if(!cfg)return;
+    btn.disabled=false;
+    btn.dataset.masterTest=cfg.key;
+    btn.textContent=saved[cfg.key]?`${cfg.label} · configurado (prueba)`:`Probar ${cfg.label}`;
+    btn.onclick=()=>{
+      const current=getMasterTestConnections()[cfg.key]||{};
+      const detail=prompt(`MODO MAESTRO DE PRUEBA · ${cfg.label}\n\nIndica la cuenta, URL, tienda o referencia que quieres asociar para probar la interfaz.\nNo se guardan contraseñas ni se ejecutan acciones reales hasta instalar el conector/API correspondiente.`,current.detail||'');
+      if(detail===null)return;
+      setMasterTestConnection(cfg.key,{detail:detail.trim(),configuredAt:new Date().toISOString(),mode:'test'});
+      btn.textContent=`${cfg.label} · configurado (prueba)`;
+      alert(`${cfg.label} queda habilitado en MODO PRUEBA para la edición maestra.\n\nEsto permite probar el flujo y la configuración. La conexión real y las acciones sobre la cuenta solo funcionarán cuando conectemos su API/OAuth correspondiente.`);
+    };
+  });
+}
+
 async function init(){
   bindTabs();
   setupPortalUi();
+  setupMasterTestMode();
   const sys=await window.vnx.systemStatus();
   $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
   $('#appVersion').textContent=sys.version;
