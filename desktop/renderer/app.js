@@ -64,9 +64,31 @@ function setupPortalUi(){
   renderPortals();
 }
 
+function getRealModuleSources(){
+  try{return JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')}catch{return {}}
+}
+function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
+function setupRealModuleMode(){
+  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
+  const saved=getRealModuleSources();
+  $('[data-real-module]').forEach(btn=>{
+    const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
+    if(current?.folder)btn.textContent=\`🟢 ${label} · datos reales autorizados\`;
+    btn.onclick=async()=>{
+      const folder=await window.vnx.chooseFolder();
+      if(!folder)return;
+      setRealModuleSource(key,{folder,authorizedAt:new Date().toISOString(),mode:'real'});
+      btn.textContent=\`🟢 ${label} · datos reales autorizados\`;
+      await refresh();
+      alert(\`${label}: fuente real autorizada. VentaNexIA podrá consultar los archivos compatibles de esta carpeta desde “Habla con tu equipo”. No se ha simulado ninguna conexión externa.\`);
+    };
+  });
+}
+
 async function init(){
   bindTabs();
   setupPortalUi();
+  setupRealModuleMode();
   const sys=await window.vnx.systemStatus();
   $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
   $('#appVersion').textContent=sys.version;
