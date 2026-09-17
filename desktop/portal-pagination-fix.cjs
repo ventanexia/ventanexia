@@ -72,9 +72,9 @@ async function clickNext(win){
   })()`,true);
 }
 
-async function verifiedProductCount(question=''){
+async function verifiedProductCount(question='',scope=null){
   const state=await readState();
-  const portal=selectPortal(state.portals,question);
+  const portal=scope?.portalId?state.portals.find(p=>p.id===scope.portalId):selectPortal(state.portals,question);
   if(!portal)return {status:'no_portal'};
   const cap=portal.profile?.capabilities?.products;
   if(!cap?.url)return {status:'not_mapped',name:portal.name};
@@ -104,4 +104,4 @@ async function verifiedProductCount(question=''){
   }finally{if(!win.isDestroyed())win.destroy()}
 }
 
-ipcMain.handle('portal:verified-product-count',async(_e,question)=>verifiedProductCount(String(question||'')));
+ipcMain.handle('portal:verified-product-count',async(_e,payload)=>{const p=typeof payload==='string'?{question:payload,scope:null}:(payload||{});return verifiedProductCount(String(p.question||''),p.scope||null)});
