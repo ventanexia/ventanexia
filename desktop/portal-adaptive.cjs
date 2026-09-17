@@ -160,30 +160,45 @@ function deterministicReply(question,results){
   return null;
 }
 
-async function collectLocalContext(){
-  const s=await readState(),roots=s.permissions?.folders||[],files=[];let chars=0;
+async function collectLocalContext(rootsOverride=null){
+  const s=await readState(),roots=Array.isArray(rootsOverride)&&rootsOverride.length?rootsOverride:(s.permissions?.folders||[]),files=[];let chars=0;
   async function walk(root,dir,depth){if(depth>6||files.length>=MAX_FILES||chars>=MAX_CHARS)return;let es=[];try{es=await fs.readdir(dir,{withFileTypes:true})}catch{return}for(const e of es){if(files.length>=MAX_FILES||chars>=MAX_CHARS)break;if(e.isSymbolicLink())continue;const full=path.join(dir,e.name);if(e.isDirectory()){await walk(root,full,depth+1);continue}if(!e.isFile()||!TEXT_EXTENSIONS.has(path.extname(e.name).toLowerCase()))continue;try{const text=(await fs.readFile(full,'utf8')).slice(0,MAX_FILE_CHARS),content=text.slice(0,MAX_CHARS-chars);if(content){files.push({path:path.relative(root,full),content});chars+=content.length}}catch{}}}
   for(const r of roots)await walk(r,r,0);return files;
 }
 function lastUser(messages=[]){for(let i=messages.length-1;i>=0;i--)if(messages[i]?.role==='user')return String(messages[i].content||'');return ''}
+
+async function queryPublicWebsite(scope,question){
+  const raw=String(scope?.url||'').trim();if(!/^https:\/\//i.test(raw))return {status:'invalid_url',name:scope?.name||'Web'};
+  const portal={id:'public-'+String(scope?.key||'web').replace(/[^a-z0-9_-]/gi,''),name:scope?.name||new URL(raw).hostname,url:raw,mode:'read'};
+  const win=new BrowserWindow(windowOptions(portal,false));win.removeMenu();
+  try{
+    const root=await loadPage(win,raw),category=categoryForQuestion(question),candidates=classifyLinks(root.url,root.links||[]),target=candidates[category];
+    const page=target&&sameOrigin(target.url,raw)?await loadPage(win,target.url):root;
+    return {status:'connected',name:portal.name,category,url:page.url,title:page.title,total:null,headers:page.tables?.[0]?.headers||[],rows:(page.tables?.[0]?.rows||[]).slice(0,30),text:page.text.slice(0,22000),images:(page.images||[]).slice(0,10)};
+  }finally{if(!win.isDestroyed())win.destroy()}
+}
 
 ipcMain.handle('portal:calibrate',async(_e,id)=>calibratePortal(clean(id,80)));
 ipcMain.handle('portal:profile',async(_e,id)=>{const p=await getPortal(clean(id,80));return p?.profile||null});
 ipcMain.handle('portal:adaptive-query',async(_e,id,question)=>{const p=await getPortal(clean(id,80));if(!p)throw new Error('Portal no encontrado');return queryPortal(p,String(question||''))});
 
 ipcMain.removeHandler('chat:send');
-ipcMain.handle('chat:send',async(_e,messages)=>{
-  const question=lastUser(messages),s=await readState(),portals=(s.portals||[]).filter(p=>['read','write'].includes(p.mode)).slice(0,4),results=[];
+ipcMain.handle('chat:send',async(_e,payload)=>{
+  const input=Array.isArray(payload)?{messages:payload,scope:null}:(payload||{}),messages=input.messages||[],scope=input.scope||null;
+  const question=lastUser(messages),s=await readState();let portals=(s.portals||[]).filter(p=>['read','write'].includes(p.mode)).slice(0,4),results=[];
+  if(scope?.type==='portal')portals=portals.filter(p=>p.id===scope.id);
+  if(scope?.type==='url'){portals=[];try{results.push(await queryPublicWebsite(scope,question))}catch(e){results.push({status:'error',name:scope.name||'Web',error:String(e?.message||e).slice(0,180)})}}
+  if(scope?.type==='folder')portals=[];
   for(const p of portals){try{results.push(await queryPortal(p,question))}catch(e){results.push({status:'error',name:p.name,error:String(e?.message||e).slice(0,180)})}}
   const direct=deterministicReply(question,results);
   const images=[];for(const r of results)for(const img of r.images||[]){if(img?.src&&!images.some(x=>x.src===img.src))images.push({src:img.src,alt:img.alt||r.name})}
-  if(direct){await audit('ai.chat',`Respuesta estructurada desde portal: ${categoryForQuestion(question)}`);return {reply:direct,source:'portal-structured',images:images.slice(0,8),portalStatus:results.map(r=>({name:r.name,status:r.status}))}}
-  const local=await collectLocalContext();
-  const portalFiles=results.filter(r=>r.status==='connected').map(r=>({path:`PORTAL ESTRUCTURADO ${r.name} · ${r.category}`,content:JSON.stringify({source:'portal_private_read_only',category:r.category,total:r.total,headers:r.headers,rows:r.rows,text:r.text},null,2)}));
+  if(direct){await audit('ai.chat','Respuesta estructurada desde '+(scope?.name||'portal')+': '+categoryForQuestion(question));return {reply:direct,source:'portal-structured',images:images.slice(0,8),portalStatus:results.map(r=>({name:r.name,status:r.status}))}}
+  const local=await collectLocalContext(scope?.type==='folder'&&scope.folder?[scope.folder]:scope?[]:null);
+  const portalFiles=results.filter(r=>r.status==='connected').map(r=>({path:'CONEXION '+r.name+' · '+r.category,content:JSON.stringify({source:scope?.type==='url'?'public_website_read_only':'portal_private_read_only',category:r.category,total:r.total,headers:r.headers,rows:r.rows,text:r.text},null,2)}));
   const combined=[...local,...portalFiles].slice(0,MAX_FILES);
-  const response=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext:combined,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length}})});
+  const response=await fetch(CLOUD+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext:combined,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length,scope:scope?{type:scope.type,name:scope.name||null}:null}})});
   const j=await response.json().catch(()=>({}));if(!response.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
-  j.images=images.slice(0,8);j.portalStatus=results.map(r=>({name:r.name,status:r.status}));await audit('ai.chat',`Consulta adaptativa: ${portalFiles.length} portal(es), ${local.length} archivo(s)`);return j;
+  j.images=images.slice(0,8);j.portalStatus=results.map(r=>({name:r.name,status:r.status}));await audit('ai.chat','Consulta dirigida a '+(scope?.name||'todas las conexiones')+': '+portalFiles.length+' fuente(s), '+local.length+' archivo(s)');return j;
 });
 
 module.exports={calibratePortal};
