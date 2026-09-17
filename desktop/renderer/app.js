@@ -71,10 +71,22 @@ function setRealModuleSource(key,value){const all=getRealModuleSources();all[key
 function setupRealModuleMode(){
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
   const saved=getRealModuleSources();
-  $('[data-real-module]').forEach(btn=>{
+  $$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
     if(current?.folder)btn.textContent=\`🟢 ${label} · datos reales autorizados\`;
+    if(current?.url)btn.textContent=\`${label} · URL registrada\`;
     btn.onclick=async()=>{
+      if(['shopify','wordpress','github_vercel'].includes(key)){
+        const previous=current?.url||'';
+        const entered=prompt(key==='shopify'?'Introduce la URL real de tu tienda Shopify (https://... o https://...myshopify.com)':'Introduce la URL real del sitio o proyecto (https://...)',previous);
+        if(entered===null)return;
+        const url=String(entered||'').trim();
+        if(!/^https:\/\//i.test(url)){alert('La URL debe empezar por https://');return;}
+        setRealModuleSource(key,{url,authorizedAt:new Date().toISOString(),mode:'real',connection:'url_registered'});
+        btn.textContent=\`${label} · URL registrada\`;
+        alert(\`${label}: URL real registrada. Para leer pedidos, clientes, productos o realizar cambios necesitaremos conectar la API/OAuth oficial de esa cuenta. La URL por sí sola no se marcará como conexión activa.\`);
+        return;
+      }
       const folder=await window.vnx.chooseFolder();
       if(!folder)return;
       setRealModuleSource(key,{folder,authorizedAt:new Date().toISOString(),mode:'real'});
