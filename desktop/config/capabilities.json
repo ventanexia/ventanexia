@@ -87,7 +87,25 @@
     "serverSideEntitlements": true,
     "masterEditionAllModules": true,
     "clientEditionOnlyPurchasedModules": true,
-    "revocationSupported": true
+    "revocationSupported": true,
+    "devicePolicy": {
+      "enforcement": "server_side",
+      "oneInstallationConsumesOneDeviceSeat": true,
+      "deviceMustBeRegisteredToCustomer": true,
+      "newDeviceRequiresAvailableSeat": true,
+      "customerCanDeactivateOldDevice": true,
+      "supportCanRevokeDevice": true,
+      "deviceSeatPricing": {
+        "currency": "EUR",
+        "extraDeviceMonthlyEur": 49,
+        "status": "initial_commercial_proposal"
+      },
+      "includedDevicesByPlan": {
+        "plan_350": 1,
+        "plan_900": 3,
+        "plan_1750": 5
+      }
+    }
   },
   "security": {
     "oauthPreferred": true,
