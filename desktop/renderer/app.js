@@ -26,11 +26,11 @@ function renderLicense(){
   }
 }
 function renderState(){
-  $('#pairState').textContent=state.paired?'Vinculado':'Sin vincular';
+  $('#pairState').textContent='Datos reales';
   $('#folderCount').textContent=state.permissions?.folders?.length||0;
   renderLicense();
   const list=state.permissions?.folders||[];
-  $('#permissionList').innerHTML=list.length?list.map(f=>`<div class="listrow"><div><b>${esc(f)}</b><span>Lectura y escritura de prueba autorizadas</span></div><button class="mini revoke" data-folder="${esc(f)}">Revocar</button></div>`).join(''):'<div class="empty">No hay carpetas autorizadas.</div>';
+  $('#permissionList').innerHTML=list.length?list.map(f=>`<div class="listrow"><div><b>${esc(f)}</b><span>Carpeta autorizada</span></div><button class="mini revoke" data-folder="${esc(f)}">Revocar</button></div>`).join(''):'<div class="empty">No hay carpetas autorizadas.</div>';
   $('#folderSelect').innerHTML=list.length?list.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join(''):'<option value="">Autoriza una carpeta primero</option>';
   $$('.revoke').forEach(b=>b.onclick=async()=>{await window.vnx.revokeFolder(b.dataset.folder);await refresh()});
   $('#activityList').innerHTML=(state.activity||[]).length?state.activity.map(a=>`<div class="listrow"><div><b>${esc(a.type)}</b><span>${esc(a.detail)}</span></div><small>${new Date(a.at).toLocaleString('es-ES')}</small></div>`).join(''):'<div class="empty">Todavía no hay actividad.</div>';
@@ -64,50 +64,15 @@ function setupPortalUi(){
   renderPortals();
 }
 
-function getMasterTestConnections(){
-  try{return JSON.parse(localStorage.getItem('vnx_master_test_connections')||'{}')}catch{return {}}
-}
-function setMasterTestConnection(key,value){const all=getMasterTestConnections();all[key]=value;localStorage.setItem('vnx_master_test_connections',JSON.stringify(all));}
-function setupMasterTestMode(){
-  const map=[
-    {match:'Conectar email',key:'email',label:'Email'},
-    {match:'Conectar WhatsApp',key:'whatsapp',label:'WhatsApp Business'},
-    {match:'Conectar redes',key:'social',label:'Redes sociales'},
-    {match:'Configurar captación',key:'prospecting',label:'Captación'},
-    {match:'Conectar CRM',key:'crm',label:'CRM'},
-    {match:'Conectar Shopify',key:'shopify',label:'Shopify'},
-    {match:'Conectar WordPress',key:'wordpress',label:'WordPress / WooCommerce'},
-    {match:'Conectar proyecto',key:'github_vercel',label:'GitHub / Vercel'}
-  ];
-  const saved=getMasterTestConnections();
-  $$('button').forEach(btn=>{
-    const cfg=map.find(x=>btn.textContent.includes(x.match));
-    if(!cfg)return;
-    btn.disabled=false;
-    btn.dataset.masterTest=cfg.key;
-    btn.textContent=saved[cfg.key]?`${cfg.label} · configurado (prueba)`:`Probar ${cfg.label}`;
-    btn.onclick=()=>{
-      const current=getMasterTestConnections()[cfg.key]||{};
-      const detail=prompt(`MODO MAESTRO DE PRUEBA · ${cfg.label}\n\nIndica la cuenta, URL, tienda o referencia que quieres asociar para probar la interfaz.\nNo se guardan contraseñas ni se ejecutan acciones reales hasta instalar el conector/API correspondiente.`,current.detail||'');
-      if(detail===null)return;
-      setMasterTestConnection(cfg.key,{detail:detail.trim(),configuredAt:new Date().toISOString(),mode:'test'});
-      btn.textContent=`${cfg.label} · configurado (prueba)`;
-      alert(`${cfg.label} queda habilitado en MODO PRUEBA para la edición maestra.\n\nEsto permite probar el flujo y la configuración. La conexión real y las acciones sobre la cuenta solo funcionarán cuando conectemos su API/OAuth correspondiente.`);
-    };
-  });
-}
-
 async function init(){
   bindTabs();
   setupPortalUi();
-  setupMasterTestMode();
   const sys=await window.vnx.systemStatus();
   $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
   $('#appVersion').textContent=sys.version;
   await refresh();
 }
 
-$('#pairBtn').onclick=async()=>{const r=await window.vnx.pairDemo();await refresh();alert(`Equipo vinculado en modo prueba. ID: ${r.deviceId}`)};
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
 
 $('#activateLicenseBtn').onclick=async()=>{
@@ -148,7 +113,7 @@ async function showFolder(folder){
 }
 $('#listFiles').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return;await showFolder(f)};
 $('#folderSelect').onchange=()=>{browsingFolder=null;$('#fileList').innerHTML='';$('#fileMsg').textContent=''};
-$('#createTest').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return;if(!confirm('VentaNexIA va a crear un archivo .txt de prueba dentro de esta carpeta. ¿Lo autorizas?'))return;try{const file=await window.vnx.createTestFile(f);$('#fileMsg').textContent=`Creado: ${file}`;await refresh()}catch(e){$('#fileMsg').textContent=e.message}};
+$('#createTest').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return;if(!confirm('VentaNexIA va a crear un archivo .txt de comprobación dentro de esta carpeta. ¿Lo autorizas?'))return;try{const file=await window.vnx.createTestFile(f);$('#fileMsg').textContent=`Creado: ${file}`;await refresh()}catch(e){$('#fileMsg').textContent=e.message}};
 
 function renderDiscovery(data){
   if(!data)return;
