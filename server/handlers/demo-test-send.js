@@ -11,15 +11,9 @@ const PUBLIC_ORIGIN="https://www.ventanexia.es";
 function makePdf(title,lines=[]){
   const text=[title,"",...lines].slice(0,42);
   let y=790;const ops=["BT","/F1 18 Tf",`50 ${y} Td`,`(${pdfEscape(text[0]||title)}) Tj`,`/F1 10 Tf`];
-  for(let i=1;i<text.length;i++){y-=18;ops.push(`0 -18 Td`,`(${pdfEscape(text[i])}) Tj`)}ops.push("ET");
+  for(let i=1;i<text.length;i++){y-=18;ops.push("0 -18 Td",`(${pdfEscape(text[i])}) Tj`)}ops.push("ET");
   const stream=ops.join("\n");
-  const objects=[
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`,
-    `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"
-  ];
+  const objects=["<< /Type /Catalog /Pages 2 0 R >>","<< /Type /Pages /Kids [3 0 R] /Count 1 >>",`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>`,`<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"];
   let out="%PDF-1.4\n",offsets=[0];
   objects.forEach((o,i)=>{offsets[i+1]=Buffer.byteLength(out);out+=`${i+1} 0 obj\n${o}\nendobj\n`});
   const xref=Buffer.byteLength(out);out+=`xref\n0 ${objects.length+1}\n0000000000 65535 f \n`;
@@ -28,34 +22,53 @@ function makePdf(title,lines=[]){
   return Buffer.from(out,"binary");
 }
 
-async function createPortalAccessUrl(email){
-  try{
-    if(!process.env.SUPABASE_URL||!process.env.SUPABASE_SERVICE_ROLE_KEY)return `${PUBLIC_ORIGIN}/portal.html`;
-    const tenants=await pdb(`vnx_tenants?settings->>owner_email=eq.${encodeURIComponent(email)}&select=id&limit=1`);
-    const tenant=tenants?.[0];
-    if(!tenant?.id)return `${PUBLIC_ORIGIN}/portal.html`;
-    const raw=crypto.randomBytes(32).toString("base64url");
-    const expires=new Date(Date.now()+20*60*1000).toISOString();
-    await pdb("vnx_portal_login_tokens",{method:"POST",body:JSON.stringify([{
-      tenant_id:tenant.id,email_hash:hash(email),token_hash:hash(raw),expires_at:expires
-    }])});
-    return `${PUBLIC_ORIGIN}/api/portal-login?token=${encodeURIComponent(raw)}`;
-  }catch{
-    return `${PUBLIC_ORIGIN}/portal.html`;
+function planKey(v){
+  const p=clean(v,100).toLowerCase();
+  if(p.includes("empresa"))return "empresa";
+  if(p.includes("crecimiento"))return "crecimiento";
+  return "inicio";
+}
+
+async function ensureDemoTenant(email,p){
+  const expiresAt=new Date(Date.now()+24*60*60*1000).toISOString();
+  const name=clean(p.company,200)||"Cliente demo VentaNexIA";
+  const settings={owner_email:email,demo:true,demo_expires_at:expiresAt,first_task:clean(p.task,1000),plan:clean(p.plan,100)||"Inicio"};
+  let rows=await pdb(`vnx_tenants?settings->>owner_email=eq.${encodeURIComponent(email)}&select=id,name,settings&limit=1`);
+  let tenant=rows?.[0];
+  if(!tenant?.id){
+    rows=await pdb("vnx_tenants",{method:"POST",body:JSON.stringify([{name,status:"active",autonomy_level:"execute_within_policy",settings}])});
+    tenant=rows?.[0];
+  }else{
+    await pdb(`vnx_tenants?id=eq.${encodeURIComponent(tenant.id)}`,{method:"PATCH",body:JSON.stringify({name,status:"active",settings:{...(tenant.settings||{}),...settings}})});
   }
+  if(!tenant?.id)throw new Error("DEMO_TENANT_CREATE_FAILED");
+  const ents=await pdb(`vnx_entitlements?tenant_id=eq.${encodeURIComponent(tenant.id)}&select=tenant_id&limit=1`);
+  const entPayload={state:"active",paid_started_at:new Date().toISOString(),suspended_at:null,suspend_reason:null,plan_key:planKey(p.plan),feature_policy:{mode:"demo",external_writes:false,bulk_outbound:false,demo_expires_at:expiresAt}};
+  if(ents?.[0])await pdb(`vnx_entitlements?tenant_id=eq.${encodeURIComponent(tenant.id)}`,{method:"PATCH",body:JSON.stringify(entPayload)});
+  else await pdb("vnx_entitlements",{method:"POST",body:JSON.stringify([{tenant_id:tenant.id,...entPayload}])});
+  return tenant.id;
+}
+
+async function createPortalAccessUrl(email,p){
+  if(!process.env.SUPABASE_URL||!process.env.SUPABASE_SERVICE_ROLE_KEY)return `${PUBLIC_ORIGIN}/portal.html`;
+  const tenantId=await ensureDemoTenant(email,p);
+  const raw=crypto.randomBytes(32).toString("base64url");
+  const expires=new Date(Date.now()+20*60*1000).toISOString();
+  await pdb("vnx_portal_login_tokens",{method:"POST",body:JSON.stringify([{tenant_id:tenantId,email_hash:hash(email),token_hash:hash(raw),expires_at:expires}])});
+  return `${PUBLIC_ORIGIN}/api/portal-login?token=${encodeURIComponent(raw)}`;
 }
 
 function emailHtml(p,accessUrl){
   const company=esc(p.company||"Empresa de prueba"),plan=esc(p.plan||"Inicio"),task=esc(p.task||"Primera puesta en marcha"),portal=esc(accessUrl||`${PUBLIC_ORIGIN}/portal.html`);
-  return `<!doctype html><html><body style="margin:0;background:#eef4f8;font-family:Arial,sans-serif;color:#102335"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef4f8;padding:28px 12px"><tr><td align="center"><table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;width:100%;background:#fff;border-radius:16px;overflow:hidden"><tr><td style="background:#061d32;padding:24px 30px;color:#fff"><div style="font-size:26px;font-weight:800">VentaNexIA</div><div style="font-size:13px;color:#9edfff;margin-top:4px">Tu equipo digital ya está preparado</div></td></tr><tr><td style="padding:30px"><div style="display:inline-block;background:#e8fbf3;color:#12704f;font-weight:700;padding:7px 10px;border-radius:999px;font-size:12px">✓ PRUEBA REAL ENVIADA</div><h1 style="font-size:28px;line-height:1.2;margin:18px 0 10px">Bienvenido a VentaNexIA</h1><p style="font-size:16px;line-height:1.6;color:#40576b">Este es el email que recibiría un cliente después de activar su servicio. Para esta prueba estamos usando los datos que has introducido en la demo.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;border:1px solid #d8e6ef;border-radius:12px"><tr><td style="padding:16px;border-bottom:1px solid #e5eef3"><b>Empresa</b></td><td style="padding:16px;border-bottom:1px solid #e5eef3;text-align:right">${company}</td></tr><tr><td style="padding:16px;border-bottom:1px solid #e5eef3"><b>Plan</b></td><td style="padding:16px;border-bottom:1px solid #e5eef3;text-align:right">${plan}</td></tr><tr><td style="padding:16px"><b>Primera tarea</b></td><td style="padding:16px;text-align:right">${task}</td></tr></table><p style="font-size:16px;line-height:1.6">Ya puedes entrar, terminar tus conexiones y empezar a trabajar. En producción, los permisos y conexiones se validan antes de ejecutar acciones externas.</p><p style="margin:26px 0"><a href="${portal}" style="background:#5e35d8;color:white;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px;display:inline-block">Entrar en Mi VentaNexIA →</a></p><p style="font-size:13px;color:#71879a;line-height:1.5">Si tu cuenta ya está activa, este botón utiliza un acceso seguro de un solo uso válido durante 20 minutos. Si todavía no existe una cuenta asociada, te llevará a la pantalla segura de acceso.</p><p style="font-size:13px;color:#71879a;line-height:1.5">Adjuntamos una factura y un contrato de demostración para que puedas comprobar el formato completo del correo. No tienen validez fiscal ni contractual.</p></td></tr><tr><td style="background:#f6f9fb;padding:18px 30px;color:#7890a2;font-size:12px">VentaNexIA · ventas@ventanexia.es · www.ventanexia.es</td></tr></table></td></tr></table></body></html>`;
+  return `<!doctype html><html><body style="margin:0;background:#eef4f8;font-family:Arial,sans-serif;color:#102335"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#eef4f8;padding:28px 12px"><tr><td align="center"><table role="presentation" width="640" cellspacing="0" cellpadding="0" style="max-width:640px;width:100%;background:#fff;border-radius:16px;overflow:hidden"><tr><td style="background:#061d32;padding:24px 30px;color:#fff"><div style="font-size:26px;font-weight:800">VentaNexIA</div><div style="font-size:13px;color:#9edfff;margin-top:4px">Tu equipo digital ya está preparado</div></td></tr><tr><td style="padding:30px"><div style="display:inline-block;background:#e8fbf3;color:#12704f;font-weight:700;padding:7px 10px;border-radius:999px;font-size:12px">✓ PRUEBA REAL ENVIADA</div><h1 style="font-size:28px;line-height:1.2;margin:18px 0 10px">Bienvenido a VentaNexIA</h1><p style="font-size:16px;line-height:1.6;color:#40576b">Este es el email que recibiría un cliente después de activar su servicio. Para esta prueba estamos usando los datos que has introducido en la demo.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:22px 0;border:1px solid #d8e6ef;border-radius:12px"><tr><td style="padding:16px;border-bottom:1px solid #e5eef3"><b>Empresa</b></td><td style="padding:16px;border-bottom:1px solid #e5eef3;text-align:right">${company}</td></tr><tr><td style="padding:16px;border-bottom:1px solid #e5eef3"><b>Plan</b></td><td style="padding:16px;border-bottom:1px solid #e5eef3;text-align:right">${plan}</td></tr><tr><td style="padding:16px"><b>Primera tarea</b></td><td style="padding:16px;text-align:right">${task}</td></tr></table><p style="font-size:16px;line-height:1.6">Ya puedes entrar y recorrer Mi VentaNexIA como un cliente activado.</p><p style="margin:26px 0"><a href="${portal}" style="background:#5e35d8;color:white;text-decoration:none;font-weight:700;padding:14px 20px;border-radius:10px;display:inline-block">Entrar directamente en Mi VentaNexIA →</a></p><p style="font-size:13px;color:#71879a;line-height:1.5">Este acceso es de un solo uso y caduca a los 20 minutos. La cuenta creada para esta prueba queda marcada como DEMO.</p><p style="font-size:13px;color:#71879a;line-height:1.5">Adjuntamos una factura y un contrato de demostración para que puedas comprobar el formato completo del correo. No tienen validez fiscal ni contractual.</p></td></tr><tr><td style="background:#f6f9fb;padding:18px 30px;color:#7890a2;font-size:12px">VentaNexIA · ventas@ventanexia.es · www.ventanexia.es</td></tr></table></td></tr></table></body></html>`;
 }
 
 async function sendEmail(p,to){
   const key=process.env.RESEND_API_KEY;if(!key)throw new Error("RESEND_NOT_CONFIGURED");
-  const accessUrl=await createPortalAccessUrl(to);
+  const accessUrl=await createPortalAccessUrl(to,p);
   const contractPdf=makePdf("Contrato DEMO VentaNexIA",[`Empresa: ${p.company||"Empresa de prueba"}`,`Plan: ${p.plan||"Inicio"}`,"Estado: DEMOSTRACION - SIN VALIDEZ CONTRACTUAL","","Objeto: reproducir el documento que recibiria un cliente real."]);
   const invoicePdf=makePdf("Factura DEMO VentaNexIA",[`Cliente: ${p.company||"Empresa de prueba"}`,`Plan: ${p.plan||"Inicio"}`,"Base imponible: 350.00 EUR","IVA: DEMO","Total: DEMO","","DOCUMENTO DE PRUEBA - SIN VALIDEZ FISCAL"]);
-  const body={from:process.env.DEMO_FROM_EMAIL||"VentaNexIA <ventas@ventanexia.es>",to:[to],subject:`[PRUEBA] Bienvenido a VentaNexIA · ${p.company||"Tu empresa"}`,html:emailHtml(p,accessUrl),text:`PRUEBA VentaNexIA\nEmpresa: ${p.company||"Empresa de prueba"}\nPlan: ${p.plan||"Inicio"}\nPrimera tarea: ${p.task||"Primera puesta en marcha"}\n\nAcceso: ${accessUrl}\nAdjuntos: contrato y factura DEMO.`,attachments:[{filename:"Contrato-VentaNexIA-DEMO.pdf",content:contractPdf.toString("base64")},{filename:"Factura-VentaNexIA-DEMO.pdf",content:invoicePdf.toString("base64")} ]};
+  const body={from:process.env.DEMO_FROM_EMAIL||"VentaNexIA <ventas@ventanexia.es>",to:[to],subject:`[PRUEBA] Bienvenido a VentaNexIA · ${p.company||"Tu empresa"}`,html:emailHtml(p,accessUrl),text:`PRUEBA VentaNexIA\nEmpresa: ${p.company||"Empresa de prueba"}\nPlan: ${p.plan||"Inicio"}\nPrimera tarea: ${p.task||"Primera puesta en marcha"}\n\nAcceso directo: ${accessUrl}\nAdjuntos: contrato y factura DEMO.`,attachments:[{filename:"Contrato-VentaNexIA-DEMO.pdf",content:contractPdf.toString("base64")},{filename:"Factura-VentaNexIA-DEMO.pdf",content:invoicePdf.toString("base64")}]};
   const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j?.message||`RESEND_${r.status}`);return {id:j?.id||null};
 }
 
