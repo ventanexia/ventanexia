@@ -26,6 +26,10 @@ const AGENTS=[
 ["analyst","VNX Analyst","AUTONOMOUS"],["provision","VNX Provision","PREPARE"]
 ];
 function clean(v,n=250){return String(v||"").trim().slice(0,n)}
+function migrationMissing(e){
+  const m=String(e?.message||e).toLowerCase();
+  return m.includes('customer_code')||m.includes('desktop_activation_hash')||m.includes('extra_device_count')||m.includes('device_addon_price_cents');
+}
 export default async function handler(req,res){
   if(!await authenticateAdmin(req)) return res.status(401).json({error:"No autorizado"});
   try{
@@ -39,9 +43,18 @@ export default async function handler(req,res){
     if(!name) return res.status(400).json({error:"Nombre obligatorio"});
     const customerCode=createCustomerCode();
     const activationCode=createActivationCode();
-    const created=await sbFetch("vnx_tenants",{
-      method:"POST",body:JSON.stringify([{name,domain:domain||null,status:"provisioning",autonomy_level:autonomy,customer_code:customerCode,desktop_activation_hash:activationHash(activationCode),extra_device_count:0,device_addon_price_cents:4900}])
-    });
+    let created,deviceLicensingReady=true;
+    try{
+      created=await sbFetch("vnx_tenants",{
+        method:"POST",body:JSON.stringify([{name,domain:domain||null,status:"provisioning",autonomy_level:autonomy,customer_code:customerCode,desktop_activation_hash:activationHash(activationCode),extra_device_count:0,device_addon_price_cents:4900}])
+      });
+    }catch(e){
+      if(!migrationMissing(e))throw e;
+      deviceLicensingReady=false;
+      created=await sbFetch("vnx_tenants",{
+        method:"POST",body:JSON.stringify([{name,domain:domain||null,status:"provisioning",autonomy_level:autonomy}])
+      });
+    }
     const tenant=created?.[0];
     if(!tenant?.id) throw new Error("TENANT_CREATE_FAILED");
     await sbFetch("vnx_agents",{
@@ -69,7 +82,8 @@ export default async function handler(req,res){
     });
     return res.status(201).json({
       ok:true,tenant,
-      desktopLicense:{customerId:customerCode,activationCode,note:"El código de activación solo se muestra en esta respuesta. Guárdalo de forma segura."},
+      desktopLicense:deviceLicensingReady?{customerId:customerCode,activationCode,note:"El código de activación solo se muestra en esta respuesta. Guárdalo de forma segura."}:null,
+      deviceLicensingReady,
       install:{publicKey:tenant.public_key,script:`<script async src="https://www.ventanexia.es/assets/vnx-client.js" data-vnx-key="${tenant.public_key}"></script>`}
     });
   }catch(e){
