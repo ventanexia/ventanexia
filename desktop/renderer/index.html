@@ -10,7 +10,7 @@
     <button class="nav" data-tab="permissions">Permisos</button>
     <button class="nav" data-tab="discovery">Encontrar mis datos</button>
     <button class="nav" data-tab="files">Archivos autorizados</button>
-    <button class="nav" data-tab="license">Licencia y soporte</button>
+    <button class="nav" data-tab="license">Licencia y equipos</button>
     <button class="nav" data-tab="support">Asistencia segura</button>
     <button class="nav" data-tab="activity">Actividad</button>
     <div class="sidefoot"><span id="secureDot" class="dot"></span><span>SecureCore activo</span></div>
@@ -22,7 +22,7 @@
         <article><small>Estado</small><strong id="pairState">Sin vincular</strong></article>
         <article><small>Protección local</small><strong id="encState">Comprobando…</strong></article>
         <article><small>Carpetas autorizadas</small><strong id="folderCount">0</strong></article>
-        <article><small>Asistente IA</small><strong>Cloud</strong></article>
+        <article><small>Licencia</small><strong id="homeLicenseState">Sin activar</strong></article>
       </div>
       <div class="card"><h2>Arquitectura por módulos</h2><p>La edición maestra de VentaNexIA contiene todas las capacidades. Cada cliente verá y podrá utilizar únicamente los agentes y funciones incluidos en su suscripción.</p><div class="checks"><span>✓ Identidad única de cliente y dispositivo</span><span>✓ Módulos activados desde servidor</span><span>✓ Secretos y credenciales cifrados</span><span>✓ Acciones sensibles con permisos</span><span>✓ Historial y auditoría</span><span>✓ Asistencia remota iniciada por el cliente</span></div></div>
     </section>
@@ -77,9 +77,15 @@
     </section>
 
     <section class="tab" id="license">
-      <div class="card"><div class="eyebrow">IDENTIDAD DEL CLIENTE</div><h2>Licencia, dispositivos y soporte</h2><p>Cada instalación tendrá un identificador de cliente y un identificador de dispositivo vinculados a la suscripción. Así VentaNexIA podrá saber exactamente qué cliente solicita ayuda, qué módulos tiene activos y qué equipo está utilizando.</p>
-        <div class="grid4"><article><small>Cliente</small><strong>Pendiente de activar</strong></article><article><small>Dispositivo</small><strong>Al vincular</strong></article><article><small>Módulos</small><strong>Por suscripción</strong></article><article><small>Soporte</small><strong>Según contrato</strong></article></div>
-        <div class="notice"><b>Modelo recomendado:</b> incidencias técnicas del propio servicio cubiertas; trabajos, cambios y consultas operativas mediante bolsa de soporte o mantenimiento anual. Evitar “ilimitado” sin condiciones: debe llevar uso razonable y alcance definido.</div>
+      <div class="card"><div class="eyebrow">LICENCIA Y DISPOSITIVOS</div><h2>Activa este ordenador</h2><p>Cada ordenador consume una plaza de dispositivo. VentaNexIA identifica al cliente y al equipo para aplicar los módulos contratados, controlar el número de instalaciones y facilitar el soporte.</p>
+        <div id="licenseActivation" class="licensebox">
+          <label>ID de cliente<input id="customerIdInput" autocomplete="off" placeholder="Ej.: VNX-C-12AB34CD"></label>
+          <label>Código de activación<input id="activationCodeInput" type="password" autocomplete="off" placeholder="Código entregado al contratar"></label>
+          <div class="row"><button id="activateLicenseBtn" class="btn primary">Activar este dispositivo</button><button id="refreshLicenseBtn" class="btn outline">Comprobar licencia</button></div>
+          <div id="licenseMsg" class="notice"></div>
+        </div>
+        <div class="grid4"><article><small>Cliente</small><strong id="licenseCustomer">Sin activar</strong></article><article><small>Dispositivo</small><strong id="licenseDevice">—</strong></article><article><small>Dispositivos usados</small><strong id="licenseDevices">0 / 0</strong></article><article><small>Plan</small><strong id="licensePlan">—</strong></article></div>
+        <div class="notice"><b>Política de dispositivos:</b> VNX Inicio incluye 1 equipo, VNX Crecimiento 3 y VNX Empresa 5. Los dispositivos adicionales están planteados a 49 €/mes por equipo. Si se alcanza el límite, un nuevo ordenador no podrá activarse hasta ampliar plazas o desactivar uno anterior.</div>
       </div>
     </section>
 
