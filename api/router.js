@@ -7,7 +7,7 @@ import adminPromoteSolution from "../server/handlers/admin-promote-solution.js";
 import adminState from "../server/handlers/admin-state.js";
 import adminTenants from "../server/handlers/admin-tenants.js";
 import appQuoteRequest from "../server/handlers/app-quote-request.js";
-import chat from "../server/handlers/chat.js";
+import chat from "../server/handlers/chat-desktop-router.js";
 import clientConfig from "../server/handlers/client-config.js";
 import clientLead from "../server/handlers/client-lead.js";
 import contractAccept from "../server/handlers/contract-accept.js";
