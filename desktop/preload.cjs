@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('vnx',{
   calibratePortal:(id)=>ipcRenderer.invoke('portal:calibrate',id),
   getPortalProfile:(id)=>ipcRenderer.invoke('portal:profile',id),
   adaptivePortalQuery:(id,question)=>ipcRenderer.invoke('portal:adaptive-query',id,question),
+  verifiedProductCount:(question)=>ipcRenderer.invoke('portal:verified-product-count',question),
   removePortal:(id)=>ipcRenderer.invoke('portal:remove',id),
   exportData:(payload)=>ipcRenderer.invoke('export:data',payload),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
