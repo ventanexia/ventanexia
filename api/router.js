@@ -13,6 +13,8 @@ import contractAccept from "../server/handlers/contract-accept.js";
 import createCheckout from "../server/handlers/create-checkout.js";
 import customerEvent from "../server/handlers/customer-event.js";
 import customerPortal from "../server/handlers/customer-portal.js";
+import deviceRegister from "../server/handlers/device-register.js";
+import deviceStatus from "../server/handlers/device-status.js";
 import entitlementStatus from "../server/handlers/entitlement-status.js";
 import freeValue from "../server/handlers/free-value.js";
 import health from "../server/handlers/health.js";
@@ -60,6 +62,8 @@ const handlers = {
   "create-checkout": createCheckout,
   "customer-event": customerEvent,
   "customer-portal": customerPortal,
+  "device-register": deviceRegister,
+  "device-status": deviceStatus,
   "entitlement-status": entitlementStatus,
   "free-value": freeValue,
   "health": health,
