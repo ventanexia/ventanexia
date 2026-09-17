@@ -6,8 +6,8 @@
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "node --check master-entry.cjs && node --check master.cjs && node --check portal-adaptive.cjs && node --check preload.cjs && node --check renderer/master.js && node --check renderer/adaptive.js && electron-builder --win nsis",
-    "dist:mac": "node --check master-entry.cjs && node --check master.cjs && node --check portal-adaptive.cjs && node --check preload.cjs && node --check renderer/master.js && node --check renderer/adaptive.js && electron-builder --mac dmg"
+    "dist:win": "node --check master-entry.cjs && node --check master.cjs && node --check portal-adaptive.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
+    "dist:mac": "node --check master-entry.cjs && node --check master.cjs && node --check portal-adaptive.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg"
   },
   "devDependencies": {
     "electron": "^38.1.2",
@@ -18,7 +18,7 @@
     "productName": "VentaNexIA Desktop",
     "asar": true,
     "directories": {"output": "dist"},
-    "files": ["master-entry.cjs", "master.cjs", "portal-adaptive.cjs", "main.cjs", "preload.cjs", "renderer/**/*", "config/**/*"],
+    "files": ["master-entry.cjs", "master.cjs", "portal-adaptive.cjs", "export.cjs", "main.cjs", "preload.cjs", "renderer/**/*", "config/**/*"],
     "win": {"target": ["nsis"]},
     "nsis": {"oneClick": false, "allowToChangeInstallationDirectory": true},
     "mac": {"target": ["dmg"], "category": "public.app-category.business"}
