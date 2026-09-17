@@ -35,8 +35,11 @@ async function readState(){
     if(raw.secret&&safeStorage.isEncryptionAvailable()){
       raw.secret=JSON.parse(safeStorage.decryptString(Buffer.from(raw.secret,'base64')));
     } else raw.secret={};
+    raw.permissions=raw.permissions||{folders:[]};
+    raw.activity=raw.activity||[];
+    raw.license=raw.license||{};
     return raw;
-  }catch{return {permissions:{folders:[]},activity:[],secret:{deviceToken:null}}}
+  }catch{return {permissions:{folders:[]},activity:[],license:{},secret:{deviceToken:null}}}
 }
 async function writeState(state){
   const out={...state,secret:state.secret||{}};
@@ -49,6 +52,36 @@ async function audit(type,detail){
   const s=await readState();
   s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,200);
   await writeState(s);
+}
+async function postJson(url,body){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify(body||{})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){const e=new Error(j.error||j.message||`Error ${r.status}`);e.code=j.code;e.data=j;throw e;}
+  return j;
+}
+async function ensureDeviceKey(){
+  const s=await readState();
+  s.secret=s.secret||{};
+  if(!s.secret.deviceKey){s.secret.deviceKey=crypto.randomUUID();await writeState(s);}
+  return s.secret.deviceKey;
+}
+function fingerprintHash(){
+  const raw=[os.hostname(),os.platform(),os.arch(),os.homedir()].join('|');
+  return crypto.createHash('sha256').update(raw).digest('hex');
+}
+function publicLicenseState(s){
+  const l=s.license||{};
+  return {
+    activated:Boolean(s.secret?.customerId&&s.secret?.activationCode&&l.deviceId),
+    customerId:s.secret?.customerId||l.customerId||null,
+    deviceId:l.deviceId||null,
+    plan:l.plan||null,
+    activeCount:Number(l.activeCount||0),
+    limit:Number(l.limit||0),
+    available:Number(l.available||0),
+    extraDeviceMonthlyEur:Number(l.extraDeviceMonthlyEur||49),
+    lastCheckedAt:l.lastCheckedAt||null
+  };
 }
 function createWindow(){
   mainWindow=new BrowserWindow({
@@ -179,7 +212,6 @@ async function scanBusinessData(roots){
       if(visited>=DISCOVERY_MAX_DIRS)break;
       if(!entry.isDirectory()||entry.isSymbolicLink()||shouldSkipDir(entry.name))continue;
       const next=path.join(current,entry.name);
-      // En raíces muy grandes, prioriza ramas con nombres empresariales a partir de cierta profundidad.
       const rootName=normalized(path.basename(root));
       const heavy=rootName.includes('program files')||rootName.includes('appdata')||rootName.includes('programdata');
       if(heavy&&depth>=3&&!hasBusinessWord(next).length)continue;
@@ -204,7 +236,33 @@ async function scanBusinessData(roots){
 }
 
 ipcMain.handle('system:status',async()=>({platform:process.platform,hostname:os.hostname(),version:app.getVersion(),encrypted:safeStorage.isEncryptionAvailable(),cloud:CLOUD}));
-ipcMain.handle('state:get',async()=>{const s=await readState();return {permissions:s.permissions||{folders:[]},activity:s.activity||[],paired:Boolean(s.secret?.deviceToken)}});
+ipcMain.handle('state:get',async()=>{const s=await readState();return {permissions:s.permissions||{folders:[]},activity:s.activity||[],paired:Boolean(s.secret?.deviceToken),license:publicLicenseState(s)}});
+
+ipcMain.handle('license:activate',async(_e,payload={})=>{
+  const customerId=String(payload.customerId||'').trim().toUpperCase();
+  const activationCode=String(payload.activationCode||'').trim();
+  if(!customerId||!activationCode)throw new Error('Introduce el ID de cliente y el código de activación');
+  const deviceKey=await ensureDeviceKey();
+  const result=await postJson(`${CLOUD}/api/device-register`,{customerId,activationCode,deviceKey,fingerprintHash:fingerprintHash(),deviceName:os.hostname(),platform:`${os.platform()} ${os.release()} ${os.arch()}`,appVersion:app.getVersion()});
+  const s=await readState();
+  s.secret=s.secret||{};
+  s.secret.customerId=customerId;
+  s.secret.activationCode=activationCode;
+  s.license={customerId,deviceId:result.deviceId||null,plan:result.planKey||null,activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+  await writeState(s);await audit('license.device_activated',`Cliente ${customerId}; dispositivo ${result.deviceId||deviceKey}`);
+  return publicLicenseState(await readState());
+});
+ipcMain.handle('license:status',async()=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)return publicLicenseState(s);
+  const deviceKey=await ensureDeviceKey();
+  const result=await postJson(`${CLOUD}/api/device-status`,{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});
+  const fresh=await readState();
+  fresh.license={...(fresh.license||{}),customerId:result.customerId||s.secret.customerId,deviceId:result.deviceId||fresh.license?.deviceId||null,plan:result.planKey||fresh.license?.plan||null,activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+  await writeState(fresh);
+  return publicLicenseState(fresh);
+});
+
 ipcMain.handle('folder:choose',async()=>{
   const r=await dialog.showOpenDialog(mainWindow,{properties:['openDirectory'],title:'Autorizar carpeta para VentaNexIA'});
   if(r.canceled||!r.filePaths[0])return null;
@@ -240,7 +298,8 @@ ipcMain.handle('support:quick-assist',async()=>{await audit('support.requested',
 ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente pulsó detener asistencia');return true});
 ipcMain.handle('chat:send',async(_e,messages)=>{
   const localContext=await collectAuthorizedContext();
-  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext})});
+  const s=await readState();
+  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null}})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   await audit('ai.chat',`Consulta realizada con ${localContext.length} archivo(s) textual(es) autorizados`);return j;
 });
