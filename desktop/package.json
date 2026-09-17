@@ -1,6 +1,6 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "VentaNexIA Desktop SecureCore Master",
   "main": "master-entry.cjs",
@@ -17,10 +17,34 @@
     "appId": "es.ventanexia.desktop",
     "productName": "VentaNexIA Desktop",
     "asar": true,
-    "directories": {"output": "dist"},
-    "files": ["master-entry.cjs", "master.cjs", "portal-adaptive.cjs", "portal-pagination-fix.cjs", "export.cjs", "main.cjs", "preload.cjs", "renderer/**/*", "config/**/*"],
-    "win": {"target": ["nsis"]},
-    "nsis": {"oneClick": false, "allowToChangeInstallationDirectory": true},
-    "mac": {"target": ["dmg"], "category": "public.app-category.business"}
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "master-entry.cjs",
+      "master.cjs",
+      "portal-adaptive.cjs",
+      "portal-pagination-fix.cjs",
+      "export.cjs",
+      "main.cjs",
+      "preload.cjs",
+      "renderer/**/*",
+      "config/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business"
+    }
   }
 }
