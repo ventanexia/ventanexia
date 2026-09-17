@@ -1,5 +1,6 @@
 import adminApproval from "../server/handlers/admin-approval.js";
 import adminBilling from "../server/handlers/admin-billing.js";
+import adminDeviceLicense from "../server/handlers/admin-device-license.js";
 import adminLogin from "../server/handlers/admin-login.js";
 import adminLogout from "../server/handlers/admin-logout.js";
 import adminPromoteSolution from "../server/handlers/admin-promote-solution.js";
@@ -49,6 +50,7 @@ export const config = { api: { bodyParser: false } };
 const handlers = {
   "admin-approval": adminApproval,
   "admin-billing": adminBilling,
+  "admin-device-license": adminDeviceLicense,
   "admin-login": adminLogin,
   "admin-logout": adminLogout,
   "admin-promote-solution": adminPromoteSolution,
