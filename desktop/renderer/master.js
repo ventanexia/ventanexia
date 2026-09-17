@@ -10,6 +10,10 @@
     if(p.lastStatus==='error')return '🔴 Error de conexión';
     return '⚪ Sin conectar';
   }
+  function isProductCountQuestion(text=''){
+    const q=String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    return /(?:cuantos?|numero|total).*productos|productos.*(?:tenemos|hay|total)/.test(q);
+  }
   async function migrateLegacyPortals(){
     try{
       const legacy=JSON.parse(localStorage.getItem('vnx_portals')||'[]');
@@ -76,6 +80,13 @@
         const payload=masterMessages.map(({role,content})=>({role,content}));
         const r=await window.vnx.sendChat(payload);
         let reply=r.reply||'Sin respuesta';
+        if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
+          try{
+            const verified=await window.vnx.verifiedProductCount(text);
+            if(verified.status==='verified')reply=`${verified.name} tiene ${verified.count} productos según el portal conectado. Total verificado${verified.pagesScanned>1?` recorriendo ${verified.pagesScanned} páginas`:''}.`;
+            else if(verified.status==='uncertain')reply=`He encontrado ${verified.visible||verified.rowsSeen||0} productos visibles, pero no puedo confirmar todavía que sea el total completo del catálogo. No voy a presentar ese número como total hasta verificar toda la paginación.`;
+          }catch{}
+        }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La sesión de ${expired.map(x=>x.name).join(', ')} necesita volver a conectarse.`;
         masterMessages.push({role:'assistant',content:reply,images:r.images||[]});renderMasterMessages();
