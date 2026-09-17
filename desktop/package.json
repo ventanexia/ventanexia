@@ -1,0 +1,26 @@
+{
+  "name": "ventanexia-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VentaNexIA Desktop SecureCore MVP",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis",
+    "dist:mac": "electron-builder --mac dmg"
+  },
+  "devDependencies": {
+    "electron": "^38.1.2",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "es.ventanexia.desktop",
+    "productName": "VentaNexIA Desktop",
+    "asar": true,
+    "directories": {"output": "dist"},
+    "files": ["main.cjs", "preload.cjs", "renderer/**/*"],
+    "win": {"target": ["nsis"]},
+    "nsis": {"oneClick": false, "allowToChangeInstallationDirectory": true},
+    "mac": {"target": ["dmg"], "category": "public.app-category.business"}
+  }
+}
