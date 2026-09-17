@@ -6,8 +6,8 @@
   "main": "master.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "electron-builder --win nsis",
-    "dist:mac": "electron-builder --mac dmg"
+    "dist:win": "node --check master.cjs && node --check preload.cjs && node --check renderer/master.js && electron-builder --win nsis",
+    "dist:mac": "node --check master.cjs && node --check preload.cjs && node --check renderer/master.js && electron-builder --mac dmg"
   },
   "devDependencies": {
     "electron": "^38.1.2",
