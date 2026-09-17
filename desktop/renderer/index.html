@@ -5,27 +5,55 @@
     <div class="brand"><div class="mark">VN</div><div><b>VentaNexIA</b><small>Desktop SecureCore</small></div></div>
     <button class="nav active" data-tab="home">Resumen</button>
     <button class="nav" data-tab="chat">Habla con tu equipo</button>
+    <button class="nav" data-tab="agents">Agentes y conexiones</button>
+    <button class="nav" data-tab="webcommerce">Web & Ecommerce</button>
     <button class="nav" data-tab="permissions">Permisos</button>
     <button class="nav" data-tab="discovery">Encontrar mis datos</button>
     <button class="nav" data-tab="files">Archivos autorizados</button>
+    <button class="nav" data-tab="license">Licencia y soporte</button>
     <button class="nav" data-tab="support">Asistencia segura</button>
     <button class="nav" data-tab="activity">Actividad</button>
     <div class="sidefoot"><span id="secureDot" class="dot"></span><span>SecureCore activo</span></div>
   </aside>
   <main class="main">
     <section class="tab active" id="home">
-      <div class="hero"><div><div class="eyebrow">VENTANEXIA DESKTOP <span id="appVersion">...</span></div><h1>Tu equipo digital, conectado a este ordenador.</h1><p>Consulta datos reales de tu empresa y trabaja únicamente con las carpetas y acciones que tú autorices.</p></div><button id="pairBtn" class="btn primary">Vincular equipo de prueba</button></div>
+      <div class="hero"><div><div class="eyebrow">VENTANEXIA DESKTOP <span id="appVersion">...</span></div><h1>Tu equipo digital, conectado a tu empresa.</h1><p>Una única aplicación para trabajar con comunicaciones, clientes, datos, web, ecommerce y tareas empresariales según los módulos contratados.</p></div><button id="pairBtn" class="btn primary">Vincular equipo de prueba</button></div>
       <div class="grid4">
         <article><small>Estado</small><strong id="pairState">Sin vincular</strong></article>
         <article><small>Protección local</small><strong id="encState">Comprobando…</strong></article>
         <article><small>Carpetas autorizadas</small><strong id="folderCount">0</strong></article>
         <article><small>Asistente IA</small><strong>Cloud</strong></article>
       </div>
-      <div class="card"><h2>Principios de seguridad</h2><div class="checks"><span>✓ Sin puertos entrantes</span><span>✓ Node.js bloqueado en la interfaz</span><span>✓ Secretos cifrados con el sistema operativo</span><span>✓ Acciones locales solo en carpetas autorizadas</span><span>✓ Asistencia remota solo iniciada por el cliente</span><span>✓ Registro de actividad</span></div></div>
+      <div class="card"><h2>Arquitectura por módulos</h2><p>La edición maestra de VentaNexIA contiene todas las capacidades. Cada cliente verá y podrá utilizar únicamente los agentes y funciones incluidos en su suscripción.</p><div class="checks"><span>✓ Identidad única de cliente y dispositivo</span><span>✓ Módulos activados desde servidor</span><span>✓ Secretos y credenciales cifrados</span><span>✓ Acciones sensibles con permisos</span><span>✓ Historial y auditoría</span><span>✓ Asistencia remota iniciada por el cliente</span></div></div>
     </section>
 
     <section class="tab" id="chat">
-      <div class="card chatcard"><div class="eyebrow">HABLA CON TU EQUIPO</div><h2>¿Qué quieres que haga VentaNexIA?</h2><div id="messages" class="messages"><div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div></div><form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Ej.: dime qué pedidos de clientes tengo pendientes"></textarea><button class="btn primary">Enviar</button></form></div>
+      <div class="card chatcard"><div class="eyebrow">HABLA CON TU EQUIPO</div><h2>¿Qué quieres que haga VentaNexIA?</h2><div id="messages" class="messages"><div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar y actuar sobre las herramientas que hayas conectado y autorizado, dentro de las funciones disponibles en tu plan.</div></div><form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Ej.: dime cuántos pedidos han entrado hoy, responde las consultas pendientes y prepara una publicación para Instagram"></textarea><button class="btn primary">Enviar</button></form></div>
+    </section>
+
+    <section class="tab" id="agents">
+      <div class="card"><div class="eyebrow">CENTRO DE AGENTES</div><h2>Conecta las herramientas que usa tu empresa</h2><p>VentaNexIA utilizará OAuth, APIs oficiales o integraciones compatibles. Las conexiones se activarán solo después de que el cliente las autorice.</p>
+        <div class="modulegrid">
+          <article class="modulecard"><b>📧 Email</b><span>Gmail, Microsoft 365 o correo compatible. Leer, clasificar, preparar, responder y hacer seguimiento según permisos.</span><button class="btn outline" disabled>Conectar email · próximamente</button></article>
+          <article class="modulecard"><b>💬 WhatsApp Business</b><span>Atención al cliente, respuestas, clasificación y derivación a persona mediante WhatsApp Business Platform o proveedor autorizado.</span><button class="btn outline" disabled>Conectar WhatsApp · próximamente</button></article>
+          <article class="modulecard"><b>📣 Redes sociales</b><span>Crear, programar y publicar contenido en cuentas autorizadas, además de resumir resultados cuando la API lo permita.</span><button class="btn outline" disabled>Conectar redes · próximamente</button></article>
+          <article class="modulecard"><b>🎯 Captación</b><span>Buscar y organizar prospectos, calificarlos, sincronizarlos con CRM y preparar seguimientos comerciales.</span><button class="btn outline" disabled>Configurar captación · próximamente</button></article>
+          <article class="modulecard"><b>👥 CRM</b><span>Clientes, empresas, oportunidades, tareas, notas y pipeline en plataformas compatibles.</span><button class="btn outline" disabled>Conectar CRM · próximamente</button></article>
+          <article class="modulecard"><b>🧠 Datos locales</b><span>FacturaPlus, Sage, FactuSOL y otros programas mediante carpetas autorizadas, exportaciones y conectores específicos.</span><button class="btn outline" data-tab-jump="discovery">Encontrar mis datos</button></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab" id="webcommerce">
+      <div class="card"><div class="eyebrow">AGENTE WEB & ECOMMERCE · 550 €/MES</div><h2>Gestiona y modifica tu web simplemente pidiéndolo</h2><p>Módulo independiente para Shopify, WooCommerce/WordPress y otras plataformas compatibles. Permitirá consultar el negocio y ejecutar cambios desde VentaNexIA según los permisos concedidos.</p>
+        <div class="checks"><span>✓ “¿Cuántos pedidos han entrado hoy?”</span><span>✓ “¿Cuánto hemos facturado esta semana?”</span><span>✓ “¿Cuántos clientes nuevos se han registrado?”</span><span>✓ “Actualiza estos productos y precios”</span><span>✓ “Cambia el logo y el contenido de esta página”</span><span>✓ “Crea una nueva landing de campaña”</span><span>✓ Control de pedidos, catálogo y clientes</span><span>✓ Respuestas a consultas de la web</span><span>✓ SEO, navegación y contenido</span><span>✓ Registro de todas las modificaciones</span></div>
+        <div class="notice"><b>Seguridad:</b> las operaciones de escritura se ejecutarán con credenciales del cliente y permisos mínimos. Los cambios críticos podrán exigir vista previa o confirmación antes de publicarse.</div>
+        <div class="modulegrid">
+          <article class="modulecard"><b>Shopify</b><span>Pedidos, clientes, productos, inventario, contenido y funciones permitidas por la Admin API.</span><button class="btn outline" disabled>Conectar Shopify · próximamente</button></article>
+          <article class="modulecard"><b>WordPress / WooCommerce</b><span>Productos, pedidos, páginas, entradas y contenido mediante APIs y credenciales autorizadas.</span><button class="btn outline" disabled>Conectar WordPress · próximamente</button></article>
+          <article class="modulecard"><b>GitHub / Vercel</b><span>Para webs desarrolladas a medida: editar código, generar cambios, validar y desplegar con control de versiones.</span><button class="btn outline" disabled>Conectar proyecto · próximamente</button></article>
+        </div>
+      </div>
     </section>
 
     <section class="tab" id="permissions">
@@ -48,11 +76,18 @@
       <div class="card"><h2>Archivos autorizados</h2><p>Selecciona una carpeta autorizada para comprobar qué puede ver VentaNexIA.</p><select id="folderSelect"></select><div class="row"><button id="listFiles" class="btn outline">Ver contenido</button><button id="createTest" class="btn warning">Crear archivo de prueba</button></div><div id="fileList" class="list"></div><div id="fileMsg" class="notice"></div></div>
     </section>
 
-    <section class="tab" id="support">
-      <div class="card"><div class="eyebrow">ASISTENCIA SEGURA</div><h2>Ayuda remota solo cuando tú la autorizas</h2><p>VentaNexIA no mantiene acceso remoto permanente. Para esta primera versión abrimos Asistencia rápida de Windows desde aquí. Tú ves la sesión y puedes cerrarla en cualquier momento.</p><div class="supportbox"><div><b>Permiso temporal</b><span>El soporte debe pedirte un código y tú debes aceptar la conexión en la herramienta de Windows.</span></div><button id="supportBtn" class="btn primary">Abrir Asistencia rápida</button></div><button id="supportStop" class="btn danger">Registrar fin de asistencia</button><div id="supportMsg" class="notice"></div></div>
+    <section class="tab" id="license">
+      <div class="card"><div class="eyebrow">IDENTIDAD DEL CLIENTE</div><h2>Licencia, dispositivos y soporte</h2><p>Cada instalación tendrá un identificador de cliente y un identificador de dispositivo vinculados a la suscripción. Así VentaNexIA podrá saber exactamente qué cliente solicita ayuda, qué módulos tiene activos y qué equipo está utilizando.</p>
+        <div class="grid4"><article><small>Cliente</small><strong>Pendiente de activar</strong></article><article><small>Dispositivo</small><strong>Al vincular</strong></article><article><small>Módulos</small><strong>Por suscripción</strong></article><article><small>Soporte</small><strong>Según contrato</strong></article></div>
+        <div class="notice"><b>Modelo recomendado:</b> incidencias técnicas del propio servicio cubiertas; trabajos, cambios y consultas operativas mediante bolsa de soporte o mantenimiento anual. Evitar “ilimitado” sin condiciones: debe llevar uso razonable y alcance definido.</div>
+      </div>
     </section>
 
-    <section class="tab" id="activity"><div class="card"><h2>Registro de actividad</h2><p>Todo acceso local realizado por esta aplicación queda registrado aquí.</p><button id="refreshActivity" class="btn outline">Actualizar</button><div id="activityList" class="list"></div></div></section>
+    <section class="tab" id="support">
+      <div class="card"><div class="eyebrow">ASISTENCIA SEGURA</div><h2>Ayuda remota solo cuando tú la autorizas</h2><p>VentaNexIA no mantiene acceso remoto permanente. La asistencia se inicia desde el equipo del cliente, queda vinculada a su identidad y puede cerrarse en cualquier momento.</p><div class="supportbox"><div><b>Permiso temporal</b><span>El soporte debe pedirte un código y tú debes aceptar la conexión en la herramienta de Windows.</span></div><button id="supportBtn" class="btn primary">Abrir Asistencia rápida</button></div><button id="supportStop" class="btn danger">Registrar fin de asistencia</button><div id="supportMsg" class="notice"></div></div>
+    </section>
+
+    <section class="tab" id="activity"><div class="card"><h2>Registro de actividad</h2><p>Los accesos locales, conexiones y acciones ejecutadas por VentaNexIA deben quedar trazados para el cliente y para soporte.</p><button id="refreshActivity" class="btn outline">Actualizar</button><div id="activityList" class="list"></div></div></section>
   </main>
 </div>
 <script src="app.js"></script>
