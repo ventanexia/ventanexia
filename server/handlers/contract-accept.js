@@ -7,17 +7,35 @@ const PLANS={
   empresa:{name:"VNX Premium",price:1750,slots:999}
 };
 const EXTRA_PRICES={buscador:144,whatsapp:114,email:90,agenda:90,atencion:114,presupuestos:132,redes:108,informes:102,seo:114,administracion:132,automatizacion:144,voz:210,conexion:42,coordinacion:108};
+const EXTRA_NAMES={buscador:"Buscador de clientes",whatsapp:"WhatsApp",email:"Email / bandeja",agenda:"Agenda y seguimiento",atencion:"Atención al cliente",presupuestos:"Presupuestos",redes:"Redes sociales",informes:"Informes",seo:"SEO y visibilidad",administracion:"Administración",automatizacion:"Automatizaciones",voz:"Secretaria con voz",conexion:"Conexión externa adicional",coordinacion:"Coordinación entre ayudantes"};
 const STANDARD=new Set(["buscador","whatsapp","email","agenda","atencion","presupuestos","redes","informes","seo","administracion","automatizacion","voz"]);
-const CONTRACT_VERSION="2026-09-17-v3";
+const CONTRACT_VERSION="2026-09-17-v4";
 const DPA_VERSION="2026-09-17-DPA-v1";
 const SUBPROCESSOR_VERSION="2026-09-17-SUB-v1";
 function clean(v,max=1000){return String(v||"").trim().slice(0,max)}
 function uniq(arr){return [...new Set(Array.isArray(arr)?arr:[])]}
 function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]))}
+function addMonthsClamped(date,months){
+  const d=new Date(date);
+  const originalDay=d.getUTCDate();
+  d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth()+months);
+  const last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+  d.setUTCDate(Math.min(originalDay,last));
+  return d;
+}
+function paymentSchedule(acceptedAt,total){
+  const start=new Date(acceptedAt);
+  return Array.from({length:12},(_,i)=>({
+    installment:i+1,
+    dueDate:addMonthsClamped(start,i).toISOString().slice(0,10),
+    amount:Number(total)
+  }));
+}
 function contractHtml(p){
-  const inc=p.included.length?p.included.join(", "):"—";
-  const ext=p.extras.length?p.extras.join(", "):"—";
-  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Contrato ${esc(p.contractId)}</title><style>body{font-family:Arial,sans-serif;color:#111;line-height:1.55;max-width:900px;margin:40px auto;padding:0 24px}h1,h2{margin-bottom:6px}.box{border:1px solid #bbb;padding:14px;margin:18px 0}.small{font-size:12px;color:#555}</style></head><body><h1>Contrato de prestación de servicios VentaNexIA</h1><p class="small">Contrato ${esc(p.version)} · Anexo RGPD ${esc(p.dpaVersion)} · Subencargados ${esc(p.subprocessorVersion)} · ID ${esc(p.contractId)}</p><div class="box"><b>Pedido asociado</b><br>Empresa: ${esc(p.company)} · NIF/CIF: ${esc(p.taxid)}<br>Firmante: ${esc(p.signer)} · Email: ${esc(p.email)}<br>Plan: ${esc(p.planName)}<br>Incluidos: ${esc(inc)}<br>Extras: ${esc(ext)}<br>Precio: ${esc(p.total)} €/mes + IVA<br>Duración mínima: 12 meses desde la aceptación<br>Preaviso de cancelación: 30 días</div><h2>Documentos aceptados</h2><p>El cliente declara haber revisado y aceptado el contrato principal, el Anexo de Encargo de Tratamiento conforme al artículo 28 RGPD cuando resulte aplicable, y la Política de Subencargados y Proveedores de IA vigente en la fecha de aceptación. La autorización a subencargados es general y queda sujeta al régimen de información y oposición previsto en el Anexo RGPD.</p><p>El cliente declara asimismo haber leído las condiciones sobre alcance, sistemas propios y de terceros, inteligencia artificial, disponibilidad, soporte, duración, renovación, cancelación, confidencialidad, seguridad, protección de datos y limitaciones de responsabilidad.</p><p>Fecha de aceptación: ${esc(p.acceptedAt)}</p><p>La aceptación electrónica queda vinculada criptográficamente a este pedido y a las versiones documentales indicadas.</p></body></html>`;
+  const inc=p.included.length?p.included.map(k=>EXTRA_NAMES[k]||k).join(", "):"—";
+  const ext=p.extras.length?p.extras.map(k=>EXTRA_NAMES[k]||k).join(", "):"—";
+  const rows=p.paymentSchedule.map(x=>`<tr><td>${x.installment}</td><td>${esc(x.dueDate)}</td><td>${esc(x.amount)} € + IVA</td></tr>`).join("");
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Contrato ${esc(p.contractId)}</title><style>body{font-family:Arial,sans-serif;color:#111;line-height:1.55;max-width:900px;margin:40px auto;padding:0 24px}h1,h2{margin-bottom:6px}.box{border:1px solid #bbb;padding:14px;margin:18px 0}.small{font-size:12px;color:#555}table{width:100%;border-collapse:collapse;margin:12px 0}th,td{border:1px solid #ccc;padding:8px;text-align:left}</style></head><body><h1>Contrato de prestación de servicios VentaNexIA</h1><p class="small">Contrato ${esc(p.version)} · Anexo RGPD ${esc(p.dpaVersion)} · Subencargados ${esc(p.subprocessorVersion)} · ID ${esc(p.contractId)}</p><div class="box"><b>Pedido asociado</b><br>Empresa: ${esc(p.company)} · NIF/CIF: ${esc(p.taxid)}<br>Firmante: ${esc(p.signer)} · Email: ${esc(p.email)} · WhatsApp: ${esc(p.phone)}<br>Plan: ${esc(p.planName)}<br>Funciones incluidas elegidas: ${esc(inc)}<br>Extras de pago: ${esc(ext)}<br>Precio: ${esc(p.total)} €/mes + IVA<br>Duración mínima: 12 meses desde la aceptación<br>Preaviso de cancelación: 30 días</div><h2>Calendario previsto de las 12 cuotas</h2><p>La primera cuota se cobra al completar el pago y las siguientes se cargarán automáticamente cada mes en el método de pago asociado a la suscripción. Si un mes no dispone de una fecha equivalente, el procesador podrá ajustar el cargo al último día válido del mes. La factura emitida por el procesador refleja la fecha definitiva de cada ciclo.</p><table><thead><tr><th>Cuota</th><th>Fecha prevista</th><th>Importe</th></tr></thead><tbody>${rows}</tbody></table><h2>Autorización de cobro recurrente</h2><p>El cliente autoriza expresamente a ECOJAFER S.L. / VentaNexIA, mediante su proveedor de pagos, a cargar automáticamente en la tarjeta o método de pago utilizado las cuotas mensuales y extras recurrentes contratados durante la vigencia del servicio. VentaNexIA no almacena los datos completos de la tarjeta.</p><h2>Documentos aceptados</h2><p>El cliente declara haber revisado y aceptado el contrato principal, el Anexo de Encargo de Tratamiento conforme al artículo 28 RGPD cuando resulte aplicable, y la Política de Subencargados y Proveedores de IA vigente en la fecha de aceptación.</p><p>Fecha de aceptación: ${esc(p.acceptedAt)}</p><p>La aceptación electrónica queda vinculada criptográficamente a este pedido y a las versiones documentales indicadas.</p></body></html>`;
 }
 async function sendEvidenceEmail(payload){
   const key=process.env.RESEND_API_KEY;
@@ -32,12 +50,14 @@ async function sendEvidenceEmail(payload){
     `Empresa: ${payload.company}`,
     `NIF/CIF: ${payload.taxid}`,
     `Email: ${payload.email}`,
+    `WhatsApp: ${payload.phone}`,
     `Plan: ${payload.planName}`,
-    `Incluidos: ${payload.included.join(", ")||"—"}`,
-    `Extras: ${payload.extras.join(", ")||"—"}`,
+    `Incluidos: ${payload.included.map(k=>EXTRA_NAMES[k]||k).join(", ")||"—"}`,
+    `Extras: ${payload.extras.map(k=>EXTRA_NAMES[k]||k).join(", ")||"—"}`,
     `Total: ${payload.total} €/mes + IVA`,
     `Duración mínima: 12 meses desde la aceptación`,
     `Preaviso de cancelación: 30 días`,
+    `Cobro recurrente autorizado: SÍ`,
     `Contrato aceptado: ${payload.version}`,
     `Anexo RGPD aceptado: ${payload.dpaVersion}`,
     `Política de subencargados aceptada: ${payload.subprocessorVersion}`
@@ -58,9 +78,10 @@ export default async function handler(req,res){
   const plan=clean(b.plan,40);
   const p=PLANS[plan];
   if(!p) return res.status(400).json({error:"Plan no válido"});
-  const signer=clean(b.signer,200),company=clean(b.company,250),taxid=clean(b.taxid,80),email=clean(b.email,320).toLowerCase();
-  if(!signer||!company||!taxid||!email||b.accepted!==true||b.authority!==true||b.dataAnnexAccepted!==true) return res.status(400).json({error:"Faltan datos o aceptaciones contractuales"});
+  const signer=clean(b.signer,200),company=clean(b.company,250),taxid=clean(b.taxid,80),email=clean(b.email,320).toLowerCase(),phone=clean(b.phone,40);
+  if(!signer||!company||!taxid||!email||!phone||b.accepted!==true||b.authority!==true||b.dataAnnexAccepted!==true||b.recurringChargeAccepted!==true) return res.status(400).json({error:"Faltan datos o aceptaciones contractuales"});
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({error:"Email no válido"});
+  if(!/^[+0-9 ()-]{7,25}$/.test(phone)) return res.status(400).json({error:"Teléfono/WhatsApp no válido"});
   let included=uniq(b.included).filter(x=>STANDARD.has(x));
   let extras=uniq(b.extras).filter(x=>Object.hasOwn(EXTRA_PRICES,x));
   if(plan==="empresa"){included=[...STANDARD];extras=extras.filter(x=>x==="conexion");}
@@ -68,11 +89,13 @@ export default async function handler(req,res){
   if(plan==="crecimiento") extras=extras.filter(x=>x!=="coordinacion");
   extras=extras.filter(x=>!included.includes(x));
   const total=p.price+extras.reduce((s,k)=>s+EXTRA_PRICES[k],0);
+  const acceptedAt=new Date().toISOString();
   const payload={
-    contractId:`VNX-${new Date().toISOString().slice(0,10).replaceAll("-","")}-${crypto.randomUUID().slice(0,8).toUpperCase()}`,
+    contractId:`VNX-${acceptedAt.slice(0,10).replaceAll("-","")}-${crypto.randomUUID().slice(0,8).toUpperCase()}`,
     version:CONTRACT_VERSION,dpaVersion:DPA_VERSION,subprocessorVersion:SUBPROCESSOR_VERSION,
-    acceptedAt:new Date().toISOString(),signer,company,taxid,email,plan,planName:p.name,included,extras,total,
-    minMonths:12,noticeDays:30,authorityConfirmed:true,dataAnnexAccepted:true
+    acceptedAt,signer,company,taxid,email,phone,plan,planName:p.name,included,extras,total,
+    minMonths:12,noticeDays:30,authorityConfirmed:true,dataAnnexAccepted:true,recurringChargeAccepted:true,
+    paymentSchedule:paymentSchedule(acceptedAt,total)
   };
   let token;
   try{token=signContract(payload)}catch(e){return res.status(503).json({error:"Firma contractual no configurada"})}
