@@ -1,5 +1,6 @@
 import {authenticateAdmin} from "../../lib/admin-auth.js";
 import {requireSameOrigin} from "../../lib/request-security.js";
+import {createCustomerCode,createActivationCode,activationHash} from "../../lib/device-licensing.js";
 
 function sb(){
   const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
@@ -33,11 +34,13 @@ export default async function handler(req,res){
       return res.status(200).json({ok:true,tenants:rows});
     }
     if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
-  if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
+    if(!requireSameOrigin(req))return res.status(403).json({error:"Origen no permitido"});
     const name=clean(req.body?.name), domain=clean(req.body?.domain), autonomy=clean(req.body?.autonomy_level||"execute_within_policy");
     if(!name) return res.status(400).json({error:"Nombre obligatorio"});
+    const customerCode=createCustomerCode();
+    const activationCode=createActivationCode();
     const created=await sbFetch("vnx_tenants",{
-      method:"POST",body:JSON.stringify([{name,domain:domain||null,status:"provisioning",autonomy_level:autonomy}])
+      method:"POST",body:JSON.stringify([{name,domain:domain||null,status:"provisioning",autonomy_level:autonomy,customer_code:customerCode,desktop_activation_hash:activationHash(activationCode),extra_device_count:0,device_addon_price_cents:4900}])
     });
     const tenant=created?.[0];
     if(!tenant?.id) throw new Error("TENANT_CREATE_FAILED");
@@ -64,7 +67,11 @@ export default async function handler(req,res){
         risk:"high",status:"pending",payload:{domain}
       }])
     });
-    return res.status(201).json({ok:true,tenant,install:{publicKey:tenant.public_key,script:`<script async src="https://www.ventanexia.es/assets/vnx-client.js" data-vnx-key="${tenant.public_key}"></script>`}});
+    return res.status(201).json({
+      ok:true,tenant,
+      desktopLicense:{customerId:customerCode,activationCode,note:"El código de activación solo se muestra en esta respuesta. Guárdalo de forma segura."},
+      install:{publicKey:tenant.public_key,script:`<script async src="https://www.ventanexia.es/assets/vnx-client.js" data-vnx-key="${tenant.public_key}"></script>`}
+    });
   }catch(e){
     return res.status(500).json({error:"No se pudo crear el cliente",detail:String(e?.message||e).slice(0,300)});
   }
