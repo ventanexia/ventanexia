@@ -19,6 +19,7 @@ contextBridge.exposeInMainWorld('vnx',{
   getPortalProfile:(id)=>ipcRenderer.invoke('portal:profile',id),
   adaptivePortalQuery:(id,question)=>ipcRenderer.invoke('portal:adaptive-query',id,question),
   removePortal:(id)=>ipcRenderer.invoke('portal:remove',id),
+  exportData:(payload)=>ipcRenderer.invoke('export:data',payload),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
   stopSupport:()=>ipcRenderer.invoke('support:stop'),
   sendChat:(messages)=>ipcRenderer.invoke('chat:send',messages),
