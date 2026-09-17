@@ -101,9 +101,9 @@
         "status": "initial_commercial_proposal"
       },
       "includedDevicesByPlan": {
-        "plan_350": 1,
-        "plan_900": 3,
-        "plan_1750": 5
+        "start": 1,
+        "core": 3,
+        "scale": 5
       }
     }
   },
