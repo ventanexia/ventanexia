@@ -1,12 +1,12 @@
-<!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VentaNexIA Desktop</title><link rel="stylesheet" href="styles.css"></head>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VentaNexIA Desktop</title><link rel="stylesheet" href="styles.css"></head>
 <body>
 <div class="shell">
   <aside class="side">
-    <div class="brand"><div class="mark">V</div><div><b>VentaNexIA</b><small>Desktop SecureCore</small></div></div>
+    <div class="brand"><div class="mark">VN</div><div><b>VentaNexIA</b><small>Desktop SecureCore</small></div></div>
     <button class="nav active" data-tab="home">Resumen</button>
     <button class="nav" data-tab="chat">Habla con tu equipo</button>
     <button class="nav" data-tab="permissions">Permisos</button>
+    <button class="nav" data-tab="discovery">Encontrar mis datos</button>
     <button class="nav" data-tab="files">Archivos autorizados</button>
     <button class="nav" data-tab="support">Asistencia segura</button>
     <button class="nav" data-tab="activity">Actividad</button>
@@ -14,7 +14,7 @@
   </aside>
   <main class="main">
     <section class="tab active" id="home">
-      <div class="hero"><div><div class="eyebrow">VENTANEXIA DESKTOP 0.1</div><h1>Tu equipo digital, conectado a este ordenador.</h1><p>Esta primera versión permite probar IA, permisos locales, archivos y asistencia remota con consentimiento.</p></div><button id="pairBtn" class="btn primary">Vincular equipo de prueba</button></div>
+      <div class="hero"><div><div class="eyebrow">VENTANEXIA DESKTOP <span id="appVersion">...</span></div><h1>Tu equipo digital, conectado a este ordenador.</h1><p>Consulta datos reales de tu empresa y trabaja únicamente con las carpetas y acciones que tú autorices.</p></div><button id="pairBtn" class="btn primary">Vincular equipo de prueba</button></div>
       <div class="grid4">
         <article><small>Estado</small><strong id="pairState">Sin vincular</strong></article>
         <article><small>Protección local</small><strong id="encState">Comprobando…</strong></article>
@@ -25,11 +25,23 @@
     </section>
 
     <section class="tab" id="chat">
-      <div class="card chatcard"><div class="eyebrow">HABLA CON TU EQUIPO</div><h2>¿Qué quieres que haga VentaNexIA?</h2><div id="messages" class="messages"><div class="msg ai">Soy el asistente de VentaNexIA. En esta versión puedo ayudarte, analizar tareas y trabajar con las funciones locales que tú autorices.</div></div><form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Ej.: revisa cómo debería organizar una campaña de captación para clínicas privadas de Barcelona"></textarea><button class="btn primary">Enviar</button></form></div>
+      <div class="card chatcard"><div class="eyebrow">HABLA CON TU EQUIPO</div><h2>¿Qué quieres que haga VentaNexIA?</h2><div id="messages" class="messages"><div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div></div><form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Ej.: dime qué pedidos de clientes tengo pendientes"></textarea><button class="btn primary">Enviar</button></form></div>
     </section>
 
     <section class="tab" id="permissions">
       <div class="card"><div class="eyebrow">SECURECORE</div><h2>Permisos de este ordenador</h2><p>VentaNexIA no recibe acceso general al equipo. Tú eliges las carpetas que puede consultar.</p><button id="chooseFolder" class="btn primary">Autorizar una carpeta</button><div id="permissionList" class="list"></div></div>
+    </section>
+
+    <section class="tab" id="discovery">
+      <div class="card">
+        <div class="eyebrow">ASISTENTE DE DETECCIÓN</div>
+        <h2>No sé dónde guarda mi programa los datos</h2>
+        <p>Si usas FacturaPlus, ContaPlus, Sage, A3, FactuSOL, un CRM, un ERP u otro programa, VentaNexIA puede buscar qué carpetas parecen contener datos de empresa.</p>
+        <div class="notice"><b>Privacidad:</b> durante esta búsqueda solo se analizan localmente nombres de carpetas y archivos, tipos, fechas y tamaños. No se abre el contenido de los documentos y no se envían esos datos a Internet. Tú decides después qué carpeta autorizar.</div>
+        <div class="row"><button id="scanCommon" class="btn primary">Buscar automáticamente</button><button id="scanChoose" class="btn outline">Elegir dónde buscar</button></div>
+        <div id="discoveryStatus" class="notice"></div>
+        <div id="discoveryList" class="list"></div>
+      </div>
     </section>
 
     <section class="tab" id="files">
