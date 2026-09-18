@@ -558,6 +558,22 @@ async function autoRepair(){
   await audit('support.auto_repair',actions.join(' '));
   return {before,after,actions,escalation};
 }
+async function maybeRunAutomaticSupport(){
+  try{
+    const s=await readState();
+    if(!s.support?.autoMode)return;
+    const report=await runHealthCheck();
+    if(report.ok)return;
+    const repaired=await autoRepair();
+    if(repaired.after?.ok)return;
+    const fresh=await readState();
+    fresh.support=fresh.support||{};
+    const last=Number(fresh.support.lastEscalatedAt||0);
+    if(Date.now()-last<24*60*60*1000)return;
+    const esc=await escalateSupport(repaired.after,'La asistencia automática detectó un problema que no pudo reparar.');
+    if(esc?.ok){fresh.support.lastEscalatedAt=Date.now();await writeState(fresh);await audit('support.auto_escalated','Incidencia enviada automáticamente a soporte');}
+  }catch{}
+}
 ipcMain.handle('support:health',async()=>runHealthCheck());
 ipcMain.handle('support:auto-repair',async()=>autoRepair());
 ipcMain.handle('support:auto-mode',async(_e,enabled)=>{
@@ -579,6 +595,10 @@ ipcMain.handle('chat:send',async(_e,messages)=>{
 });
 ipcMain.handle('device:pair-demo',async()=>{const s=await readState();s.secret=s.secret||{};s.secret.deviceToken=crypto.randomBytes(32).toString('base64url');await writeState(s);await audit('device.paired','Equipo vinculado en modo de prueba local');return {ok:true,deviceId:crypto.createHash('sha256').update(os.hostname()).digest('hex').slice(0,12)}});
 
-app.whenReady().then(createWindow);
+app.whenReady().then(async()=>{
+  createWindow();
+  setTimeout(maybeRunAutomaticSupport,15000);
+  setInterval(maybeRunAutomaticSupport,60*60*1000);
+});
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()});
 app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()});
