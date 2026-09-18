@@ -83,9 +83,9 @@
       else if(x.type==='folder')out.push({type:'folder',key:x.key||key,name:'Datos locales · '+(x.label||'Carpeta'),folder:x.path||x.folder||x.label});
     }
     for(const [key,v] of Object.entries(real)){
-      if(key==='shopify'&&v&&v.status==='connected')out.push({type:'shopify',key,name:'Shopify · '+(v.shopName||v.shop||'Tienda'),shop:v.shop||null});
-      else if(['email','whatsapp','social','crm'].includes(key)&&v&&v.status==='connected')out.push({type:'integration',key,name:(labels[key]||key)+' · '+(v.label||v.account||'Conectado')});
-      else if(v&&v.url)out.push({type:'url',key,name:labels[key]||key,url:v.url});
+      // El estado de conexiones reales lo manda el backend. localStorage no puede mantener una cuenta como conectada después de desconectarla.
+      if(['email','whatsapp','social','crm','shopify'].includes(key))continue;
+      if(v&&v.url)out.push({type:'url',key,name:labels[key]||key,url:v.url});
       else if(v&&v.folder)out.push({type:'folder',key,name:labels[key]||key,folder:v.folder});
     }
     const seen=new Set();
