@@ -122,5 +122,10 @@ assert.match(master,/scope\?\.accountIndex/,'El panel central debe consultar la 
 
 const app=fs.readFileSync(path.join(__dirname,'renderer','app.js'),'utf8');
 assert.doesNotMatch(app,/Selecciona una conexión…|VentaNexIA consultará este correo para responder con datos reales/);
+assert.match(app,/Maestro: cuentas de email ilimitadas/);
+assert.match(app,/await refreshChatConnections\(\)/,'Desconectar debe refrescar agentes y Centro Maestro inmediatamente');
+assert.match(app,/account\.value=''/,'Desconectar Email debe limpiar el correo mostrado en el formulario');
+const html=fs.readFileSync(path.join(__dirname,'renderer','index.html'),'utf8');
+assert.match(html,/id="emailAccountPolicyText"/);
 
 console.log('VentaNexIA agent routing verify OK: Email aislado, varias cuentas Maestro, desconexión autoritativa, catálogo completo y límites de cliente.');
