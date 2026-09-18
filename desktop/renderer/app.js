@@ -85,6 +85,23 @@ function getRealModuleSources(){
   try{return JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')}catch{return {}}
 }
 function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
+
+async function refreshChatConnections(){
+  const select=$('#chatConnectionSelect'),hint=$('#chatConnectionHint');if(!select)return;
+  const previous=select.value;
+  let items=[];
+  try{items=await window.vnx.listConnections()}catch{}
+  const options=['<option value="">Selecciona una conexión…</option>'];
+  for(const x of items||[])options.push('<option value="'+esc(x.key)+'">'+esc(x.label||x.module||x.key)+'</option>');
+  select.innerHTML=options.join('');
+  if(previous&&[...select.options].some(o=>o.value===previous))select.value=previous;
+  else if((items||[]).length===1)select.value=items[0].key;
+  if(hint){
+    if(!(items||[]).length)hint.textContent='Conecta primero una cuenta o autoriza una carpeta.';
+    else if((items||[]).length===1)hint.textContent='Usaré esta conexión para responder con datos reales.';
+    else hint.textContent='Tienes varias conexiones. Elige cuál quieres usar antes de escribir.';
+  }
+}
 function setupServiceConnectionWizard(){
   const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
   if(!modal)return ()=>{};
@@ -132,6 +149,7 @@ function setupServiceConnectionWizard(){
         localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
         if(activeButton)activeButton.textContent='🟢 Email · '+(result.label||account.value.trim());
         notice.innerHTML='<b>🟢 Correo conectado correctamente.</b> Entrada y salida han sido comprobadas.';
+        await refreshChatConnections();
         prepare.disabled=false;prepare.textContent='Conectar ahora';
         return;
       }
@@ -152,6 +170,7 @@ function setupServiceConnectionWizard(){
             localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
             if(activeButton)activeButton.textContent='🟢 '+labels[activeKey]+' · '+(st.label||'Conectado');
             notice.innerHTML='<b>🟢 Conectado correctamente.</b> '+esc(st.label||labels[activeKey])+' ya está disponible para VentaNexIA.';
+            await refreshChatConnections();
             prepare.disabled=false;prepare.textContent='Conectar ahora';
           }else if(['denied','expired','error'].includes(st?.status)){
             stopPoll();prepare.disabled=false;prepare.textContent='Conectar ahora';
@@ -340,6 +359,7 @@ async function init(){
     $('#appVersion').textContent=sys.version;
   }
   await safeUi('estado local',()=>refresh());
+  await safeUi('fuentes del chat',()=>refreshChatConnections());
   await safeUi('permisos del plan',async()=>enforcePurchasedFeatures());
   if(sys) safeUi('actualizaciones',()=>checkForUpdates(sys.version));
   if(String(state.license?.plan||'').toLowerCase()==='master')safeUi('activaciones pendientes',()=>refreshProvisioningTasks());
@@ -530,6 +550,6 @@ $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMs
 $('#refreshActivity').onclick=refresh;
 
 function renderMessages(){const root=$('#messages');root.innerHTML='<div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div>'+messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}">${esc(m.content)}</div>`).join('');root.scrollTop=root.scrollHeight}
-$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim();if(!text)return;messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido conectar: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
+$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba la cuenta o programa con el que quieres trabajar para no mezclar datos.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
 
 init();
