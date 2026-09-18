@@ -27,9 +27,9 @@ function parseGmailContext(localContext=[]){
   if(!file)return null;
   const text=String(file.content||'');
   const total=Number((text.match(/TOTAL_COINCIDENCIAS:\s*(\d+)/i)||[])[1]||0);
-  const blocks=text.split(/\n\s*\n(?=Correo\s+\d+)/i).map(x=>x.trim()).filter(x=>/^Correo\s+\d+/i.test(x));
+  const blocks=[...text.matchAll(/Correo\s+\d+[\s\S]*?(?=\n\s*\nCorreo\s+\d+|$)/gi)].map(m=>m[0].trim());
   const mails=blocks.map(block=>{
-    const get=(label)=>String((block.match(new RegExp('(?:^|\\n)'+label+'\\s*:\\s*(.*)','i'))||[])[1]||'').trim();
+    const get=(label)=>String((block.match(new RegExp('(?:^|\\n)(?:'+label+')\\s*:\\s*(.*)','i'))||[])[1]||'').trim();
     return {from:get('De|From'),subject:get('Asunto|Subject')||'(sin asunto)',date:get('Fecha|Date'),status:get('Estado|Status'),snippet:get('Vista previa|Snippet|Resumen')};
   });
   return {path:file.path,total,mails};
