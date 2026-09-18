@@ -10,7 +10,19 @@
       "integrations_included": 2,
       "description": "VentaNexIA Desktop para empezar con 3 funciones estándar y hasta 2 conexiones externas.",
       "devices_included": 1,
-      "video_credits_monthly": 4
+      "video_credits_monthly": 4,
+      "usage_limits": {
+        "image_credits": 30,
+        "voice_minutes": 100,
+        "whatsapp_messages": 500,
+        "lead_credits": 250,
+        "ai_heavy_tasks": 150,
+        "email_ai_actions": 1500,
+        "automation_runs": 1000,
+        "seo_pages": 100,
+        "report_generations": 30,
+        "storage_gb": 5
+      }
     },
     "core": {
       "name": "VNX Crecimiento",
@@ -19,7 +31,19 @@
       "integrations_included": 5,
       "description": "VentaNexIA Desktop con 6 funciones estándar, coordinación y hasta 5 conexiones externas.",
       "devices_included": 3,
-      "video_credits_monthly": 12
+      "video_credits_monthly": 12,
+      "usage_limits": {
+        "image_credits": 120,
+        "voice_minutes": 400,
+        "whatsapp_messages": 2500,
+        "lead_credits": 1000,
+        "ai_heavy_tasks": 600,
+        "email_ai_actions": 6000,
+        "automation_runs": 5000,
+        "seo_pages": 500,
+        "report_generations": 100,
+        "storage_gb": 20
+      }
     },
     "scale": {
       "name": "VNX Empresa",
@@ -28,7 +52,19 @@
       "integrations_included": 10,
       "description": "VentaNexIA Desktop con todo el catálogo estándar y hasta 10 conexiones externas.",
       "devices_included": 5,
-      "video_credits_monthly": 30
+      "video_credits_monthly": 30,
+      "usage_limits": {
+        "image_credits": 400,
+        "voice_minutes": 1200,
+        "whatsapp_messages": 8000,
+        "lead_credits": 3500,
+        "ai_heavy_tasks": 2000,
+        "email_ai_actions": 20000,
+        "automation_runs": 15000,
+        "seo_pages": 2000,
+        "report_generations": 300,
+        "storage_gb": 50
+      }
     },
     "enterprise": {
       "name": "VNX Enterprise",
@@ -53,6 +89,31 @@
       "monthly": 99,
       "credits_monthly": 10,
       "description": "10 créditos de vídeo adicionales al mes para el agente de Redes Sociales."
+    },
+    "image_pack": {
+      "monthly": 29,
+      "units": 100,
+      "description": "100 créditos de imagen adicionales al mes."
+    },
+    "voice_pack": {
+      "monthly": 49,
+      "units": 250,
+      "description": "250 minutos de voz adicionales al mes."
+    },
+    "whatsapp_pack": {
+      "monthly": 59,
+      "units": 1000,
+      "description": "1.000 mensajes automatizados adicionales al mes. Los cargos propios de Meta/proveedor, si existen, se informan aparte."
+    },
+    "lead_pack": {
+      "monthly": 79,
+      "units": 500,
+      "description": "500 créditos de captación adicionales al mes."
+    },
+    "storage_pack": {
+      "monthly": 15,
+      "units_gb": 10,
+      "description": "10 GB adicionales de almacenamiento mensual."
     }
   },
   "delivery_model": "VentaNexIA Desktop",
@@ -67,5 +128,17 @@
       "16-30": 2,
       "31-60": 4
     }
+  },
+  "fair_use": {
+    "note": "Las funciones de coste variable incluyen capacidad mensual para proteger el servicio y mantener precios estables. El cliente puede ampliar capacidad o cambiar de plan.",
+    "expensive_features": [
+      "video",
+      "image",
+      "voice",
+      "whatsapp",
+      "lead_search",
+      "heavy_ai",
+      "storage"
+    ]
   }
 }
