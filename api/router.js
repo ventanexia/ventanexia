@@ -47,6 +47,7 @@ import socialSweep from "../server/handlers/social-sweep.js";
 import solutionBuilder from "../server/handlers/solution-builder.js";
 import startTrial from "../server/handlers/start-trial.js";
 import stripeWebhook from "../server/handlers/stripe-webhook.js";
+import supportEscalate from "../server/handlers/support-escalate.js";
 import trialSweep from "../server/handlers/trial-sweep.js";
 import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
 
@@ -102,6 +103,7 @@ const handlers = {
   "solution-builder": solutionBuilder,
   "start-trial": startTrial,
   "stripe-webhook": stripeWebhook,
+  "support-escalate": supportEscalate,
   "trial-sweep": trialSweep,
   "whatsapp-simulator": whatsappSimulator
 };
