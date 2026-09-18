@@ -317,6 +317,40 @@ $('#scanChoose').onclick=()=>runDiscovery('choose');
 
 const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');};
 
+const autoSupportBtn=$('#autoSupportBtn'),healthCheckBtn=$('#healthCheckBtn'),autoRepairBtn=$('#autoRepairBtn'),autoSupportMsg=$('#autoSupportMsg');
+async function refreshAutoSupport(){
+  if(!autoSupportBtn)return;
+  try{
+    const st=await window.vnx.getAutoSupport();
+    autoSupportBtn.textContent=st.enabled?'Desactivar asistencia automática':'Activar asistencia automática';
+    autoSupportBtn.dataset.enabled=st.enabled?'1':'0';
+  }catch{}
+}
+if(autoSupportBtn)autoSupportBtn.onclick=async()=>{
+  const enabled=autoSupportBtn.dataset.enabled!=='1';
+  const r=await window.vnx.setAutoSupport(enabled);
+  autoSupportBtn.textContent=r.enabled?'Desactivar asistencia automática':'Activar asistencia automática';
+  autoSupportBtn.dataset.enabled=r.enabled?'1':'0';
+  autoSupportMsg.textContent=r.enabled?'Asistencia automática activada. VentaNexIA se iniciará con Windows y podrá revisar su propio funcionamiento.':'Asistencia automática desactivada.';
+};
+if(healthCheckBtn)healthCheckBtn.onclick=async()=>{
+  healthCheckBtn.disabled=true;healthCheckBtn.textContent='Revisando…';
+  try{
+    const r=await window.vnx.supportHealth();
+    autoSupportMsg.innerHTML=(r.checks||[]).map(x=>(x.ok?'✓ ':'⚠ ')+esc(x.name)).join('<br>');
+  }catch(e){autoSupportMsg.textContent='No he podido hacer la revisión: '+(e.message||e)}
+  finally{healthCheckBtn.disabled=false;healthCheckBtn.textContent='Revisar ahora'}
+};
+if(autoRepairBtn)autoRepairBtn.onclick=async()=>{
+  autoRepairBtn.disabled=true;autoRepairBtn.textContent='Reparando…';
+  try{
+    const r=await window.vnx.supportAutoRepair();
+    autoSupportMsg.innerHTML='<b>Revisión terminada.</b><br>'+esc((r.actions||[]).join(' '));
+  }catch(e){autoSupportMsg.textContent='No he podido reparar: '+(e.message||e)}
+  finally{autoRepairBtn.disabled=false;autoRepairBtn.textContent='Intentar reparar'}
+};
+refreshAutoSupport();
+
 $('#supportBtn').onclick=async()=>{if(!confirm('Se abrirá Asistencia rápida de Windows. Ninguna persona podrá controlar tu equipo hasta que tú aceptes la sesión dentro de Windows. ¿Continuar?'))return;await window.vnx.openQuickAssist();$('#supportMsg').textContent='Se ha abierto la ayuda de Windows. Acepta solo si reconoces al técnico.';await refresh()};
 $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMsg').textContent='La ayuda ha terminado. Si la ventana de Windows sigue abierta, ciérrala también.';await refresh()};
 $('#refreshActivity').onclick=refresh;
