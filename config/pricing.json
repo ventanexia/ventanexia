@@ -40,6 +40,10 @@
     "extra_agent": {
       "monthly": 150,
       "description": "Agente VNX estándar adicional sobre los incluidos en el plan."
+    },
+    "extra_email_account": {
+      "monthly": 39,
+      "description": "Cuenta de correo adicional para el agente Email. Incluye su conexión; no se cobra además la conexión externa de 42 €."
     }
   },
   "delivery_model": "VentaNexIA Desktop",
