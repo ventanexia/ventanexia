@@ -37,6 +37,10 @@ function renderLicense(){
   $('#licenseDevice').textContent=l.deviceId?String(l.deviceId).slice(0,12):'—';
   $('#licenseDevices').textContent=l.limit?`${l.activeCount||0} / ${l.limit}`:'0 / 0';
   $('#licensePlan').textContent=l.plan||'—';
+  const isMasterPlan=String(l.plan||'').toLowerCase()==='master';
+  const emailPolicy=$('#emailAccountPolicyText'),extraEmail=$('#buyExtraEmail');
+  if(emailPolicy)emailPolicy.textContent=isMasterPlan?'Versión Maestro: conecta todas las cuentas de email que necesites, sin límite de cuentas de VentaNexIA.': 'Lee y organiza correos, prepara respuestas y hace seguimiento de conversaciones. La primera cuenta está incluida con el agente Email.';
+  if(extraEmail)extraEmail.textContent=isMasterPlan?'+ Añadir otra cuenta · Maestro ilimitado':'+ Añadir otra cuenta · 39 €/mes';
   if(l.customerId&&!$('#customerIdInput').value)$('#customerIdInput').value=l.customerId;
   if(activated){
     $('#licenseMsg').textContent=`Licencia activa. Quedan ${Math.max(0,l.available||0)} plaza(s) de dispositivo disponibles. Dispositivo adicional: ${Number(l.extraDeviceMonthlyEur||49).toFixed(0)} €/mes.`;
@@ -183,7 +187,8 @@ function setupServiceConnectionWizard(){
     stopPoll();await window.vnx.disconnectIntegration(activeKey);
     const all=getRealModuleSources();delete all[activeKey];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
     if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar CRM';
-    notice.innerHTML='<b>Desconectado.</b>';
+    if(account&&activeKey==='email')account.value='';
+    notice.innerHTML='<b>Desconectado.</b> El cambio se ha aplicado en todo VentaNexIA.';
     await refreshChatConnections();
   };
   return async(key,button)=>{
@@ -198,7 +203,12 @@ function setupServiceConnectionWizard(){
       account.value=saved?.account||'';
       account.placeholder=key==='email'?'Ej.: ventas@empresa.com':key==='social'?'Ej.: mobiliario.sanitario':'Ej.: nombre de la cuenta';
     }
-    notice.innerHTML=key==='email'?'<b>Elige tu proveedor.</b> Gmail y Outlook/Hotmail usan autorización oficial. Para Yahoo, iCloud o un correo corporativo puedes usar la conexión segura IMAP/SMTP.':'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
+    const masterUnlimited=key==='email'&&String(state.license?.plan||'').toLowerCase()==='master';
+    notice.innerHTML=key==='email'
+      ?(masterUnlimited
+        ?'<b>♛ Maestro: cuentas de email ilimitadas.</b> Puedes añadir tantas cuentas como necesites. Una nueva conexión no sustituye las anteriores.'
+        :'<b>Elige tu proveedor.</b> Gmail y Outlook/Hotmail usan autorización oficial. Para Yahoo, iCloud o un correo corporativo puedes usar la conexión segura IMAP/SMTP.')
+      :'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
     updateEmailProviderFields();
     try{
       const st=await window.vnx.integrationStatus(key);
@@ -503,7 +513,12 @@ refreshVideoQuota();
 
 const buyStoragePack=$('#buyStoragePack');if(buyStoragePack)buyStoragePack.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=storage_pack');};
 
-const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');};
+const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{
+  if(String(state.license?.plan||'').toLowerCase()==='master'){
+    const connectBtn=document.querySelector('[data-real-module="email"]');if(connectBtn)connectBtn.click();return;
+  }
+  await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');
+};
 
 const autoSupportBtn=$('#autoSupportBtn'),healthCheckBtn=$('#healthCheckBtn'),autoRepairBtn=$('#autoRepairBtn'),autoSupportMsg=$('#autoSupportMsg');
 async function refreshAutoSupport(){
