@@ -218,7 +218,7 @@ function enforcePurchasedFeatures(){
   const purchased=[...(policy.purchased_included||[]),...(policy.purchased_extras||[])];
   if(!purchased.length)return;
   const map={email:'email',whatsapp:'whatsapp',social:'redes',prospecting:'buscador'};
-  $$$('[data-real-module]').forEach(btn=>{
+  $$('[data-real-module]').forEach(btn=>{
     const key=map[btn.dataset.realModule];if(!key)return;
     if(!purchased.includes(key)){
       btn.dataset.lockedFeature='1';
@@ -232,7 +232,7 @@ function setupRealModuleMode(){
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
   const openShopify=setupShopifyConnectionUi();
-  $('[data-real-module]').forEach(btn=>{
+  $$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
     if(current?.folder)btn.textContent='🟢 '+label+' · datos reales autorizados';
     if(current?.url)btn.textContent=label+' · URL registrada';
