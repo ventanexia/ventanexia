@@ -59,11 +59,31 @@ function parseEmailBlocks(text=""){
 
 function emailFallback(req){
   const q=norm((req.body?.messages||[]).slice().reverse().find(m=>m?.role==="user")?.content||"");
-  if(!/correo|email|gmail/.test(q))return null;
+  const emailScope=String(req.body?.scope||"").toLowerCase()==="integration:email";
+  if(!emailScope&&!/correo|email|gmail/.test(q))return null;
   const files=emailFiles(req);
   if(!files.length)return null;
   const emails=files.flatMap(f=>parseEmailBlocks(f.content)).slice(0,10);
   if(!emails.length)return null;
+
+  if(/pedido|pedidos/.test(q)){
+    const orderEmails=emails.filter(m=>/pedido|order|compra|presupuesto|entrega|expedicion|envio/i.test([m.subject,m.snippet].join(" ")));
+    const pool=orderEmails.length?orderEmails:emails;
+    const needsReply=(m)=>{
+      const t=norm([m.subject,m.snippet,m.status].join(" "));
+      let s=0;
+      if(/no leido|unread/.test(t))s+=2;
+      if(/pregunta|consulta|confirma|confirmacion|respuesta|respond|necesito|podrias|puedes|cuando|plazo|incidencia|problema|reclam|cancel|devoluc|urgente/.test(t))s+=3;
+      if(/pedido|order|compra|presupuesto|entrega|envio|expedicion/.test(t))s+=1;
+      return s;
+    };
+    const ranked=[...pool].sort((a,b)=>needsReply(b)-needsReply(a));
+    const top=ranked[0];
+    const shown=ranked.slice(0,5);
+    const lines=shown.map((m,i)=>`${i+1}. ${m.subject} — ${m.from||"remitente no disponible"}${m.date?` — ${m.date}`:""}${m.status?` — ${m.status}`:""}\n   ${m.snippet||"Sin vista previa disponible."}`);
+    const reason=top?`El que parece requerir respuesta primero es «${top.subject}» de ${top.from||"ese remitente"}, por las señales de consulta/seguimiento que aparecen en el asunto o la vista previa.`:"No veo un correo de pedido que requiera respuesta clara entre los últimos mensajes.";
+    return `He revisado el correo seleccionado y he buscado mensajes relacionados con pedidos:\n\n${lines.join("\n\n")}\n\n${reason}`;
+  }
 
   if(/ultim|recient/.test(q)){
     const wanted=(q.match(/\b(\d{1,2})\b/)||[])[1];
