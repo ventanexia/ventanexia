@@ -1,6 +1,6 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "private": true,
   "description": "VentaNexIA Desktop SecureCore Master",
   "main": "master-entry.cjs",
