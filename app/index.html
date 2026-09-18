@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06152a">
+<title>VentaNexIA</title>
+<link rel="manifest" href="/app/manifest.webmanifest">
+<link rel="stylesheet" href="/app/mobile.css">
+<link rel="icon" href="/assets/ventanexia-logo.svg">
+</head>
+<body>
+<div id="login" class="login-screen">
+  <div class="login-card">
+    <img src="/assets/ventanexia-logo.svg" class="logo" alt="VentaNexIA">
+    <div class="eyebrow">VENTANEXIA</div>
+    <h1>Tu empresa también en el móvil.</h1>
+    <p>Entra con el mismo ID y contraseña que usas en tu ordenador.</p>
+    <label>ID de cliente<input id="customerId" autocomplete="username" placeholder="Tu ID de VentaNexIA"></label>
+    <label>Contraseña<input id="password" type="password" autocomplete="current-password" placeholder="Tu contraseña"></label>
+    <button id="loginBtn" class="primary">Entrar</button>
+    <div id="loginMsg" class="message"></div>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <header>
+    <button id="menuBtn" class="icon-btn">☰</button>
+    <div class="topbrand"><img src="/assets/ventanexia-logo.svg" alt=""><span>VentaNexIA</span></div>
+    <button id="logoutBtn" class="icon-btn">Salir</button>
+  </header>
+  <aside id="drawer" class="drawer">
+    <button data-view="home" class="active">⌂ Inicio</button>
+    <button data-view="chat">💬 Habla con tu equipo</button>
+    <button data-view="connections">◉ Conexiones</button>
+    <button data-view="clients">👥 Clientes</button>
+    <button data-view="invoices">▤ Facturas</button>
+    <button data-view="orders">▣ Pedidos</button>
+    <button data-view="web">🌐 Web y tienda</button>
+    <button data-view="master" id="masterNav">♛ Centro Maestro</button>
+    <button data-view="activity">▥ Actividad</button>
+  </aside>
+  <main>
+    <section id="home" class="view active">
+      <div class="hero">
+        <div class="eyebrow">VENTANEXIA MÓVIL</div>
+        <h1>El futuro de tu empresa, en tu bolsillo.</h1>
+        <p>Clientes, ventas, pedidos y tu equipo. Todo en un solo lugar.</p>
+      </div>
+      <div class="kpis">
+        <article><small>Ventas de hoy</small><strong>—</strong><span>Datos reales</span></article>
+        <article><small>Clientes nuevos</small><strong>—</strong><span>Datos reales</span></article>
+        <article><small>Pedidos</small><strong>—</strong><span>Datos reales</span></article>
+        <article><small>Facturas</small><strong>—</strong><span>Datos reales</span></article>
+      </div>
+      <div class="master-card" id="masterHome">
+        <div><b>♛ Centro Maestro</b><small>Solo versión maestra</small></div>
+        <p>Ve clientes, facturas, pedidos y toda la información conectada.</p>
+        <button data-go="master">Abrir Centro Maestro</button>
+      </div>
+      <div class="quick">
+        <button data-go="chat">💬 Habla con tu equipo</button>
+        <button data-go="connections">◉ Conectar herramientas</button>
+        <button data-go="web">🌐 Web y tienda</button>
+        <button data-go="activity">▥ Ver actividad</button>
+      </div>
+    </section>
+
+    <section id="chat" class="view">
+      <h2>Habla con tu equipo</h2>
+      <p class="muted">Pide lo que necesitas con palabras normales.</p>
+      <div id="chatMessages" class="chat-messages"><div class="bubble ai">¿Qué quieres hacer?</div></div>
+      <form id="chatForm">
+        <textarea id="chatInput" rows="3" placeholder="Ej.: dime los pedidos de hoy"></textarea>
+        <button class="primary">Enviar</button>
+      </form>
+    </section>
+
+    <section id="connections" class="view">
+      <h2>Conexiones</h2>
+      <p class="muted">Conecta las mismas cuentas que usas en el ordenador.</p>
+      <div class="listcards">
+        <button>📧 Correo <span>Conectar</span></button>
+        <button>💬 WhatsApp <span>Conectar</span></button>
+        <button>📣 Redes sociales <span>Conectar</span></button>
+        <button>👥 Clientes y ventas <span>Conectar</span></button>
+        <button>🛒 Shopify <span>Conectar</span></button>
+      </div>
+      <div class="notice">Las conexiones del móvil se irán compartiendo con tu ordenador para que trabajes con la misma información.</div>
+    </section>
+
+    <section id="clients" class="view"><h2>Clientes</h2><div class="empty">Aquí aparecerán tus clientes conectados.</div></section>
+    <section id="invoices" class="view"><h2>Facturas</h2><div class="empty">Aquí aparecerán tus facturas conectadas.</div></section>
+    <section id="orders" class="view"><h2>Pedidos</h2><div class="empty">Aquí aparecerán tus pedidos conectados.</div></section>
+
+    <section id="web" class="view">
+      <h2>Web y tienda</h2>
+      <div class="listcards">
+        <button>Shopify <span>Ver tienda</span></button>
+        <button>WooCommerce <span>Ver web</span></button>
+        <button>Web propia <span>Ver proyecto</span></button>
+      </div>
+    </section>
+
+    <section id="master" class="view">
+      <div class="master-head"><div class="eyebrow gold">SOLO EDICIÓN MAESTRA</div><h2>Centro Maestro</h2><p>Todo lo importante de tu empresa desde el móvil.</p></div>
+      <div class="master-grid">
+        <button data-master="clientes">👥<b>Clientes</b><small>Ver todos</small></button>
+        <button data-master="facturas">▤<b>Facturas</b><small>Ver todas</small></button>
+        <button data-master="pedidos">▣<b>Pedidos</b><small>Ver todos</small></button>
+        <button data-master="datos">▥<b>Todos los datos</b><small>Explorar</small></button>
+      </div>
+      <div id="masterResult" class="result"><div class="empty">Elige qué quieres ver.</div></div>
+    </section>
+
+    <section id="activity" class="view"><h2>Actividad</h2><div class="empty">Aquí verás lo que ha hecho VentaNexIA.</div></section>
+  </main>
+  <nav class="bottom-nav">
+    <button data-view="home" class="active">⌂<small>Inicio</small></button>
+    <button data-view="chat">💬<small>Equipo</small></button>
+    <button data-view="connections">◉<small>Conectar</small></button>
+    <button data-view="master">♛<small>Maestro</small></button>
+  </nav>
+</div>
+<script src="/app/app.js"></script>
+</body>
+</html>
