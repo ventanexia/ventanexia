@@ -447,6 +447,7 @@ ipcMain.handle('shopify:disconnect',async()=>{
   const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
 });
 
+ipcMain.handle('app:open-external',async(_e,url)=>{const u=String(url||'').trim();if(!/^https:\/\//i.test(u))throw new Error('Enlace no válido');await shell.openExternal(u);return true});
 ipcMain.handle('support:quick-assist',async()=>{await audit('support.requested','Asistencia rápida abierta por el cliente');await shell.openExternal('ms-quick-assist:');return true});
 ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente pulsó detener asistencia');return true});
 ipcMain.handle('chat:send',async(_e,messages)=>{
