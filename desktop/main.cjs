@@ -451,6 +451,17 @@ ipcMain.handle('shopify:disconnect',async()=>{
   const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
 });
 
+ipcMain.handle('video:quota',async()=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
+  return postJson(CLOUD+'/api/video-usage',{action:'status',customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+});
+ipcMain.handle('video:consume',async(_e,durationSeconds)=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
+  const seconds=Math.max(1,Math.min(60,Number(durationSeconds||0)||0));
+  return postJson(CLOUD+'/api/video-usage',{action:'consume',durationSeconds:seconds,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+});
 ipcMain.handle('update:check',async()=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
