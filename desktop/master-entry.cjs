@@ -1,11 +1,78 @@
-const {app}=require('electron');
+const {app,ipcMain}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
-require('./master.cjs');
-require('./portal-adaptive.cjs');
-require('./portal-pagination-fix.cjs');
-require('./export.cjs');
 
+// --- Enrutado único del chat -------------------------------------------------
+// master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
+// Si se cargan sin arbitraje, portal-adaptive.cjs elimina el handler anterior
+// y termina atendiendo también los agentes de "Habla con tu equipo".
+// Capturamos ambos handlers durante la carga y registramos UN solo router final.
+const originalHandle=ipcMain.handle.bind(ipcMain);
+const registered=new Map();
+
+ipcMain.handle=function(channel,listener){
+  registered.set(channel,listener);
+  return originalHandle(channel,listener);
+};
+
+let agentChat=null;
+let portalChat=null;
+
+try{
+  require('./master.cjs');
+  agentChat=registered.get('chat:send')||null;
+
+  require('./portal-adaptive.cjs');
+  portalChat=registered.get('chat:send')||null;
+
+  require('./portal-pagination-fix.cjs');
+  require('./export.cjs');
+}finally{
+  ipcMain.handle=originalHandle;
+}
+
+const PORTAL_SCOPE_TYPES=new Set(['portal','url','folder','shopify','integration']);
+
+function scopeOf(payload){
+  return Array.isArray(payload)?null:(payload&&payload.scope)||null;
+}
+function scopeTypeOf(payload){
+  const scope=scopeOf(payload);
+  return scope&&typeof scope==='object'?String(scope.type||''):'';
+}
+
+if(typeof agentChat==='function'&&typeof portalChat==='function'){
+  ipcMain.removeHandler('chat:send');
+
+  originalHandle('chat:send',async(event,payload)=>{
+    const scope=scopeOf(payload);
+    const type=scopeTypeOf(payload);
+
+    // Los agentes siempre pasan por master.cjs.
+    // Esto incluye Email, CRM, WhatsApp, Redes, Web & Ecommerce, etc.
+    if(type==='agent'||!type)return agentChat(event,payload);
+
+    // Las consultas directas del Centro Maestro usan portal-adaptive.cjs.
+    // Excepción: Email individual debe usar master.cjs porque allí se respeta
+    // accountIndex y las múltiples cuentas ilimitadas de la edición Maestro.
+    if(type==='integration'&&String(scope?.key||'')==='email'){
+      return agentChat(event,payload);
+    }
+
+    if(PORTAL_SCOPE_TYPES.has(type))return portalChat(event,payload);
+
+    // Scope desconocido: no lo mandamos a portales por defecto.
+    // master.cjs dará un error explícito sin mezclar fuentes.
+    return agentChat(event,payload);
+  });
+}else{
+  console.error('chat_route_error','No se pudieron capturar los manejadores de chat:send',{
+    agentChat:typeof agentChat,
+    portalChat:typeof portalChat
+  });
+}
+
+// --- Inyección de la interfaz ------------------------------------------------
 app.on('browser-window-created',(_event,win)=>{
   win.webContents.on('did-finish-load',async()=>{
     const url=win.webContents.getURL();
@@ -15,6 +82,8 @@ app.on('browser-window-created',(_event,win)=>{
       await win.webContents.executeJavaScript(adaptive,true);
       const exportsUi=await fs.readFile(path.join(__dirname,'renderer','export.js'),'utf8');
       await win.webContents.executeJavaScript(exportsUi,true);
-    }catch(e){console.error('master_renderer_inject_error',String(e?.message||e).slice(0,300))}
+    }catch(e){
+      console.error('master_renderer_inject_error',String(e?.message||e).slice(0,300));
+    }
   });
 });
