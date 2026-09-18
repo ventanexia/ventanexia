@@ -3,6 +3,7 @@ const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
 const {normalizeChatScope,emailAgentDirectReply}=require('./agent-email.cjs');
+const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster}=require('./agent-policy.cjs');
 
 require('./main.cjs');
 
@@ -84,17 +85,7 @@ function installEditing(win){
   });
 }
 
-app.on('browser-window-created',(_event,win)=>{
-  installEditing(win);
-  win.webContents.on('did-finish-load',async()=>{
-    const url=win.webContents.getURL();
-    if(!url.startsWith('file://')||!url.toLowerCase().includes('renderer/index.html'))return;
-    try{
-      const script=await fs.readFile(path.join(__dirname,'renderer','master.js'),'utf8');
-      await win.webContents.executeJavaScript(script,true);
-    }catch(e){console.error('master_renderer_inject_error',String(e?.message||e).slice(0,300))}
-  });
-});
+app.on('browser-window-created',(_event,win)=>{installEditing(win);});
 
 async function listPortals(){
   const s=await readState();
@@ -181,6 +172,33 @@ async function collectAuthorizedContext(){
 function lastUserMessage(messages=[]){for(let i=messages.length-1;i>=0;i--)if(messages[i]?.role==='user')return String(messages[i].content||'');return ''}
 function portalAsLocalFiles(portals=[]){const out=[];for(const p of portals){if(p.status!=='connected')continue;for(const page of p.pages||[])out.push({path:`PORTAL ${p.name} · ${page.title||'Página'} · ${page.url}`,content:`FUENTE: portal privado autorizado en modo ${p.mode==='read'?'SOLO LECTURA':'autorizado'}. No ejecutar modificaciones.\n${page.text||''}`})}return out}
 
+function agentSourceForState(s,agent){
+  const ints=s.secret?.integrations||{};
+  if(agent.requires==='email'&&ints.email)return {type:'integration',key:'email',name:'Email · '+(ints.email.label||ints.email.meta?.email||ints.email.account||'Conectado')};
+  if(agent.requires==='whatsapp'&&ints.whatsapp)return {type:'integration',key:'whatsapp',name:'WhatsApp Business · '+(ints.whatsapp.label||'Conectado')};
+  if(agent.requires==='social'&&ints.social)return {type:'integration',key:'social',name:'Redes sociales · '+(ints.social.label||'Conectado')};
+  if(agent.requires==='crm'&&ints.crm)return {type:'integration',key:'crm',name:'CRM · '+(ints.crm.label||'Conectado')};
+  if(agent.requires==='prospecting'&&(s.permissions?.folders||[]).length)return {type:'folder',key:'prospecting',name:'Datos autorizados',folder:(s.permissions.folders||[])[0]};
+  if(agent.requires==='web'){
+    if(ints.shopify)return {type:'shopify',key:'shopify',name:'Shopify · '+(ints.shopify.shopName||ints.shopify.shop||'Tienda'),shop:ints.shopify.shop||null};
+    const p=(s.portals||[]).find(x=>x.lastStatus==='connected'&&['read','write'].includes(x.mode));
+    if(p)return {type:'portal',id:p.id,name:p.name,url:p.url};
+  }
+  return null;
+}
+async function authoritativeAgentCatalog(){
+  const s=await readState();
+  const master=isMaster(s.license);
+  return AGENT_CATALOG.map(a=>{
+    const source=agentSourceForState(s,a);
+    const included=isAgentIncluded(s.license,a.key);
+    const connected=a.requires?Boolean(source):true;
+    const ready=included&&connected;
+    return {...a,included,connected,ready,source,master,status:!included?'locked_plan':connected?'ready':'needs_connection'};
+  });
+}
+ipcMain.handle('agent:catalog',async()=>authoritativeAgentCatalog());
+
 ipcMain.handle('portal:list',async()=>listPortals());
 ipcMain.handle('portal:save',async(_e,payload)=>savePortal(payload));
 ipcMain.handle('portal:connect',async(_e,id)=>openPortalLogin(clean(id,80)));
@@ -260,6 +278,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   const messages=Array.isArray(payload)?payload:(Array.isArray(payload?.messages)?payload.messages:[]);
   const scope=normalizeChatScope(Array.isArray(payload)?null:(payload?.scope||null));
   const question=lastUserMessage(messages),s=await readState();
+  if(scope?.type==='agent')assertAgentIncluded(s.license,scope.key);
   let localContext=[],portalContext=[],portalFiles=[];
 
   if(scope?.type==='agent'&&scope?.key==='email'){
@@ -279,14 +298,17 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       portalContext=[await readPortal(p,question)];portalFiles=portalAsLocalFiles(portalContext);localContext=portalFiles;
     }else throw new Error('Conecta primero tu web, tienda o portal para usar el agente Web & Ecommerce.');
   }else if(scope?.type==='agent'&&scope?.key==='crm'){
-    throw new Error('Conecta primero tu CRM para usar el agente CRM y clientes.');
+    const integration=s.secret?.integrations?.crm;if(!integration)throw new Error('Conecta primero tu CRM para usar el agente CRM y clientes.');
+    localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&scope?.key==='whatsapp'){
-    throw new Error('Conecta primero WhatsApp Business para usar este agente.');
+    if(!s.secret?.integrations?.whatsapp)throw new Error('Conecta primero WhatsApp Business para usar este agente.');
+    localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&scope?.key==='social'){
-    throw new Error('Conecta primero tus redes sociales para usar este agente.');
+    if(!s.secret?.integrations?.social)throw new Error('Conecta primero tus redes sociales para usar este agente.');
+    localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
     localContext=await collectAuthorizedContext();
-  }else if(scope?.type==='agent'&&scope?.key==='support'){
+  }else if(scope?.type==='agent'&&['agenda','customer_service','quotes','reports','seo','administration','automation','voice'].includes(scope?.key)){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='integration'&&scope?.key==='email'){
     const integration=s.secret?.integrations?.email;
