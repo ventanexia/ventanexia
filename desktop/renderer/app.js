@@ -103,18 +103,58 @@ function setupServiceConnectionWizard(){
   };
 }
 
+function setupShopifyConnectionUi(){
+  const modal=$('#shopifyConnectionModal'),shop=$('#shopifyShop'),token=$('#shopifyToken'),mode=$('#shopifyMode'),msg=$('#shopifyConnectionMsg'),connect=$('#shopifyConnectBtn'),disconnect=$('#shopifyDisconnectBtn'),cancel=$('#shopifyCancelBtn');
+  if(!modal)return ()=>{};
+  let activeButton=null;
+  async function refreshShopifyStatus(){
+    try{
+      const st=await window.vnx.shopifyStatus();
+      if(st?.connected){
+        shop.value=st.shop||'';mode.value=st.mode||'read';
+        msg.innerHTML='<b>🟢 Conectado:</b> '+esc(st.shopName||st.shop)+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+' · '+(st.scopes||[]).length+' permisos concedidos.';
+        if(activeButton)activeButton.textContent='🟢 Shopify · '+(st.shopName||st.shop);
+      }else msg.innerHTML='<b>Sin conectar.</b> Introduce el dominio .myshopify.com y un token de Admin API.';
+    }catch(e){msg.textContent=e.message||'No se pudo comprobar Shopify'}
+  }
+  cancel.onclick=()=>{modal.style.display='none';token.value='';activeButton=null};
+  connect.onclick=async()=>{
+    const s=shop.value.trim(),t=token.value.trim();
+    if(!s||!t){msg.innerHTML='<b>Faltan datos.</b> Indica la tienda .myshopify.com y el token de Admin API.';return;}
+    connect.disabled=true;connect.textContent='Comprobando Shopify…';msg.textContent='Verificando el token y los permisos concedidos…';
+    try{
+      const st=await window.vnx.connectShopify({shop:s,token:t,mode:mode.value});
+      setRealModuleSource('shopify',{integration:'shopify',status:'connected',shop:st.shop,shopName:st.shopName,mode:st.mode,connectedAt:new Date().toISOString()});
+      token.value='';
+      msg.innerHTML='<b>🟢 Shopify conectado de verdad.</b> '+esc(st.shopName||st.shop)+' · '+(st.scopes||[]).length+' permisos detectados.';
+      if(activeButton)activeButton.textContent='🟢 Shopify · '+(st.shopName||st.shop);
+    }catch(e){msg.innerHTML='<b>No se pudo conectar.</b> '+esc(e.message||String(e));}
+    finally{connect.disabled=false;connect.textContent='Conectar y comprobar'}
+  };
+  disconnect.onclick=async()=>{
+    if(!confirm('¿Desconectar Shopify de VentaNexIA en este ordenador?'))return;
+    await window.vnx.disconnectShopify();
+    const all=getRealModuleSources();delete all.shopify;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+    shop.value='';token.value='';msg.innerHTML='<b>Shopify desconectado.</b>';if(activeButton)activeButton.textContent='Añadir tienda Shopify';
+  };
+  return async button=>{activeButton=button;modal.style.display='flex';token.value='';await refreshShopifyStatus()};
+}
+
 function setupRealModuleMode(){
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
+  const openShopify=setupShopifyConnectionUi();
   $$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
     if(current?.folder)btn.textContent='🟢 '+label+' · datos reales autorizados';
     if(current?.url)btn.textContent=label+' · URL registrada';
+    if(key==='shopify'&&current?.status==='connected')btn.textContent='🟢 Shopify · '+(current.shopName||current.shop||'Conectado');
     if(current?.status==='authorization_required')btn.textContent='Pendiente de autorización oficial';
     btn.onclick=async()=>{
       if(['email','whatsapp','social','crm'].includes(key)){openServiceWizard(key,btn);return;}
-      if(['shopify','wordpress','github_vercel'].includes(key)){
+      if(key==='shopify'){await openShopify(btn);return;}
+      if(['wordpress','github_vercel'].includes(key)){
         const previous=current?.url||'';
         const entered=prompt(key==='shopify'?'Introduce la URL real de tu tienda Shopify (https://... o https://...myshopify.com)':'Introduce la URL real del sitio o proyecto (https://...)',previous);
         if(entered===null)return;
