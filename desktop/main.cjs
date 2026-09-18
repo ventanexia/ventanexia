@@ -381,7 +381,7 @@ async function verifyIntegration(provider,payload){
 ipcMain.handle('oauth:start',async(_e,payload={})=>{
   const s=await readState();
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
-  const result=await postJson(CLOUD+'/api/oauth-start',{provider,module,shop:String(payload.shop||'').trim(),customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null});
+  const result=await postJson(CLOUD+'/api/oauth-start',{provider,module,shop:String(payload.shop||'').trim(),account:String(payload.account||'').trim(),customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null});
   if(!result.authUrl||!result.state)throw new Error('No se pudo iniciar la autorización');
   await shell.openExternal(result.authUrl);
   await audit('oauth.started',module+' · '+provider);
