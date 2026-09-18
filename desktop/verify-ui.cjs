@@ -11,6 +11,7 @@ const preload=read('preload.cjs');
 const mains=['main.cjs','master.cjs','portal-adaptive.cjs','portal-pagination-fix.cjs','export.cjs'].map(read).join('\n');
 const scripts=[app,master,adaptive,exp].join('\n');
 const errors=[];
+if(!/<script\s+src=["']master\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga master.js; el selector de agentes no se ejecutará.');
 const fail=(x)=>errors.push(x);
 
 if(app.includes('$$$('))fail('renderer/app.js contiene $$$(): selector inválido.');
