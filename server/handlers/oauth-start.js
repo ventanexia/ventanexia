@@ -31,6 +31,7 @@ export default async function handler(req,res){
   }catch(e){
     const code=String(e?.message||"");
     if(code==="SHOPIFY_SHOP_REQUIRED")return res.status(400).json({error:"Indica tu dominio .myshopify.com",code});
-    return res.status(500).json({error:"No se pudo iniciar la autorización",detail:code.slice(0,180)});
+    console.error("oauth-start failed",{provider:String(req.body?.provider||""),module:String(req.body?.module||""),detail:code.slice(0,500)});
+    return res.status(500).json({error:"No se pudo iniciar la autorización",detail:code.slice(0,500),code:"OAUTH_START_FAILED"});
   }
 }
