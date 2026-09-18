@@ -1,0 +1,43 @@
+name: Export VentaNexIA Server Audit Bundle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'config/**'
+      - 'api/router.js'
+      - '.github/workflows/export-server-audit-bundle.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-audit-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create audit bundle
+        run: |
+          python - <<'PY'
+          import os, zipfile
+          include=['lib','config','api/router.js']
+          out='VentaNexIA-server-audit-bundle.zip'
+          with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
+              for item in include:
+                  if os.path.isdir(item):
+                      for base, _, files in os.walk(item):
+                          for f in files:
+                              p=os.path.join(base,f)
+                              z.write(p,p)
+                  elif os.path.isfile(item):
+                      z.write(item,item)
+          print(out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VentaNexIA-server-audit-bundle
+          path: VentaNexIA-server-audit-bundle.zip
+          if-no-files-found: error
+          retention-days: 14
