@@ -451,6 +451,24 @@ ipcMain.handle('shopify:disconnect',async()=>{
   const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
 });
 
+ipcMain.handle('usage:overview',async()=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
+  const meters=['image_credits','voice_minutes','whatsapp_messages','lead_credits','ai_heavy_tasks','email_ai_actions','automation_runs','seo_pages','report_generations','storage_mb'];
+  const deviceKey=await ensureDeviceKey(),items={};
+  for(const meter of meters){
+    try{items[meter]=await postJson(CLOUD+'/api/usage-meter',{action:'status',meter,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});}
+    catch(e){items[meter]={ok:false,code:/FEATURE_NOT_INCLUDED/i.test(String(e?.message||''))?'FEATURE_NOT_INCLUDED':'UNAVAILABLE'};}
+  }
+  try{items.video_credits=await postJson(CLOUD+'/api/video-usage',{action:'status',customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});}
+  catch{items.video_credits={ok:false,code:'UNAVAILABLE'}}
+  return {ok:true,items};
+});
+ipcMain.handle('usage:consume',async(_e,payload={})=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
+  return postJson(CLOUD+'/api/usage-meter',{action:'consume',meter:String(payload.meter||''),quantity:Math.max(1,Number(payload.quantity||1)||1),metadata:payload.metadata||{},customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+});
 ipcMain.handle('video:quota',async()=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
