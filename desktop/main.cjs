@@ -740,12 +740,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   await audit('ai.chat',`Consulta realizada con ${localContext.length} fuente(s) autorizada(s)`);return j;
 });
-  const localContext=await collectAuthorizedContext();
-  const s=await readState();
-  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null}})});
-  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
-  await audit('ai.chat',`Consulta realizada con ${localContext.length} archivo(s) textual(es) autorizados`);return j;
-});
+
 ipcMain.handle('device:pair-demo',async()=>{const s=await readState();s.secret=s.secret||{};s.secret.deviceToken=crypto.randomBytes(32).toString('base64url');await writeState(s);await audit('device.paired','Equipo vinculado en modo de prueba local');return {ok:true,deviceId:crypto.createHash('sha256').update(os.hostname()).digest('hex').slice(0,12)}});
 
 app.whenReady().then(async()=>{
