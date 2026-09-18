@@ -23,16 +23,20 @@ function normalizeChatScope(scope){
 }
 
 function parseGmailContext(localContext=[]){
-  const file=(localContext||[]).find(f=>/^GMAIL\b/i.test(String(f?.path||'')));
-  if(!file)return null;
-  const text=String(file.content||'');
-  const total=Number((text.match(/TOTAL_COINCIDENCIAS:\s*(\d+)/i)||[])[1]||0);
-  const blocks=[...text.matchAll(/Correo\s+\d+[\s\S]*?(?=\n\s*\nCorreo\s+\d+|$)/gi)].map(m=>m[0].trim());
-  const mails=blocks.map(block=>{
-    const get=(label)=>String((block.match(new RegExp('(?:^|\\n)(?:'+label+')\\s*:\\s*(.*)','i'))||[])[1]||'').trim();
-    return {from:get('De|From'),subject:get('Asunto|Subject')||'(sin asunto)',date:get('Fecha|Date'),status:get('Estado|Status'),snippet:get('Vista previa|Snippet|Resumen')};
-  });
-  return {path:file.path,total,mails};
+  const files=(localContext||[]).filter(f=>/^GMAIL\b/i.test(String(f?.path||'')));
+  if(!files.length)return null;
+  let total=0;const mails=[];
+  for(const file of files){
+    const text=String(file.content||'');
+    const account=String((text.match(/CUENTA:\s*(.*)/i)||[])[1]||String(file.path||'').replace(/^GMAIL\s*/i,'')).trim();
+    total+=Number((text.match(/TOTAL_COINCIDENCIAS:\s*(\d+)/i)||[])[1]||0);
+    const blocks=[...text.matchAll(/Correo\s+\d+[\s\S]*?(?=\n\s*\nCorreo\s+\d+|$)/gi)].map(m=>m[0].trim());
+    for(const block of blocks){
+      const get=(label)=>String((block.match(new RegExp('(?:^|\\n)(?:'+label+')\\s*:\\s*(.*)','i'))||[])[1]||'').trim();
+      mails.push({account,from:get('De|From'),subject:get('Asunto|Subject')||'(sin asunto)',date:get('Fecha|Date'),status:get('Estado|Status'),snippet:get('Vista previa|Snippet|Resumen')});
+    }
+  }
+  return {path:files.map(f=>f.path).join(' + '),total,mails,accounts:files.length};
 }
 
 function scoreMailAttention(m){
@@ -74,7 +78,7 @@ function emailAgentDirectReply(question,localContext=[]){
   if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)&&/responder|contestar|respuesta|reply/.test(q)){
     const replyable=mails.map((m,i)=>({m,i,score:needsReplyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i);
     if(!replyable.length)return 'He revisado los correos recientes y no veo ninguno que claramente requiera una respuesta ahora mismo.';
-    const lines=replyable.slice(0,8).map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible'));
+    const lines=replyable.slice(0,8).map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+(gmail.accounts>1?' · '+x.m.account:''));
     return 'He revisado los correos recientes. Hay '+replyable.length+' que parecen requerir respuesta.\n\n'+lines.join('\n')+'\n\nHe separado las notificaciones automáticas y los avisos que requieren atención pero no necesariamente una respuesta.';
   }
   if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)){
@@ -90,7 +94,7 @@ function emailAgentDirectReply(question,localContext=[]){
     const n=Math.max(1,Math.min(10,Number((q.match(/\b(\d{1,2})\b/)||[])[1]||5)));
     const chosen=mails.slice(0,n);
     if(!chosen.length)return 'He consultado tu correo, pero no he encontrado mensajes que mostrar.';
-    const lines=chosen.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(m.date?' — '+m.date:'')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
+    const lines=chosen.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+(m.date?' — '+m.date:'')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
     const top=[...chosen].sort((a,b)=>scoreMailAttention(b)-scoreMailAttention(a))[0];
     return 'He consultado tu correo. Estos son los últimos '+chosen.length+' correos:\n\n'+lines.join('\n\n')+(top?'\n\nEl que revisaría primero es «'+top.subject+'» de '+(top.from||'ese remitente')+'.':'');
   }
@@ -99,7 +103,7 @@ function emailAgentDirectReply(question,localContext=[]){
     const pool=related.length?related:mails;
     if(!pool.length)return 'He consultado tu correo, pero no he encontrado mensajes relacionados con pedidos.';
     const ranked=[...pool].sort((a,b)=>scoreMailAttention(b)-scoreMailAttention(a)).slice(0,5);
-    const lines=ranked.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
+    const lines=ranked.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
     return 'He revisado tu correo y he buscado mensajes relacionados con pedidos:\n\n'+lines.join('\n\n');
   }
   return null;
