@@ -259,18 +259,20 @@ function setupShopifyConnectionUi(){
   return async button=>{activeButton=button;modal.style.display='flex';await refreshShopifyStatus()};
 }
 
-function enforcePurchasedFeatures(){
-  const l=state.license||{},policy=l.featurePolicy||{};
-  if(String(l.plan||'').toLowerCase()==='master')return;
-  const purchased=[...(policy.purchased_included||[]),...(policy.purchased_extras||[])];
-  if(!purchased.length)return;
-  const map={email:'email',whatsapp:'whatsapp',social:'redes',prospecting:'buscador'};
+async function enforcePurchasedFeatures(){
+  let agents=[];
+  try{agents=await window.vnx.agentCatalog()||[]}catch{agents=[]}
+  const byKey=new Map(agents.map(a=>[a.key,a]));
+  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',shopify:'web_ecommerce',wordpress:'web_ecommerce',github_vercel:'web_ecommerce'};
   $$('[data-real-module]').forEach(btn=>{
-    const key=map[btn.dataset.realModule];if(!key)return;
-    if(!purchased.includes(key)){
+    const agentKey=map[btn.dataset.realModule];if(!agentKey)return;
+    const agent=byKey.get(agentKey);
+    if(agent&&agent.included===false){
       btn.dataset.lockedFeature='1';
-      btn.textContent='Ver planes para activar';
+      btn.textContent='🔒 No incluido en tu plan';
       btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html');
+    }else{
+      delete btn.dataset.lockedFeature;
     }
   });
 }
