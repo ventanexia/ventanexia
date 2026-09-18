@@ -8,6 +8,7 @@ export default async function handler(req,res){
     googleClientSecret:Boolean(process.env.GOOGLE_OAUTH_CLIENT_SECRET),
     supabaseUrl:Boolean(process.env.SUPABASE_URL),
     supabaseServiceRole:Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    supabaseProjectRef:(()=>{try{return new URL(String(process.env.SUPABASE_URL||"")).hostname.split(".")[0]}catch{return ""}})(),
     callback:callbackUrl("gmail"),
     connector:false,
     database:false,
