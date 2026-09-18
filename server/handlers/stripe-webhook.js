@@ -33,6 +33,18 @@ function featurePolicyFromMeta(meta={}){
     extra_agents:Math.max(0,Number(meta.extra_agents||0)||0)
   };
 }
+const CREDIT_PACKS={
+  video_pack:{meter:"video_credits",quantity:10,amount:9900},
+  image_pack:{meter:"image_credits",quantity:100,amount:2900},
+  voice_pack:{meter:"voice_minutes",quantity:250,amount:4900},
+  whatsapp_pack:{meter:"whatsapp_messages",quantity:1000,amount:5900},
+  lead_pack:{meter:"lead_credits",quantity:500,amount:7900}
+};
+async function grantCreditPack(tenantId,packKey,sessionId){
+  const p=CREDIT_PACKS[packKey];if(!tenantId||!p||!sessionId)return false;
+  await sbFetch("rpc/vnx_grant_usage_credits",{method:"POST",body:JSON.stringify({p_tenant:tenantId,p_meter:p.meter,p_pack_key:packKey,p_quantity:p.quantity,p_amount_cents:p.amount,p_stripe_session_id:sessionId+":"+packKey})});
+  return true;
+}
 async function resolveTenantId({tenantId="",solutionRequestId="",subscriptionId="",customerId=""}={}){if(tenantId)return tenantId;if(solutionRequestId){const rows=await entitlementDb(`vnx_tenants?settings->>solution_request_id=eq.${encodeURIComponent(solutionRequestId)}&select=id`);if(rows?.[0]?.id)return rows[0].id}if(subscriptionId){const rows=await entitlementDb(`vnx_entitlements?stripe_subscription_id=eq.${encodeURIComponent(subscriptionId)}&select=tenant_id`);if(rows?.[0]?.tenant_id)return rows[0].tenant_id}if(customerId){const rows=await entitlementDb(`vnx_entitlements?stripe_customer_id=eq.${encodeURIComponent(customerId)}&select=tenant_id`);if(rows?.[0]?.tenant_id)return rows[0].tenant_id}return null}
 
 export default async function handler(req,res){
@@ -45,7 +57,31 @@ export default async function handler(req,res){
     const subscriptionId=String(obj.subscription||(event.type.startsWith("customer.subscription.")?obj.id:"")||""),customerId=String(obj.customer||"");
     const tenantId=await resolveTenantId({tenantId:metadataTenantId,solutionRequestId,subscriptionId,customerId});
 
-    if(event.type==="checkout.session.completed"&&dealId){const paid=["paid","no_payment_required"].includes(obj.payment_status);await linkContract({contractId,customerId,subscriptionId:String(obj.subscription||""),sessionId:obj.id});await recordCustomerEvent({customerId,contractId,tenantId,eventType:"checkout_completed",title:"Primera contratación completada",details:{session_id:obj.id,payment_status:obj.payment_status,subscription:obj.subscription||null}});if(paid){await hubspotPatch(dealId,{dealstage:"closedwon",hs_priority:"high",hs_next_step:"Iniciar onboarding y provisionamiento de VentaNexIA"});if(solutionRequestId)await startProvisioning(solutionRequestId,{stripe_session_id:obj.id,customer:obj.customer||null,subscription:obj.subscription||null});if(tenantId){await activatePaid(tenantId,{customerId:customerId||null,subscriptionId:String(obj.subscription||"")||null,invoiceId:String(obj.invoice||"")||null,planKey:String(obj.metadata?.plan||"core"),featurePolicy:featurePolicyFromMeta(obj.metadata||{})});await reactivateAgents(tenantId)}}}
+    if(event.type==="checkout.session.completed"){
+      const paid=["paid","no_payment_required"].includes(obj.payment_status);
+      const singlePack=String(obj.metadata?.credit_pack||"");
+      if(paid&&singlePack&&tenantId){
+        await grantCreditPack(tenantId,singlePack,obj.id);
+        await recordCustomerEvent({customerId,contractId,tenantId,eventType:"credit_pack_purchased",title:"Créditos adicionales comprados",details:{session_id:obj.id,pack:singlePack}});
+      }else if(dealId){
+        await linkContract({contractId,customerId,subscriptionId:String(obj.subscription||""),sessionId:obj.id});
+        await recordCustomerEvent({customerId,contractId,tenantId,eventType:"checkout_completed",title:"Primera contratación completada",details:{session_id:obj.id,payment_status:obj.payment_status,subscription:obj.subscription||null}});
+        if(paid){
+          await hubspotPatch(dealId,{dealstage:"closedwon",hs_priority:"high",hs_next_step:"Iniciar onboarding y provisionamiento de VentaNexIA"});
+          let activeTenantId=tenantId;
+          if(solutionRequestId){
+            const provisioned=await startProvisioning(solutionRequestId,{stripe_session_id:obj.id,customer:obj.customer||null,subscription:obj.subscription||null});
+            activeTenantId=activeTenantId||provisioned?.tenantId||null;
+          }
+          if(activeTenantId){
+            await activatePaid(activeTenantId,{customerId:customerId||null,subscriptionId:String(obj.subscription||"")||null,invoiceId:String(obj.invoice||"")||null,planKey:String(obj.metadata?.plan||"core"),featurePolicy:featurePolicyFromMeta(obj.metadata||{})});
+            await reactivateAgents(activeTenantId);
+            const packs=String(obj.metadata?.credit_packs||"").split(",").map(x=>x.trim()).filter(Boolean);
+            for(const pack of packs)await grantCreditPack(activeTenantId,pack,obj.id);
+          }
+        }
+      }
+    }
 
     if(event.type==="invoice.paid"){if(dealId)await hubspotPatch(dealId,{hs_next_step:"Servicio activo · revisar onboarding/entrega"});if(tenantId){await activatePaid(tenantId,{customerId:customerId||null,subscriptionId:String(obj.subscription||"")||null,invoiceId:String(obj.id||"")||null});await reactivateAgents(tenantId)}const [mailSent,fiscalForwarded]=await Promise.all([sendPaidInvoiceEmail(obj).catch(()=>false),forwardFiscalInvoice(obj).catch(()=>false)]);await recordCustomerEvent({customerId,contractId,tenantId,eventType:"invoice_paid",title:"Cuota cobrada",details:{invoice_id:obj.id,number:obj.number||null,amount_paid:obj.amount_paid,currency:obj.currency,invoice_pdf:obj.invoice_pdf||null,mail_sent:mailSent,fiscal_forwarded:fiscalForwarded}})}
 
