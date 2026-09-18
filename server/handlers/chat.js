@@ -173,9 +173,9 @@ function desktopFallback(message,localContext=[]){
   }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
   if(ranked.length){
     const refs=ranked.map(x=>x.f.path).join(", ");
-    return `He encontrado información relacionada en los archivos autorizados (${refs}), pero el motor de IA no está disponible en este momento para interpretarla con suficiente fiabilidad. No voy a inventar una respuesta.`;
+    return `He encontrado información relacionada en los datos autorizados (${refs}), pero para darte una respuesta precisa necesito que elijas la conexión o carpeta concreta con la que quieres trabajar. Así evito mezclar datos o darte una respuesta incorrecta.`;
   }
-  return "No encuentro ese dato en los archivos autorizados disponibles. Si está en otra carpeta, autorízala o indícame qué archivo debo consultar.";
+  return "Todavía no tengo una fuente de datos adecuada para responder con precisión. Conecta o selecciona la cuenta, tienda, portal o carpeta donde están esos datos y vuelve a pedírmelo.";
 }
 
 function normalizeLocalContext(value){
