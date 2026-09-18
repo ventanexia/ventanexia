@@ -174,6 +174,66 @@ async function shopifyAdminGraphql(shop,token,query,variables={}){
   if(!r.ok||j.errors){throw new Error(j?.errors?.[0]?.message||('Shopify respondió '+r.status))}
   return j.data||{};
 }
+async function apiJson(url,opts={}){
+  const r=await fetch(url,opts);const text=await r.text();let j={};try{j=JSON.parse(text)}catch{j={raw:text.slice(0,800)}}
+  if(!r.ok){const msg=j?.error?.message||j?.message||j?.error_description||('HTTP '+r.status);throw new Error(msg)}
+  return j;
+}
+async function queryIntegrationData(scope,question,state){
+  const cfg=state.secret?.integrations?.[scope?.key];
+  if(!cfg?.token)return {status:'not_connected',name:scope?.name||scope?.key||'Integración'};
+  const p=cfg.provider,auth={Authorization:'Bearer '+cfg.token},name=scope?.name||cfg.label||p;
+  if(p==='gmail'){
+    const list=await apiJson('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q=newer_than:30d',{headers:auth});
+    const ids=(list.messages||[]).slice(0,15).map(x=>x.id);
+    const items=await Promise.all(ids.map(id=>apiJson('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+encodeURIComponent(id)+'?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date',{headers:auth}).catch(()=>null)));
+    const rows=items.filter(Boolean).map(m=>{const hs=Object.fromEntries((m.payload?.headers||[]).map(h=>[h.name.toLowerCase(),h.value]));return [hs.date||'',hs.from||'',hs.subject||'',m.snippet||'',(m.labelIds||[]).includes('UNREAD')?'No leído':'Leído']});
+    return {status:'connected',name,category:'email',headers:['Fecha','De','Asunto','Resumen','Estado'],rows,total:Number(list.resultSizeEstimate||rows.length),text:'Correos recientes de Gmail autorizados. Se muestran hasta 15 mensajes de los últimos 30 días.',images:[],source:'gmail_api',mode:cfg.mode||'read'};
+  }
+  if(p==='microsoft_365'){
+    const j=await apiJson('https://graph.microsoft.com/v1.0/me/messages?$top=20&$orderby=receivedDateTime%20desc&$select=subject,from,receivedDateTime,isRead,bodyPreview',{headers:auth});
+    const rows=(j.value||[]).map(m=>[m.receivedDateTime||'',m.from?.emailAddress?.address||'',m.subject||'',m.bodyPreview||'',m.isRead?'Leído':'No leído']);
+    return {status:'connected',name,category:'email',headers:['Fecha','De','Asunto','Resumen','Estado'],rows,total:rows.length,text:'Últimos correos accesibles de Microsoft 365. Se muestran hasta 20 mensajes.',images:[],source:'microsoft_graph',mode:cfg.mode||'read'};
+  }
+  if(p==='hubspot'){
+    const q=String(question||'').toLowerCase();
+    if(/oportunidad|deal|negocio|pipeline|venta/.test(q)){
+      const j=await apiJson('https://api.hubapi.com/crm/v3/objects/deals?limit=50&properties=dealname,amount,dealstage,pipeline,closedate',{headers:auth});
+      const rows=(j.results||[]).map(x=>[x.properties?.dealname||'',x.properties?.amount||'',x.properties?.dealstage||'',x.properties?.pipeline||'',x.properties?.closedate||'']);
+      return {status:'connected',name,category:'crm_deals',headers:['Oportunidad','Importe','Etapa','Pipeline','Cierre'],rows,total:rows.length,text:'Oportunidades de HubSpot accesibles con la cuenta conectada.',images:[],source:'hubspot_api',mode:cfg.mode||'read'};
+    }
+    const j=await apiJson('https://api.hubapi.com/crm/v3/objects/contacts?limit=50&properties=firstname,lastname,email,phone,company,lifecyclestage',{headers:auth});
+    const rows=(j.results||[]).map(x=>[(x.properties?.firstname||'')+' '+(x.properties?.lastname||''),x.properties?.email||'',x.properties?.phone||'',x.properties?.company||'',x.properties?.lifecyclestage||'']);
+    return {status:'connected',name,category:'customers',headers:['Contacto','Email','Teléfono','Empresa','Estado'],rows,total:rows.length,text:'Contactos de HubSpot accesibles. Se muestran hasta 50.',images:[],source:'hubspot_api',mode:cfg.mode||'read'};
+  }
+  if(p==='instagram'){
+    const id=cfg.accountId;if(!id)throw new Error('Falta Instagram Business Account ID');
+    const j=await apiJson('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'/media?fields=id,caption,media_type,media_url,permalink,timestamp&limit=25&access_token='+encodeURIComponent(cfg.token));
+    const rows=(j.data||[]).map(x=>[x.timestamp||'',x.media_type||'',x.caption||'',x.permalink||'']);
+    const images=(j.data||[]).filter(x=>/^IMAGE|CAROUSEL_ALBUM$/.test(x.media_type||'')&&x.media_url).map(x=>({src:x.media_url,alt:(x.caption||'Publicación de Instagram').slice(0,100)}));
+    return {status:'connected',name,category:'social',headers:['Fecha','Tipo','Texto','Enlace'],rows,total:rows.length,text:'Publicaciones recientes de Instagram accesibles con la cuenta conectada.',images:images.slice(0,10),source:'instagram_graph_api',mode:cfg.mode||'read'};
+  }
+  if(p==='facebook'){
+    const id=cfg.accountId;if(!id)throw new Error('Falta Facebook Page ID');
+    const j=await apiJson('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'/posts?fields=id,message,created_time,permalink_url&limit=25&access_token='+encodeURIComponent(cfg.token));
+    const rows=(j.data||[]).map(x=>[x.created_time||'',x.message||'',x.permalink_url||'']);
+    return {status:'connected',name,category:'social',headers:['Fecha','Texto','Enlace'],rows,total:rows.length,text:'Publicaciones recientes de Facebook accesibles con la página conectada.',images:[],source:'facebook_graph_api',mode:cfg.mode||'read'};
+  }
+  if(p==='linkedin'){
+    const j=await apiJson('https://api.linkedin.com/v2/userinfo',{headers:auth});
+    return {status:'connected',name,category:'social',headers:['Cuenta','Email'],rows:[[j.name||cfg.label||'LinkedIn',j.email||'']],total:1,text:'Cuenta de LinkedIn conectada. El acceso a publicaciones depende de los productos y scopes aprobados para la aplicación de LinkedIn.',images:[],source:'linkedin_api',mode:cfg.mode||'read'};
+  }
+  if(p==='x_twitter'){
+    const user=await apiJson('https://api.x.com/2/users/by/username/'+encodeURIComponent(cfg.username||cfg.meta?.username||''),{headers:auth});
+    let rows=[];if(user?.data?.id){const t=await apiJson('https://api.x.com/2/users/'+encodeURIComponent(user.data.id)+'/tweets?max_results=20&tweet.fields=created_at,public_metrics',{headers:auth});rows=(t.data||[]).map(x=>[x.created_at||'',x.text||'',String(x.public_metrics?.like_count||0),String(x.public_metrics?.retweet_count||0)])}
+    return {status:'connected',name,category:'social',headers:['Fecha','Texto','Me gusta','Reposts'],rows,total:rows.length,text:'Publicaciones recientes de X accesibles con la cuenta conectada.',images:[],source:'x_api',mode:cfg.mode||'read'};
+  }
+  if(p==='whatsapp_business'){
+    return {status:'connected',name,category:'whatsapp',headers:['Cuenta','Número','Estado'],rows:[[cfg.label||'WhatsApp Business',cfg.meta?.displayPhone||'', 'Conectado a Cloud API']],total:1,text:'WhatsApp Business está conectado a la Cloud API. Para recibir conversaciones nuevas de clientes, la aplicación de Meta debe apuntar su webhook al backend de VentaNexIA; la API no ofrece un historial general para descargar conversaciones antiguas.',images:[],source:'whatsapp_cloud_api',mode:cfg.mode||'read'};
+  }
+  return {status:'connected',name,category:'integration',headers:[],rows:[],total:0,text:'Integración conectada, pero este proveedor todavía no tiene lector de datos configurado.',images:[],source:'external_api',mode:cfg.mode||'read'};
+}
+
 async function queryShopifyAdmin(scope,question,state){
   const cfg=state.secret?.integrations?.shopify;
   if(!cfg?.shop||!cfg?.token)return {status:'not_connected',name:'Shopify'};
@@ -227,6 +287,7 @@ ipcMain.handle('chat:send',async(_e,payload)=>{
   if(scope?.type==='portal')portals=portals.filter(p=>p.id===scope.id);
   if(scope?.type==='url'){portals=[];try{results.push(await queryPublicWebsite(scope,question))}catch(e){results.push({status:'error',name:scope.name||'Web',error:String(e?.message||e).slice(0,180)})}}
   if(scope?.type==='shopify'){portals=[];try{results.push(await queryShopifyAdmin(scope,question,s))}catch(e){results.push({status:'error',name:scope.name||'Shopify',error:String(e?.message||e).slice(0,180)})}}
+  if(scope?.type==='integration'){portals=[];try{results.push(await queryIntegrationData(scope,question,s))}catch(e){results.push({status:'error',name:scope.name||'Integración',error:String(e?.message||e).slice(0,180)})}}
   if(scope?.type==='folder')portals=[];
   for(const p of portals){try{results.push(await queryPortal(p,question))}catch(e){results.push({status:'error',name:p.name,error:String(e?.message||e).slice(0,180)})}}
   const direct=deterministicReply(question,results);
