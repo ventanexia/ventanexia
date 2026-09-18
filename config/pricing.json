@@ -9,7 +9,8 @@
       "agents_included": 3,
       "integrations_included": 2,
       "description": "VentaNexIA Desktop para empezar con 3 funciones estándar y hasta 2 conexiones externas.",
-      "devices_included": 1
+      "devices_included": 1,
+      "video_credits_monthly": 4
     },
     "core": {
       "name": "VNX Crecimiento",
@@ -17,7 +18,8 @@
       "agents_included": 6,
       "integrations_included": 5,
       "description": "VentaNexIA Desktop con 6 funciones estándar, coordinación y hasta 5 conexiones externas.",
-      "devices_included": 3
+      "devices_included": 3,
+      "video_credits_monthly": 12
     },
     "scale": {
       "name": "VNX Empresa",
@@ -25,7 +27,8 @@
       "agents_included": 12,
       "integrations_included": 10,
       "description": "VentaNexIA Desktop con todo el catálogo estándar y hasta 10 conexiones externas.",
-      "devices_included": 5
+      "devices_included": 5,
+      "video_credits_monthly": 30
     },
     "enterprise": {
       "name": "VNX Enterprise",
@@ -33,7 +36,8 @@
       "agents_included": "custom",
       "integrations_included": "custom",
       "description": "Arquitectura a medida para multiempresa, alto volumen o requisitos especiales.",
-      "devices_included": "custom"
+      "devices_included": "custom",
+      "video_credits_monthly": "custom"
     }
   },
   "addons": {
@@ -44,10 +48,24 @@
     "extra_email_account": {
       "monthly": 39,
       "description": "Cuenta de correo adicional para el agente Email. Incluye su conexión; no se cobra además la conexión externa de 42 €."
+    },
+    "video_pack": {
+      "monthly": 99,
+      "credits_monthly": 10,
+      "description": "10 créditos de vídeo adicionales al mes para el agente de Redes Sociales."
     }
   },
   "delivery_model": "VentaNexIA Desktop",
   "activation": "ID de cliente + activación por dispositivo",
   "installation_fee": 0,
-  "device_addon_monthly": 49
+  "device_addon_monthly": 49,
+  "video_rules": {
+    "daily_generations_limit": 5,
+    "max_duration_seconds": 60,
+    "credits_by_duration": {
+      "1-15": 1,
+      "16-30": 2,
+      "31-60": 4
+    }
+  }
 }
