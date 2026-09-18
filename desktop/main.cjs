@@ -530,6 +530,7 @@ ipcMain.handle('usage:buy-pack',async(_e,packKey)=>{
 });
 ipcMain.handle('usage:overview',async()=>{
   const s=await readState();
+  if(isMaster(s.license))return {ok:true,master:true,unlimited:true,items:{}};
   if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
   const meters=['image_credits','voice_minutes','whatsapp_messages','lead_credits','ai_heavy_tasks','email_ai_actions','automation_runs','seo_pages','report_generations','storage_mb'];
   const deviceKey=await ensureDeviceKey(),items={};
@@ -543,16 +544,19 @@ ipcMain.handle('usage:overview',async()=>{
 });
 ipcMain.handle('usage:consume',async(_e,payload={})=>{
   const s=await readState();
+  if(isMaster(s.license))return {ok:true,master:true,unlimited:true,meter:String(payload.meter||''),consumed:0};
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
   return postJson(CLOUD+'/api/usage-meter',{action:'consume',meter:String(payload.meter||''),quantity:Math.max(1,Number(payload.quantity||1)||1),metadata:payload.metadata||{},customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
 });
 ipcMain.handle('video:quota',async()=>{
   const s=await readState();
+  if(isMaster(s.license))return {ok:true,master:true,unlimited:true,remaining:null};
   if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
   return postJson(CLOUD+'/api/video-usage',{action:'status',customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
 });
 ipcMain.handle('video:consume',async(_e,durationSeconds)=>{
   const s=await readState();
+  if(isMaster(s.license))return {ok:true,master:true,unlimited:true,consumed:0};
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
   const seconds=Math.max(1,Math.min(60,Number(durationSeconds||0)||0));
   return postJson(CLOUD+'/api/video-usage',{action:'consume',durationSeconds:seconds,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
