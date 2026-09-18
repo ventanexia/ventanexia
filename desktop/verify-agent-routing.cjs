@@ -111,12 +111,14 @@ assert.match(renderer,/window\.vnxRefreshAgentUi=refreshChatConnections/);
 assert.match(renderer,/window\.vnx\.agentCatalog/);
 assert.doesNotMatch(renderer,/allItems\.filter\(x=>x\.connected\)/,'El desplegable no puede ocultar agentes no conectados');
 assert.match(renderer,/No incluido en tu plan/);
-assert.match(renderer,/localStorage no puede mantener una cuenta como conectada/,'El panel debe ignorar estados de conexión obsoletos de localStorage');
+assert.doesNotMatch(renderer,/Object\.entries\(real\)/,'El panel central no puede reconstruir conexiones desde localStorage');
 
 assert.match(main,/emailAccountsFromState/);
 assert.match(main,/addMasterEmailAccount/);
 assert.match(main,/isMaster\(s\.license\).*unlimited/s,'Maestro debe evitar consumos limitados');
 assert.match(main,/s\.secret\.emailAccounts=\[\]/,'Desconectar Email debe limpiar todas las cuentas del Maestro');
+assert.match(main,/accountIndex:i/,'Cada cuenta Email del Maestro debe aparecer separada en el panel central');
+assert.match(master,/scope\?\.accountIndex/,'El panel central debe consultar la cuenta Email elegida, no todas');
 
 const app=fs.readFileSync(path.join(__dirname,'renderer','app.js'),'utf8');
 assert.doesNotMatch(app,/Selecciona una conexión…|VentaNexIA consultará este correo para responder con datos reales/);
