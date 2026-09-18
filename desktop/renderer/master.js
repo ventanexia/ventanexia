@@ -4,6 +4,7 @@
   let masterPortals=[];
   let masterMessages=[];
   let runtimeConnections=[];
+  let runtimeAgents=[];
 
   function statusLabel(p){
     if(p.lastStatus==='connected')return '🟢 Conectado';
@@ -66,6 +67,7 @@
   }
   async function refreshRuntimeConnections(){
     try{runtimeConnections=await window.vnx.listConnections()||[]}catch{runtimeConnections=[]}
+    try{runtimeAgents=await window.vnx.agentCatalog()||[]}catch{runtimeAgents=[]}
     return runtimeConnections;
   }
   function connectedDataSources(){
@@ -89,58 +91,65 @@
     const seen=new Set();
     return out.filter(x=>{const k=x.type==='portal'?'p:'+x.id:x.type==='url'?'u:'+x.url:x.type==='shopify'?'s:'+x.shop:x.type==='integration'?'i:'+x.key:'f:'+x.folder;if(seen.has(k))return false;seen.add(k);return true;});
   }
-  function chatConnections(){
-    const real=getRealSourcesForChat(),sources=connectedDataSources();
-    const email=sources.find(x=>x.type==='integration'&&x.key==='email');
-    const whatsapp=sources.find(x=>x.type==='integration'&&x.key==='whatsapp');
-    const social=sources.find(x=>x.type==='integration'&&x.key==='social');
-    const crm=sources.find(x=>x.type==='integration'&&x.key==='crm');
-    const shop=sources.find(x=>x.type==='shopify')||sources.find(x=>x.type==='portal');
-    return [
-      {type:'agent',key:'core_ai',name:'🧠 Agente Asistente IA',connected:true},
-      {type:'agent',key:'email',name:'📧 Agente Email'+(email?' · '+email.name.replace(/^Email · /,''):' · sin conectar'),connected:Boolean(email),source:email||null},
-      {type:'agent',key:'whatsapp',name:'💬 Agente WhatsApp Business'+(whatsapp?' · conectado':' · sin conectar'),connected:Boolean(whatsapp),source:whatsapp||null},
-      {type:'agent',key:'social',name:'📣 Agente Redes sociales'+(social?' · conectado':' · sin conectar'),connected:Boolean(social),source:social||null},
-      {type:'agent',key:'prospecting',name:'🎯 Agente Captación y búsqueda de clientes',connected:Boolean(real.prospecting),source:real.prospecting||null},
-      {type:'agent',key:'crm',name:'👥 Agente CRM y clientes'+(crm?' · conectado':' · sin conectar'),connected:Boolean(crm),source:crm||null},
-      {type:'agent',key:'web_ecommerce',name:'🌐 Agente Web & Ecommerce'+(shop?' · '+shop.name:' · sin conectar'),connected:Boolean(shop),source:shop||null},
-      {type:'agent',key:'support',name:'🛟 Agente Soporte y asistencia',connected:true}
-    ];
+  function agentDisplayName(x){
+    const base=(x.icon||'🤖')+' Agente '+(x.name||x.key||'');
+    if(x.key==='email'&&x.source?.name)return base+' · '+String(x.source.name).replace(/^Email · /,'');
+    return base;
   }
-  function chatConnectionValue(x){return x.type==='agent'?'agent:'+x.key:''}
+  function chatConnections(){return runtimeAgents||[]}
+  function chatConnectionValue(x){return x?.key?'agent:'+x.key:''}
+  function agentStatusText(x){
+    if(!x?.included)return '🔒 No incluido en tu plan';
+    if(!x?.connected)return '🟠 Incluido · falta conectar';
+    return '🟢 Listo para usar';
+  }
   function renderHomeAgents(items){
     const root=$m('#homeAgentsList'),summary=$m('#homeAgentsSummary');if(!root)return;
-    const ready=items.filter(x=>x.connected),pending=items.filter(x=>!x.connected);
-    if(summary)summary.textContent=ready.length+' agente'+(ready.length===1?'':'s')+' listo'+(ready.length===1?'':'s')+' para usar · '+pending.length+' pendiente'+(pending.length===1?'':'s')+' de conectar';
-    root.innerHTML=items.map(x=>'<article class="modulecard"><b>'+escM(x.name.replace(/ · sin conectar$/,''))+'</b><span>'+(x.connected?'🟢 <strong>Listo para usar</strong>':'🟠 <strong>Necesita conexión</strong><br><small>Conéctalo en “Conexiones” para poder usarlo.</small>')+'</span></article>').join('');
+    const ready=items.filter(x=>x.ready),pending=items.filter(x=>x.included&&!x.connected),locked=items.filter(x=>!x.included);
+    if(summary)summary.textContent=ready.length+' listo'+(ready.length===1?'':'s')+' para usar · '+pending.length+' pendiente'+(pending.length===1?'':'s')+' de conectar'+(locked.length?' · '+locked.length+' no incluido'+(locked.length===1?'':'s')+' en el plan':'');
+    root.innerHTML=items.map(x=>{
+      const status=agentStatusText(x);
+      const detail=!x.included
+        ?'<small>Disponible contratando este agente o cambiando de plan.</small>'
+        :!x.connected
+          ?'<small>Conéctalo en “Conexiones” para poder usarlo con datos reales.</small>'
+          :'<small>Preparado para trabajar.</small>';
+      return '<article class="modulecard"><b>'+escM(agentDisplayName(x))+'</b><span><strong>'+status+'</strong><br>'+detail+'</span></article>';
+    }).join('');
+  }
+  function updateAgentHint(chosen,hint){
+    if(!hint)return;
+    if(!chosen){hint.textContent='Elige el agente de VentaNexIA con el que quieres trabajar.';return}
+    if(!chosen.included){hint.textContent='🔒 '+agentDisplayName(chosen)+' no está incluido en este plan. Puedes verlo, pero no conectarlo ni utilizarlo hasta contratarlo.';return}
+    if(!chosen.connected){hint.textContent='🟠 '+agentDisplayName(chosen)+' está incluido, pero necesita una conexión. Ve a “Conexiones” para activarlo.';return}
+    hint.textContent='🟢 '+agentDisplayName(chosen)+' está listo para usar.';
   }
   async function refreshChatConnections(){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
     await refreshRuntimeConnections();
-    const allItems=chatConnections(),items=allItems.filter(x=>x.connected),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
-    sel.innerHTML='<option value="">Elige un agente conectado…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(x.name)+'</option>').join('');
+    const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
+    sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(agentDisplayName(x)+' — '+agentStatusText(x))+'</option>').join('');
     const values=[...sel.options].map(o=>o.value);
     if(previous&&values.includes(previous))sel.value=previous;
     else if(saved&&values.includes(saved))sel.value=saved;
-    else if(items.some(x=>x.key==='email'))sel.value='agent:email';
-    else if(items.length===1)sel.value=chatConnectionValue(items[0]);
+    else if(items.some(x=>x.key==='email'&&x.ready))sel.value='agent:email';
+    else if(items.some(x=>x.ready))sel.value=chatConnectionValue(items.find(x=>x.ready));
     else sel.value='';
     if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
     sel.onchange=()=>{
       if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
       const chosen=items.find(x=>chatConnectionValue(x)===sel.value);
-      if(hint)hint.textContent=chosen?'🟢 '+chosen.name+' está listo para usar.':'Elige uno de tus agentes conectados y listos para usar.';
+      updateAgentHint(chosen,hint);
     };
-    const chosen=items.find(x=>chatConnectionValue(x)===sel.value);
-    if(hint)hint.textContent=chosen?'🟢 '+chosen.name+' está listo para usar.':'Elige uno de tus agentes conectados y listos para usar.';
-    renderHomeAgents(allItems);
+    updateAgentHint(items.find(x=>chatConnectionValue(x)===sel.value),hint);
+    renderHomeAgents(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
   }
   window.vnxRefreshAgentUi=refreshChatConnections;
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
     const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
-    return {type:'agent',key:item.key,name:item.name,connected:item.connected,source:item.source||null};
+    return {type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null};
   }
 
   function masterCenterItems(){
@@ -219,8 +228,13 @@
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
       const connections=chatConnections(),scope=selectedChatScope();
       if(!scope){
-        const pending=connections.filter(x=>!x.connected);
-        masterMessages.push({role:'assistant',content:pending.length?'Elige arriba uno de los agentes conectados. Si el agente que necesitas no aparece, debes conectarlo primero en “Conexiones” para poder hacer esa gestión.':'Todavía no tienes agentes disponibles. Ve a “Conexiones”, conecta el agente que necesites y vuelve aquí.'});renderMasterMessages();return;
+        masterMessages.push({role:'assistant',content:'Elige arriba el agente de VentaNexIA con el que quieres trabajar.'});renderMasterMessages();return;
+      }
+      if(scope.included===false){
+        masterMessages.push({role:'assistant',content:'Este agente aparece en tu equipo, pero no está incluido en tu plan actual. Para usarlo debes contratarlo o cambiar de plan.'});renderMasterMessages();return;
+      }
+      if(scope.connected===false){
+        masterMessages.push({role:'assistant',content:'Este agente está incluido, pero todavía necesita conectar su herramienta o fuente de datos. Ve a “Conexiones”, actívala y vuelve aquí.'});renderMasterMessages();return;
       }
       masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
