@@ -294,6 +294,44 @@ ipcMain.handle('discovery:authorize',async(_e,candidate)=>{
   await writeState(s);await audit('permission.granted',`Carpeta autorizada desde detección: ${resolved}`);return true;
 });
 
+function normalizeShopifyShop(value=''){
+  let v=String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');
+  if(v.includes('/'))v=v.split('/')[0];
+  return v;
+}
+async function shopifyGraphql(shop,token,query,variables={}){
+  const host=normalizeShopifyShop(shop);
+  if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(host))throw new Error('Usa el dominio interno de Shopify, por ejemplo tienda.myshopify.com');
+  const r=await fetch(`https://${host}/admin/api/2026-07/graphql.json`,{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token,'User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},
+    body:JSON.stringify({query,variables})
+  });
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||j.errors){const msg=j?.errors?.[0]?.message||`Shopify respondió ${r.status}`;throw new Error(msg)}
+  return j.data||{};
+}
+ipcMain.handle('shopify:connect',async(_e,payload={})=>{
+  const shop=normalizeShopifyShop(payload.shop);
+  const token=String(payload.token||'').trim();
+  const mode=payload.mode==='write'?'write':'read';
+  if(!shop||!token)throw new Error('Indica la tienda .myshopify.com y el token de Admin API');
+  const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
+  const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
+  const s=await readState();s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
+  s.secret.integrations.shopify={shop,token,mode,connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes};
+  await writeState(s);await audit('integration.shopify_connected',`${data.shop?.name||shop} · ${mode==='write'?'lectura/escritura':'solo lectura'}`);
+  return {connected:true,shop,shopName:data.shop?.name||shop,mode,scopes};
+});
+ipcMain.handle('shopify:status',async()=>{
+  const s=await readState(),x=s.secret?.integrations?.shopify;
+  if(!x)return {connected:false};
+  return {connected:true,shop:x.shop,shopName:x.shopName||x.shop,mode:x.mode||'read',scopes:x.scopes||[],connectedAt:x.connectedAt||null};
+});
+ipcMain.handle('shopify:disconnect',async()=>{
+  const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
+});
+
 ipcMain.handle('support:quick-assist',async()=>{await audit('support.requested','Asistencia rápida abierta por el cliente');await shell.openExternal('ms-quick-assist:');return true});
 ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente pulsó detener asistencia');return true});
 ipcMain.handle('chat:send',async(_e,messages)=>{
