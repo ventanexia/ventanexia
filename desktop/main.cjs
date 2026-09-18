@@ -311,6 +311,71 @@ async function shopifyGraphql(shop,token,query,variables={}){
   if(!r.ok||j.errors){const msg=j?.errors?.[0]?.message||`Shopify respondió ${r.status}`;throw new Error(msg)}
   return j.data||{};
 }
+
+function normalizeProviderKey(v=''){return String(v||'').trim().toLowerCase().replace(/[^a-z0-9_]+/g,'_')}
+async function providerFetch(url,opts={}){
+  const r=await fetch(url,opts);const text=await r.text();let j={};try{j=JSON.parse(text)}catch{j={raw:text.slice(0,500)}}
+  if(!r.ok){const msg=j?.error?.message||j?.message||j?.error_description||('HTTP '+r.status);throw new Error(msg)}
+  return j;
+}
+async function verifyIntegration(provider,payload){
+  const token=String(payload.token||'').trim(),account=String(payload.account||'').trim(),accountId=String(payload.accountId||'').trim(),username=String(payload.username||'').trim();
+  if(!token)throw new Error('Falta el token de acceso');
+  if(provider==='gmail'){
+    const j=await providerFetch('https://gmail.googleapis.com/gmail/v1/users/me/profile',{headers:{Authorization:'Bearer '+token}});
+    return {label:j.emailAddress||account||'Gmail',meta:{email:j.emailAddress||account||'',messagesTotal:j.messagesTotal||0,threadsTotal:j.threadsTotal||0}};
+  }
+  if(provider==='microsoft_365'){
+    const j=await providerFetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName',{headers:{Authorization:'Bearer '+token}});
+    return {label:j.displayName||j.mail||account||'Microsoft 365',meta:{id:j.id||'',email:j.mail||j.userPrincipalName||account||''}};
+  }
+  if(provider==='hubspot'){
+    const j=await providerFetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1',{headers:{Authorization:'Bearer '+token}});
+    return {label:'HubSpot',meta:{sampleCount:Array.isArray(j.results)?j.results.length:0}};
+  }
+  if(provider==='instagram'){
+    if(!accountId)throw new Error('Falta el ID de la cuenta profesional de Instagram');
+    const j=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(accountId)+'?fields=id,username,name&access_token='+encodeURIComponent(token));
+    return {label:j.username?'@'+j.username:(j.name||'Instagram'),meta:{id:j.id||accountId,username:j.username||'',name:j.name||''}};
+  }
+  if(provider==='facebook'){
+    if(!accountId)throw new Error('Falta el ID de la página de Facebook');
+    const j=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(accountId)+'?fields=id,name&access_token='+encodeURIComponent(token));
+    return {label:j.name||'Facebook',meta:{id:j.id||accountId,name:j.name||''}};
+  }
+  if(provider==='whatsapp_business'){
+    if(!accountId)throw new Error('Falta el Phone Number ID de WhatsApp Business');
+    const j=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(accountId)+'?fields=id,display_phone_number,verified_name&access_token='+encodeURIComponent(token));
+    return {label:j.verified_name||j.display_phone_number||'WhatsApp Business',meta:{phoneNumberId:j.id||accountId,displayPhone:j.display_phone_number||'',verifiedName:j.verified_name||''}};
+  }
+  if(provider==='linkedin'){
+    const j=await providerFetch('https://api.linkedin.com/v2/userinfo',{headers:{Authorization:'Bearer '+token}});
+    return {label:j.name||j.email||'LinkedIn',meta:{sub:j.sub||'',email:j.email||''}};
+  }
+  if(provider==='x_twitter'){
+    if(!username)throw new Error('Falta el usuario de X');
+    const j=await providerFetch('https://api.x.com/2/users/by/username/'+encodeURIComponent(username),{headers:{Authorization:'Bearer '+token}});
+    return {label:j?.data?.name||('@'+username),meta:{id:j?.data?.id||'',username:j?.data?.username||username}};
+  }
+  throw new Error('Proveedor todavía no soportado');
+}
+ipcMain.handle('integration:connect',async(_e,payload={})=>{
+  const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
+  const verified=await verifyIntegration(provider,payload);
+  const s=await readState();s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
+  s.secret.integrations[module]={provider,module,account:String(payload.account||'').trim(),accountId:String(payload.accountId||'').trim(),username:String(payload.username||'').trim(),token:String(payload.token||'').trim(),mode:payload.mode==='write'?'write':'read',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  await writeState(s);await audit('integration.connected',module+' · '+provider+' · '+verified.label);
+  return {connected:true,module,provider,label:verified.label,mode:s.secret.integrations[module].mode,meta:verified.meta||{}};
+});
+ipcMain.handle('integration:status',async(_e,module)=>{
+  const key=normalizeProviderKey(module),s=await readState(),x=s.secret?.integrations?.[key];
+  if(!x)return {connected:false,module:key};
+  return {connected:true,module:key,provider:x.provider,label:x.label||x.account||x.provider,mode:x.mode||'read',meta:x.meta||{},connectedAt:x.connectedAt||null};
+});
+ipcMain.handle('integration:disconnect',async(_e,module)=>{
+  const key=normalizeProviderKey(module),s=await readState();if(s.secret?.integrations?.[key])delete s.secret.integrations[key];await writeState(s);await audit('integration.disconnected',key);return true;
+});
+
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
   const shop=normalizeShopifyShop(payload.shop);
   const token=String(payload.token||'').trim();
