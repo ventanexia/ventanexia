@@ -552,8 +552,13 @@ async function autoRepair(){
   const after=await runHealthCheck();
   let escalation=null;
   if(!after.ok){
-    escalation=await escalateSupport(after,'La reparación automática terminó pero siguen existiendo uno o más fallos.');
-    actions.push(escalation?.ok?'Se ha avisado al equipo de soporte. Si hace falta acceso remoto, contactarán con el cliente.':'No se pudo avisar automáticamente al equipo de soporte.');
+    const s2=await readState();s2.support=s2.support||{};
+    const last=Number(s2.support.lastEscalatedAt||0);
+    if(Date.now()-last>=24*60*60*1000){
+      escalation=await escalateSupport(after,'La reparación automática terminó pero siguen existiendo uno o más fallos.');
+      if(escalation?.ok){s2.support.lastEscalatedAt=Date.now();await writeState(s2);}
+      actions.push(escalation?.ok?'Se ha avisado al equipo de soporte. Si hace falta acceso remoto, contactarán con el cliente en un plazo habitual de 24 a 48 horas.':'No se pudo avisar automáticamente al equipo de soporte.');
+    }else actions.push('El equipo de soporte ya ha sido avisado recientemente de este problema.');
   }
   await audit('support.auto_repair',actions.join(' '));
   return {before,after,actions,escalation};
@@ -566,12 +571,6 @@ async function maybeRunAutomaticSupport(){
     if(report.ok)return;
     const repaired=await autoRepair();
     if(repaired.after?.ok)return;
-    const fresh=await readState();
-    fresh.support=fresh.support||{};
-    const last=Number(fresh.support.lastEscalatedAt||0);
-    if(Date.now()-last<24*60*60*1000)return;
-    const esc=await escalateSupport(repaired.after,'La asistencia automática detectó un problema que no pudo reparar.');
-    if(esc?.ok){fresh.support.lastEscalatedAt=Date.now();await writeState(fresh);await audit('support.auto_escalated','Incidencia enviada automáticamente a soporte');}
   }catch{}
 }
 ipcMain.handle('support:health',async()=>runHealthCheck());
