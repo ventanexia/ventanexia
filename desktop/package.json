@@ -1,13 +1,14 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "private": true,
   "description": "VentaNexIA Desktop SecureCore Master",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
-    "dist:mac": "node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg"
+    "dist:win": "node verify-ui.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
+    "dist:mac": "node verify-ui.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg",
+    "verify:ui": "node verify-ui.cjs"
   },
   "devDependencies": {
     "electron": "^38.1.2",
@@ -29,7 +30,8 @@
       "main.cjs",
       "preload.cjs",
       "renderer/**/*",
-      "config/**/*"
+      "config/**/*",
+      "verify-ui.cjs"
     ],
     "win": {
       "target": [
