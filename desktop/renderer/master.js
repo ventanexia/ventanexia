@@ -85,6 +85,7 @@
     if(items.length===1){sel.value='0';if(hint)hint.textContent='Trabajando con: '+items[0].name;}
     else if(items.length>1){if(hint)hint.textContent='Tienes varias cuentas conectadas. Elige cuál quieres usar antes de escribir.';}
     else if(hint)hint.textContent='Todavía no has conectado ninguna cuenta o programa.';
+    if($m('#masterSourceSelect'))renderMasterCenterSources();
   }
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||sel.value==='')return null;
@@ -95,6 +96,58 @@
     if(item.type==='shopify')return {type:'shopify',key:item.key,name:item.name,shop:item.shop};
     if(item.type==='integration')return {type:'integration',key:item.key,name:item.name};
     return null;
+  }
+
+  function masterCenterItems(){
+    return chatConnections();
+  }
+  function renderMasterCenterSources(){
+    const sel=$m('#masterSourceSelect'),hint=$m('#masterSourceHint');if(!sel)return;
+    const items=masterCenterItems(),previous=sel.value;
+    sel.innerHTML='<option value="">Elige una cuenta o programa…</option>'+items.map((x,i)=>'<option value="'+i+'">'+escM(x.name)+'</option>').join('');
+    if(previous!==''&&Number(previous)<items.length)sel.value=previous;
+    if(hint){
+      hint.textContent=items.length?'Elige una sola fuente. Así nunca mezclamos datos de empresas distintas.':'Todavía no hay ninguna cuenta o programa conectado.';
+    }
+  }
+  function masterCenterScope(){
+    const sel=$m('#masterSourceSelect'),items=masterCenterItems();if(!sel||sel.value==='')return null;
+    const item=items[Number(sel.value)];if(!item)return null;
+    if(item.type==='portal')return {type:'portal',id:item.id,name:item.name};
+    if(item.type==='url')return {type:'url',key:item.key,name:item.name,url:item.url};
+    if(item.type==='folder')return {type:'folder',key:item.key,name:item.name,folder:item.folder};
+    if(item.type==='shopify')return {type:'shopify',key:item.key,name:item.name,shop:item.shop};
+    if(item.type==='integration')return {type:'integration',key:item.key,name:item.name};
+    return null;
+  }
+  function setupMasterCenter(){
+    const root=$m('#masterDataResult'),title=$m('#masterResultTitle'),clear=$m('#masterResultClear');if(!root)return;
+    const prompts={
+      clientes:'Muéstrame los clientes que puedes ver en esta conexión. Incluye nombre, empresa, email y teléfono cuando estén disponibles. No inventes datos.',
+      facturas:'Muéstrame las facturas que puedes ver en esta conexión. Incluye número, fecha, cliente, importe y estado cuando estén disponibles. No inventes datos.',
+      pedidos:'Muéstrame los pedidos que puedes ver en esta conexión. Incluye número, fecha, cliente, importe y estado cuando estén disponibles. No inventes datos.',
+      datos:'Resume y muestra la información empresarial disponible en esta conexión: clientes, pedidos, facturas, productos, ventas y otros datos que realmente puedas consultar. No inventes nada.'
+    };
+    const titles={clientes:'Clientes',facturas:'Facturas',pedidos:'Pedidos',datos:'Todos los datos'};
+    $m('[data-master-query]').forEach(btn=>btn.onclick=async()=>{
+      const key=btn.dataset.masterQuery,scope=masterCenterScope();
+      if(!scope){
+        root.innerHTML='<div class="empty">Primero elige arriba la cuenta o programa que quieres consultar.</div>';return;
+      }
+      const old=btn.innerHTML;btn.disabled=true;btn.innerHTML='<b>Mirándolo…</b>';
+      title.textContent=titles[key]+' · '+scope.name;
+      root.innerHTML='<div class="empty">Consultando datos reales de '+escM(scope.name)+'…</div>';
+      try{
+        const r=await window.vnx.sendChat([{role:'user',content:prompts[key]}],scope);
+        const reply=escM(r.reply||'No hay datos disponibles.').replace(/\n/g,'<br>');
+        const imgs=(r.images||[]).slice(0,8).map(img=>'<img src="'+escM(img.src)+'" alt="'+escM(img.alt||'Imagen')+'" style="max-width:180px;max-height:140px;object-fit:contain;border-radius:9px;margin:8px 8px 0 0;border:1px solid #1b507a;background:#fff">').join('');
+        root.innerHTML='<div class="msg ai" style="max-width:100%">'+reply+(imgs?'<div>'+imgs+'</div>':'')+'</div>';
+      }catch(e){
+        root.innerHTML='<div class="empty">No he podido mostrar estos datos: '+escM(e.message||String(e))+'</div>';
+      }finally{btn.disabled=false;btn.innerHTML=old}
+    });
+    if(clear)clear.onclick=()=>{title.textContent='Información de tu empresa';root.innerHTML='<div class="empty">Elige una cuenta arriba y después pulsa Clientes, Facturas, Pedidos o Todos los datos.</div>'};
+    renderMasterCenterSources();
   }
 
   function renderMasterMessages(){
@@ -138,6 +191,7 @@
     await migrateLegacyPortals();
     setupMasterPortalUi();
     setupMasterChat();
+    setupMasterCenter();
     await renderMasterPortals();
     refreshChatConnections();
     setInterval(()=>{if($m('#portalList')&&document.visibilityState==='visible')renderMasterPortals()},12000);
