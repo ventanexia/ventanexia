@@ -6,9 +6,9 @@
 
   function statusLabel(p){
     if(p.lastStatus==='connected')return '🟢 Conectado';
-    if(p.lastStatus==='login_required')return '🟠 Sesión caducada · volver a conectar';
-    if(p.lastStatus==='error')return '🔴 Error de conexión';
-    return '⚪ Sin conectar';
+    if(p.lastStatus==='login_required')return '🟠 La conexión se ha cerrado · vuelve a entrar';
+    if(p.lastStatus==='error')return '🔴 No se pudo conectar';
+    return '⚪ No conectado';
   }
   function isProductCountQuestion(text=''){
     const q=String(text).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -24,7 +24,7 @@
   async function renderMasterPortals(){
     const root=$m('#portalList');if(!root)return;
     try{masterPortals=await window.vnx.listPortals()}catch{masterPortals=[]}
-    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir sesión':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Comprobar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay portales configurados.</div>';
+    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay portales configurados.</div>';
     $$m('.master-portal-connect').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Abriendo…';
       try{await window.vnx.connectPortal(b.dataset.id);$m('#portalMsg').textContent='Se ha abierto una ventana segura de VentaNexIA. Inicia sesión ahí una sola vez; la sesión quedará guardada localmente en este ordenador.';}
@@ -33,9 +33,9 @@
     });
     $$m('.master-portal-check').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Comprobando…';
-      try{const r=await window.vnx.checkPortal(b.dataset.id);$m('#portalMsg').textContent=r.status==='connected'?'Portal conectado correctamente. VentaNexIA ya puede consultarlo en modo lectura desde “Habla con tu equipo”.':'La sesión necesita volver a iniciarse.';}
+      try{const r=await window.vnx.checkPortal(b.dataset.id);$m('#portalMsg').textContent=r.status==='connected'?'Ya está conectado. VentaNexIA puede consultar esta información desde “Habla con tu equipo”.':'La conexión se ha cerrado. Vuelve a entrar.';}
       catch(e){$m('#portalMsg').textContent=e.message||'No se pudo comprobar el portal'}
-      finally{b.disabled=false;b.textContent='Comprobar';await renderMasterPortals();refreshChatConnections()}
+      finally{b.disabled=false;b.textContent='Revisar';await renderMasterPortals();refreshChatConnections()}
     });
     $$m('.master-portal-remove').forEach(b=>b.onclick=async()=>{
       if(!confirm('¿Quitar esta conexión y borrar su sesión guardada de este ordenador?'))return;
@@ -47,9 +47,9 @@
     if(!name||!/^https:\/\//i.test(url||'')){if(msg)msg.textContent='Indica un nombre y una URL válida que empiece por https://';return;}
     try{
       const p=await window.vnx.savePortal({name,url,mode});
-      if(msg)msg.textContent=mode==='read'?'Conexión guardada en SOLO LECTURA. VentaNexIA no realizará modificaciones automáticas.':'Conexión guardada.';
+      if(msg)msg.textContent=mode==='read'?'Conexión guardada. VentaNexIA solo podrá mirar, no cambiar nada.':'Conexión guardada.';
       await renderMasterPortals();refreshChatConnections();
-      if(connectAfter){await window.vnx.connectPortal(p.id);if(msg)msg.textContent='Ventana segura abierta. Inicia sesión y, cuando vuelvas, pulsa “Comprobar”.';}
+      if(connectAfter){await window.vnx.connectPortal(p.id);if(msg)msg.textContent='Se ha abierto la página. Inicia sesión y, cuando vuelvas, pulsa “Revisar”.';}
     }catch(e){if(msg)msg.textContent=e.message||'No se pudo guardar la conexión'}
   }
   function setupMasterPortalUi(){
@@ -82,9 +82,9 @@
     const items=chatConnections(),previous=sel.value;
     sel.innerHTML='<option value="">Selecciona una conexión…</option>'+items.map((x,i)=>'<option value="'+i+'">'+escM(x.name)+(x.url?' · '+escM((()=>{try{return new URL(x.url).hostname}catch{return x.url}})()):'')+'</option>').join('');
     if(previous!==''&&Number(previous)<items.length)sel.value=previous;
-    if(items.length===1){sel.value='0';if(hint)hint.textContent='Conexión seleccionada: '+items[0].name;}
-    else if(items.length>1){if(hint)hint.textContent='Tienes varias conexiones. Elige con cuál quieres trabajar antes de enviar la consulta.';}
-    else if(hint)hint.textContent='Todavía no hay conexiones reales disponibles.';
+    if(items.length===1){sel.value='0';if(hint)hint.textContent='Trabajando con: '+items[0].name;}
+    else if(items.length>1){if(hint)hint.textContent='Tienes varias cuentas conectadas. Elige cuál quieres usar antes de escribir.';}
+    else if(hint)hint.textContent='Todavía no has conectado ninguna cuenta o programa.';
   }
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||sel.value==='')return null;
@@ -112,9 +112,9 @@
     form.onsubmit=async e=>{
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
       const connections=chatConnections(),scope=selectedChatScope();
-      if(connections.length>1&&!scope){masterMessages.push({role:'assistant',content:'Tienes varias conexiones activas. Elige primero con cuál quieres trabajar: '+connections.map(x=>x.name).join(', ')+'.'});renderMasterMessages();return;}
+      if(connections.length>1&&!scope){masterMessages.push({role:'assistant',content:'Tienes varias cuentas conectadas. Elige primero cuál quieres usar: '+connections.map(x=>x.name).join(', ')+'.'});renderMasterMessages();return;}
       masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
-      const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Consultando…';
+      const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
         const payload=masterMessages.map(({role,content})=>({role,content}));
         const r=await window.vnx.sendChat(payload,scope);
@@ -127,9 +127,9 @@
           }catch{}
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
-        if(expired.length)reply+=`\n\n⚠️ La sesión de ${expired.map(x=>x.name).join(', ')} necesita volver a conectarse.`;
+        if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
         masterMessages.push({role:'assistant',content:reply,images:r.images||[]});renderMasterMessages();
-      }catch(err){masterMessages.push({role:'assistant',content:`Error de conexión: ${err.message||err}`});renderMasterMessages()}
+      }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
   }
