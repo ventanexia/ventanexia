@@ -9,6 +9,37 @@ function cleanPhone(v){return String(v||"").replace(/[^+0-9]/g,"").slice(0,30)}
 async function recordCustomerEvent({customerId="",contractId="",tenantId=null,eventType,title="",details={}}){try{await sbFetch("vnx_customer_events",{method:"POST",body:JSON.stringify([{stripe_customer_id:customerId||null,contract_id:contractId||null,tenant_id:tenantId||null,event_type:eventType,title:title||eventType,details}])})}catch{}}
 async function linkContract({contractId,customerId,subscriptionId,sessionId}){if(!contractId)return;try{await sbFetch(`vnx_contracts?contract_id=eq.${encodeURIComponent(contractId)}`,{method:"PATCH",body:JSON.stringify({stripe_customer_id:customerId||null,stripe_subscription_id:subscriptionId||null,stripe_checkout_session_id:sessionId||null,status:"active",updated_at:new Date().toISOString()})})}catch{}}
 async function sendPaymentFailedEmail({email,company="",amountText,payUrl,invoiceNumber=""}){const key=process.env.RESEND_API_KEY;if(!key||!email)return false;const from=process.env.BILLING_FROM_EMAIL||process.env.CONTRACT_FROM_EMAIL||"facturacion@ventanexia.es";const subject=`No hemos podido cobrar tu cuota de VentaNexIA${invoiceNumber?` · ${invoiceNumber}`:""}`;const text=`Hola${company?` ${company}`:""},\n\nNo hemos podido realizar el cargo automático de tu cuota de VentaNexIA por ${amountText}. Puede deberse, entre otros motivos, a saldo insuficiente, tarjeta caducada o rechazo de la entidad emisora.\n\nPuedes regularizar la factura de forma segura con otra tarjeta o método de pago desde este enlace de Stripe:\n${payUrl||"Consulta tu factura en el área de facturación."}\n\nMientras el pago permanezca pendiente, el servicio puede quedar suspendido conforme al contrato. Si ya has realizado el pago, ignora este mensaje.\n\nVentaNexIA · ECOJAFER S.L.`;const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({from,to:[email],subject,text})});return r.ok}
+const MANUAL_PROVISIONING=new Set(["conexion","email_account","storage_pack","extra_agent","extra_device"]);
+async function createProvisioningTask({tenantId,itemKey,sessionId}){
+  if(!MANUAL_PROVISIONING.has(itemKey)||!tenantId)return null;
+  const x=EXTRA_ACTIONS[itemKey]||{label:itemKey,provider:"Revisar",action:"Revisar y activar manualmente."};
+  const dueAt=new Date(Date.now()+48*60*60*1000).toISOString();
+  try{
+    const rows=await sbFetch("vnx_provisioning_tasks",{method:"POST",body:JSON.stringify([{
+      tenant_id:tenantId,item_key:itemKey,title:x.label,provider:x.provider||null,instructions:x.action||null,
+      status:"pending",source:"stripe",source_ref:sessionId||null,due_at:dueAt
+    }])});
+    return rows?.[0]||null;
+  }catch(e){
+    if(String(e?.message||e).includes("SUPABASE_409"))return null;
+    throw e;
+  }
+}
+async function sendCustomerActivationEmail({tenantId,items=[],sessionId=""}){
+  const key=process.env.RESEND_API_KEY;if(!key||!tenantId||!items.length)return false;
+  const tenant=await tenantSummary(tenantId),email=String(tenant.settings?.owner_email||tenant.settings?.email||"").trim();
+  if(!email)return false;
+  const manual=items.filter(x=>MANUAL_PROVISIONING.has(x)),instant=items.filter(x=>!MANUAL_PROVISIONING.has(x));
+  const from=process.env.BILLING_FROM_EMAIL||process.env.CONTRACT_FROM_EMAIL||"facturacion@ventanexia.es";
+  const parts=[];
+  if(instant.length)parts.push("Ya tienes disponibles: "+instant.map(k=>(EXTRA_ACTIONS[k]?.label||k)).join(", ")+".");
+  if(manual.length)parts.push("Estamos activando: "+manual.map(k=>(EXTRA_ACTIONS[k]?.label||k)).join(", ")+". Esta activación puede tardar hasta 24–48 horas porque requiere comprobar o ampliar capacidad con el proveedor correspondiente. Te avisaremos en cuanto esté lista.");
+  const subject=manual.length?"VentaNexIA · Hemos recibido tu ampliación":"VentaNexIA · Tus créditos ya están disponibles";
+  const text="Hola,\n\nHemos recibido correctamente tu pago adicional.\n\n"+parts.join("\n\n")+"\n\nNo necesitas hacer nada ahora. Si alguna ampliación requiere una activación manual, no la mostraremos como operativa hasta que esté realmente disponible.\n\nReferencia: "+(sessionId||"—")+"\n\nVentaNexIA";
+  const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({from,to:[email],subject,text})});
+  return r.ok;
+}
+
 const EXTRA_ACTIONS={
   video_pack:{label:"10 créditos de vídeo",billing:"Pago único",provider:"Proveedor de IA/vídeo",action:"No ampliar manualmente a un cliente si usamos una cuenta central por API. Verificar que el saldo/límite global del proveedor admite el nuevo consumo y que el monedero del cliente se ha acreditado."},
   image_pack:{label:"100 créditos de imagen",billing:"Pago único",provider:"Proveedor de IA/imágenes",action:"No requiere alta individual si trabajamos con API central. Verificar presupuesto/límites globales y saldo acreditado al cliente."},
@@ -89,6 +120,7 @@ export default async function handler(req,res){
       if(paid&&singlePack&&tenantId){
         await grantCreditPack(tenantId,singlePack,obj.id);
         await sendOpsExtraPurchaseEmail({tenantId,customerId,items:[singlePack],sessionId:obj.id,amountTotal:Number(obj.amount_total||0),currency:obj.currency||"eur"}).catch(()=>false);
+        await sendCustomerActivationEmail({tenantId,items:[singlePack],sessionId:obj.id}).catch(()=>false);
         await recordCustomerEvent({customerId,contractId,tenantId,eventType:"credit_pack_purchased",title:"Créditos adicionales comprados",details:{session_id:obj.id,pack:singlePack}});
       }else if(dealId){
         await linkContract({contractId,customerId,subscriptionId:String(obj.subscription||""),sessionId:obj.id});
@@ -107,7 +139,11 @@ export default async function handler(req,res){
             for(const pack of packs)await grantCreditPack(activeTenantId,pack,obj.id);
             const recurringExtras=String(obj.metadata?.extras||"").split(",").map(x=>x.trim()).filter(x=>["conexion","email_account","storage_pack"].includes(x));
             const alertItems=[...packs,...recurringExtras];
-            if(alertItems.length)await sendOpsExtraPurchaseEmail({tenantId:activeTenantId,customerId,items:alertItems,sessionId:obj.id,amountTotal:Number(obj.amount_total||0),currency:obj.currency||"eur"}).catch(()=>false);
+            if(alertItems.length){
+              for(const itemKey of alertItems)await createProvisioningTask({tenantId:activeTenantId,itemKey,sessionId:obj.id}).catch(()=>null);
+              await sendOpsExtraPurchaseEmail({tenantId:activeTenantId,customerId,items:alertItems,sessionId:obj.id,amountTotal:Number(obj.amount_total||0),currency:obj.currency||"eur"}).catch(()=>false);
+              await sendCustomerActivationEmail({tenantId:activeTenantId,items:alertItems,sessionId:obj.id}).catch(()=>false);
+            }
           }
         }
       }
