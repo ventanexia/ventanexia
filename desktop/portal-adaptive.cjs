@@ -167,6 +167,44 @@ async function collectLocalContext(rootsOverride=null){
 }
 function lastUser(messages=[]){for(let i=messages.length-1;i>=0;i--)if(messages[i]?.role==='user')return String(messages[i].content||'');return ''}
 
+async function shopifyAdminGraphql(shop,token,query,variables={}){
+  const host=String(shop||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');
+  const r=await fetch('https://'+host+'/admin/api/2026-07/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token,'User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({query,variables})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||j.errors){throw new Error(j?.errors?.[0]?.message||('Shopify respondió '+r.status))}
+  return j.data||{};
+}
+async function queryShopifyAdmin(scope,question,state){
+  const cfg=state.secret?.integrations?.shopify;
+  if(!cfg?.shop||!cfg?.token)return {status:'not_connected',name:'Shopify'};
+  let category=categoryForQuestion(question);if(category==='invoices')category='orders';
+  let data={},headers=[],rows=[],total=null,images=[],text='',title=cfg.shopName||cfg.shop;
+  if(['products','prices','stock'].includes(category)){
+    data=await shopifyAdminGraphql(cfg.shop,cfg.token,`query VentaNexIAProducts { productsCount { count } products(first: 50) { nodes { id title handle status totalInventory featuredMedia { preview { image { url altText } } } variants(first: 10) { nodes { sku price inventoryQuantity } } } pageInfo { hasNextPage endCursor } } }`);
+    total=Number(data.productsCount?.count??0);
+    headers=['Producto','Estado','Stock total','SKU','Precio'];
+    for(const p of data.products?.nodes||[]){const vars=p.variants?.nodes||[];if(vars.length){for(const v of vars)rows.push([p.title,p.status,String(p.totalInventory??''),v.sku||'',v.price||''])}else rows.push([p.title,p.status,String(p.totalInventory??''),'','']);const src=p.featuredMedia?.preview?.image?.url;if(src)images.push({src,alt:p.featuredMedia?.preview?.image?.altText||p.title})}
+    text='Catálogo Shopify. Total de productos: '+total+'. Se muestran hasta 50 productos en esta consulta.';
+  }else if(category==='orders'){
+    data=await shopifyAdminGraphql(cfg.shop,cfg.token,`query VentaNexIAOrders { ordersCount { count } orders(first: 50, sortKey: CREATED_AT, reverse: true) { nodes { name createdAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } customer { displayName email } } } }`);
+    total=Number(data.ordersCount?.count??0);
+    headers=['Pedido','Fecha','Cliente','Email','Pago','Preparación','Total'];
+    rows=(data.orders?.nodes||[]).map(o=>[o.name,o.createdAt,o.customer?.displayName||'',o.customer?.email||'',o.displayFinancialStatus||'',o.displayFulfillmentStatus||'',(o.totalPriceSet?.shopMoney?.amount||'')+' '+(o.totalPriceSet?.shopMoney?.currencyCode||'')]);
+    text='Pedidos Shopify. Total de pedidos accesibles: '+total+'. Se muestran hasta 50 pedidos recientes.';
+  }else if(category==='customers'){
+    data=await shopifyAdminGraphql(cfg.shop,cfg.token,`query VentaNexIACustomers { customersCount { count } customers(first: 50) { nodes { displayName email phone numberOfOrders amountSpent { amount currencyCode } } } }`);
+    total=Number(data.customersCount?.count??0);
+    headers=['Cliente','Email','Teléfono','Pedidos','Gasto'];
+    rows=(data.customers?.nodes||[]).map(x=>[x.displayName||'',x.email||'',x.phone||'',String(x.numberOfOrders??''),(x.amountSpent?.amount||'')+' '+(x.amountSpent?.currencyCode||'')]);
+    text='Clientes Shopify. Total de clientes accesibles: '+total+'. Se muestran hasta 50 clientes.';
+  }else{
+    data=await shopifyAdminGraphql(cfg.shop,cfg.token,`query VentaNexIAShop { shop { name myshopifyDomain primaryDomain { url } } productsCount { count } }`);
+    total=Number(data.productsCount?.count??0);headers=['Tienda','Dominio','Productos'];rows=[[data.shop?.name||title,data.shop?.primaryDomain?.url||data.shop?.myshopifyDomain||'',String(total)]];
+    text='Tienda Shopify conectada: '+(data.shop?.name||title)+'. Productos: '+total+'.';
+  }
+  return {status:'connected',name:'Shopify · '+title,category,url:'https://'+cfg.shop,title,total,headers,rows,text,images:images.slice(0,10),source:'shopify_admin_api',mode:cfg.mode||'read'};
+}
+
 async function queryPublicWebsite(scope,question){
   const raw=String(scope?.url||'').trim();if(!/^https:\/\//i.test(raw))return {status:'invalid_url',name:scope?.name||'Web'};
   const portal={id:'public-'+String(scope?.key||'web').replace(/[^a-z0-9_-]/gi,''),name:scope?.name||new URL(raw).hostname,url:raw,mode:'read'};
@@ -188,13 +226,14 @@ ipcMain.handle('chat:send',async(_e,payload)=>{
   const question=lastUser(messages),s=await readState();let portals=(s.portals||[]).filter(p=>['read','write'].includes(p.mode)).slice(0,4),results=[];
   if(scope?.type==='portal')portals=portals.filter(p=>p.id===scope.id);
   if(scope?.type==='url'){portals=[];try{results.push(await queryPublicWebsite(scope,question))}catch(e){results.push({status:'error',name:scope.name||'Web',error:String(e?.message||e).slice(0,180)})}}
+  if(scope?.type==='shopify'){portals=[];try{results.push(await queryShopifyAdmin(scope,question,s))}catch(e){results.push({status:'error',name:scope.name||'Shopify',error:String(e?.message||e).slice(0,180)})}}
   if(scope?.type==='folder')portals=[];
   for(const p of portals){try{results.push(await queryPortal(p,question))}catch(e){results.push({status:'error',name:p.name,error:String(e?.message||e).slice(0,180)})}}
   const direct=deterministicReply(question,results);
   const images=[];for(const r of results)for(const img of r.images||[]){if(img?.src&&!images.some(x=>x.src===img.src))images.push({src:img.src,alt:img.alt||r.name})}
   if(direct){await audit('ai.chat','Respuesta estructurada desde '+(scope?.name||'portal')+': '+categoryForQuestion(question));return {reply:direct,source:'portal-structured',images:images.slice(0,8),portalStatus:results.map(r=>({name:r.name,status:r.status}))}}
   const local=await collectLocalContext(scope?.type==='folder'&&scope.folder?[scope.folder]:scope?[]:null);
-  const portalFiles=results.filter(r=>r.status==='connected').map(r=>({path:'CONEXION '+r.name+' · '+r.category,content:JSON.stringify({source:scope?.type==='url'?'public_website_read_only':'portal_private_read_only',category:r.category,total:r.total,headers:r.headers,rows:r.rows,text:r.text},null,2)}));
+  const portalFiles=results.filter(r=>r.status==='connected').map(r=>({path:'CONEXION '+r.name+' · '+r.category,content:JSON.stringify({source:r.source||(scope?.type==='url'?'public_website_read_only':'portal_private_read_only'),category:r.category,total:r.total,headers:r.headers,rows:r.rows,text:r.text,mode:r.mode||'read'},null,2)}));
   const combined=[...local,...portalFiles].slice(0,MAX_FILES);
   const response=await fetch(CLOUD+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext:combined,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length,scope:scope?{type:scope.type,name:scope.name||null}:null}})});
   const j=await response.json().catch(()=>({}));if(!response.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
