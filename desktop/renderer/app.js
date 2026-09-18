@@ -5,6 +5,21 @@ let browsingFolder=null;
 setTimeout(()=>{const splash=document.querySelector('#futureSplash');if(splash)splash.classList.add('hide')},2300);
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function versionGreater(a,b){
+  const A=String(a||'').split('.').map(Number),B=String(b||'').split('.').map(Number);
+  for(let i=0;i<Math.max(A.length,B.length);i++){const x=A[i]||0,y=B[i]||0;if(x>y)return true;if(x<y)return false}return false
+}
+async function checkForUpdates(currentVersion){
+  const panel=$('#updatePanel');if(!panel)return;
+  try{
+    const r=await window.vnx.checkUpdate();
+    const u=r?.update;if(!u||!versionGreater(u.version,currentVersion))return;
+    $('#updateTitle').textContent='Nueva versión '+u.version+' disponible';
+    $('#updateNotes').innerHTML=esc(u.notes||'Hemos mejorado VentaNexIA.').replace(/\n/g,'<br>')+(u.planNotes?'<br><br><b>Mejoras disponibles en tu plan:</b><br>'+esc(u.planNotes).replace(/\n/g,'<br>'):'');
+    $('#updateOpenBtn').onclick=()=>window.vnx.openExternal(u.downloadUrl);
+    panel.style.display='block';
+  }catch{}
+}
 function openTab(name){
   $$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
   $$('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
@@ -197,6 +212,21 @@ function setupShopifyConnectionUi(){
   return async button=>{activeButton=button;modal.style.display='flex';await refreshShopifyStatus()};
 }
 
+function enforcePurchasedFeatures(){
+  const l=state.license||{},policy=l.featurePolicy||{};
+  if(String(l.plan||'').toLowerCase()==='master')return;
+  const purchased=[...(policy.purchased_included||[]),...(policy.purchased_extras||[])];
+  if(!purchased.length)return;
+  const map={email:'email',whatsapp:'whatsapp',social:'redes',prospecting:'buscador'};
+  $('[data-real-module]').forEach(btn=>{
+    const key=map[btn.dataset.realModule];if(!key)return;
+    if(!purchased.includes(key)){
+      btn.dataset.lockedFeature='1';
+      btn.textContent='Ver planes para activar';
+      btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html');
+    }
+  });
+}
 function setupRealModuleMode(){
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
   const saved=getRealModuleSources();
@@ -242,6 +272,8 @@ async function init(){
   $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
   $('#appVersion').textContent=sys.version;
   await refresh();
+  enforcePurchasedFeatures();
+  checkForUpdates(sys.version);
 }
 
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
