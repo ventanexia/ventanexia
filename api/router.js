@@ -16,6 +16,7 @@ import customerEvent from "../server/handlers/customer-event.js";
 import customerPortal from "../server/handlers/customer-portal.js";
 import deviceRegister from "../server/handlers/device-register.js";
 import deviceStatus from "../server/handlers/device-status.js";
+import desktopUpdate from "../server/handlers/desktop-update.js";
 import entitlementStatus from "../server/handlers/entitlement-status.js";
 import freeValue from "../server/handlers/free-value.js";
 import health from "../server/handlers/health.js";
@@ -36,6 +37,7 @@ import portalReactivate from "../server/handlers/portal-reactivate.js";
 import portalRequestLink from "../server/handlers/portal-request-link.js";
 import portalState from "../server/handlers/portal-state.js";
 import proposalEvent from "../server/handlers/proposal-event.js";
+import releasePublish from "../server/handlers/release-publish.js";
 import prospectSearch from "../server/handlers/prospect-search.js";
 import qualify from "../server/handlers/qualify.js";
 import socialPlan from "../server/handlers/social-plan.js";
@@ -69,6 +71,7 @@ const handlers = {
   "customer-portal": customerPortal,
   "device-register": deviceRegister,
   "device-status": deviceStatus,
+  "desktop-update": desktopUpdate,
   "entitlement-status": entitlementStatus,
   "free-value": freeValue,
   "health": health,
@@ -89,6 +92,7 @@ const handlers = {
   "portal-request-link": portalRequestLink,
   "portal-state": portalState,
   "proposal-event": proposalEvent,
+  "release-publish": releasePublish,
   "prospect-search": prospectSearch,
   "qualify": qualify,
   "social-plan": socialPlan,
