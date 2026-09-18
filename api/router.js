@@ -51,6 +51,7 @@ import supportEscalate from "../server/handlers/support-escalate.js";
 import trialSweep from "../server/handlers/trial-sweep.js";
 import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
 import videoUsage from "../server/handlers/video-usage.js";
+import usageMeter from "../server/handlers/usage-meter.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -107,7 +108,8 @@ const handlers = {
   "support-escalate": supportEscalate,
   "trial-sweep": trialSweep,
   "whatsapp-simulator": whatsappSimulator,
-  "video-usage": videoUsage
+  "video-usage": videoUsage,
+  "usage-meter": usageMeter
 };
 
 async function readRaw(req) {
