@@ -362,7 +362,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     throw new Error('Selecciona un agente antes de consultar. VentaNexIA no mezclará automáticamente correo, portales y carpetas.');
   }
 
-  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
+  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   const images=[],seen=new Set();for(const p of portalContext)for(const img of p.images||[]){if(!img?.src||seen.has(img.src))continue;seen.add(img.src);images.push({src:img.src,alt:img.alt||p.name});if(images.length>=8)break}
   j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));j.route=scope?.type==='agent'?'agent:'+scope.key:(scope?.type||null);
