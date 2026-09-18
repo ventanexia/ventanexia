@@ -251,6 +251,8 @@ ipcMain.handle('license:activate',async(_e,payload={})=>{
   s.secret.customerId=customerId;
   s.secret.activationCode=activationCode;
   s.license={customerId,deviceId:result.deviceId||null,plan:result.planKey||null,featurePolicy:result.featurePolicy||{},activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+  s.support=s.support||{};if(s.support.autoMode===undefined)s.support.autoMode=true;
+  if(s.support.autoMode)app.setLoginItemSettings({openAtLogin:true,args:['--background']});
   await writeState(s);await audit('license.device_activated',`Cliente ${customerId}; dispositivo ${result.deviceId||deviceKey}`);
   return publicLicenseState(await readState());
 });
@@ -463,6 +465,8 @@ async function runHealthCheck(){
   let state=null;
   try{state=await readState();add('Configuración de VentaNexIA',true)}catch(e){add('Configuración de VentaNexIA',false,e.message)}
   try{const st=await fs.stat(storeFile());add('Archivo de configuración',st.isFile(),'Disponible')}catch{add('Archivo de configuración',false,'No se encuentra o no se puede abrir')}
+  try{const probe=path.join(app.getPath('userData'),'.vnx-write-test');await fs.writeFile(probe,'ok','utf8');await fs.unlink(probe);add('Permiso para guardar cambios',true,'Correcto')}catch(e){add('Permiso para guardar cambios',false,'Windows está bloqueando la carpeta de VentaNexIA')}
+  const clockDrift=Math.abs(Date.now()-new Date().getTime());add('Fecha y hora del equipo',clockDrift<60000,'Correctas');
   add('Protección de datos',safeStorage.isEncryptionAvailable(),safeStorage.isEncryptionAvailable()?'Activa':'Windows no permite cifrado local ahora');
   try{
     const drive=process.env.SystemDrive||'C:';
@@ -500,7 +504,14 @@ async function runHealthCheck(){
   }
   const ints=state?.secret?.integrations||{};
   for(const [key,x] of Object.entries(ints).slice(0,15)){
-    add('Conexión · '+String(x.label||key),Boolean(x.token||key==='shopify'),x.connectedAt?'Conectada':'Sin fecha de conexión');
+    let ok=Boolean(x.token||key==='shopify'),detail=x.connectedAt?'Conectada':'Sin fecha de conexión';
+    if(ok&&x.token&&x.provider){
+      try{await verifyIntegration(x.provider,{token:x.token,account:x.account||'',accountId:x.accountId||'',username:x.username||''});detail='Conexión comprobada'}
+      catch(e){ok=false;detail='La autorización puede haber caducado'}
+    }else if(ok&&key==='shopify'){
+      try{await shopifyGraphql(x.shop,x.token,`query VentaNexIAHealth { shop { name } }`);detail='Conexión comprobada'}catch{ok=false;detail='La autorización puede haber caducado'}
+    }
+    add('Conexión · '+String(x.label||key),ok,detail);
   }
   return {ok:checks.every(x=>x.ok),checks,at:new Date().toISOString()};
 }
