@@ -85,14 +85,14 @@
     const crm=sources.find(x=>x.type==='integration'&&x.key==='crm');
     const shop=sources.find(x=>x.type==='shopify')||sources.find(x=>x.type==='portal');
     return [
-      {type:'agent',key:'core_ai',name:'🧠 Asistente IA',connected:true},
-      {type:'agent',key:'email',name:'📧 Email'+(email?' · '+email.name.replace(/^Email · /,''):' · sin conectar'),connected:Boolean(email),source:email||null},
-      {type:'agent',key:'whatsapp',name:'💬 WhatsApp Business'+(whatsapp?' · conectado':' · sin conectar'),connected:Boolean(whatsapp),source:whatsapp||null},
-      {type:'agent',key:'social',name:'📣 Redes sociales'+(social?' · conectado':' · sin conectar'),connected:Boolean(social),source:social||null},
-      {type:'agent',key:'prospecting',name:'🎯 Captación y búsqueda de clientes',connected:Boolean(real.prospecting),source:real.prospecting||null},
-      {type:'agent',key:'crm',name:'👥 CRM y clientes'+(crm?' · conectado':' · sin conectar'),connected:Boolean(crm),source:crm||null},
-      {type:'agent',key:'web_ecommerce',name:'🌐 Web & Ecommerce'+(shop?' · '+shop.name:' · sin conectar'),connected:Boolean(shop),source:shop||null},
-      {type:'agent',key:'support',name:'🛟 Soporte y asistencia',connected:true}
+      {type:'agent',key:'core_ai',name:'🧠 Agente Asistente IA',connected:true},
+      {type:'agent',key:'email',name:'📧 Agente Email'+(email?' · '+email.name.replace(/^Email · /,''):' · sin conectar'),connected:Boolean(email),source:email||null},
+      {type:'agent',key:'whatsapp',name:'💬 Agente WhatsApp Business'+(whatsapp?' · conectado':' · sin conectar'),connected:Boolean(whatsapp),source:whatsapp||null},
+      {type:'agent',key:'social',name:'📣 Agente Redes sociales'+(social?' · conectado':' · sin conectar'),connected:Boolean(social),source:social||null},
+      {type:'agent',key:'prospecting',name:'🎯 Agente Captación y búsqueda de clientes',connected:Boolean(real.prospecting),source:real.prospecting||null},
+      {type:'agent',key:'crm',name:'👥 Agente CRM y clientes'+(crm?' · conectado':' · sin conectar'),connected:Boolean(crm),source:crm||null},
+      {type:'agent',key:'web_ecommerce',name:'🌐 Agente Web & Ecommerce'+(shop?' · '+shop.name:' · sin conectar'),connected:Boolean(shop),source:shop||null},
+      {type:'agent',key:'support',name:'🛟 Agente Soporte y asistencia',connected:true}
     ];
   }
   function chatConnectionValue(x){return x.type==='agent'?'agent:'+x.key:''}
@@ -174,7 +174,7 @@
 
   function renderMasterMessages(){
     const root=$m('#messages');if(!root)return;
-    const intro='<div class="msg ai">Estoy listo para ayudarte. Para usar datos reales, elige arriba la cuenta, tienda, portal o carpeta con la que quieres trabajar.</div>';
+    const intro='<div class="msg ai">Estoy listo para ayudarte. Elige arriba el agente de VentaNexIA con el que quieres trabajar. El agente utilizará únicamente las conexiones que tengas autorizadas.</div>';
     root.innerHTML=intro+masterMessages.map(m=>{
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       return `<div class="msg ${m.role==='user'?'user':'ai'}"><div>${escM(m.content).replace(/\n/g,'<br>')}</div>${imgs?`<div>${imgs}</div>`:''}</div>`;
