@@ -14,10 +14,10 @@ async function post(endpoint,body){
   if(!r.ok)throw new Error(j.error||j.message||'No se pudo conectar');
   return j;
 }
-function saveSession(v){session=v;sessionStorage.setItem('vnx_mobile_session',JSON.stringify(v))}
-function loadSession(){try{return JSON.parse(sessionStorage.getItem('vnx_mobile_session')||'null')}catch{return null}}
+function saveSession(v,remember=false){session=v;sessionStorage.setItem('vnx_mobile_session',JSON.stringify(v));if(remember)localStorage.setItem('vnx_mobile_saved_session',JSON.stringify(v));else localStorage.removeItem('vnx_mobile_saved_session')}
+function loadSession(){try{return JSON.parse(sessionStorage.getItem('vnx_mobile_session')||localStorage.getItem('vnx_mobile_saved_session')||'null')}catch{return null}}
 function showApp(){session=loadSession()||session;if(!session)return;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');}
-function showLogin(){session=null;sessionStorage.removeItem('vnx_mobile_session');$('#app').classList.add('hidden');$('#login').classList.remove('hidden')}
+function showLogin(){session=null;sessionStorage.removeItem('vnx_mobile_session');localStorage.removeItem('vnx_mobile_saved_session');$('#app').classList.add('hidden');$('#login').classList.remove('hidden')}
 function openView(id){
   $$('.view').forEach(v=>v.classList.toggle('active',v.id===id));
   $$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));
@@ -30,7 +30,8 @@ $('#loginBtn').onclick=async()=>{
   btn.disabled=true;btn.textContent='Entrando…';msg.textContent='';
   try{
     const result=await post('device-register',{customerId,activationCode:password,deviceKey:deviceKey(),fingerprintHash:await fingerprint(),deviceName:'Móvil',platform:navigator.userAgent.slice(0,80),appVersion:'mobile-0.1'});
-    saveSession({customerId,password,deviceId:result.deviceId||null,plan:result.planKey||null,limit:result.limit||0});
+    const remember=Boolean($('#rememberMe')?.checked);
+    saveSession({customerId,deviceId:result.deviceId||null,plan:result.planKey||null,limit:result.limit||0},remember);
     $('#password').value='';showApp();
   }catch(e){msg.textContent=e.message||'No he podido entrar.'}
   finally{btn.disabled=false;btn.textContent='Entrar'}
@@ -71,4 +72,4 @@ $$('[data-master]').forEach(btn=>btn.onclick=async()=>{
 });
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/app/sw.js').catch(()=>{});
-session=loadSession();if(session)showApp();
+session=loadSession();if(session){$('#customerId').value=session.customerId||'';showApp()}
