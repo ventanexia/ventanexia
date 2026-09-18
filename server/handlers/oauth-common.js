@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
 export function sb(){
-  const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
+  const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"").replace(/\/rest\/v1\/?$/i,"");
   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
   if(!url||!key) throw new Error("SUPABASE_NOT_CONFIGURED");
   return {url,key,headers:{"apikey":key,"Authorization":`Bearer ${key}`,"Content-Type":"application/json","Prefer":"return=representation"}};
