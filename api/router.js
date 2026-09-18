@@ -50,6 +50,7 @@ import stripeWebhook from "../server/handlers/stripe-webhook.js";
 import supportEscalate from "../server/handlers/support-escalate.js";
 import trialSweep from "../server/handlers/trial-sweep.js";
 import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
+import videoUsage from "../server/handlers/video-usage.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -105,7 +106,8 @@ const handlers = {
   "stripe-webhook": stripeWebhook,
   "support-escalate": supportEscalate,
   "trial-sweep": trialSweep,
-  "whatsapp-simulator": whatsappSimulator
+  "whatsapp-simulator": whatsappSimulator,
+  "video-usage": videoUsage
 };
 
 async function readRaw(req) {
