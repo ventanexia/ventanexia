@@ -66,6 +66,12 @@ function emailFallback(req){
   const emails=files.flatMap(f=>parseEmailBlocks(f.content)).slice(0,10);
   if(!emails.length)return null;
 
+  const totalMatch=files.map(f=>String(f.content||'').match(/TOTAL_COINCIDENCIAS:\s*(\d+)/i)?.[1]).find(Boolean);
+  if((/cuantos|cuantas|numero|total/.test(q))&&/correo|email/.test(q)&&totalMatch){
+    const when=/hoy|today/.test(q)?' hoy':'';
+    return `He consultado el correo seleccionado. Has recibido ${Number(totalMatch)} correo(s)${when} en la bandeja de entrada.`;
+  }
+
   if(/pedido|pedidos/.test(q)){
     const orderEmails=emails.filter(m=>/pedido|order|compra|presupuesto|entrega|expedicion|envio/i.test([m.subject,m.snippet].join(" ")));
     const pool=orderEmails.length?orderEmails:emails;
