@@ -1,4 +1,5 @@
 import baseChat from "./chat.js";
+import {authMode,authenticateDesktop,checkScopeAllowed,consumeMeter,logChatAuth} from "../../lib/desktop-license.js";
 
 function norm(value=""){
   return String(value||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
@@ -61,7 +62,7 @@ function parseEmailBlocks(text=""){
   const blocks=raw.split(/\n\s*\n(?=Correo\s+\d+|Email\s+\d+)/i).map(x=>x.trim()).filter(Boolean);
   return blocks.map((block,index)=>{
     const get=(label)=>{
-      const m=block.match(new RegExp("(?:^|\\n)"+label+"\\s*:\\s*(.*)","i"));
+      const m=block.match(new RegExp("(?:^|\\n)(?:"+label+")\\s*:\\s*(.*)","i"));
       return String(m?.[1]||"").trim();
     };
     return {
@@ -176,8 +177,49 @@ function portalFallback(req){
   return null;
 }
 
+// --- Control de acceso del chat de escritorio -------------------------------
+// Toda petición que traiga datos locales, un scope o el bloque "desktop" es de la
+// app de escritorio y debe llevar licencia + dispositivo. Solo la demo pública de
+// la web (sin nada de eso) queda fuera.
+function isDesktopRequest(req){
+  return Boolean(req.body?.desktop)||localContext(req).length>0||Boolean(scopeName(req));
+}
+
+async function desktopGate(req){
+  const mode=authMode(),scope=scopeName(req)||null;
+  const auth=await authenticateDesktop(req.body);
+  if(!auth.ok){
+    logChatAuth({outcome:"denied",code:auth.code,scope,customerId:auth.customerId||null,detail:auth.detail||null});
+    return mode==="enforce"?{deny:true,status:auth.status,code:auth.code,message:auth.message}:{deny:false,license:null};
+  }
+  const allowed=checkScopeAllowed(auth.license,scope);
+  if(!allowed.ok){
+    logChatAuth({outcome:"denied",code:allowed.code,scope,customerId:auth.license.customerId,plan:auth.license.planKey});
+    return mode==="enforce"?{deny:true,status:allowed.status,code:allowed.code,message:allowed.message}:{deny:false,license:auth.license};
+  }
+  logChatAuth({outcome:"allowed",scope,customerId:auth.license.customerId,plan:auth.license.planKey});
+  return {deny:false,license:auth.license};
+}
+
+// Las respuestas que pasan por la IA del agente Email consumen "acciones de email con IA"
+// del plan (las respuestas directas, sin IA, no consumen).
+async function chargeEmailAi(license,res){
+  if(authMode()!=="enforce"||!license)return true;
+  const m=await consumeMeter(license,"email_ai_actions",1,{scope:"agent:email"});
+  if(m.meterError)console.error(JSON.stringify({event:"chat_meter_error",error:m.meterError}));
+  if(m.ok)return true;
+  res.status(429).json({error:"Has agotado las acciones de email con IA incluidas este mes. Puedes esperar a la renovación o ampliar tu plan.",code:"USAGE_LIMIT_REACHED",meter:"email_ai_actions"});
+  return false;
+}
+
 export default async function handler(req,res){
   if(req.method!=="POST")return baseChat(req,res);
+  let license=null;
+  if(isDesktopRequest(req)){
+    const gate=await desktopGate(req);
+    if(gate.deny)return res.status(gate.status).json({error:gate.message,code:gate.code});
+    license=gate.license;
+  }
   if(req.body?.desktop){
     const scope=scopeName(req);
 
@@ -195,6 +237,7 @@ export default async function handler(req,res){
       const isolatedReq=cloneWithContext(req,files);
       const emailDirect=emailFallback(isolatedReq);
       if(emailDirect)return res.status(200).json({reply:emailDirect,source:"desktop-email-direct",route:scope,filesUsed:files.length});
+      if(!(await chargeEmailAi(license,res)))return;
       return baseChat(isolatedReq,res);
     }
 
