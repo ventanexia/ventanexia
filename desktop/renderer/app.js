@@ -16,6 +16,7 @@ function renderLicense(){
   const l=state.license||{};
   const activated=Boolean(l.activated);
   $('#homeLicenseState').textContent=activated?'Activa':'Sin activar';
+  const mirror=$('#homeLicenseStateMirror');if(mirror)mirror.textContent=activated?'Activa':'Sin activar';
   $('#licenseCustomer').textContent=l.customerId||'Sin activar';
   $('#licenseDevice').textContent=l.deviceId?String(l.deviceId).slice(0,12):'—';
   $('#licenseDevices').textContent=l.limit?`${l.activeCount||0} / ${l.limit}`:'0 / 0';
