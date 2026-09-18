@@ -32,6 +32,10 @@ contextBridge.exposeInMainWorld('vnx',{
   openExternal:(url)=>ipcRenderer.invoke('app:open-external',url),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
   stopSupport:()=>ipcRenderer.invoke('support:stop'),
+  supportHealth:()=>ipcRenderer.invoke('support:health'),
+  supportAutoRepair:()=>ipcRenderer.invoke('support:auto-repair'),
+  setAutoSupport:(enabled)=>ipcRenderer.invoke('support:auto-mode',enabled),
+  getAutoSupport:()=>ipcRenderer.invoke('support:auto-mode-status'),
   sendChat:(messages,scope)=>ipcRenderer.invoke('chat:send',{messages,scope}),
   pairDemo:()=>ipcRenderer.invoke('device:pair-demo')
 });
