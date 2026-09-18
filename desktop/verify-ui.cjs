@@ -11,8 +11,11 @@ const preload=read('preload.cjs');
 const mains=['main.cjs','master.cjs','portal-adaptive.cjs','portal-pagination-fix.cjs','export.cjs'].map(read).join('\n');
 const scripts=[app,master,adaptive,exp].join('\n');
 const errors=[];
-if(!/<script\s+src=["']master\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga master.js; el selector de agentes no se ejecutará.');
 const fail=(x)=>errors.push(x);
+if(!/<script\s+src=["']master\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga master.js; el selector de agentes no se ejecutará.');
+if(/Selecciona una conexión…|VentaNexIA consultará este correo para responder con datos reales/.test(app))fail('app.js todavía contiene el selector antiguo de conexiones del chat.');
+if(!html.includes('id="homeAgentsList"'))fail('Falta el panel de agentes en Inicio.');
+if(!master.includes('window.vnxRefreshAgentUi=refreshChatConnections'))fail('master.js no expone el refresco único del selector de agentes.');
 
 if(app.includes('$$$('))fail('renderer/app.js contiene $$$(): selector inválido.');
 for(const m of app.matchAll(/(^|[^$])\$\([^)\n]+\)\.forEach/g))fail('renderer/app.js usa querySelector().forEach: '+m[0].trim());
