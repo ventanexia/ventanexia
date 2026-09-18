@@ -79,11 +79,13 @@
   "addons": {
     "extra_agent": {
       "monthly": 150,
-      "description": "Agente VNX estándar adicional sobre los incluidos en el plan."
+      "description": "Agente VNX estándar adicional sobre los incluidos en el plan.",
+      "billing": "monthly"
     },
     "extra_email_account": {
       "monthly": 39,
-      "description": "Cuenta de correo adicional para el agente Email. Incluye su conexión; no se cobra además la conexión externa de 42 €."
+      "description": "Cuenta de correo adicional para el agente Email. Incluye su conexión; no se cobra además la conexión externa de 42 €.",
+      "billing": "monthly"
     },
     "video_pack": {
       "description": "10 créditos de vídeo adicionales al mes para el agente de Redes Sociales.",
@@ -114,6 +116,12 @@
       "description": "500 créditos de captación adicionales al mes.",
       "one_time": 79,
       "billing": "one_time"
+    },
+    "storage_pack": {
+      "monthly": 39,
+      "units_gb": 10,
+      "billing": "monthly",
+      "description": "10 GB adicionales de espacio para datos y archivos usados por VentaNexIA mientras la ampliación esté activa."
     }
   },
   "delivery_model": "VentaNexIA Desktop",
@@ -140,5 +148,22 @@
       "heavy_ai",
       "storage"
     ]
+  },
+  "addon_policy": {
+    "monthly_capacity": [
+      "extra_agent",
+      "extra_email_account",
+      "storage_pack",
+      "extra_device",
+      "extra_connection"
+    ],
+    "prepaid_usage": [
+      "video_pack",
+      "image_pack",
+      "voice_pack",
+      "whatsapp_pack",
+      "lead_pack"
+    ],
+    "explanation": "Las ampliaciones que permanecen activas cada mes se cobran mensualmente. Los consumos puntuales se compran como créditos de pago único."
   }
 }
