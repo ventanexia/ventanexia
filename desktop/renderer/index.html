@@ -100,33 +100,26 @@
 </div>
 <div id="shopifyConnectionModal" style="display:none;position:fixed;inset:0;background:#0008;z-index:10000;align-items:center;justify-content:center">
   <div style="width:min(680px,94vw);background:#fff;border-radius:18px;padding:22px;box-shadow:0 25px 80px #0005">
-    <div class="eyebrow">SHOPIFY · CONEXIÓN REAL</div>
-    <h2 style="margin-top:8px">Dar acceso a VentaNexIA</h2>
-    <p>Introduce el dominio interno de tu tienda y un token de Admin API con los permisos que quieras conceder. El token se guarda cifrado en este ordenador.</p>
+    <div class="eyebrow">SHOPIFY · CONEXIÓN SEGURA</div>
+    <h2 style="margin-top:8px">Autorizar Shopify</h2>
+    <p>Indica únicamente el dominio interno de tu tienda. VentaNexIA abrirá Shopify para que tú autorices los permisos directamente.</p>
     <div class="formgrid">
-      <label>Tienda Shopify<input id="shopifyShop" placeholder="tu-tienda.myshopify.com"></label>
-      <label>Token Admin API<input id="shopifyToken" type="password" autocomplete="off" placeholder="shpat_..."></label>
-      <label>Permisos<select id="shopifyMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label>
+      <label style="grid-column:1/-1">Tienda Shopify<input id="shopifyShop" placeholder="tu-tienda.myshopify.com"></label>
     </div>
-    <div class="notice" id="shopifyConnectionMsg"><b>Seguridad:</b> no introduzcas tu contraseña de Shopify. Usa un token de aplicación con permisos mínimos.</div>
-    <div class="row"><button class="btn primary" id="shopifyConnectBtn">Conectar y comprobar</button><button class="btn outline" id="shopifyDisconnectBtn">Desconectar</button><button class="btn outline" id="shopifyCancelBtn">Cancelar</button></div>
+    <div class="notice" id="shopifyConnectionMsg"><b>No necesitas tokens ni contraseñas.</b> La autorización se realiza en la página oficial de Shopify.</div>
+    <div class="row"><button class="btn primary" id="shopifyConnectBtn">Autorizar con Shopify</button><button class="btn outline" id="shopifyDisconnectBtn">Desconectar</button><button class="btn outline" id="shopifyCancelBtn">Cancelar</button></div>
   </div>
 </div>
 <div id="serviceConnectionModal" style="display:none;position:fixed;inset:0;background:#0008;z-index:9999;align-items:center;justify-content:center">
   <div style="width:min(620px,92vw);background:#fff;border-radius:18px;padding:22px;box-shadow:0 25px 80px #0005">
-    <div class="eyebrow">CONEXIÓN REAL</div>
-    <h2 id="serviceConnectionTitle" style="margin-top:8px">Conectar servicio</h2>
-    <p id="serviceConnectionText">Selecciona el proveedor y la cuenta que quieres autorizar.</p>
+    <div class="eyebrow">CONEXIÓN SEGURA</div>
+    <h2 id="serviceConnectionTitle" style="margin-top:8px">Autorizar servicio</h2>
+    <p id="serviceConnectionText">Elige el proveedor. VentaNexIA abrirá su página oficial para que tú autorices el acceso.</p>
     <div class="formgrid">
-      <label>Proveedor<select id="serviceProvider"></select></label>
-      <label>Cuenta / usuario<input id="serviceAccount" placeholder="Ej.: ventas@empresa.es"></label>
-      <label id="serviceAccountIdWrap" style="display:none">ID de cuenta / página / teléfono<input id="serviceAccountId" placeholder="ID proporcionado por el servicio"></label>
-      <label id="serviceUsernameWrap" style="display:none">Usuario<input id="serviceUsername" placeholder="usuario"></label>
-      <label style="grid-column:1/-1">Token de acceso<input id="serviceToken" type="password" autocomplete="off" placeholder="Token OAuth/API"></label>
-      <label>Permisos<select id="serviceMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label>
+      <label style="grid-column:1/-1">Proveedor<select id="serviceProvider"></select></label>
     </div>
-    <div class="notice" id="serviceConnectionNotice"><b>Conexión real:</b> introduce un token oficial del proveedor. Se guarda cifrado localmente y VentaNexIA comprobará que realmente funciona antes de marcar la cuenta como conectada.</div>
-    <div class="row"><button class="btn primary" id="servicePrepareBtn">Conectar y comprobar</button><button class="btn outline" id="serviceDisconnectBtn">Desconectar</button><button class="btn outline" id="serviceCancelBtn">Cancelar</button></div>
+    <div class="notice" id="serviceConnectionNotice"><b>No necesitas copiar tokens, IDs ni contraseñas.</b> Inicia sesión directamente en el proveedor y acepta los permisos que quieras conceder.</div>
+    <div class="row"><button class="btn primary" id="servicePrepareBtn">Autorizar y conectar</button><button class="btn outline" id="serviceDisconnectBtn">Desconectar</button><button class="btn outline" id="serviceCancelBtn">Cancelar</button></div>
   </div>
 </div>
 <script src="app.js"></script>
