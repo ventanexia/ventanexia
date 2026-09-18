@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('vnx',{
   startOAuth:(payload)=>ipcRenderer.invoke('oauth:start',payload),
   pollOAuth:(payload)=>ipcRenderer.invoke('oauth:status',payload),
   openExternal:(url)=>ipcRenderer.invoke('app:open-external',url),
+  checkUpdate:()=>ipcRenderer.invoke('update:check'),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
   stopSupport:()=>ipcRenderer.invoke('support:stop'),
   supportHealth:()=>ipcRenderer.invoke('support:health'),
