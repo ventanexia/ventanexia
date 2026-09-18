@@ -193,9 +193,10 @@
     <h2 id="serviceConnectionTitle" style="margin-top:8px">Conectar una cuenta</h2>
     <p id="serviceConnectionText">Elige la cuenta que quieres conectar. Se abrirá su página oficial para que aceptes el acceso.</p>
     <div class="formgrid">
-      <label style="grid-column:1/-1">Proveedor<select id="serviceProvider"></select></label>
+      <label>Proveedor<select id="serviceProvider"></select></label>
+      <label>Cuenta que quieres conectar<input id="serviceAccount" autocomplete="username" placeholder="Ej.: ventas@empresa.com"></label>
     </div>
-    <div class="notice" id="serviceConnectionNotice"><b>No necesitas copiar códigos raros ni contraseñas.</b> Inicia sesión directamente en el proveedor y acepta los permisos que quieras conceder.</div>
+    <div class="notice" id="serviceConnectionNotice"><b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres usar y VentaNexIA abrirá la página oficial para que aceptes la conexión.</div>
     <div class="row"><button class="btn primary" id="servicePrepareBtn">Conectar ahora</button><button class="btn outline" id="serviceDisconnectBtn">Desconectar</button><button class="btn outline" id="serviceCancelBtn">Cancelar</button></div>
   </div>
 </div>
