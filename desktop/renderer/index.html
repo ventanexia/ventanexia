@@ -120,9 +120,13 @@
     <div class="formgrid">
       <label>Proveedor<select id="serviceProvider"></select></label>
       <label>Cuenta / usuario<input id="serviceAccount" placeholder="Ej.: ventas@empresa.es"></label>
+      <label id="serviceAccountIdWrap" style="display:none">ID de cuenta / página / teléfono<input id="serviceAccountId" placeholder="ID proporcionado por el servicio"></label>
+      <label id="serviceUsernameWrap" style="display:none">Usuario<input id="serviceUsername" placeholder="usuario"></label>
+      <label style="grid-column:1/-1">Token de acceso<input id="serviceToken" type="password" autocomplete="off" placeholder="Token OAuth/API"></label>
+      <label>Permisos<select id="serviceMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label>
     </div>
-    <div class="notice" id="serviceConnectionNotice"><b>Importante:</b> las cuentas externas se conectan mediante OAuth o API oficial. No se usa una carpeta local para simular una conexión.</div>
-    <div class="row"><button class="btn primary" id="servicePrepareBtn">Preparar conexión</button><button class="btn outline" id="serviceCancelBtn">Cancelar</button></div>
+    <div class="notice" id="serviceConnectionNotice"><b>Conexión real:</b> introduce un token oficial del proveedor. Se guarda cifrado localmente y VentaNexIA comprobará que realmente funciona antes de marcar la cuenta como conectada.</div>
+    <div class="row"><button class="btn primary" id="servicePrepareBtn">Conectar y comprobar</button><button class="btn outline" id="serviceDisconnectBtn">Desconectar</button><button class="btn outline" id="serviceCancelBtn">Cancelar</button></div>
   </div>
 </div>
 <script src="app.js"></script>
