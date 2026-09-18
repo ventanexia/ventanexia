@@ -711,7 +711,7 @@ ipcMain.handle('connection:list',async()=>{
   const s=await readState(),out=[];
   const emailAccounts=emailAccountsFromState(s);
   for(let i=0;i<emailAccounts.length;i++){
-    const x=emailAccounts[i];out.push({key:'integration:email:'+i,type:'integration',module:'email',provider:x.provider||'',label:x.label||x.meta?.email||x.account||('Correo '+(i+1))});
+    const x=emailAccounts[i];out.push({key:'integration:email:'+i,type:'integration',module:'email',accountIndex:i,provider:x.provider||'',label:x.label||x.meta?.email||x.account||('Correo '+(i+1))});
   }
   for(const [module,x] of Object.entries(s.secret?.integrations||{})){
     if(!x||module==='email')continue;
