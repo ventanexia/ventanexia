@@ -91,6 +91,30 @@ function emailFallback(req){
     return `He consultado el correo seleccionado. Has recibido ${Number(totalMatch)} correo(s)${when} en la bandeja de entrada.`;
   }
 
+  if(/requieren respuesta|requiere respuesta|pendientes? de responder|tengo que responder|debo responder|necesitan respuesta/.test(q)){
+    const replyScore=(m)=>{
+      const t=norm([m.subject,m.snippet,m.status].join(" "));
+      let s=0;
+      if(/no leido|unread/.test(t))s+=2;
+      if(/pregunta|consulta|confirma|confirmacion|respuesta|respond|contesta|necesito|podrias|puedes|cuando|plazo|incidencia|problema|reclam|pedido|presupuesto|entrega|envio|devoluc|cancel/.test(t))s+=3;
+      if(/newsletter|boletin|promocion|marketing|noreply|no-reply|notificacion automatica|social/.test(t))s-=4;
+      return s;
+    };
+    const pending=emails.map(m=>({m,score:replyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
+    if(!pending.length)return "He revisado los correos visibles y no encuentro ninguno que parezca requerir una respuesta clara.";
+    const lines=pending.slice(0,10).map((x,i)=>`${i+1}. ${x.m.subject} — ${x.m.from||"remitente no disponible"}${x.m.date?` — ${x.m.date}`:""}${x.m.status?` — ${x.m.status}`:""}\n   ${x.m.snippet||"Sin vista previa disponible."}`);
+    return `He revisado los correos visibles. Hay ${pending.length} que parecen requerir respuesta:\n\n${lines.join("\n\n")}`;
+  }
+
+  if(/redacta|prepara|escribe|respuesta amable|responder al primer correo|responde al primer correo/.test(q)){
+    const first=emails[0];
+    if(!first)return "No tengo un primer correo disponible para preparar la respuesta.";
+    const subject=first.subject||"(sin asunto)";
+    const sender=first.from||"";
+    const snippet=first.snippet||"";
+    return `He revisado el primer correo visible:\n\nAsunto: ${subject}\nDe: ${sender}\n\nBorrador de respuesta:\n\nHola,\n\nGracias por tu mensaje. He recibido tu consulta y la estoy revisando. En relación con «${subject}», ${snippet?"he tenido en cuenta la información que indicas en el correo. ":""}Si necesitas que confirme algún dato concreto, indícamelo y te respondo con detalle.\n\nUn saludo.\n\nNo he enviado ni eliminado ningún correo; esto es solo un borrador para que lo revises.`;
+  }
+
   if(/pedido|pedidos/.test(q)){
     const orderEmails=emails.filter(m=>/pedido|order|compra|presupuesto|entrega|expedicion|envio/i.test([m.subject,m.snippet].join(" ")));
     const pool=orderEmails.length?orderEmails:emails;
