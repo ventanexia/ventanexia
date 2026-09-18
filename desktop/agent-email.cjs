@@ -46,6 +46,16 @@ function scoreMailAttention(m){
   return s;
 }
 
+function needsReplyScore(m){
+  const t=norm([m.from,m.subject,m.snippet,m.status].join(' '));
+  let s=0;
+  if(/consulta|pregunta|solicitud|request|interes|interested|presupuesto|quote|proposal|propuesta|cooperation|colabor|pedido|order|disponibilidad|precio|condiciones|confirmar|respuesta|reply|contact/.test(t))s+=4;
+  if(/proveedor|supplier|cliente|customer|dear sir|dear madam|hello|hola|buenos dias|buenas tardes/.test(t))s+=2;
+  if(/no leido|unread/.test(t))s+=1;
+  if(/no-?reply|noreply|do not reply|notification|notificacion|linkedin|instagram|facebook|canva|report domain:|dmarc|pago de una factura fallo|fallo el pago/.test(t))s-=6;
+  return s;
+}
+
 function attentionReason(m){
   const t=norm([m.subject,m.snippet,m.status].join(' '));
   const reasons=[];
@@ -61,6 +71,12 @@ function attentionReason(m){
 function emailAgentDirectReply(question,localContext=[]){
   const gmail=parseGmailContext(localContext);if(!gmail)return null;
   const q=norm(question),mails=gmail.mails;
+  if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)&&/responder|contestar|respuesta|reply/.test(q)){
+    const replyable=mails.map((m,i)=>({m,i,score:needsReplyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i);
+    if(!replyable.length)return 'He revisado los correos recientes y no veo ninguno que claramente requiera una respuesta ahora mismo.';
+    const lines=replyable.slice(0,8).map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible'));
+    return 'He revisado los correos recientes. Hay '+replyable.length+' que parecen requerir respuesta.\n\n'+lines.join('\n')+'\n\nHe separado las notificaciones automáticas y los avisos que requieren atención pero no necesariamente una respuesta.';
+  }
   if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)){
     return 'He consultado tu correo. Hay '+(gmail.total||mails.length)+' correo(s)'+(/hoy|today/.test(q)?' hoy':'')+' en la bandeja de entrada.';
   }
@@ -89,4 +105,4 @@ function emailAgentDirectReply(question,localContext=[]){
   return null;
 }
 
-module.exports={normalizeChatScope,parseGmailContext,scoreMailAttention,emailAgentDirectReply};
+module.exports={normalizeChatScope,parseGmailContext,scoreMailAttention,needsReplyScore,emailAgentDirectReply};
