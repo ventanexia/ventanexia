@@ -1,3 +1,10 @@
+
+.future-splash{position:fixed;inset:0;z-index:20000;background:radial-gradient(circle at 50% 40%,#102d58 0,#07172e 42%,#020913 100%);display:grid;place-items:center;overflow:hidden;transition:opacity .55s ease,visibility .55s ease}
+.future-splash.hide{opacity:0;visibility:hidden}
+.splash-glow{position:absolute;width:620px;height:620px;border-radius:50%;background:radial-gradient(circle,rgba(24,210,255,.22),rgba(114,55,255,.12) 42%,transparent 70%);filter:blur(12px);animation:splashPulse 2s ease-in-out infinite}
+.splash-logo{position:absolute;top:15%;font-size:160px;font-weight:1000;letter-spacing:-.14em;color:transparent;-webkit-text-stroke:3px #31ddff;filter:drop-shadow(0 0 18px #236fff) drop-shadow(0 0 45px rgba(128,62,255,.45));transform:skewX(-8deg)}
+.splash-copy{position:relative;text-align:center;margin-top:260px;padding:0 24px}.splash-copy small{letter-spacing:.42em;color:#39ddff;font-weight:900}.splash-copy h1{font-size:46px;line-height:1.08;margin:14px 0 10px;letter-spacing:-.03em}.splash-copy h1 span{background:linear-gradient(90deg,#61c8ff,#a74cff);-webkit-background-clip:text;background-clip:text;color:transparent}.splash-copy p{color:#adc6df;font-size:16px}.splash-line{width:240px;height:4px;background:#0c294a;margin:24px auto 0;border-radius:99px;overflow:hidden}.splash-line i{display:block;height:100%;width:38%;background:linear-gradient(90deg,#24dfff,#8d45ff);border-radius:99px;animation:splashLoad 2.1s ease-in-out forwards}
+@keyframes splashLoad{from{transform:translateX(-100%)}to{transform:translateX(265%)}}@keyframes splashPulse{50%{transform:scale(1.08);opacity:.8}}
 *{box-sizing:border-box}
 :root{
   --bg:#06152a;--bg2:#091d38;--panel:#0b2341;--panel2:#0d2b51;--line:#164a7b;
