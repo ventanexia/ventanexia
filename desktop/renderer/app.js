@@ -264,6 +264,23 @@ function setupRealModuleMode(){
   });
 }
 
+async function refreshProvisioningTasks(){
+  const root=$('#provisioningTaskList');if(!root)return;
+  root.innerHTML='<div class="empty">Comprobando activaciones pendientes…</div>';
+  try{
+    const r=await window.vnx.provisioningList(),tasks=r?.tasks||[];
+    if(!tasks.length){root.innerHTML='<div class="empty">No hay activaciones pendientes.</div>';return}
+    root.innerHTML=tasks.map(t=>{
+      const due=t.due_at?new Date(t.due_at):null;
+      const overdue=due&&due.getTime()<Date.now();
+      return '<div class="listrow"><div><b>'+esc(t.title)+'</b><span>'+esc(t.tenant?.name||t.tenant?.customer_code||'Cliente')+' · '+esc(t.provider||'Proveedor')+' · '+(t.status==='in_progress'?'En gestión':'Pendiente')+(overdue?' · ⚠ vencida':'')+'</span><small>'+esc(t.instructions||'Comprobar y activar antes de marcar como lista.')+'</small></div><div class="row"><button class="mini provision-start" data-id="'+esc(t.id)+'">Estoy con ello</button><button class="mini provision-complete" data-id="'+esc(t.id)+'">✓ Ya está activo</button></div></div>';
+    }).join('');
+    $$('.provision-start').forEach(b=>b.onclick=async()=>{b.disabled=true;try{await window.vnx.provisioningStart(b.dataset.id);await refreshProvisioningTasks()}catch(e){alert(e.message||'No se pudo actualizar')}});
+    $$('.provision-complete').forEach(b=>b.onclick=async()=>{if(!confirm('Confirma solo si la ampliación está realmente disponible para el cliente.'))return;b.disabled=true;try{await window.vnx.provisioningComplete(b.dataset.id);await refreshProvisioningTasks();alert('Activación completada. El cliente recibirá confirmación por email.')}catch(e){alert(e.message||'No se pudo completar')}});
+  }catch(e){root.innerHTML='<div class="empty">No se pudo cargar la cola de activaciones.</div>'}
+}
+const refreshProvisioningBtn=$('#refreshProvisioningBtn');if(refreshProvisioningBtn)refreshProvisioningBtn.onclick=refreshProvisioningTasks;
+
 async function init(){
   bindTabs();
   setupPortalUi();
@@ -274,6 +291,7 @@ async function init(){
   await refresh();
   enforcePurchasedFeatures();
   checkForUpdates(sys.version);
+  if(String(state.license?.plan||'').toLowerCase()==='master')refreshProvisioningTasks();
 }
 
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
