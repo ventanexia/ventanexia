@@ -68,14 +68,52 @@ function getRealModuleSources(){
   try{return JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')}catch{return {}}
 }
 function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
+function setupServiceConnectionWizard(){
+  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),cancel=$('#serviceCancelBtn');
+  if(!modal)return ()=>{};
+  const providers={
+    email:['Gmail','Microsoft 365','Otro correo compatible'],
+    whatsapp:['WhatsApp Business Platform'],
+    social:['Instagram / Facebook','LinkedIn','X / Twitter','Otra red compatible'],
+    crm:['HubSpot','Salesforce','Pipedrive','Otro CRM compatible']
+  };
+  let activeKey=null,activeButton=null;
+  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'CRM'};
+  cancel.onclick=()=>{modal.style.display='none';activeKey=null;activeButton=null};
+  prepare.onclick=()=>{
+    if(!activeKey)return;
+    const p=provider.value,a=account.value.trim();
+    if(!a){notice.innerHTML='<b>Falta la cuenta.</b> Indica el email, usuario o identificador de la cuenta que quieres conectar.';return;}
+    const all=getRealModuleSources();
+    all[activeKey]={provider:p,account:a,mode:'real',status:'authorization_required',preparedAt:new Date().toISOString()};
+    localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+    if(activeButton)activeButton.textContent='Pendiente de autorización oficial';
+    notice.innerHTML='<b>Cuenta preparada.</b> VentaNexIA no la marcará como conectada hasta completar la autorización OAuth/API oficial del proveedor.';
+    setTimeout(()=>{modal.style.display='none'},900);
+  };
+  return (key,button)=>{
+    activeKey=key;activeButton=button;
+    title.textContent='Conectar '+labels[key];
+    text.textContent='Selecciona el proveedor e indica la cuenta real que quieres autorizar.';
+    provider.innerHTML=(providers[key]||[]).map(x=>'<option>'+esc(x)+'</option>').join('');
+    const saved=getRealModuleSources()[key];
+    account.value=saved?.account||'';
+    notice.innerHTML='<b>Conexión real:</b> este módulo debe usar OAuth o API oficial. No se abrirá el selector de carpetas.';
+    modal.style.display='flex';
+  };
+}
+
 function setupRealModuleMode(){
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
   const saved=getRealModuleSources();
+  const openServiceWizard=setupServiceConnectionWizard();
   $$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
-    if(current?.folder)btn.textContent=`🟢 ${label} · datos reales autorizados`;
-    if(current?.url)btn.textContent=`${label} · URL registrada`;
+    if(current?.folder)btn.textContent='🟢 '+label+' · datos reales autorizados';
+    if(current?.url)btn.textContent=label+' · URL registrada';
+    if(current?.status==='authorization_required')btn.textContent='Pendiente de autorización oficial';
     btn.onclick=async()=>{
+      if(['email','whatsapp','social','crm'].includes(key)){openServiceWizard(key,btn);return;}
       if(['shopify','wordpress','github_vercel'].includes(key)){
         const previous=current?.url||'';
         const entered=prompt(key==='shopify'?'Introduce la URL real de tu tienda Shopify (https://... o https://...myshopify.com)':'Introduce la URL real del sitio o proyecto (https://...)',previous);
@@ -83,16 +121,16 @@ function setupRealModuleMode(){
         const url=String(entered||'').trim();
         if(!/^https:\/\//i.test(url)){alert('La URL debe empezar por https://');return;}
         setRealModuleSource(key,{url,authorizedAt:new Date().toISOString(),mode:'real',connection:'url_registered'});
-        btn.textContent=`${label} · URL registrada`;
-        alert(`${label}: URL real registrada. Para leer pedidos, clientes, productos o realizar cambios necesitaremos conectar la API/OAuth oficial de esa cuenta. La URL por sí sola no se marcará como conexión activa.`);
+        btn.textContent=label+' · URL registrada';
+        alert(label+': URL real registrada. Para leer datos privados o realizar cambios necesitaremos la API/OAuth oficial de esa cuenta.');
         return;
       }
       const folder=await window.vnx.chooseFolder();
       if(!folder)return;
       setRealModuleSource(key,{folder,authorizedAt:new Date().toISOString(),mode:'real'});
-      btn.textContent=`🟢 ${label} · datos reales autorizados`;
+      btn.textContent='🟢 '+label+' · datos reales autorizados';
       await refresh();
-      alert(`${label}: fuente real autorizada. VentaNexIA podrá consultar los archivos compatibles de esta carpeta desde “Habla con tu equipo”. No se ha simulado ninguna conexión externa.`);
+      alert(label+': fuente real autorizada.');
     };
   });
 }
