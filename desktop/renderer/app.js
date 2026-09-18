@@ -347,6 +347,18 @@ async function runDiscovery(mode){
 $('#scanCommon').onclick=()=>runDiscovery('common');
 $('#scanChoose').onclick=()=>runDiscovery('choose');
 
+async function refreshVideoQuota(){
+  const box=$('#videoQuotaText');if(!box)return;
+  try{
+    const q=await window.vnx.videoQuota();
+    if(!q?.ok){box.textContent='Activa tu licencia para ver tus vídeos disponibles';return}
+    box.textContent=q.remaining+' de '+q.monthlyLimit+' créditos disponibles · hoy '+q.dailyRemaining+' de '+q.dailyLimit+' vídeos';
+    box.title='Este mes has usado '+q.usedThisMonth+' créditos.';
+  }catch{box.textContent='No se pudo comprobar ahora'}
+}
+const buyVideoPack=$('#buyVideoPack');if(buyVideoPack)buyVideoPack.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=video_pack');};
+refreshVideoQuota();
+
 const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');};
 
 const autoSupportBtn=$('#autoSupportBtn'),healthCheckBtn=$('#healthCheckBtn'),autoRepairBtn=$('#autoRepairBtn'),autoSupportMsg=$('#autoSupportMsg');
