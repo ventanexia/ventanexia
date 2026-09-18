@@ -29,6 +29,7 @@ import onboardingState from "../server/handlers/onboarding-state.js";
 import oauthStart from "../server/handlers/oauth-start.js";
 import oauthCallback from "../server/handlers/oauth-callback.js";
 import oauthStatus from "../server/handlers/oauth-status.js";
+import oauthDiagnostic from "../server/handlers/oauth-diagnostic.js";
 import policyEvaluate from "../server/handlers/policy-evaluate.js";
 import portalBilling from "../server/handlers/portal-billing.js";
 import portalChangeRequest from "../server/handlers/portal-change-request.js";
@@ -89,6 +90,7 @@ const handlers = {
   "oauth-start": oauthStart,
   "oauth-callback": oauthCallback,
   "oauth-status": oauthStatus,
+  "oauth-diagnostic": oauthDiagnostic,
   "policy-evaluate": policyEvaluate,
   "portal-billing": portalBilling,
   "portal-change-request": portalChangeRequest,
