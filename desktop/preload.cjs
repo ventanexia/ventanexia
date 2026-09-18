@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('vnx',{
   integrationStatus:(module)=>ipcRenderer.invoke('integration:status',module),
   disconnectIntegration:(module)=>ipcRenderer.invoke('integration:disconnect',module),
   startOAuth:(payload)=>ipcRenderer.invoke('oauth:start',payload),
+  connectGenericEmail:(payload)=>ipcRenderer.invoke('email:connect-generic',payload),
   pollOAuth:(payload)=>ipcRenderer.invoke('oauth:status',payload),
   openExternal:(url)=>ipcRenderer.invoke('app:open-external',url),
   checkUpdate:()=>ipcRenderer.invoke('update:check'),
