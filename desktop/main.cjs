@@ -95,6 +95,7 @@ function createWindow(){
   });
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname,'renderer','index.html'));
+  if(process.argv.includes('--background'))mainWindow.hide();
   mainWindow.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//i.test(url)||/^ms-quick-assist:/i.test(url)){shell.openExternal(url);return {action:'deny'}}return {action:'deny'}});
   mainWindow.webContents.on('will-navigate',(e,url)=>{if(!url.startsWith('file://'))e.preventDefault()});
 }
@@ -448,6 +449,43 @@ ipcMain.handle('shopify:disconnect',async()=>{
 });
 
 ipcMain.handle('app:open-external',async(_e,url)=>{const u=String(url||'').trim();if(!/^https:\/\//i.test(u))throw new Error('Enlace no válido');await shell.openExternal(u);return true});
+
+async function runHealthCheck(){
+  const checks=[];
+  try{await fs.access(storeFile());checks.push({name:'Configuración de VentaNexIA',ok:true})}catch{checks.push({name:'Configuración de VentaNexIA',ok:false})}
+  try{
+    const r=await fetch(CLOUD+'/api/device-status',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({customerId:(await readState()).secret?.customerId||'',activationCode:(await readState()).secret?.activationCode||'',deviceKey:await ensureDeviceKey()})});
+    checks.push({name:'Conexión con VentaNexIA',ok:r.ok});
+  }catch{checks.push({name:'Conexión con VentaNexIA',ok:false})}
+  checks.push({name:'Protección local',ok:safeStorage.isEncryptionAvailable()});
+  return {ok:checks.every(x=>x.ok),checks,at:new Date().toISOString()};
+}
+async function autoRepair(){
+  const before=await runHealthCheck();
+  const actions=[];
+  if(!safeStorage.isEncryptionAvailable())actions.push('Windows no permite usar la protección local de claves en este momento.');
+  try{
+    const s=await readState();
+    if(!s.permissions)s.permissions={folders:[]};
+    if(!Array.isArray(s.permissions.folders))s.permissions.folders=[];
+    if(!Array.isArray(s.activity))s.activity=[];
+    await writeState(s);
+    actions.push('Configuración local revisada.');
+  }catch(e){actions.push('No se pudo reparar la configuración local.')}
+  const after=await runHealthCheck();
+  await audit('support.auto_repair',actions.join(' '));
+  return {before,after,actions};
+}
+ipcMain.handle('support:health',async()=>runHealthCheck());
+ipcMain.handle('support:auto-repair',async()=>autoRepair());
+ipcMain.handle('support:auto-mode',async(_e,enabled)=>{
+  const on=Boolean(enabled);
+  app.setLoginItemSettings({openAtLogin:on,args:on?['--background']:[]});
+  const s=await readState();s.support=s.support||{};s.support.autoMode=on;await writeState(s);
+  await audit('support.auto_mode',on?'Asistencia automática activada':'Asistencia automática desactivada');
+  return {enabled:on};
+});
+ipcMain.handle('support:auto-mode-status',async()=>{const s=await readState();return {enabled:Boolean(s.support?.autoMode)};});
 ipcMain.handle('support:quick-assist',async()=>{await audit('support.requested','Asistencia rápida abierta por el cliente');await shell.openExternal('ms-quick-assist:');return true});
 ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente pulsó detener asistencia');return true});
 ipcMain.handle('chat:send',async(_e,messages)=>{
