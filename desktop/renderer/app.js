@@ -71,7 +71,7 @@ function getRealModuleSources(){
 }
 function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
 function setupServiceConnectionWizard(){
-  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
+  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
   if(!modal)return ()=>{};
   const providers={
     email:[['gmail','Gmail'],['microsoft_365','Microsoft 365']],
@@ -86,9 +86,9 @@ function setupServiceConnectionWizard(){
   prepare.onclick=async()=>{
     if(!activeKey)return;
     prepare.disabled=true;prepare.textContent='Abriendo la página para conectar…';
-    notice.innerHTML='<b>Sigue los pasos que verás en el navegador.</b> Cuando termines, Cuando termines, VentaNexIA lo sabrá automáticamente.';
+    notice.innerHTML='<b>Sigue los pasos que verás en el navegador.</b> Cuando termines, VentaNexIA lo sabrá automáticamente.';
     try{
-      const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value});
+      const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:account?.value?.trim()||''});
       oauthState=started.state;
       stopPoll();
       pollTimer=setInterval(async()=>{
@@ -97,7 +97,7 @@ function setupServiceConnectionWizard(){
           if(st?.status==='connected'){
             stopPoll();
             const all=getRealModuleSources();
-            all[activeKey]={provider:st.provider,label:st.label,mode:st.mode||'write',status:'connected',connectedAt:new Date().toISOString()};
+            all[activeKey]={provider:st.provider,label:st.label,account:account?.value?.trim()||'',mode:st.mode||'write',status:'connected',connectedAt:new Date().toISOString()};
             localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
             if(activeButton)activeButton.textContent='🟢 '+labels[activeKey]+' · '+(st.label||'Conectado');
             notice.innerHTML='<b>🟢 Conectado correctamente.</b> '+esc(st.label||labels[activeKey])+' ya está disponible para VentaNexIA.';
@@ -112,8 +112,10 @@ function setupServiceConnectionWizard(){
       },2000);
     }catch(e){
       prepare.disabled=false;prepare.textContent='Conectar ahora';
-      const msg=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'Esta conexión todavía no está preparada del todo. Tenemos que terminar de activarla en VentaNexIA.':(e.message||String(e));
-      notice.innerHTML='<b>No se pudo iniciar.</b> '+esc(msg);
+      const raw=e?.message||String(e);
+      const missing=/conector todavía no configurado|connector_not_configured/i.test(raw);
+      const msg=missing?'Esta conexión todavía necesita una activación única por parte de VentaNexIA. Tu cuenta está bien; falta activar el acceso oficial con este proveedor.':raw.replace(/^Error invoking remote method[^:]*:\s*/i,'');
+      notice.innerHTML='<b>No se pudo conectar todavía.</b> '+esc(msg);
     }
   };
   disconnect.onclick=async()=>{
@@ -129,7 +131,12 @@ function setupServiceConnectionWizard(){
     title.textContent='Autorizar '+labels[key];
     text.textContent='Elige la cuenta que quieres conectar. Se abrirá su página oficial para que inicies sesión y aceptes el acceso.';
     provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
-    notice.innerHTML='<b>No necesitas copiar códigos raros ni contraseñas.</b> La autorización se hace directamente con el proveedor.';
+    if(account){
+      const saved=getRealModuleSources()[key];
+      account.value=saved?.account||'';
+      account.placeholder=key==='email'?'Ej.: ventas@empresa.com':key==='social'?'Ej.: mobiliario.sanitario':'Ej.: nombre de la cuenta';
+    }
+    notice.innerHTML='<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
     try{
       const st=await window.vnx.integrationStatus(key);
       if(st?.connected)notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
@@ -200,7 +207,9 @@ function setupRealModuleMode(){
     if(current?.folder)btn.textContent='🟢 '+label+' · datos reales autorizados';
     if(current?.url)btn.textContent=label+' · URL registrada';
     if(key==='shopify'&&current?.status==='connected')btn.textContent='🟢 Shopify · '+(current.shopName||current.shop||'Conectado');
-    if(current?.status==='authorization_required')btn.textContent='Pendiente de autorización oficial';
+    if(current?.status==='authorization_required'){
+      const all=getRealModuleSources();delete all[key];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+    }
     btn.onclick=async()=>{
       if(['email','whatsapp','social','crm'].includes(key)){openServiceWizard(key,btn);return;}
       if(key==='shopify'){await openShopify(btn);return;}
