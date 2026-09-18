@@ -418,6 +418,8 @@ async function refreshVideoQuota(){
 const buyVideoPack=$('#buyVideoPack');if(buyVideoPack)buyVideoPack.onclick=async()=>{buyVideoPack.disabled=true;const old=buyVideoPack.textContent;buyVideoPack.textContent='Abriendo pago…';try{await window.vnx.buyUsagePack('video_pack')}catch(e){alert(e.message||'No se pudo abrir el pago')}finally{buyVideoPack.disabled=false;buyVideoPack.textContent=old}};
 refreshVideoQuota();
 
+const buyStoragePack=$('#buyStoragePack');if(buyStoragePack)buyStoragePack.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=storage_pack');};
+
 const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');};
 
 const autoSupportBtn=$('#autoSupportBtn'),healthCheckBtn=$('#healthCheckBtn'),autoRepairBtn=$('#autoRepairBtn'),autoSupportMsg=$('#autoSupportMsg');
