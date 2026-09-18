@@ -3,6 +3,8 @@ const path=require('node:path');
 const fs=require('node:fs/promises');
 const os=require('node:os');
 const crypto=require('node:crypto');
+const {ImapFlow}=require('imapflow');
+const nodemailer=require('nodemailer');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -381,6 +383,28 @@ async function verifyIntegration(provider,payload){
   }
   throw new Error('Proveedor todavía no soportado');
 }
+
+ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
+  const email=String(payload.email||'').trim();
+  const username=String(payload.username||email).trim();
+  const password=String(payload.password||'');
+  const imapHost=String(payload.imapHost||'').trim();
+  const smtpHost=String(payload.smtpHost||'').trim();
+  const imapPort=Number(payload.imapPort||993);
+  const smtpPort=Number(payload.smtpPort||465);
+  const provider=normalizeProviderKey(payload.provider||'generic_imap');
+  if(!email||!username||!password||!imapHost||!smtpHost)throw new Error('Faltan datos de conexión del correo');
+  const imapSecure=imapPort===993;
+  const smtpSecure=smtpPort===465;
+  const imap=new ImapFlow({host:imapHost,port:imapPort,secure:imapSecure,auth:{user:username,pass:password},logger:false});
+  try{await imap.connect();await imap.logout()}catch(e){try{await imap.logout()}catch{};throw new Error('No se pudo conectar al correo entrante (IMAP): '+String(e?.message||e).slice(0,180))}
+  const transport=nodemailer.createTransport({host:smtpHost,port:smtpPort,secure:smtpSecure,requireTLS:!smtpSecure,auth:{user:username,pass:password}});
+  try{await transport.verify()}catch(e){throw new Error('El correo entrante funciona, pero no se pudo verificar el envío (SMTP): '+String(e?.message||e).slice(0,180))}
+  const s=await readState();s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
+  s.secret.integrations.email={provider,module:'email',account:email,label:email,mode:'write',connectedAt:new Date().toISOString(),genericMail:{email,username,password,imapHost,imapPort,smtpHost,smtpPort}};
+  await writeState(s);await audit('integration.connected','email · '+provider+' · '+email);
+  return {connected:true,label:email,provider,mode:'write'};
+});
 
 ipcMain.handle('oauth:start',async(_e,payload={})=>{
   const s=await readState();
