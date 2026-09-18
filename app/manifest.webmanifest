@@ -1,0 +1,13 @@
+{
+  "name":"VentaNexIA",
+  "short_name":"VentaNexIA",
+  "start_url":"/app/",
+  "scope":"/app/",
+  "display":"standalone",
+  "background_color":"#06152a",
+  "theme_color":"#06152a",
+  "description":"VentaNexIA para móvil",
+  "icons":[
+    {"src":"/assets/ventanexia-logo.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}
+  ]
+}
