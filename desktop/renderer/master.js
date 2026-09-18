@@ -72,7 +72,11 @@
   }
   function connectedDataSources(){
     const out=[];
-    for(const p of masterPortals||[]){if(['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});}
+    for(const p of masterPortals||[]){
+      const url=String(p.url||p.lastUrl||'').toLowerCase();
+      const shopifyAdmin=/^https:\/\/admin\.shopify\.com\//.test(url)||(/\.myshopify\.com\//.test(url)&&(/\/admin(?:\/|$)/.test(url)||/\/settings(?:\/|$)/.test(url)));
+      if(!shopifyAdmin&&['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});
+    }
     const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
     for(const x of runtimeConnections||[]){
       const moduleKey=x.module||x.key;
