@@ -86,34 +86,34 @@
       "description": "Cuenta de correo adicional para el agente Email. Incluye su conexión; no se cobra además la conexión externa de 42 €."
     },
     "video_pack": {
-      "monthly": 99,
-      "credits_monthly": 10,
-      "description": "10 créditos de vídeo adicionales al mes para el agente de Redes Sociales."
+      "description": "10 créditos de vídeo adicionales al mes para el agente de Redes Sociales.",
+      "one_time": 99,
+      "credits": 10,
+      "billing": "one_time"
     },
     "image_pack": {
-      "monthly": 29,
       "units": 100,
-      "description": "100 créditos de imagen adicionales al mes."
+      "description": "100 créditos de imagen adicionales al mes.",
+      "one_time": 29,
+      "billing": "one_time"
     },
     "voice_pack": {
-      "monthly": 49,
       "units": 250,
-      "description": "250 minutos de voz adicionales al mes."
+      "description": "250 minutos de voz adicionales al mes.",
+      "one_time": 49,
+      "billing": "one_time"
     },
     "whatsapp_pack": {
-      "monthly": 59,
       "units": 1000,
-      "description": "1.000 mensajes automatizados adicionales al mes. Los cargos propios de Meta/proveedor, si existen, se informan aparte."
+      "description": "1.000 mensajes automatizados adicionales al mes. Los cargos propios de Meta/proveedor, si existen, se informan aparte.",
+      "one_time": 59,
+      "billing": "one_time"
     },
     "lead_pack": {
-      "monthly": 79,
       "units": 500,
-      "description": "500 créditos de captación adicionales al mes."
-    },
-    "storage_pack": {
-      "monthly": 15,
-      "units_gb": 10,
-      "description": "10 GB adicionales de almacenamiento mensual."
+      "description": "500 créditos de captación adicionales al mes.",
+      "one_time": 79,
+      "billing": "one_time"
     }
   },
   "delivery_model": "VentaNexIA Desktop",
@@ -130,7 +130,7 @@
     }
   },
   "fair_use": {
-    "note": "Las funciones de coste variable incluyen capacidad mensual para proteger el servicio y mantener precios estables. El cliente puede ampliar capacidad o cambiar de plan.",
+    "note": "Las funciones de coste variable incluyen capacidad mensual. Si el cliente necesita más, compra créditos de uso de una sola vez; no se convierten en una cuota mensual.",
     "expensive_features": [
       "video",
       "image",
