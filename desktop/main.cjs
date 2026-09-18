@@ -451,6 +451,14 @@ ipcMain.handle('shopify:disconnect',async()=>{
   const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
 });
 
+ipcMain.handle('usage:buy-pack',async(_e,packKey)=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
+  const result=await postJson(CLOUD+'/api/create-credit-checkout',{packKey:String(packKey||''),customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+  if(!result?.checkoutUrl)throw new Error('No se pudo abrir el pago');
+  await shell.openExternal(result.checkoutUrl);
+  return {ok:true};
+});
 ipcMain.handle('usage:overview',async()=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
