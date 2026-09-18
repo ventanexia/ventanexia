@@ -97,8 +97,11 @@ async function refreshChatConnections(){
     options.push('<option value="'+esc(x.key)+'">'+prefix+esc(x.label||x.module||x.key)+'</option>');
   }
   select.innerHTML=options.join('');
+  const saved=localStorage.getItem('vnx_chat_source')||'';
   if(previous&&[...select.options].some(o=>o.value===previous))select.value=previous;
+  else if(saved&&[...select.options].some(o=>o.value===saved))select.value=saved;
   else if((items||[]).length===1)select.value=items[0].key;
+  if(select.value)localStorage.setItem('vnx_chat_source',select.value);
   if(hint){
     if(!(items||[]).length)hint.textContent='Conecta primero el correo, la tienda, el programa o la carpeta que quieras consultar.';
     else if((items||[]).length===1){
@@ -564,11 +567,12 @@ function clearChatConversation(){
   const input=$('#chatInput');if(input)input.value='';
   renderMessages();
 }
+const chatSelect=$('#chatConnectionSelect');if(chatSelect)chatSelect.onchange=()=>{if(chatSelect.value)localStorage.setItem('vnx_chat_source',chatSelect.value)};
 const chatClearBtn=$('#chatClearBtn');if(chatClearBtn)chatClearBtn.onclick=clearChatConversation;
 const chatNewConversation=$('#chatNewConversation');if(chatNewConversation)chatNewConversation.onclick=()=>{
   clearChatConversation();
   const input=$('#chatInput');if(input)input.focus();
 };
-$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba qué correo, tienda, programa o carpeta quieres que consulte VentaNexIA.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
+$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||localStorage.getItem('vnx_chat_source')||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba qué correo, tienda, programa o carpeta quieres que consulte VentaNexIA.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
 
 init();
