@@ -80,6 +80,7 @@ function publicLicenseState(s){
     limit:Number(l.limit||0),
     available:Number(l.available||0),
     extraDeviceMonthlyEur:Number(l.extraDeviceMonthlyEur||49),
+    featurePolicy:l.featurePolicy||{},
     lastCheckedAt:l.lastCheckedAt||null
   };
 }
@@ -249,7 +250,7 @@ ipcMain.handle('license:activate',async(_e,payload={})=>{
   s.secret=s.secret||{};
   s.secret.customerId=customerId;
   s.secret.activationCode=activationCode;
-  s.license={customerId,deviceId:result.deviceId||null,plan:result.planKey||null,activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+  s.license={customerId,deviceId:result.deviceId||null,plan:result.planKey||null,featurePolicy:result.featurePolicy||{},activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
   await writeState(s);await audit('license.device_activated',`Cliente ${customerId}; dispositivo ${result.deviceId||deviceKey}`);
   return publicLicenseState(await readState());
 });
@@ -259,7 +260,7 @@ ipcMain.handle('license:status',async()=>{
   const deviceKey=await ensureDeviceKey();
   const result=await postJson(`${CLOUD}/api/device-status`,{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});
   const fresh=await readState();
-  fresh.license={...(fresh.license||{}),customerId:result.customerId||s.secret.customerId,deviceId:result.deviceId||fresh.license?.deviceId||null,plan:result.planKey||fresh.license?.plan||null,activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+  fresh.license={...(fresh.license||{}),customerId:result.customerId||s.secret.customerId,deviceId:result.deviceId||fresh.license?.deviceId||null,plan:result.planKey||fresh.license?.plan||null,featurePolicy:result.featurePolicy||fresh.license?.featurePolicy||{},activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
   await writeState(fresh);
   return publicLicenseState(fresh);
 });
@@ -448,6 +449,12 @@ ipcMain.handle('shopify:disconnect',async()=>{
   const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
 });
 
+ipcMain.handle('update:check',async()=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)return {ok:false,error:'Activa primero tu licencia'};
+  const deviceKey=await ensureDeviceKey();
+  return postJson(CLOUD+'/api/desktop-update',{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey,currentVersion:app.getVersion()});
+});
 ipcMain.handle('app:open-external',async(_e,url)=>{const u=String(url||'').trim();if(!/^https:\/\//i.test(u))throw new Error('Enlace no válido');await shell.openExternal(u);return true});
 
 async function runHealthCheck(){
