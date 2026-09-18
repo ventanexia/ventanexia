@@ -315,6 +315,8 @@ async function runDiscovery(mode){
 $('#scanCommon').onclick=()=>runDiscovery('common');
 $('#scanChoose').onclick=()=>runDiscovery('choose');
 
+const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');};
+
 $('#supportBtn').onclick=async()=>{if(!confirm('Se abrirá Asistencia rápida de Windows. Ninguna persona podrá controlar tu equipo hasta que tú aceptes la sesión dentro de Windows. ¿Continuar?'))return;await window.vnx.openQuickAssist();$('#supportMsg').textContent='Se ha abierto la ayuda de Windows. Acepta solo si reconoces al técnico.';await refresh()};
 $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMsg').textContent='La ayuda ha terminado. Si la ventana de Windows sigue abierta, ciérrala también.';await refresh()};
 $('#refreshActivity').onclick=refresh;
