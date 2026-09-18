@@ -24,6 +24,9 @@ import meetingEvent from "../server/handlers/meeting-event.js";
 import modulePlanner from "../server/handlers/module-planner.js";
 import onboardingSave from "../server/handlers/onboarding-save.js";
 import onboardingState from "../server/handlers/onboarding-state.js";
+import oauthStart from "../server/handlers/oauth-start.js";
+import oauthCallback from "../server/handlers/oauth-callback.js";
+import oauthStatus from "../server/handlers/oauth-status.js";
 import policyEvaluate from "../server/handlers/policy-evaluate.js";
 import portalBilling from "../server/handlers/portal-billing.js";
 import portalChangeRequest from "../server/handlers/portal-change-request.js";
@@ -74,6 +77,9 @@ const handlers = {
   "module-planner": modulePlanner,
   "onboarding-save": onboardingSave,
   "onboarding-state": onboardingState,
+  "oauth-start": oauthStart,
+  "oauth-callback": oauthCallback,
+  "oauth-status": oauthStatus,
   "policy-evaluate": policyEvaluate,
   "portal-billing": portalBilling,
   "portal-change-request": portalChangeRequest,
