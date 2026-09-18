@@ -135,8 +135,68 @@ function csvRows(content=""){
   });
 }
 
+function parseGmailContext(localContext=[]){
+  const gmail=localContext.find(f=>/^(gmail|conexion email)|\bgmail\b|\bemail\b/i.test(String(f?.path||"")));
+  if(!gmail)return null;
+  const content=String(gmail.content||"");
+  const total=Number((content.match(/TOTAL_COINCIDENCIAS:\s*(\d+)/i)||[])[1]||0);
+  const blocks=content.split(/\n\s*\n(?=Correo\s+\d+)/i).map(x=>x.trim()).filter(Boolean);
+  const mails=[];
+  for(const block of blocks){
+    if(!/^Correo\s+\d+/i.test(block))continue;
+    const get=(label)=>{
+      const m=block.match(new RegExp("(?:^|\\n)"+label+"\\s*:\\s*(.*)","i"));
+      return String(m?.[1]||"").trim();
+    };
+    mails.push({
+      from:get("De|From"),
+      subject:get("Asunto|Subject")||"(sin asunto)",
+      date:get("Fecha|Date"),
+      status:get("Estado|Status"),
+      snippet:get("Vista previa|Snippet|Resumen")
+    });
+  }
+  return {path:gmail.path,total,mails};
+}
+
+function scoreMailAttention(m){
+  const t=String([m.subject,m.snippet,m.status].join(" ")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  let s=0;
+  if(/no leido|unread/.test(t))s+=2;
+  if(/importante|important/.test(t))s+=3;
+  if(/urgente|incidencia|problema|error|pago|factura|pedido|reclam|venc|cancel|devoluc|bloque|seguridad|confirm|respuesta|consulta|pregunta|plazo/.test(t))s+=2;
+  return s;
+}
+
 function desktopFallback(message,localContext=[]){
   const q=String(message||"").toLowerCase();
+  const gmail=parseGmailContext(localContext);
+  if(gmail){
+    if((/cu[aá]ntos?|n[uú]mero|total/.test(q))&&(/correo|correos|email|emails/.test(q))){
+      const when=/hoy|today/.test(q)?" hoy":"";
+      const n=gmail.total||gmail.mails.length;
+      return `He consultado el correo seleccionado. Hay ${n} correo(s)${when} en la bandeja de entrada.`;
+    }
+    if((/ultim|recient/.test(q))&&(/correo|correos|email|emails/.test(q))){
+      const wanted=Number((q.match(/\b(\d{1,2})\b/)||[])[1]||5);
+      const chosen=gmail.mails.slice(0,Math.max(1,Math.min(10,wanted)));
+      if(!chosen.length)return "He consultado el correo seleccionado, pero no he encontrado mensajes que mostrar.";
+      const lines=chosen.map((m,i)=>`${i+1}. ${m.subject} — ${m.from||"remitente no disponible"}${m.date?` — ${m.date}`:""}${m.status?` — ${m.status}`:""}\n   ${m.snippet||"Sin vista previa disponible."}`);
+      const top=[...chosen].sort((a,b)=>scoreMailAttention(b)-scoreMailAttention(a))[0];
+      const reason=top?`\n\nEl que revisaría primero es «${top.subject}» de ${top.from||"ese remitente"}.`:"";
+      return `He consultado el correo seleccionado. Estos son los últimos ${chosen.length} correos:\n\n${lines.join("\n\n")}${reason}`;
+    }
+    if(/pedido|pedidos/.test(q)){
+      const related=gmail.mails.filter(m=>/pedido|order|compra|presupuesto|entrega|envio|expedicion/i.test([m.subject,m.snippet].join(" ")));
+      const pool=related.length?related:gmail.mails;
+      if(!pool.length)return "He consultado el correo seleccionado, pero no he encontrado mensajes relacionados con pedidos.";
+      const ranked=[...pool].sort((a,b)=>scoreMailAttention(b)-scoreMailAttention(a)).slice(0,5);
+      const lines=ranked.map((m,i)=>`${i+1}. ${m.subject} — ${m.from||"remitente no disponible"}${m.status?` — ${m.status}`:""}\n   ${m.snippet||"Sin vista previa disponible."}`);
+      const top=ranked[0];
+      return `He revisado el correo seleccionado y he buscado mensajes relacionados con pedidos:\n\n${lines.join("\n\n")}\n\nEl que parece requerir respuesta primero es «${top.subject}» de ${top.from||"ese remitente"}.`;
+    }
+  }
+
   if((/cliente|clientes|prospecto|prospectos/.test(q))&&(/email|correo|escribir|enviar/.test(q))){
     return "Puedo ayudarte con eso, pero para hacerlo con datos reales necesito tener conectadas dos cosas: una fuente de clientes o captación y una cuenta de correo. Ve a “Conexiones”, conecta esas herramientas y después vuelve aquí. Cuando estén conectadas, podré trabajar con los clientes reales y preparar los correos sin inventar datos.";
   }
@@ -176,9 +236,9 @@ function desktopFallback(message,localContext=[]){
   }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3);
   if(ranked.length){
     const refs=ranked.map(x=>x.f.path).join(", ");
-    return `He encontrado información relacionada en los datos autorizados (${refs}), pero para darte una respuesta precisa necesito que elijas la conexión o carpeta concreta con la que quieres trabajar. Así evito mezclar datos o darte una respuesta incorrecta.`;
+    return `He encontrado información relacionada en los datos autorizados (${refs}), pero no he podido convertirla en una respuesta concreta todavía.`;
   }
-  return "Todavía no tengo una fuente de datos adecuada para responder con precisión. Conecta o selecciona la cuenta, tienda, portal o carpeta donde están esos datos y vuelve a pedírmelo.";
+  return "Todavía no tengo una fuente de datos adecuada para responder con precisión.";
 }
 
 function normalizeLocalContext(value){
