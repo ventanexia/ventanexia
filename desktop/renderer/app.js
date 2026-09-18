@@ -137,6 +137,10 @@ function setupServiceConnectionWizard(){
       }
       const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:account?.value?.trim()||''});
       oauthState=started.state;
+      if(started.authUrl){
+        notice.innerHTML='<b>Se ha abierto tu navegador para autorizar la cuenta.</b> Si no lo ves, <button class="mini" id="oauthOpenFallback" type="button">Abrir autorización</button>';
+        const fallback=$('#oauthOpenFallback');if(fallback)fallback.onclick=()=>window.vnx.openExternal(started.authUrl);
+      }
       stopPoll();
       pollTimer=setInterval(async()=>{
         try{
