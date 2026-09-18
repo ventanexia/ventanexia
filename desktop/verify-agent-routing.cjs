@@ -92,6 +92,7 @@ assert.equal(isAgentIncluded(clientLicense,'whatsapp'),false);
 
 const master=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
 const main=fs.readFileSync(path.join(__dirname,'main.cjs'),'utf8');
+const entry=fs.readFileSync(path.join(__dirname,'master-entry.cjs'),'utf8');
 assert.match(master,/normalizeChatScope/);
 assert.match(master,/emailAgentDirectReply/);
 assert.match(master,/No se mezclarán datos de otras conexiones/);
@@ -104,6 +105,12 @@ const handlerCount=(main.match(/ipcMain\.handle\('chat:send'/g)||[]).length+(mas
 assert.equal(handlerCount,1,'Debe existir un único handler chat:send');
 assert.doesNotMatch(main,/ipcMain\.handle\('chat:send'/,'main.cjs no debe registrar chat:send');
 assert.doesNotMatch(master,/renderer','master\.js/,'master.js no debe inyectarse una segunda vez');
+assert.match(entry,/const PORTAL_SCOPE_TYPES=new Set\(\['portal','url','folder','shopify','integration'\]\)/);
+assert.match(entry,/if\(type==='agent'\|\|!type\)return agentChat/,'Los agentes deben ir siempre a master.cjs');
+assert.match(entry,/type==='integration'.*scope\?\.key.*email[\s\S]*return agentChat/,'Email individual del Centro Maestro debe respetar accountIndex en master.cjs');
+assert.match(entry,/if\(PORTAL_SCOPE_TYPES\.has\(type\)\)return portalChat/);
+assert.match(entry,/ipcMain\.removeHandler\('chat:send'\)/);
+assert.match(entry,/originalHandle\('chat:send'/);
 
 const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8');
 assert.match(renderer,/type:'agent',key:item\.key/);
