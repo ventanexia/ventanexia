@@ -459,29 +459,104 @@ ipcMain.handle('app:open-external',async(_e,url)=>{const u=String(url||'').trim(
 
 async function runHealthCheck(){
   const checks=[];
-  try{await fs.access(storeFile());checks.push({name:'Configuración de VentaNexIA',ok:true})}catch{checks.push({name:'Configuración de VentaNexIA',ok:false})}
+  const add=(name,ok,detail='')=>checks.push({name,ok:Boolean(ok),detail:String(detail||'').slice(0,500)});
+  let state=null;
+  try{state=await readState();add('Configuración de VentaNexIA',true)}catch(e){add('Configuración de VentaNexIA',false,e.message)}
+  try{const st=await fs.stat(storeFile());add('Archivo de configuración',st.isFile(),'Disponible')}catch{add('Archivo de configuración',false,'No se encuentra o no se puede abrir')}
+  add('Protección de datos',safeStorage.isEncryptionAvailable(),safeStorage.isEncryptionAvailable()?'Activa':'Windows no permite cifrado local ahora');
   try{
-    const r=await fetch(CLOUD+'/api/device-status',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({customerId:(await readState()).secret?.customerId||'',activationCode:(await readState()).secret?.activationCode||'',deviceKey:await ensureDeviceKey()})});
-    checks.push({name:'Conexión con VentaNexIA',ok:r.ok});
-  }catch{checks.push({name:'Conexión con VentaNexIA',ok:false})}
-  checks.push({name:'Protección local',ok:safeStorage.isEncryptionAvailable()});
+    const drive=process.env.SystemDrive||'C:';
+    const free=await fs.statfs(drive+'\\');
+    const gb=Number(free.bavail||0)*Number(free.bsize||0)/1024/1024/1024;
+    add('Espacio libre',gb>1,gb.toFixed(1)+' GB libres');
+  }catch{add('Espacio libre',true,'No se pudo medir, sin bloqueo')}
+  try{
+    const r=await fetch(CLOUD+'/api/health',{headers:{'User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`}});
+    const j=await r.json().catch(()=>({}));
+    add('Servicio VentaNexIA',r.ok&&j.ok!==false,r.ok?'Disponible':'No responde');
+    add('Motor inteligente',Boolean(j?.checks?.ai),j?.checks?.ai?'Disponible':'No disponible en el servidor');
+    add('Base de datos',Boolean(j?.checks?.database),j?.checks?.database?'Disponible':'No disponible');
+    add('Pagos y licencias',Boolean(j?.checks?.stripe),j?.checks?.stripe?'Disponible':'No disponible');
+  }catch(e){
+    add('Servicio VentaNexIA',false,'No hay conexión con el servidor');
+    add('Motor inteligente',false,'No se pudo comprobar');
+    add('Base de datos',false,'No se pudo comprobar');
+    add('Pagos y licencias',false,'No se pudo comprobar');
+  }
+  if(state?.secret?.customerId&&state?.secret?.activationCode){
+    try{
+      const result=await postJson(CLOUD+'/api/device-status',{customerId:state.secret.customerId,activationCode:state.secret.activationCode,deviceKey:await ensureDeviceKey()});
+      add('Licencia',Boolean(result?.ok),'Activa');
+    }catch(e){add('Licencia',false,e.message||'No se pudo comprobar')}
+  }else add('Licencia',false,'Este equipo todavía no está activado');
+  const folders=state?.permissions?.folders||[];
+  for(const folder of folders.slice(0,20)){
+    try{const st=await fs.stat(folder);add('Carpeta autorizada · '+path.basename(folder),st.isDirectory(),'Disponible')}
+    catch{add('Carpeta autorizada · '+path.basename(folder),false,'Ya no existe o no es accesible')}
+  }
+  const portals=Array.isArray(state?.portals)?state.portals:[];
+  for(const p of portals.slice(0,10)){
+    add('Portal · '+String(p.name||'sin nombre'),p.lastStatus!=='error',p.lastStatus||'Pendiente de comprobar');
+  }
+  const ints=state?.secret?.integrations||{};
+  for(const [key,x] of Object.entries(ints).slice(0,15)){
+    add('Conexión · '+String(x.label||key),Boolean(x.token||key==='shopify'),x.connectedAt?'Conectada':'Sin fecha de conexión');
+  }
   return {ok:checks.every(x=>x.ok),checks,at:new Date().toISOString()};
+}
+async function escalateSupport(report,summary){
+  const s=await readState();
+  try{
+    return await postJson(CLOUD+'/api/support-escalate',{
+      customerId:s.secret?.customerId||'SIN-ID',
+      deviceId:s.license?.deviceId||os.hostname(),
+      version:app.getVersion(),
+      summary:String(summary||'VentaNexIA no pudo reparar automáticamente todos los problemas.'),
+      checks:report?.checks||[]
+    });
+  }catch(e){return {ok:false,error:e.message||'No se pudo avisar a soporte'}}
 }
 async function autoRepair(){
   const before=await runHealthCheck();
   const actions=[];
-  if(!safeStorage.isEncryptionAvailable())actions.push('Windows no permite usar la protección local de claves en este momento.');
   try{
     const s=await readState();
-    if(!s.permissions)s.permissions={folders:[]};
+    s.permissions=s.permissions||{folders:[]};
     if(!Array.isArray(s.permissions.folders))s.permissions.folders=[];
-    if(!Array.isArray(s.activity))s.activity=[];
+    s.activity=Array.isArray(s.activity)?s.activity:[];
+    s.license=s.license||{};
+    s.secret=s.secret||{};
     await writeState(s);
     actions.push('Configuración local revisada.');
-  }catch(e){actions.push('No se pudo reparar la configuración local.')}
+  }catch{actions.push('No se pudo reparar la configuración local.')}
+  try{
+    const s=await readState();
+    if(s.secret?.customerId&&s.secret?.activationCode){
+      const deviceKey=await ensureDeviceKey();
+      const result=await postJson(CLOUD+'/api/device-status',{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});
+      const fresh=await readState();
+      fresh.license={...(fresh.license||{}),customerId:result.customerId||s.secret.customerId,deviceId:result.deviceId||fresh.license?.deviceId||null,plan:result.planKey||fresh.license?.plan||null,featurePolicy:result.featurePolicy||fresh.license?.featurePolicy||{},activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+      await writeState(fresh);
+      actions.push('Licencia actualizada.');
+    }
+  }catch{actions.push('La licencia no se pudo actualizar automáticamente.')}
+  try{
+    const s=await readState(),valid=[];
+    for(const folder of s.permissions?.folders||[]){
+      try{const st=await fs.stat(folder);if(st.isDirectory())valid.push(folder)}catch{}
+    }
+    if(valid.length!==(s.permissions?.folders||[]).length){
+      s.permissions.folders=valid;await writeState(s);actions.push('Se quitaron accesos a carpetas que ya no existen.');
+    }
+  }catch{}
   const after=await runHealthCheck();
+  let escalation=null;
+  if(!after.ok){
+    escalation=await escalateSupport(after,'La reparación automática terminó pero siguen existiendo uno o más fallos.');
+    actions.push(escalation?.ok?'Se ha avisado al equipo de soporte. Si hace falta acceso remoto, contactarán con el cliente.':'No se pudo avisar automáticamente al equipo de soporte.');
+  }
   await audit('support.auto_repair',actions.join(' '));
-  return {before,after,actions};
+  return {before,after,actions,escalation};
 }
 ipcMain.handle('support:health',async()=>runHealthCheck());
 ipcMain.handle('support:auto-repair',async()=>autoRepair());
