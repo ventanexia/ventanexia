@@ -92,14 +92,23 @@ async function refreshChatConnections(){
   let items=[];
   try{items=await window.vnx.listConnections()}catch{}
   const options=['<option value="">Selecciona una conexión…</option>'];
-  for(const x of items||[])options.push('<option value="'+esc(x.key)+'">'+esc(x.label||x.module||x.key)+'</option>');
+  for(const x of items||[]){
+    const prefix=x.module==='email'?'📧 Correo · ':x.module==='shopify'?'🛒 Tienda · ':x.type==='folder'?'📁 Carpeta · ':'🔗 ';
+    options.push('<option value="'+esc(x.key)+'">'+prefix+esc(x.label||x.module||x.key)+'</option>');
+  }
   select.innerHTML=options.join('');
   if(previous&&[...select.options].some(o=>o.value===previous))select.value=previous;
   else if((items||[]).length===1)select.value=items[0].key;
   if(hint){
-    if(!(items||[]).length)hint.textContent='Conecta primero una cuenta o autoriza una carpeta.';
-    else if((items||[]).length===1)hint.textContent='Usaré esta conexión para responder con datos reales.';
-    else hint.textContent='Tienes varias conexiones. Elige cuál quieres usar antes de escribir.';
+    if(!(items||[]).length)hint.textContent='Conecta primero el correo, la tienda, el programa o la carpeta que quieras consultar.';
+    else if((items||[]).length===1){
+      const x=items[0];
+      hint.textContent=x.module==='email'
+        ?'VentaNexIA consultará este correo para responder con datos reales.'
+        :x.type==='folder'
+          ?'VentaNexIA consultará esta carpeta para responder con datos reales.'
+          :'VentaNexIA usará esta fuente para responder con datos reales.';
+    }else hint.textContent='Elige exactamente qué correo, tienda, programa o carpeta quieres consultar.';
   }
 }
 function setupServiceConnectionWizard(){
@@ -550,6 +559,6 @@ $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMs
 $('#refreshActivity').onclick=refresh;
 
 function renderMessages(){const root=$('#messages');root.innerHTML='<div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div>'+messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}">${esc(m.content)}</div>`).join('');root.scrollTop=root.scrollHeight}
-$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba la cuenta o programa con el que quieres trabajar para no mezclar datos.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
+$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba qué correo, tienda, programa o carpeta quieres que consulte VentaNexIA.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
 
 init();
