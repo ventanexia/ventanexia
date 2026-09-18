@@ -5,7 +5,7 @@ const os=require('node:os');
 const crypto=require('node:crypto');
 const {ImapFlow}=require('imapflow');
 const nodemailer=require('nodemailer');
-const {assertModuleIncluded}=require('./agent-policy.cjs');
+const {assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -385,6 +385,22 @@ async function verifyIntegration(provider,payload){
   throw new Error('Proveedor todavía no soportado');
 }
 
+function emailAccountsFromState(s){
+  const out=[];
+  for(const x of s.secret?.emailAccounts||[])if(x)out.push(x);
+  const primary=s.secret?.integrations?.email;
+  if(primary&&!out.some(x=>(x.meta?.email||x.label||x.account)===(primary.meta?.email||primary.label||primary.account)))out.push(primary);
+  return out;
+}
+function addMasterEmailAccount(s,entry){
+  s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
+  if(!isMaster(s.license)){s.secret.integrations.email=entry;return;}
+  s.secret.emailAccounts=Array.isArray(s.secret.emailAccounts)?s.secret.emailAccounts:[];
+  const id=String(entry.meta?.email||entry.label||entry.account||entry.username||'').trim().toLowerCase();
+  const i=s.secret.emailAccounts.findIndex(x=>String(x.meta?.email||x.label||x.account||x.username||'').trim().toLowerCase()===id);
+  if(i>=0)s.secret.emailAccounts[i]=entry;else s.secret.emailAccounts.push(entry);
+  s.secret.integrations.email=s.secret.emailAccounts[0]||entry;
+}
 ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
   const policyState=await readState();assertModuleIncluded(policyState.license,'email');
   const email=String(payload.email||'').trim();
@@ -402,8 +418,8 @@ ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
   try{await imap.connect();await imap.logout()}catch(e){try{await imap.logout()}catch{};throw new Error('No se pudo conectar al correo entrante (IMAP): '+String(e?.message||e).slice(0,180))}
   const transport=nodemailer.createTransport({host:smtpHost,port:smtpPort,secure:smtpSecure,requireTLS:!smtpSecure,auth:{user:username,pass:password}});
   try{await transport.verify()}catch(e){throw new Error('El correo entrante funciona, pero no se pudo verificar el envío (SMTP): '+String(e?.message||e).slice(0,180))}
-  const s=await readState();s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
-  s.secret.integrations.email={provider,module:'email',account:email,label:email,mode:'write',connectedAt:new Date().toISOString(),genericMail:{email,username,password,imapHost,imapPort,smtpHost,smtpPort}};
+  const s=await readState();
+  addMasterEmailAccount(s,{provider,module:'email',account:email,label:email,mode:'write',connectedAt:new Date().toISOString(),genericMail:{email,username,password,imapHost,imapPort,smtpHost,smtpPort}});
   await writeState(s);await audit('integration.connected','email · '+provider+' · '+email);
   return {connected:true,label:email,provider,mode:'write'};
 });
@@ -436,7 +452,8 @@ ipcMain.handle('oauth:status',async(_e,payload={})=>{
   }
   const verified=await verifyIntegration(provider,{token,account:'',accountId:'',username:''});
   const fresh=await readState();fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};
-  fresh.secret.integrations[module]={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;
   await writeState(fresh);await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
   return {status:'connected',module,provider,label:verified.label,mode:'write',meta:verified.meta||{}};
 });
@@ -445,17 +462,27 @@ ipcMain.handle('integration:connect',async(_e,payload={})=>{
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   const s=await readState();assertModuleIncluded(s.license,module);
   const verified=await verifyIntegration(provider,payload);s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
-  s.secret.integrations[module]={provider,module,account:String(payload.account||'').trim(),accountId:String(payload.accountId||'').trim(),username:String(payload.username||'').trim(),token:String(payload.token||'').trim(),mode:payload.mode==='write'?'write':'read',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  const entry={provider,module,account:String(payload.account||'').trim(),accountId:String(payload.accountId||'').trim(),username:String(payload.username||'').trim(),token:String(payload.token||'').trim(),mode:payload.mode==='write'?'write':'read',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  if(module==='email')addMasterEmailAccount(s,entry);else s.secret.integrations[module]=entry;
   await writeState(s);await audit('integration.connected',module+' · '+provider+' · '+verified.label);
   return {connected:true,module,provider,label:verified.label,mode:s.secret.integrations[module].mode,meta:verified.meta||{}};
 });
 ipcMain.handle('integration:status',async(_e,module)=>{
-  const key=normalizeProviderKey(module),s=await readState(),x=s.secret?.integrations?.[key];
+  const key=normalizeProviderKey(module),s=await readState();
+  if(key==='email'){
+    const accounts=emailAccountsFromState(s);
+    if(!accounts.length)return {connected:false,module:key,accounts:[]};
+    return {connected:true,module:key,provider:accounts[0].provider,label:accounts.length===1?(accounts[0].label||accounts[0].account||accounts[0].provider):(accounts.length+' cuentas de correo'),mode:'write',meta:accounts[0].meta||{},connectedAt:accounts[0].connectedAt||null,accounts:accounts.map(x=>({label:x.label||x.meta?.email||x.account||'Correo',provider:x.provider,connectedAt:x.connectedAt||null}))};
+  }
+  const x=s.secret?.integrations?.[key];
   if(!x)return {connected:false,module:key};
   return {connected:true,module:key,provider:x.provider,label:x.label||x.account||x.provider,mode:x.mode||'read',meta:x.meta||{},connectedAt:x.connectedAt||null};
 });
 ipcMain.handle('integration:disconnect',async(_e,module)=>{
-  const key=normalizeProviderKey(module),s=await readState();if(s.secret?.integrations?.[key])delete s.secret.integrations[key];await writeState(s);await audit('integration.disconnected',key);return true;
+  const key=normalizeProviderKey(module),s=await readState();
+  if(key==='email'){if(s.secret?.integrations?.email)delete s.secret.integrations.email;s.secret.emailAccounts=[];}
+  else if(s.secret?.integrations?.[key])delete s.secret.integrations[key];
+  await writeState(s);await audit('integration.disconnected',key);return true;
 });
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
@@ -678,8 +705,12 @@ ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente p
 
 ipcMain.handle('connection:list',async()=>{
   const s=await readState(),out=[];
+  const emailAccounts=emailAccountsFromState(s);
+  for(let i=0;i<emailAccounts.length;i++){
+    const x=emailAccounts[i];out.push({key:'integration:email:'+i,type:'integration',module:'email',provider:x.provider||'',label:x.label||x.meta?.email||x.account||('Correo '+(i+1))});
+  }
   for(const [module,x] of Object.entries(s.secret?.integrations||{})){
-    if(!x)continue;
+    if(!x||module==='email')continue;
     out.push({key:'integration:'+module,type:'integration',module,provider:x.provider||'',label:x.label||x.meta?.email||x.account||module});
   }
   for(const folder of s.permissions?.folders||[])out.push({key:'folder:'+folder,type:'folder',folder,label:'Carpeta · '+path.basename(folder)});
