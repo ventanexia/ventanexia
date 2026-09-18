@@ -196,7 +196,10 @@
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
       const connections=chatConnections(),scope=selectedChatScope();
       if(!connections.length){masterMessages.push({role:'assistant',content:'Todavía no tienes ninguna cuenta o programa conectado. Ve a “Conexiones”, conecta la herramienta donde están tus datos y después vuelve aquí.'});renderMasterMessages();return;}
-      if(!scope){masterMessages.push({role:'assistant',content:'Elige arriba la cuenta o programa con el que quieres trabajar. Así puedo darte datos precisos sin mezclar información.'});renderMasterMessages();return;}
+      if(!scope){masterMessages.push({role:'assistant',content:'Elige arriba el agente de VentaNexIA con el que quieres trabajar.'});renderMasterMessages();return;}
+      if(scope.connected===false&&!['prospecting'].includes(scope.key)){
+        masterMessages.push({role:'assistant',content:'El agente '+scope.name.replace(/ · sin conectar$/,'')+' todavía no tiene conectada la cuenta o herramienta que necesita. Ve a “Conexiones”, conéctala y vuelve aquí.'});renderMasterMessages();return;
+      }
       masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
