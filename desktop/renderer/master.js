@@ -74,22 +74,18 @@
     const out=[];
     for(const p of masterPortals||[]){if(['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});}
     const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
-    const real=getRealSourcesForChat();
     for(const x of runtimeConnections||[]){
-      const key=x.module||x.key;
-      if(!key)continue;
-      if(key==='shopify')out.push({type:'shopify',key:'shopify',name:'Shopify · '+(x.label||'Tienda'),shop:x.shop||x.label||null});
-      else if(['email','whatsapp','social','crm'].includes(key))out.push({type:'integration',key,name:(labels[key]||key)+' · '+(x.label||'Conectado')});
-      else if(x.type==='folder')out.push({type:'folder',key:x.key||key,name:'Datos locales · '+(x.label||'Carpeta'),folder:x.path||x.folder||x.label});
-    }
-    for(const [key,v] of Object.entries(real)){
-      // El estado de conexiones reales lo manda el backend. localStorage no puede mantener una cuenta como conectada después de desconectarla.
-      if(['email','whatsapp','social','crm','shopify'].includes(key))continue;
-      if(v&&v.url)out.push({type:'url',key,name:labels[key]||key,url:v.url});
-      else if(v&&v.folder)out.push({type:'folder',key,name:labels[key]||key,folder:v.folder});
+      const moduleKey=x.module||x.key;
+      if(!moduleKey)continue;
+      if(moduleKey==='shopify')out.push({type:'shopify',key:'shopify',connectionKey:x.key||'integration:shopify',name:'Shopify · '+(x.label||'Tienda'),shop:x.shop||x.label||null});
+      else if(['email','whatsapp','social','crm'].includes(moduleKey))out.push({type:'integration',key:moduleKey,connectionKey:x.key||('integration:'+moduleKey),accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,name:(labels[moduleKey]||moduleKey)+' · '+(x.label||'Conectado')});
+      else if(x.type==='folder')out.push({type:'folder',key:x.key||moduleKey,connectionKey:x.key||moduleKey,name:'Datos locales · '+(x.label||'Carpeta'),folder:x.path||x.folder||x.label});
     }
     const seen=new Set();
-    return out.filter(x=>{const k=x.type==='portal'?'p:'+x.id:x.type==='url'?'u:'+x.url:x.type==='shopify'?'s:'+x.shop:x.type==='integration'?'i:'+x.key:'f:'+x.folder;if(seen.has(k))return false;seen.add(k);return true;});
+    return out.filter(x=>{
+      const k=x.type==='portal'?'p:'+x.id:x.type==='integration'?'i:'+(x.connectionKey||x.key):x.type==='shopify'?'s:'+(x.connectionKey||x.shop):'f:'+(x.connectionKey||x.folder);
+      if(seen.has(k))return false;seen.add(k);return true;
+    });
   }
   function agentDisplayName(x){
     const base=(x.icon||'🤖')+' Agente '+(x.name||x.key||'');
@@ -171,7 +167,7 @@
     if(item.type==='url')return {type:'url',key:item.key,name:item.name,url:item.url};
     if(item.type==='folder')return {type:'folder',key:item.key,name:item.name,folder:item.folder};
     if(item.type==='shopify')return {type:'shopify',key:item.key,name:item.name,shop:item.shop};
-    if(item.type==='integration')return {type:'integration',key:item.key,name:item.name};
+    if(item.type==='integration')return {type:'integration',key:item.key,name:item.name,accountIndex:item.accountIndex,connectionKey:item.connectionKey};
     return null;
   }
   function setupMasterCenter(){
