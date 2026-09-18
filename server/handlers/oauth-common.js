@@ -44,3 +44,7 @@ export async function exchangeCode(cfg,{code,redirectUri,verifier}){
   if(!r.ok||j.error)throw new Error(j.error_description||j.error||j.raw||`TOKEN_HTTP_${r.status}`);
   return j;
 }
+
+export function connectorConfigured(provider){
+  try{const cfg=connector(provider,{shop:provider==='shopify'?'demo.myshopify.com':''});return Boolean(cfg.clientId)}catch{return false}
+}
