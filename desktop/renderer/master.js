@@ -3,6 +3,7 @@
   const escM=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   let masterPortals=[];
   let masterMessages=[];
+  let runtimeConnections=[];
 
   function statusLabel(p){
     if(p.lastStatus==='connected')return '🟢 Conectado';
@@ -63,11 +64,22 @@
   function getRealSourcesForChat(){
     try{return JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')}catch{return {}}
   }
+  async function refreshRuntimeConnections(){
+    try{runtimeConnections=await window.vnx.listConnections()||[]}catch{runtimeConnections=[]}
+    return runtimeConnections;
+  }
   function connectedDataSources(){
     const out=[];
     for(const p of masterPortals||[]){if(['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});}
     const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
     const real=getRealSourcesForChat();
+    for(const x of runtimeConnections||[]){
+      const key=x.module||x.key;
+      if(!key)continue;
+      if(key==='shopify')out.push({type:'shopify',key:'shopify',name:'Shopify · '+(x.label||'Tienda'),shop:x.shop||x.label||null});
+      else if(['email','whatsapp','social','crm'].includes(key))out.push({type:'integration',key,name:(labels[key]||key)+' · '+(x.label||'Conectado')});
+      else if(x.type==='folder')out.push({type:'folder',key:x.key||key,name:'Datos locales · '+(x.label||'Carpeta'),folder:x.path||x.folder||x.label});
+    }
     for(const [key,v] of Object.entries(real)){
       if(key==='shopify'&&v&&v.status==='connected')out.push({type:'shopify',key,name:'Shopify · '+(v.shopName||v.shop||'Tienda'),shop:v.shop||null});
       else if(['email','whatsapp','social','crm'].includes(key)&&v&&v.status==='connected')out.push({type:'integration',key,name:(labels[key]||key)+' · '+(v.label||v.account||'Conectado')});
@@ -96,24 +108,35 @@
     ];
   }
   function chatConnectionValue(x){return x.type==='agent'?'agent:'+x.key:''}
-  function refreshChatConnections(){
+  function renderHomeAgents(items){
+    const root=$m('#homeAgentsList'),summary=$m('#homeAgentsSummary');if(!root)return;
+    const ready=items.filter(x=>x.connected),pending=items.filter(x=>!x.connected);
+    if(summary)summary.textContent=ready.length+' agente'+(ready.length===1?'':'s')+' listo'+(ready.length===1?'':'s')+' para usar · '+pending.length+' pendiente'+(pending.length===1?'':'s')+' de conectar';
+    root.innerHTML=items.map(x=>'<article class="modulecard"><b>'+escM(x.name.replace(/ · sin conectar$/,''))+'</b><span>'+(x.connected?'🟢 <strong>Listo para usar</strong>':'🟠 <strong>Necesita conexión</strong><br><small>Conéctalo en “Conexiones” para poder usarlo.</small>')+'</span></article>').join('');
+  }
+  async function refreshChatConnections(){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
-    const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
-    sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(x.name)+'</option>').join('');
+    await refreshRuntimeConnections();
+    const allItems=chatConnections(),items=allItems.filter(x=>x.connected),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
+    sel.innerHTML='<option value="">Elige un agente conectado…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(x.name)+'</option>').join('');
     const values=[...sel.options].map(o=>o.value);
     if(previous&&values.includes(previous))sel.value=previous;
     else if(saved&&values.includes(saved))sel.value=saved;
-    else sel.value='agent:email';
+    else if(items.some(x=>x.key==='email'))sel.value='agent:email';
+    else if(items.length===1)sel.value=chatConnectionValue(items[0]);
+    else sel.value='';
     if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
-    sel.onchange=()=>{if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value)};
+    sel.onchange=()=>{
+      if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
+      const chosen=items.find(x=>chatConnectionValue(x)===sel.value);
+      if(hint)hint.textContent=chosen?'🟢 '+chosen.name+' está listo para usar.':'Elige uno de tus agentes conectados y listos para usar.';
+    };
     const chosen=items.find(x=>chatConnectionValue(x)===sel.value);
-    if(chosen&&hint){
-      hint.textContent=chosen.connected
-        ?'Trabajando con: '+chosen.name
-        :'Este agente necesita que conectes primero su cuenta o herramienta en “Conexiones”.';
-    }else if(hint)hint.textContent='Elige el agente de VentaNexIA que quieres usar para esta consulta.';
+    if(hint)hint.textContent=chosen?'🟢 '+chosen.name+' está listo para usar.':'Elige uno de tus agentes conectados y listos para usar.';
+    renderHomeAgents(allItems);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
   }
+  window.vnxRefreshAgentUi=refreshChatConnections;
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
     const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
@@ -195,10 +218,9 @@
     form.onsubmit=async e=>{
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
       const connections=chatConnections(),scope=selectedChatScope();
-      if(!connections.length){masterMessages.push({role:'assistant',content:'Todavía no tienes ninguna cuenta o programa conectado. Ve a “Conexiones”, conecta la herramienta donde están tus datos y después vuelve aquí.'});renderMasterMessages();return;}
-      if(!scope){masterMessages.push({role:'assistant',content:'Elige arriba el agente de VentaNexIA con el que quieres trabajar.'});renderMasterMessages();return;}
-      if(scope.connected===false&&!['prospecting'].includes(scope.key)){
-        masterMessages.push({role:'assistant',content:'El agente '+scope.name.replace(/ · sin conectar$/,'')+' todavía no tiene conectada la cuenta o herramienta que necesita. Ve a “Conexiones”, conéctala y vuelve aquí.'});renderMasterMessages();return;
+      if(!scope){
+        const pending=connections.filter(x=>!x.connected);
+        masterMessages.push({role:'assistant',content:pending.length?'Elige arriba uno de los agentes conectados. Si el agente que necesitas no aparece, debes conectarlo primero en “Conexiones” para poder hacer esa gestión.':'Todavía no tienes agentes disponibles. Ve a “Conexiones”, conecta el agente que necesites y vuelve aquí.'});renderMasterMessages();return;
       }
       masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
@@ -227,7 +249,7 @@
     setupMasterChat();
     setupMasterCenter();
     await renderMasterPortals();
-    refreshChatConnections();
+    await refreshChatConnections();
     setInterval(()=>{if($m('#portalList')&&document.visibilityState==='visible')renderMasterPortals()},12000);
   }
   setTimeout(start,350);
