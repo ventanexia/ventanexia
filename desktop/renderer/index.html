@@ -221,6 +221,18 @@
       <label>Proveedor<select id="serviceProvider"></select></label>
       <label>Cuenta que quieres conectar<input id="serviceAccount" autocomplete="username" placeholder="Ej.: ventas@empresa.com"></label>
     </div>
+    <div id="genericEmailFields" style="display:none;margin-top:12px">
+      <div class="notice"><b>Correo de empresa u otro proveedor.</b> Puedes conectar Yahoo, iCloud, Orange, un dominio corporativo o cualquier servicio compatible con IMAP y SMTP. VentaNexIA guardará estos datos cifrados en este ordenador.</div>
+      <div class="formgrid" style="margin-top:12px">
+        <label>Usuario<input id="genericEmailUser" autocomplete="username" placeholder="Normalmente tu email completo"></label>
+        <label>Contraseña o contraseña de aplicación<input id="genericEmailPassword" type="password" autocomplete="current-password" placeholder="No se mostrará"></label>
+        <label>Servidor de entrada (IMAP)<input id="genericImapHost" placeholder="imap.tudominio.com"></label>
+        <label>Puerto IMAP<input id="genericImapPort" type="number" value="993"></label>
+        <label>Servidor de salida (SMTP)<input id="genericSmtpHost" placeholder="smtp.tudominio.com"></label>
+        <label>Puerto SMTP<input id="genericSmtpPort" type="number" value="465"></label>
+      </div>
+      <small>Si tu proveedor usa verificación en dos pasos, normalmente tendrás que crear una contraseña de aplicación. VentaNexIA comprobará entrada y salida antes de guardar la conexión.</small>
+    </div>
     <div class="notice" id="serviceConnectionNotice"><b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres usar y VentaNexIA abrirá la página oficial para que aceptes la conexión.</div>
     <div class="row"><button class="btn primary" id="servicePrepareBtn">Conectar ahora</button><button class="btn outline" id="serviceDisconnectBtn">Desconectar</button><button class="btn outline" id="serviceCancelBtn">Cancelar</button></div>
   </div>
