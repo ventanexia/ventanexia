@@ -129,7 +129,7 @@
       datos:'Resume y muestra la información empresarial disponible en esta conexión: clientes, pedidos, facturas, productos, ventas y otros datos que realmente puedas consultar. No inventes nada.'
     };
     const titles={clientes:'Clientes',facturas:'Facturas',pedidos:'Pedidos',datos:'Todos los datos'};
-    $m('[data-master-query]').forEach(btn=>btn.onclick=async()=>{
+    $$m('[data-master-query]').forEach(btn=>btn.onclick=async()=>{
       const key=btn.dataset.masterQuery,scope=masterCenterScope();
       if(!scope){
         root.innerHTML='<div class="empty">Primero elige arriba la cuenta o programa que quieres consultar.</div>';return;
