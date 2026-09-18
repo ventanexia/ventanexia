@@ -25,8 +25,17 @@ export default async function handler(req,res){
     if(account&&provider==="gmail")params.set("login_hint",account);
     if(account&&provider==="microsoft_365")params.set("login_hint",account);
     if(cfg.pkce){params.set("code_challenge",proof.challenge);params.set("code_challenge_method","S256")}
-    const row={state,provider,module,customer_id:customerId||null,device_id:deviceId||null,shop:cfg.shop||shop||null,code_verifier:proof.verifier,status:"pending",expires_at:new Date(Date.now()+15*60*1000).toISOString()};
-    await sbFetch("vnx_oauth_sessions",{method:"POST",body:JSON.stringify(row)});
+    if(!customerId||!deviceId)return res.status(401).json({error:"Activa primero la licencia de VentaNexIA",code:"LICENSE_REQUIRED"});
+    await sbFetch("rpc/vnx_create_oauth_session",{method:"POST",body:JSON.stringify({
+      p_state:state,
+      p_provider:provider,
+      p_module:module,
+      p_customer_code:customerId,
+      p_device_id:deviceId,
+      p_shop:cfg.shop||shop||null,
+      p_code_verifier:proof.verifier,
+      p_expires_at:new Date(Date.now()+15*60*1000).toISOString()
+    })});
     return res.status(200).json({ok:true,state,authUrl:cfg.auth+"?"+params.toString(),expiresIn:900});
   }catch(e){
     const code=String(e?.message||"");
