@@ -184,6 +184,7 @@ function setupServiceConnectionWizard(){
     const all=getRealModuleSources();delete all[activeKey];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
     if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar CRM';
     notice.innerHTML='<b>Desconectado.</b>';
+    await refreshChatConnections();
   };
   return async(key,button)=>{
     activeKey=key;activeButton=button;oauthState=null;stopPoll();
@@ -201,7 +202,10 @@ function setupServiceConnectionWizard(){
     updateEmailProviderFields();
     try{
       const st=await window.vnx.integrationStatus(key);
-      if(st?.connected)notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
+      if(st?.connected){
+        const accounts=Array.isArray(st.accounts)?st.accounts:[];
+        notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.'+(key==='email'&&accounts.length>1?'<br><small>'+accounts.map(x=>esc(x.label)).join(' · ')+'</small>':'');
+      }
     }catch{}
     modal.style.display='flex';
   };
