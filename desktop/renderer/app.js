@@ -379,6 +379,33 @@ async function refreshUsageOverview(){
 $$('[data-usage-pack]').forEach(btn=>btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon='+encodeURIComponent(btn.dataset.usagePack)));
 refreshUsageOverview();
 
+const openVideoBrief=$('#openVideoBrief'),videoBriefBox=$('#socialVideoBriefBox'),videoIdea=$('#socialVideoIdea'),videoExampleBtn=$('#videoExampleBtn'),videoTemplateBtn=$('#videoTemplateBtn'),videoPrepareBtn=$('#videoPrepareBtn'),videoBriefMsg=$('#videoBriefMsg');
+if(openVideoBrief&&videoBriefBox)openVideoBrief.onclick=()=>{
+  videoBriefBox.style.display=videoBriefBox.style.display==='none'?'block':'none';
+  if(videoBriefBox.style.display==='block'&&videoIdea)setTimeout(()=>videoIdea.focus(),50);
+};
+if(videoExampleBtn&&videoIdea)videoExampleBtn.onclick=()=>{
+  videoIdea.value='Quiero un vídeo vertical 9:16 de 15 segundos para Instagram Reels. Objetivo: presentar una camilla eléctrica profesional. Escena 1: clínica moderna, limpia y luminosa, plano general. Escena 2: una profesional sanitaria ajusta la altura de la camilla con el mando. Escena 3: primer plano de la estructura y tapizado. Estilo: realista, elegante, premium y profesional; movimientos de cámara suaves. Colores: blancos, grises y azul oscuro. Texto en pantalla: “Más comodidad para el profesional y el paciente”. Final: logo de la empresa y llamada a la acción “Descubre nuestra gama”. No quiero aspecto de vídeo de stock, textos pequeños ni elementos médicos alarmantes.';
+  videoBriefMsg.textContent='Este es solo un ejemplo. Cámbialo para que describa exactamente tu producto, servicio y estilo.';
+  videoIdea.focus();
+};
+if(videoTemplateBtn&&videoIdea)videoTemplateBtn.onclick=()=>{
+  const current=videoIdea.value.trim();
+  videoIdea.value=(current?current+'\n\n':'')+'OBJETIVO DEL VÍDEO:\n\nQUÉ PRODUCTO O SERVICIO DEBE APARECER:\n\nQUÉ QUIERO QUE OCURRA EN CADA ESCENA:\n1. \n2. \n3. \n\nESTILO VISUAL:\n\nCOLORES / AMBIENTE:\n\nTEXTO QUE DEBE APARECER EN PANTALLA:\n\nDURACIÓN: 15 / 30 / 60 segundos\nFORMATO: vertical 9:16 / cuadrado 1:1 / horizontal 16:9\n\nLLAMADA A LA ACCIÓN FINAL:\n\nQUÉ NO QUIERO QUE APAREZCA:';
+  videoBriefMsg.textContent='Rellena lo que sepas. No hace falta que uses palabras técnicas.';
+  videoIdea.focus();
+};
+if(videoPrepareBtn&&videoIdea)videoPrepareBtn.onclick=()=>{
+  const idea=videoIdea.value.trim();
+  if(!idea){videoBriefMsg.textContent='Escribe primero una idea, aunque sea corta. VentaNexIA te ayudará a completarla.';videoIdea.focus();return}
+  openTab('chat');
+  const input=$('#chatInput');
+  if(input){
+    input.value='Quiero preparar un vídeo para redes sociales, pero NO lo generes todavía y NO consumas créditos de vídeo. Ayúdame a convertir esta idea en un briefing muy claro y pregúntame solo lo imprescindible que falte. Después propón escenas, estilo, textos en pantalla, duración y formato para que yo lo apruebe antes de generar.\n\nMI IDEA:\n'+idea;
+    input.focus();
+  }
+};
+
 async function refreshVideoQuota(){
   const box=$('#videoQuotaText');if(!box)return;
   try{
