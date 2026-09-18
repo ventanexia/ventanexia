@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('vnx',{
   connectIntegration:(payload)=>ipcRenderer.invoke('integration:connect',payload),
   integrationStatus:(module)=>ipcRenderer.invoke('integration:status',module),
   disconnectIntegration:(module)=>ipcRenderer.invoke('integration:disconnect',module),
+  startOAuth:(payload)=>ipcRenderer.invoke('oauth:start',payload),
+  pollOAuth:(payload)=>ipcRenderer.invoke('oauth:status',payload),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
   stopSupport:()=>ipcRenderer.invoke('support:stop'),
   sendChat:(messages,scope)=>ipcRenderer.invoke('chat:send',{messages,scope}),
