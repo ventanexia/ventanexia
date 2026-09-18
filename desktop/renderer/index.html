@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VentaNexIA Desktop</title><link rel="stylesheet" href="styles.css"></head>
+<!doctype html><html lang="es" data-agent-chat-v2="1"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>VentaNexIA Desktop</title><link rel="stylesheet" href="styles.css"></head>
 <body>
 <div id="futureSplash" class="future-splash">
   <div class="splash-glow"></div>
@@ -51,6 +51,11 @@
         <article><div class="metric-icon">▣</div><div><small>Pedidos pendientes</small><strong id="homeOrders">—</strong><span>Se mostrará con tus datos</span></div></article>
         <article><div class="metric-icon">▤</div><div><small>Facturas</small><strong id="homeInvoices">—</strong><span>Se mostrará con tus datos</span></div></article>
         <article><div class="metric-icon">✓</div><div><small>Estado</small><strong id="homeLicenseState">Sin activar</strong><span>Tu licencia</span></div></article>
+      </div>
+
+      <div class="dark-panel" id="homeAgentsPanel" style="margin-top:18px">
+        <div class="panel-head"><div><h3 style="margin:0">Tu equipo de agentes</h3><small id="homeAgentsSummary">Comprobando agentes disponibles…</small></div><div class="row"><button class="btn outline" data-tab-jump="agents">Conectar agentes</button><button class="btn primary" data-tab-jump="chat">Habla con tu equipo</button></div></div>
+        <div id="homeAgentsList" class="modulegrid" style="margin-top:14px"></div>
       </div>
 
       <div class="master-strip">
@@ -114,7 +119,7 @@
       <div class="card chatcard">
         <div class="eyebrow">HABLA CON TU EQUIPO</div>
         <div class="panel-head"><h2>¿Qué quieres que haga VentaNexIA?</h2><button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button></div>
-        <div class="notice" id="chatScopeBar" style="margin-bottom:12px"><label><b>¿Con qué agente quieres trabajar?</b><select id="chatConnectionSelect" style="margin-top:6px"><option value="">Elige un agente…</option></select></label><small id="chatConnectionHint" style="display:block;margin-top:6px">Elige el agente de VentaNexIA que quieres usar. Las cuentas y herramientas se gestionan aparte en Conexiones.</small></div>
+        <div class="notice" id="chatScopeBar" style="margin-bottom:12px"><label><b>¿Con qué agente quieres trabajar?</b><select id="chatConnectionSelect" style="margin-top:6px"><option value="">Elige un agente…</option></select></label><small id="chatConnectionHint" style="display:block;margin-top:6px">Elige uno de tus agentes conectados y listos para usar.</small><small style="display:block;margin-top:6px;color:#9fb8cc">¿No aparece el agente que necesitas? Debes conectarlo primero en “Conexiones” para poder hacer las gestiones que quieras.</small></div>
         <div id="messages" class="messages"><div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar y actuar sobre las herramientas que hayas conectado y autorizado, dentro de las funciones disponibles en tu plan.</div></div>
         <form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Ej.: dime cuántos pedidos han entrado hoy, responde las consultas pendientes y prepara una publicación para Instagram"></textarea><div class="row" style="justify-content:space-between;align-items:center"><button class="btn outline" id="chatClearBtn" type="button">Limpiar conversación</button><button class="btn primary">Enviar</button></div></form>
       </div>
