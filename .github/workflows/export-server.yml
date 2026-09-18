@@ -1,0 +1,37 @@
+name: Export VentaNexIA Server
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/export-server.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create server zip
+        run: |
+          python - <<'PY'
+          import os, zipfile
+          root='server'
+          out='VentaNexIA-server.zip'
+          with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
+              for base, _, files in os.walk(root):
+                  for f in files:
+                      p=os.path.join(base,f)
+                      z.write(p,p)
+          print(out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VentaNexIA-server
+          path: VentaNexIA-server.zip
+          if-no-files-found: error
+          retention-days: 14
