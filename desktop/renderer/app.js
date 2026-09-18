@@ -128,8 +128,9 @@ function setupServiceConnectionWizard(){
     }catch(e){
       prepare.disabled=false;prepare.textContent='Conectar ahora';
       const raw=e?.message||String(e);
+      const detail=String(e?.data?.detail||'').trim();
       const missing=/conector todavía no configurado|connector_not_configured/i.test(raw);
-      const msg=missing?'Esta conexión todavía necesita una activación única por parte de VentaNexIA. Tu cuenta está bien; falta activar el acceso oficial con este proveedor.':raw.replace(/^Error invoking remote method[^:]*:\s*/i,'');
+      const msg=missing?'Esta conexión todavía necesita una activación única por parte de VentaNexIA. Tu cuenta está bien; falta activar el acceso oficial con este proveedor.':(detail||raw.replace(/^Error invoking remote method[^:]*:\s*/i,''));
       notice.innerHTML='<b>No se pudo conectar todavía.</b> '+esc(msg);
     }
   };
