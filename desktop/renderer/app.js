@@ -2,6 +2,7 @@ const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 let state={permissions:{folders:[]},activity:[],paired:false,license:{}};
 let messages=[];
 let browsingFolder=null;
+setTimeout(()=>{const splash=document.querySelector('#futureSplash');if(splash)splash.classList.add('hide')},2300);
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function openTab(name){
