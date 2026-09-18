@@ -137,6 +137,9 @@ function csvRows(content=""){
 
 function desktopFallback(message,localContext=[]){
   const q=String(message||"").toLowerCase();
+  if((/cliente|clientes|prospecto|prospectos/.test(q))&&(/email|correo|escribir|enviar/.test(q))){
+    return "Puedo ayudarte con eso, pero para hacerlo con datos reales necesito tener conectadas dos cosas: una fuente de clientes o captación y una cuenta de correo. Ve a “Conexiones”, conecta esas herramientas y después vuelve aquí. Cuando estén conectadas, podré trabajar con los clientes reales y preparar los correos sin inventar datos.";
+  }
   const byName=(needle)=>localContext.find(f=>String(f?.path||"").toLowerCase().includes(needle));
   const ventas=byName("ventas_demo.csv");
   const clientes=byName("clientes_demo.csv");
