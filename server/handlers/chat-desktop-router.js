@@ -7,6 +7,27 @@ function norm(value=""){
 function localContext(req){
   return Array.isArray(req.body?.localContext)?req.body.localContext:[];
 }
+function scopeName(req){
+  return String(req.body?.scope||"").trim().toLowerCase();
+}
+function isEmailScope(req){
+  return ["agent:email","integration:email"].includes(scopeName(req));
+}
+function isWebScope(req){
+  return ["agent:web_ecommerce","portal"].some(x=>scopeName(req)===x||scopeName(req).startsWith(x+":"));
+}
+function emailOnlyContext(req){
+  return localContext(req).filter(f=>{
+    const p=norm(f?.path||"");
+    return p.startsWith("gmail ")||p.startsWith("conexion email ")||p.includes(" email ");
+  });
+}
+function portalOnlyContext(req){
+  return localContext(req).filter(f=>String(f?.path||"").startsWith("PORTAL "));
+}
+function cloneWithContext(req,files){
+  return {...req,body:{...(req.body||{}),localContext:files}};
+}
 
 function portalFiles(req){
   return localContext(req).filter(f=>String(f?.path||"").startsWith("PORTAL "));
@@ -31,10 +52,7 @@ function section(text,label,nextLabels=[]){
 }
 
 function emailFiles(req){
-  return localContext(req).filter(f=>{
-    const p=norm(f?.path||"");
-    return p.startsWith("gmail ")||p.startsWith("conexion email ")||p.includes(" email ");
-  });
+  return emailOnlyContext(req);
 }
 
 function parseEmailBlocks(text=""){
@@ -59,7 +77,7 @@ function parseEmailBlocks(text=""){
 
 function emailFallback(req){
   const q=norm((req.body?.messages||[]).slice().reverse().find(m=>m?.role==="user")?.content||"");
-  const emailScope=String(req.body?.scope||"").toLowerCase()==="integration:email";
+  const emailScope=isEmailScope(req);
   if(!emailScope&&!/correo|email|gmail/.test(q))return null;
   const files=emailFiles(req);
   if(!files.length)return null;
@@ -161,10 +179,46 @@ function portalFallback(req){
 export default async function handler(req,res){
   if(req.method!=="POST")return baseChat(req,res);
   if(req.body?.desktop){
+    const scope=scopeName(req);
+
+    // Aislamiento estricto por agente: el Agente Email jamás puede ver portales,
+    // Shopify, Naturdesma, MobiliarioSanitario u otra fuente ajena al correo.
+    if(isEmailScope(req)){
+      const files=emailOnlyContext(req);
+      if(!files.length){
+        return res.status(200).json({
+          reply:"El Agente Email está seleccionado, pero no he recibido datos de ninguna cuenta de correo conectada. Revisa la conexión de Email y vuelve a intentarlo.",
+          source:"desktop-email-no-context",
+          route:scope
+        });
+      }
+      const isolatedReq=cloneWithContext(req,files);
+      const emailDirect=emailFallback(isolatedReq);
+      if(emailDirect)return res.status(200).json({reply:emailDirect,source:"desktop-email-direct",route:scope,filesUsed:files.length});
+      return baseChat(isolatedReq,res);
+    }
+
+    // El agente Web & Ecommerce solo puede trabajar con su contexto web/portal.
+    if(scope==="agent:web_ecommerce"||scope.startsWith("portal:")){
+      const files=portalOnlyContext(req);
+      if(!files.length){
+        return res.status(200).json({
+          reply:"El Agente Web & Ecommerce está seleccionado, pero no he recibido datos de una tienda o portal conectado.",
+          source:"desktop-web-no-context",
+          route:scope
+        });
+      }
+      const isolatedReq=cloneWithContext(req,files);
+      const direct=portalFallback(isolatedReq);
+      if(direct)return res.status(200).json({reply:direct,source:"desktop-portal-direct",route:scope,filesUsed:files.length});
+      return baseChat(isolatedReq,res);
+    }
+
+    // Sin agente especializado, solo se aplican fallbacks que correspondan a la fuente.
     const emailDirect=emailFallback(req);
-    if(emailDirect)return res.status(200).json({reply:emailDirect,source:"desktop-email-direct"});
+    if(emailDirect)return res.status(200).json({reply:emailDirect,source:"desktop-email-direct",route:scope||null});
     const direct=portalFallback(req);
-    if(direct)return res.status(200).json({reply:direct,source:"desktop-portal-direct"});
+    if(direct)return res.status(200).json({reply:direct,source:"desktop-portal-direct",route:scope||null});
   }
   return baseChat(req,res);
 }
