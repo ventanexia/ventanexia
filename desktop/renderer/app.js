@@ -347,6 +347,38 @@ async function runDiscovery(mode){
 $('#scanCommon').onclick=()=>runDiscovery('common');
 $('#scanChoose').onclick=()=>runDiscovery('choose');
 
+async function refreshUsageOverview(){
+  const root=$('#usageCards');if(!root)return;
+  const labels={
+    video_credits:['🎬','Vídeo','créditos'],
+    image_credits:['🖼️','Imágenes','créditos'],
+    voice_minutes:['☎️','Voz','minutos'],
+    whatsapp_messages:['💬','WhatsApp','mensajes'],
+    lead_credits:['🎯','Captación','créditos'],
+    ai_heavy_tasks:['🧠','Tareas intensivas de IA','tareas'],
+    email_ai_actions:['📧','Email con IA','acciones'],
+    automation_runs:['⚙️','Automatizaciones','ejecuciones'],
+    seo_pages:['🔎','SEO','páginas'],
+    report_generations:['📊','Informes','informes'],
+    storage_mb:['💾','Almacenamiento','MB']
+  };
+  root.innerHTML='<article class="modulecard"><b>Comprobando tu plan…</b><span>Un momento.</span></article>';
+  try{
+    const r=await window.vnx.usageOverview(),items=r?.items||{};
+    const cards=[];
+    for(const [key,meta] of Object.entries(labels)){
+      const q=items[key];
+      if(!q?.ok)continue;
+      let used=Number(q.usedThisMonth||0),limit=Number(q.monthlyLimit||0),remaining=Number(q.remaining||0),unit=meta[2];
+      if(key==='storage_mb'){used=(used/1024).toFixed(1);limit=(limit/1024).toFixed(0);remaining=(remaining/1024).toFixed(1);unit='GB'}
+      cards.push('<article class="modulecard"><b>'+meta[0]+' '+meta[1]+'</b><span><strong style="font-size:22px;color:#fff">'+remaining+'</strong> '+unit+' disponibles<br><small>'+used+' usados de '+limit+'</small></span></article>');
+    }
+    root.innerHTML=cards.length?cards.join(''):'<article class="modulecard"><b>Sin consumos que mostrar</b><span>Cuando actives funciones con uso medido aparecerán aquí.</span></article>';
+  }catch{root.innerHTML='<article class="modulecard"><b>No se pudo comprobar ahora</b><span>VentaNexIA lo volverá a intentar más tarde.</span></article>'}
+}
+$$('[data-usage-pack]').forEach(btn=>btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon='+encodeURIComponent(btn.dataset.usagePack)));
+refreshUsageOverview();
+
 async function refreshVideoQuota(){
   const box=$('#videoQuotaText');if(!box)return;
   try{
