@@ -241,8 +241,8 @@ $('#activateLicenseBtn').onclick=async()=>{
   const customerId=$('#customerIdInput').value.trim();
   const activationCode=$('#activationCodeInput').value.trim();
   const msg=$('#licenseMsg'),btn=$('#activateLicenseBtn');
-  if(!customerId||!activationCode){msg.textContent='Introduce el ID de cliente y el código de activación.';return;}
-  btn.disabled=true;btn.textContent='Activando…';msg.textContent='Comprobando licencia y plazas disponibles…';
+  if(!customerId||!activationCode){msg.textContent='Escribe tu ID de cliente y tu contraseña.';return;}
+  btn.disabled=true;btn.textContent='Entrando…';msg.textContent='Comprobando licencia y plazas disponibles…';
   try{
     const license=await window.vnx.activateLicense({customerId,activationCode});
     state.license=license;$('#activationCodeInput').value='';renderState();
@@ -250,7 +250,7 @@ $('#activateLicenseBtn').onclick=async()=>{
   }catch(e){
     const d=e?.data||{};
     msg.textContent=d.code==='DEVICE_LIMIT_REACHED'?`${d.message} Dispositivo adicional: ${d.extraDeviceMonthlyEur||49} €/mes.`:(e.message||'No se pudo activar el dispositivo');
-  }finally{btn.disabled=false;btn.textContent='Activar este dispositivo'}
+  }finally{btn.disabled=false;btn.textContent='Entrar en este ordenador'}
 };
 $('#refreshLicenseBtn').onclick=async()=>{
   const btn=$('#refreshLicenseBtn'),msg=$('#licenseMsg');btn.disabled=true;btn.textContent='Comprobando…';
