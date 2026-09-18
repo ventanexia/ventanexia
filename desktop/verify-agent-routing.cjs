@@ -119,6 +119,10 @@ assert.match(main,/isMaster\(s\.license\).*unlimited/s,'Maestro debe evitar cons
 assert.match(main,/s\.secret\.emailAccounts=\[\]/,'Desconectar Email debe limpiar todas las cuentas del Maestro');
 assert.match(main,/accountIndex:i/,'Cada cuenta Email del Maestro debe aparecer separada en el panel central');
 assert.match(master,/scope\?\.accountIndex/,'El panel central debe consultar la cuenta Email elegida, no todas');
+assert.match(master,/function isShopifyAdminUrl/);
+assert.match(master,/admin\.shopify\.com/);
+assert.match(master,/Shopify no debe conectarse como portal del navegador/);
+assert.match(master,/portal\.cleanup/);
 
 const app=fs.readFileSync(path.join(__dirname,'renderer','app.js'),'utf8');
 assert.doesNotMatch(app,/Selecciona una conexión…|VentaNexIA consultará este correo para responder con datos reales/);
@@ -127,5 +131,6 @@ assert.match(app,/await refreshChatConnections\(\)/,'Desconectar debe refrescar 
 assert.match(app,/account\.value=''/,'Desconectar Email debe limpiar el correo mostrado en el formulario');
 const html=fs.readFileSync(path.join(__dirname,'renderer','index.html'),'utf8');
 assert.match(html,/id="emailAccountPolicyText"/);
+assert.doesNotMatch(renderer,/admin\.shopify\.com.*out\.push\(\{type:'portal'/s,'Shopify Admin no puede aparecer como portal del Centro Maestro');
 
 console.log('VentaNexIA agent routing verify OK: Email aislado, varias cuentas Maestro, desconexión autoritativa, catálogo completo y límites de cliente.');
