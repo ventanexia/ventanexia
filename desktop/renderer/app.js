@@ -89,13 +89,26 @@ function setupServiceConnectionWizard(){
   const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
   if(!modal)return ()=>{};
   const providers={
-    email:[['gmail','Gmail'],['microsoft_365','Microsoft 365']],
+    email:[['gmail','Gmail / Google Workspace'],['microsoft_365','Outlook / Hotmail / Live / Microsoft'],['yahoo_mail','Yahoo Mail'],['icloud_mail','iCloud Mail'],['generic_imap','Correo de empresa / otro proveedor']],
     whatsapp:[['whatsapp_business','WhatsApp Business']],
     social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
     crm:[['hubspot','HubSpot']]
   };
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'CRM'};
   let activeKey=null,activeButton=null,oauthState=null,pollTimer=null;
+  const genericBox=$('#genericEmailFields'),genericUser=$('#genericEmailUser'),genericPass=$('#genericEmailPassword'),imapHost=$('#genericImapHost'),imapPort=$('#genericImapPort'),smtpHost=$('#genericSmtpHost'),smtpPort=$('#genericSmtpPort');
+  function updateEmailProviderFields(){
+    const p=provider.value;
+    const manual=activeKey==='email'&&['yahoo_mail','icloud_mail','generic_imap'].includes(p);
+    if(genericBox)genericBox.style.display=manual?'block':'none';
+    if(!manual)return;
+    const email=(account?.value||'').trim();
+    if(genericUser&&!genericUser.value)genericUser.value=email;
+    if(p==='yahoo_mail'){imapHost.value='imap.mail.yahoo.com';imapPort.value='993';smtpHost.value='smtp.mail.yahoo.com';smtpPort.value='465';}
+    else if(p==='icloud_mail'){imapHost.value='imap.mail.me.com';imapPort.value='993';smtpHost.value='smtp.mail.me.com';smtpPort.value='587';}
+  }
+  if(provider)provider.onchange=updateEmailProviderFields;
+  if(account)account.addEventListener('input',()=>{if(genericUser&&genericBox?.style.display!=='none'&&!genericUser.value)genericUser.value=account.value.trim()});
   function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null};
   prepare.onclick=async()=>{
@@ -103,6 +116,25 @@ function setupServiceConnectionWizard(){
     prepare.disabled=true;prepare.textContent='Abriendo la página para conectar…';
     notice.innerHTML='<b>Sigue los pasos que verás en el navegador.</b> Cuando termines, VentaNexIA lo sabrá automáticamente.';
     try{
+      if(activeKey==='email'&&['yahoo_mail','icloud_mail','generic_imap'].includes(provider.value)){
+        const result=await window.vnx.connectGenericEmail({
+          provider:provider.value,
+          email:account?.value?.trim()||'',
+          username:genericUser?.value?.trim()||account?.value?.trim()||'',
+          password:genericPass?.value||'',
+          imapHost:imapHost?.value?.trim()||'',
+          imapPort:Number(imapPort?.value||993),
+          smtpHost:smtpHost?.value?.trim()||'',
+          smtpPort:Number(smtpPort?.value||465)
+        });
+        const all=getRealModuleSources();
+        all.email={provider:provider.value,label:result.label||account.value.trim(),account:account.value.trim(),mode:'write',status:'connected',connectedAt:new Date().toISOString()};
+        localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+        if(activeButton)activeButton.textContent='🟢 Email · '+(result.label||account.value.trim());
+        notice.innerHTML='<b>🟢 Correo conectado correctamente.</b> Entrada y salida han sido comprobadas.';
+        prepare.disabled=false;prepare.textContent='Conectar ahora';
+        return;
+      }
       const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:account?.value?.trim()||''});
       oauthState=started.state;
       stopPoll();
@@ -147,12 +179,15 @@ function setupServiceConnectionWizard(){
     title.textContent='Autorizar '+labels[key];
     text.textContent='Elige la cuenta que quieres conectar. Se abrirá su página oficial para que inicies sesión y aceptes el acceso.';
     provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
+    if(genericBox)genericBox.style.display='none';
+    if(genericPass)genericPass.value='';
     if(account){
       const saved=getRealModuleSources()[key];
       account.value=saved?.account||'';
       account.placeholder=key==='email'?'Ej.: ventas@empresa.com':key==='social'?'Ej.: mobiliario.sanitario':'Ej.: nombre de la cuenta';
     }
-    notice.innerHTML='<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
+    notice.innerHTML=key==='email'?'<b>Elige tu proveedor.</b> Gmail y Outlook/Hotmail usan autorización oficial. Para Yahoo, iCloud o un correo corporativo puedes usar la conexión segura IMAP/SMTP.':'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
+    updateEmailProviderFields();
     try{
       const st=await window.vnx.integrationStatus(key);
       if(st?.connected)notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
