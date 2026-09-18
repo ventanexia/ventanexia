@@ -232,7 +232,7 @@ function setupRealModuleMode(){
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
   const openShopify=setupShopifyConnectionUi();
-  $$$('[data-real-module]').forEach(btn=>{
+  $('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
     if(current?.folder)btn.textContent='🟢 '+label+' · datos reales autorizados';
     if(current?.url)btn.textContent=label+' · URL registrada';
@@ -281,17 +281,28 @@ async function refreshProvisioningTasks(){
 }
 const refreshProvisioningBtn=$('#refreshProvisioningBtn');if(refreshProvisioningBtn)refreshProvisioningBtn.onclick=refreshProvisioningTasks;
 
+function reportUiProblem(area,error){
+  const raw=String(error?.message||error||'Error desconocido');
+  console.error('VentaNexIA UI · '+area,raw);
+  const status=$('#encState');
+  if(status&&status.textContent==='Comprobando…')status.textContent='Revisar interfaz';
+}
+async function safeUi(area,fn){
+  try{return await fn()}catch(e){reportUiProblem(area,e);return null}
+}
 async function init(){
   bindTabs();
-  setupPortalUi();
-  setupRealModuleMode();
-  const sys=await window.vnx.systemStatus();
-  $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
-  $('#appVersion').textContent=sys.version;
-  await refresh();
-  enforcePurchasedFeatures();
-  checkForUpdates(sys.version);
-  if(String(state.license?.plan||'').toLowerCase()==='master')refreshProvisioningTasks();
+  await safeUi('portales',async()=>setupPortalUi());
+  await safeUi('conexiones',async()=>setupRealModuleMode());
+  const sys=await safeUi('estado del sistema',()=>window.vnx.systemStatus());
+  if(sys){
+    $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
+    $('#appVersion').textContent=sys.version;
+  }
+  await safeUi('estado local',()=>refresh());
+  await safeUi('permisos del plan',async()=>enforcePurchasedFeatures());
+  if(sys) safeUi('actualizaciones',()=>checkForUpdates(sys.version));
+  if(String(state.license?.plan||'').toLowerCase()==='master')safeUi('activaciones pendientes',()=>refreshProvisioningTasks());
 }
 
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
