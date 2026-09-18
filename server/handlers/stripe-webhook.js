@@ -119,7 +119,6 @@ export default async function handler(req,res){
       const singlePack=String(obj.metadata?.credit_pack||"");
       if(paid&&singlePack&&tenantId){
         await grantCreditPack(tenantId,singlePack,obj.id);
-        await sendOpsExtraPurchaseEmail({tenantId,customerId,items:[singlePack],sessionId:obj.id,amountTotal:Number(obj.amount_total||0),currency:obj.currency||"eur"}).catch(()=>false);
         await sendCustomerActivationEmail({tenantId,items:[singlePack],sessionId:obj.id}).catch(()=>false);
         await recordCustomerEvent({customerId,contractId,tenantId,eventType:"credit_pack_purchased",title:"Créditos adicionales comprados",details:{session_id:obj.id,pack:singlePack}});
       }else if(dealId){
@@ -138,11 +137,11 @@ export default async function handler(req,res){
             const packs=String(obj.metadata?.credit_packs||"").split(",").map(x=>x.trim()).filter(Boolean);
             for(const pack of packs)await grantCreditPack(activeTenantId,pack,obj.id);
             const recurringExtras=String(obj.metadata?.extras||"").split(",").map(x=>x.trim()).filter(x=>["conexion","email_account","storage_pack"].includes(x));
-            const alertItems=[...packs,...recurringExtras];
-            if(alertItems.length){
-              for(const itemKey of alertItems)await createProvisioningTask({tenantId:activeTenantId,itemKey,sessionId:obj.id}).catch(()=>null);
-              await sendOpsExtraPurchaseEmail({tenantId:activeTenantId,customerId,items:alertItems,sessionId:obj.id,amountTotal:Number(obj.amount_total||0),currency:obj.currency||"eur"}).catch(()=>false);
-              await sendCustomerActivationEmail({tenantId:activeTenantId,items:alertItems,sessionId:obj.id}).catch(()=>false);
+            const customerItems=[...packs,...recurringExtras];
+            if(customerItems.length){
+              for(const itemKey of recurringExtras)await createProvisioningTask({tenantId:activeTenantId,itemKey,sessionId:obj.id}).catch(()=>null);
+              if(recurringExtras.length)await sendOpsExtraPurchaseEmail({tenantId:activeTenantId,customerId,items:recurringExtras,sessionId:obj.id,amountTotal:Number(obj.amount_total||0),currency:obj.currency||"eur"}).catch(()=>false);
+              await sendCustomerActivationEmail({tenantId:activeTenantId,items:customerItems,sessionId:obj.id}).catch(()=>false);
             }
           }
         }
