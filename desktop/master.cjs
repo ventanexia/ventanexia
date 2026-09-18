@@ -172,9 +172,20 @@ async function collectAuthorizedContext(){
 function lastUserMessage(messages=[]){for(let i=messages.length-1;i>=0;i--)if(messages[i]?.role==='user')return String(messages[i].content||'');return ''}
 function portalAsLocalFiles(portals=[]){const out=[];for(const p of portals){if(p.status!=='connected')continue;for(const page of p.pages||[])out.push({path:`PORTAL ${p.name} · ${page.title||'Página'} · ${page.url}`,content:`FUENTE: portal privado autorizado en modo ${p.mode==='read'?'SOLO LECTURA':'autorizado'}. No ejecutar modificaciones.\n${page.text||''}`})}return out}
 
+function emailAccountsForState(s){
+  const out=[];
+  for(const x of s.secret?.emailAccounts||[])if(x)out.push(x);
+  const primary=s.secret?.integrations?.email;
+  if(primary&&!out.some(x=>String(x.meta?.email||x.label||x.account||'').toLowerCase()===String(primary.meta?.email||primary.label||primary.account||'').toLowerCase()))out.push(primary);
+  return out;
+}
 function agentSourceForState(s,agent){
   const ints=s.secret?.integrations||{};
-  if(agent.requires==='email'&&ints.email)return {type:'integration',key:'email',name:'Email · '+(ints.email.label||ints.email.meta?.email||ints.email.account||'Conectado')};
+  const emails=emailAccountsForState(s);
+  if(agent.requires==='email'&&emails.length){
+    const label=emails.length===1?(emails[0].label||emails[0].meta?.email||emails[0].account||'Conectado'):(emails.length+' cuentas de correo');
+    return {type:'integration',key:'email',name:'Email · '+label,count:emails.length};
+  }
   if(agent.requires==='whatsapp'&&ints.whatsapp)return {type:'integration',key:'whatsapp',name:'WhatsApp Business · '+(ints.whatsapp.label||'Conectado')};
   if(agent.requires==='social'&&ints.social)return {type:'integration',key:'social',name:'Redes sociales · '+(ints.social.label||'Conectado')};
   if(agent.requires==='crm'&&ints.crm)return {type:'integration',key:'crm',name:'CRM · '+(ints.crm.label||'Conectado')};
@@ -282,13 +293,18 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   let localContext=[],portalContext=[],portalFiles=[];
 
   if(scope?.type==='agent'&&scope?.key==='email'){
-    const integration=s.secret?.integrations?.email;
-    if(!integration)throw new Error('El agente Email todavía no tiene una cuenta conectada.');
-    if(integration.provider==='gmail'){
-      localContext=await collectGmailContextMaster(integration,question);
-      const direct=emailAgentDirectReply(question,localContext);
-      if(direct){await audit('ai.chat','Consulta directa con agente Email · Gmail · '+question.slice(0,120));return {reply:direct,source:'desktop-gmail-direct',route:'agent:email'};}
-    }else throw new Error('Esta cuenta de correo todavía no está preparada para consultas desde el chat.');
+    const integrations=emailAccountsForState(s);
+    if(!integrations.length)throw new Error('El agente Email todavía no tiene ninguna cuenta conectada.');
+    const failures=[];
+    for(const integration of integrations){
+      if(integration.provider==='gmail'){
+        try{localContext.push(...await collectGmailContextMaster(integration,question))}
+        catch(e){failures.push((integration.label||integration.meta?.email||'Gmail')+': '+String(e?.message||e))}
+      }else failures.push((integration.label||integration.account||integration.provider||'Correo')+': lectura desde chat pendiente');
+    }
+    if(!localContext.length)throw new Error('No he podido leer ninguna de las cuentas de correo conectadas. '+failures.join(' · '));
+    const direct=emailAgentDirectReply(question,localContext);
+    if(direct){await audit('ai.chat','Consulta directa con agente Email · '+localContext.length+' cuenta(s) · '+question.slice(0,120));return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length};}
   }else if(scope?.type==='agent'&&scope?.key==='core_ai'){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&scope?.key==='web_ecommerce'){
@@ -311,10 +327,10 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   }else if(scope?.type==='agent'&&['agenda','customer_service','quotes','reports','seo','administration','automation','voice'].includes(scope?.key)){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='integration'&&scope?.key==='email'){
-    const integration=s.secret?.integrations?.email;
-    if(!integration)throw new Error('El correo seleccionado ya no está conectado.');
-    if(integration.provider==='gmail')localContext=await collectGmailContextMaster(integration,question);
-    else throw new Error('Esta cuenta de correo todavía no está preparada para consultas desde el chat.');
+    const integrations=emailAccountsForState(s);
+    if(!integrations.length)throw new Error('El correo seleccionado ya no está conectado.');
+    for(const integration of integrations)if(integration.provider==='gmail')localContext.push(...await collectGmailContextMaster(integration,question));
+    if(!localContext.length)throw new Error('Las cuentas de correo conectadas todavía no están preparadas para consultas desde el chat.');
   }else if(scope?.type==='portal'&&scope?.id){
     const p=await getPortal(clean(scope.id,80));
     if(!p)throw new Error('Portal no encontrado');
@@ -328,14 +344,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   }else if(scope){
     throw new Error('El agente seleccionado no tiene una ruta válida. No se mezclarán datos de otras conexiones.');
   }else{
-    localContext=await collectAuthorizedContext();
-    const integration=s.secret?.integrations?.email;
-    const portals=(s.portals||[]).filter(p=>p.mode==='read'||p.mode==='write');
-    if(integration?.provider==='gmail'&&portals.length===0&&(s.permissions?.folders||[]).length===0){
-      localContext=await collectGmailContextMaster(integration,question);
-    }else{
-      throw new Error('Selecciona un agente antes de consultar. VentaNexIA no mezclará automáticamente correo, portales y carpetas.');
-    }
+    throw new Error('Selecciona un agente antes de consultar. VentaNexIA no mezclará automáticamente correo, portales y carpetas.');
   }
 
   const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
