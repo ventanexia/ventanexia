@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('vnx',{
   checkUpdate:()=>ipcRenderer.invoke('update:check'),
   usageOverview:()=>ipcRenderer.invoke('usage:overview'),
   consumeUsage:(payload)=>ipcRenderer.invoke('usage:consume',payload),
+  buyUsagePack:(packKey)=>ipcRenderer.invoke('usage:buy-pack',packKey),
   videoQuota:()=>ipcRenderer.invoke('video:quota'),
   consumeVideoCredits:(seconds)=>ipcRenderer.invoke('video:consume',seconds),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
