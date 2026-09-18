@@ -670,7 +670,76 @@ ipcMain.handle('support:auto-mode',async(_e,enabled)=>{
 ipcMain.handle('support:auto-mode-status',async()=>{const s=await readState();return {enabled:Boolean(s.support?.autoMode)};});
 ipcMain.handle('support:quick-assist',async()=>{await audit('support.requested','Asistencia rápida abierta por el cliente');await shell.openExternal('ms-quick-assist:');return true});
 ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente pulsó detener asistencia');return true});
-ipcMain.handle('chat:send',async(_e,messages)=>{
+
+async function collectGmailChatContext(integration,limit=10){
+  const token=String(integration?.token||'').trim();
+  if(!token)throw new Error('La conexión de Gmail no tiene un acceso válido. Vuelve a conectarla.');
+  const list=await providerFetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults='+Math.max(1,Math.min(20,Number(limit)||10)),{headers:{Authorization:'Bearer '+token}});
+  const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,20);
+  const rows=await Promise.all(ids.map(async id=>{
+    const url='https://gmail.googleapis.com/gmail/v1/users/me/messages/'+encodeURIComponent(id)+'?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date';
+    const m=await providerFetch(url,{headers:{Authorization:'Bearer '+token}});
+    const headers={};
+    for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
+    return {
+      id:m.id||id,
+      from:headers.from||'',
+      to:headers.to||'',
+      subject:headers.subject||'(sin asunto)',
+      date:headers.date||'',
+      snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),
+      unread:Array.isArray(m.labelIds)&&m.labelIds.includes('UNREAD'),
+      important:Array.isArray(m.labelIds)&&m.labelIds.includes('IMPORTANT')
+    };
+  }));
+  const account=integration?.meta?.email||integration?.label||integration?.account||'Gmail';
+  const content=rows.map((m,i)=>[
+    'Correo '+(i+1),
+    'De: '+m.from,
+    'Para: '+m.to,
+    'Asunto: '+m.subject,
+    'Fecha: '+m.date,
+    'Estado: '+(m.unread?'NO LEÍDO':'leído')+(m.important?' · IMPORTANTE':''),
+    'Vista previa: '+m.snippet
+  ].join('\n')).join('\n\n');
+  return [{path:'GMAIL · '+account+' · últimos '+rows.length+' correos',content}];
+}
+
+ipcMain.handle('connection:list',async()=>{
+  const s=await readState(),out=[];
+  for(const [module,x] of Object.entries(s.secret?.integrations||{})){
+    if(!x)continue;
+    out.push({key:'integration:'+module,type:'integration',module,provider:x.provider||'',label:x.label||x.meta?.email||x.account||module});
+  }
+  for(const folder of s.permissions?.folders||[])out.push({key:'folder:'+folder,type:'folder',folder,label:'Carpeta · '+path.basename(folder)});
+  return out;
+});
+
+ipcMain.handle('chat:send',async(_e,payload={})=>{
+  const messages=Array.isArray(payload)?payload:(Array.isArray(payload.messages)?payload.messages:[]);
+  const scope=Array.isArray(payload)?'':String(payload.scope||'').trim();
+  let localContext=await collectAuthorizedContext();
+  const s=await readState();
+  if(scope.startsWith('integration:')){
+    const module=scope.slice('integration:'.length);
+    const integration=s.secret?.integrations?.[module];
+    if(!integration)throw new Error('Esa conexión ya no está disponible. Vuelve a seleccionarla.');
+    localContext=[];
+    if(module==='email'&&integration.provider==='gmail')localContext=await collectGmailChatContext(integration,10);
+    else if(module==='email'&&integration.genericMail)throw new Error('La lectura desde este correo corporativo todavía no está disponible en el chat.');
+    else throw new Error('Esta conexión todavía no está preparada para consultas desde el chat.');
+  }else if(scope.startsWith('folder:')){
+    const wanted=scope.slice('folder:'.length);
+    localContext=(await collectAuthorizedContext()).filter(f=>String(f.path||'').startsWith(path.basename(wanted))||wanted);
+  }else if(scope){
+    throw new Error('Selecciona una conexión válida.');
+  }else{
+    throw new Error('Elige arriba la cuenta o programa con el que quieres trabajar.');
+  }
+  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null},scope})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
+  await audit('ai.chat',`Consulta realizada con ${localContext.length} fuente(s) autorizada(s)`);return j;
+});
   const localContext=await collectAuthorizedContext();
   const s=await readState();
   const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null}})});
