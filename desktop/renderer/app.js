@@ -504,6 +504,7 @@ async function refreshVideoQuota(){
   try{
     const q=await window.vnx.videoQuota();
     if(!q?.ok){box.textContent='Activa tu licencia para ver tus vídeos disponibles';return}
+    if(q.unlimited||q.master){box.textContent='Edición Maestro · vídeos sin límite';box.title='La edición Maestro no consume créditos de vídeo.';return}
     box.textContent=q.remaining+' de '+q.monthlyLimit+' créditos disponibles · hoy '+q.dailyRemaining+' de '+q.dailyLimit+' vídeos';
     box.title='Este mes has usado '+q.usedThisMonth+' créditos.';
   }catch{box.textContent='No se pudo comprobar ahora'}
