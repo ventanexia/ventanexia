@@ -218,7 +218,7 @@ function enforcePurchasedFeatures(){
   const purchased=[...(policy.purchased_included||[]),...(policy.purchased_extras||[])];
   if(!purchased.length)return;
   const map={email:'email',whatsapp:'whatsapp',social:'redes',prospecting:'buscador'};
-  $('[data-real-module]').forEach(btn=>{
+  $$('[data-real-module]').forEach(btn=>{
     const key=map[btn.dataset.realModule];if(!key)return;
     if(!purchased.includes(key)){
       btn.dataset.lockedFeature='1';
@@ -232,7 +232,7 @@ function setupRealModuleMode(){
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
   const openShopify=setupShopifyConnectionUi();
-  $$('[data-real-module]').forEach(btn=>{
+  $$$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
     if(current?.folder)btn.textContent='🟢 '+label+' · datos reales autorizados';
     if(current?.url)btn.textContent=label+' · URL registrada';
@@ -394,7 +394,7 @@ async function refreshUsageOverview(){
     root.innerHTML=cards.length?cards.join(''):'<article class="modulecard"><b>Sin consumos que mostrar</b><span>Cuando actives funciones con uso medido aparecerán aquí.</span></article>';
   }catch{root.innerHTML='<article class="modulecard"><b>No se pudo comprobar ahora</b><span>VentaNexIA lo volverá a intentar más tarde.</span></article>'}
 }
-$('[data-usage-pack]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;const old=btn.textContent;btn.textContent='Abriendo pago…';try{await window.vnx.buyUsagePack(btn.dataset.usagePack)}catch(e){alert(e.message||'No se pudo abrir el pago')}finally{btn.disabled=false;btn.textContent=old}});
+$$('[data-usage-pack]').forEach(btn=>btn.onclick=async()=>{btn.disabled=true;const old=btn.textContent;btn.textContent='Abriendo pago…';try{await window.vnx.buyUsagePack(btn.dataset.usagePack)}catch(e){alert(e.message||'No se pudo abrir el pago')}finally{btn.disabled=false;btn.textContent=old}});
 refreshUsageOverview();
 
 const openVideoBrief=$('#openVideoBrief'),videoBriefBox=$('#socialVideoBriefBox'),videoIdea=$('#socialVideoIdea'),videoExampleBtn=$('#videoExampleBtn'),videoTemplateBtn=$('#videoTemplateBtn'),videoPrepareBtn=$('#videoPrepareBtn'),videoBriefMsg=$('#videoBriefMsg');
