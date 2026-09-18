@@ -1,6 +1,6 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "private": true,
   "description": "VentaNexIA Desktop SecureCore Master",
   "main": "master-entry.cjs",
@@ -48,5 +48,9 @@
       ],
       "category": "public.app-category.business"
     }
+  },
+  "dependencies": {
+    "imapflow": "^1.0.195",
+    "nodemailer": "^7.0.6"
   }
 }
