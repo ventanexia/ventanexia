@@ -53,6 +53,7 @@ import trialSweep from "../server/handlers/trial-sweep.js";
 import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
 import videoUsage from "../server/handlers/video-usage.js";
 import usageMeter from "../server/handlers/usage-meter.js";
+import provisioningAdmin from "../server/handlers/provisioning-admin.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -111,7 +112,8 @@ const handlers = {
   "trial-sweep": trialSweep,
   "whatsapp-simulator": whatsappSimulator,
   "video-usage": videoUsage,
-  "usage-meter": usageMeter
+  "usage-meter": usageMeter,
+  "provisioning-admin": provisioningAdmin
 };
 
 async function readRaw(req) {
