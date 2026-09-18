@@ -186,11 +186,111 @@ ipcMain.handle('portal:connect',async(_e,id)=>openPortalLogin(clean(id,80)));
 ipcMain.handle('portal:check',async(_e,id)=>{const p=await getPortal(clean(id,80));if(!p)throw new Error('Portal no encontrado');const result=await readPortal(p,'dashboard estado conexión');await audit('portal.checked',`${p.name} · ${result.status}`);return result});
 ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)return true;const s=await readState();s.portals=(s.portals||[]).filter(p=>p.id!==portal.id);await writeState(s);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await audit('portal.removed',portal.name);return true});
 
+
+async function gmailApi(token,pathAndQuery){
+  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{headers:{Authorization:'Bearer '+token}});
+  const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={}}
+  if(!r.ok)throw new Error(j?.error?.message||('Gmail respondió '+r.status));
+  return j;
+}
+function gmailQueryForQuestion(question=''){
+  const q=norm(question);
+  const parts=['in:inbox'];
+  if(/hoy|today/.test(q)){
+    const start=new Date();start.setHours(0,0,0,0);
+    const end=new Date(start);end.setDate(end.getDate()+1);
+    parts.push('after:'+Math.floor(start.getTime()/1000),'before:'+Math.floor(end.getTime()/1000));
+  }
+  if(/no leido|sin leer|unread/.test(q))parts.push('is:unread');
+  if(/pedido|pedidos|order|orders/.test(q))parts.push('{pedido pedidos order orders compra presupuesto entrega envio expedicion}');
+  return parts.join(' ');
+}
+async function countGmailMessages(token,q){
+  let count=0,pageToken='';
+  do{
+    const params=new URLSearchParams({maxResults:'500',q});
+    if(pageToken)params.set('pageToken',pageToken);
+    const j=await gmailApi(token,'messages?'+params.toString());
+    count+=(j.messages||[]).length;pageToken=j.nextPageToken||'';
+    if(count>5000)break;
+  }while(pageToken);
+  return count;
+}
+async function collectGmailContextMaster(integration,question=''){
+  const token=String(integration?.token||'').trim();
+  if(!token)throw new Error('La conexión de Gmail no tiene un acceso válido. Vuelve a conectarla.');
+  const q=gmailQueryForQuestion(question);
+  const count=await countGmailMessages(token,q);
+  const params=new URLSearchParams({maxResults:'20',q});
+  const list=await gmailApi(token,'messages?'+params.toString());
+  const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,20);
+  const rows=await Promise.all(ids.map(async id=>{
+    const p=new URLSearchParams({format:'metadata'});
+    for(const h of ['From','To','Subject','Date'])p.append('metadataHeaders',h);
+    const m=await gmailApi(token,'messages/'+encodeURIComponent(id)+'?'+p.toString());
+    const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
+    return {from:headers.from||'',to:headers.to||'',subject:headers.subject||'(sin asunto)',date:headers.date||'',snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),unread:(m.labelIds||[]).includes('UNREAD'),important:(m.labelIds||[]).includes('IMPORTANT')};
+  }));
+  const account=integration?.meta?.email||integration?.label||integration?.account||'Gmail';
+  const content=[
+    'FUENTE: Gmail autorizado por el usuario.',
+    'CUENTA: '+account,
+    'CONSULTA_GMAIL: '+q,
+    'TOTAL_COINCIDENCIAS: '+count,
+    '',
+    ...rows.flatMap((m,i)=>[
+      'Correo '+(i+1),
+      'De: '+m.from,
+      'Para: '+m.to,
+      'Asunto: '+m.subject,
+      'Fecha: '+m.date,
+      'Estado: '+(m.unread?'NO LEÍDO':'leído')+(m.important?' · IMPORTANTE':''),
+      'Vista previa: '+m.snippet,
+      ''
+    ])
+  ].join('\n');
+  return [{path:'GMAIL '+account,content}];
+}
+
 ipcMain.removeHandler('chat:send');
-ipcMain.handle('chat:send',async(_e,messages)=>{
-  const localContext=await collectAuthorizedContext(),question=lastUserMessage(messages),portalContext=await collectPortalContext(question),portalFiles=portalAsLocalFiles(portalContext),combined=[...localContext,...portalFiles].slice(0,MAX_CONTEXT_FILES),s=await readState();
-  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext:combined,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length}})});
+ipcMain.handle('chat:send',async(_e,payload={})=>{
+  const messages=Array.isArray(payload)?payload:(Array.isArray(payload?.messages)?payload.messages:[]);
+  const scope=Array.isArray(payload)?null:(payload?.scope||null);
+  const question=lastUserMessage(messages),s=await readState();
+  let localContext=[],portalContext=[],portalFiles=[];
+
+  if(scope?.type==='integration'&&scope?.key==='email'){
+    const integration=s.secret?.integrations?.email;
+    if(!integration)throw new Error('El correo seleccionado ya no está conectado.');
+    if(integration.provider==='gmail')localContext=await collectGmailContextMaster(integration,question);
+    else throw new Error('Esta cuenta de correo todavía no está preparada para consultas desde el chat.');
+  }else if(scope?.type==='portal'&&scope?.id){
+    const p=await getPortal(clean(scope.id,80));
+    if(!p)throw new Error('Portal no encontrado');
+    try{portalContext=[await readPortal(p,question)]}catch(e){portalContext=[{name:p.name,url:p.url,status:'error',mode:p.mode,pages:[],images:[],error:String(e?.message||e).slice(0,200)}]}
+    portalFiles=portalAsLocalFiles(portalContext);
+    localContext=portalFiles;
+  }else if(scope?.type==='folder'&&scope?.folder){
+    localContext=await collectAuthorizedContext();
+  }else if(scope?.type==='shopify'){
+    throw new Error('La consulta directa de Shopify desde este chat todavía no está preparada.');
+  }else{
+    localContext=await collectAuthorizedContext();
+    if(!scope){
+      const integration=s.secret?.integrations?.email;
+      const portals=(s.portals||[]).filter(p=>p.mode==='read'||p.mode==='write');
+      if(integration?.provider==='gmail'&&portals.length===0&&(s.permissions?.folders||[]).length===0){
+        localContext=await collectGmailContextMaster(integration,question);
+      }else{
+        portalContext=await collectPortalContext(question);portalFiles=portalAsLocalFiles(portalContext);
+        localContext=[...localContext,...portalFiles].slice(0,MAX_CONTEXT_FILES);
+      }
+    }
+  }
+
+  const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length},scope:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   const images=[],seen=new Set();for(const p of portalContext)for(const img of p.images||[]){if(!img?.src||seen.has(img.src))continue;seen.add(img.src);images.push({src:img.src,alt:img.alt||p.name});if(images.length>=8)break}
-  j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));await audit('ai.chat',`Consulta con ${localContext.length} archivo(s) y ${portalFiles.length} página(s) de portal autorizadas`);return j;
+  j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));
+  await audit('ai.chat',`Consulta con ${localContext.length} fuente(s) autorizada(s)`);return j;
 });
