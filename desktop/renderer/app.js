@@ -83,8 +83,8 @@ function setupServiceConnectionWizard(){
   cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null};
   prepare.onclick=async()=>{
     if(!activeKey)return;
-    prepare.disabled=true;prepare.textContent='Abriendo autorización…';
-    notice.innerHTML='<b>Autoriza el acceso en tu navegador.</b> Cuando termines, VentaNexIA detectará la conexión automáticamente.';
+    prepare.disabled=true;prepare.textContent='Abriendo la página para conectar…';
+    notice.innerHTML='<b>Sigue los pasos que verás en el navegador.</b> Cuando termines, Cuando termines, VentaNexIA lo sabrá automáticamente.';
     try{
       const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value});
       oauthState=started.state;
@@ -99,18 +99,18 @@ function setupServiceConnectionWizard(){
             localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
             if(activeButton)activeButton.textContent='🟢 '+labels[activeKey]+' · '+(st.label||'Conectado');
             notice.innerHTML='<b>🟢 Conectado correctamente.</b> '+esc(st.label||labels[activeKey])+' ya está disponible para VentaNexIA.';
-            prepare.disabled=false;prepare.textContent='Autorizar y conectar';
+            prepare.disabled=false;prepare.textContent='Conectar ahora';
           }else if(['denied','expired','error'].includes(st?.status)){
-            stopPoll();prepare.disabled=false;prepare.textContent='Autorizar y conectar';
-            notice.innerHTML='<b>No se completó la autorización.</b> '+esc(st?.error||'Vuelve a intentarlo.');
+            stopPoll();prepare.disabled=false;prepare.textContent='Conectar ahora';
+            notice.innerHTML='<b>No se pudo terminar la conexión.</b> '+esc(st?.error||'Vuelve a intentarlo.');
           }
         }catch(err){
           if(String(err?.message||'').includes('ya recogida'))stopPoll();
         }
       },2000);
     }catch(e){
-      prepare.disabled=false;prepare.textContent='Autorizar y conectar';
-      const msg=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'Este conector todavía necesita que VentaNexIA registre su aplicación oficial con el proveedor.':(e.message||String(e));
+      prepare.disabled=false;prepare.textContent='Conectar ahora';
+      const msg=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'Esta conexión todavía no está preparada del todo. Tenemos que terminar de activarla en VentaNexIA.':(e.message||String(e));
       notice.innerHTML='<b>No se pudo iniciar.</b> '+esc(msg);
     }
   };
@@ -125,12 +125,12 @@ function setupServiceConnectionWizard(){
   return async(key,button)=>{
     activeKey=key;activeButton=button;oauthState=null;stopPoll();
     title.textContent='Autorizar '+labels[key];
-    text.textContent='Elige el proveedor. Se abrirá su página oficial para que inicies sesión y concedas los permisos.';
+    text.textContent='Elige la cuenta que quieres conectar. Se abrirá su página oficial para que inicies sesión y aceptes el acceso.';
     provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
-    notice.innerHTML='<b>No necesitas tokens, IDs ni contraseñas.</b> La autorización se hace directamente con el proveedor.';
+    notice.innerHTML='<b>No necesitas copiar códigos raros ni contraseñas.</b> La autorización se hace directamente con el proveedor.';
     try{
       const st=await window.vnx.integrationStatus(key);
-      if(st?.connected)notice.innerHTML='<b>🟢 Ya conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
+      if(st?.connected)notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
     }catch{}
     modal.style.display='flex';
   };
@@ -155,7 +155,7 @@ function setupShopifyConnectionUi(){
   connect.onclick=async()=>{
     const s=shop.value.trim();
     if(!s){msg.innerHTML='<b>Falta la tienda.</b> Indica tu dominio interno, por ejemplo tienda.myshopify.com.';return;}
-    connect.disabled=true;connect.textContent='Abriendo Shopify…';msg.innerHTML='<b>Autoriza en Shopify.</b> VentaNexIA detectará la conexión cuando termines.';
+    connect.disabled=true;connect.textContent='Abriendo Shopify…';msg.innerHTML='<b>Sigue los pasos dentro de Shopify.</b> VentaNexIA detectará la conexión cuando termines.';
     try{
       const started=await window.vnx.startOAuth({module:'shopify',provider:'shopify',shop:s});
       oauthState=started.state;stopPoll();
@@ -169,13 +169,13 @@ function setupShopifyConnectionUi(){
             if(activeButton)activeButton.textContent='🟢 Shopify · '+esc(st.shopName||st.label||st.shop);
             connect.disabled=false;connect.textContent='Autorizar con Shopify';
           }else if(['denied','expired','error'].includes(st?.status)){
-            stopPoll();connect.disabled=false;connect.textContent='Autorizar con Shopify';msg.innerHTML='<b>No se completó la autorización.</b> '+esc(st?.error||'Vuelve a intentarlo.');
+            stopPoll();connect.disabled=false;connect.textContent='Autorizar con Shopify';msg.innerHTML='<b>No se pudo terminar la conexión.</b> '+esc(st?.error||'Vuelve a intentarlo.');
           }
         }catch(err){}
       },2000);
     }catch(e){
       connect.disabled=false;connect.textContent='Autorizar con Shopify';
-      const msgText=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'El conector Shopify todavía necesita registrar la aplicación oficial de VentaNexIA.':(e.message||String(e));
+      const msgText=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'La conexión con Shopify todavía no está preparada del todo. Tenemos que terminar de activarla en VentaNexIA.':(e.message||String(e));
       msg.innerHTML='<b>No se pudo iniciar.</b> '+esc(msgText);
     }
   };
@@ -278,8 +278,8 @@ $('#createTest').onclick=async()=>{const f=$('#folderSelect').value;if(!f)return
 function renderDiscovery(data){
   if(!data)return;
   const results=data.results||[];
-  $('#discoveryStatus').textContent=`Búsqueda terminada. Se revisaron ${data.visited||0} carpetas por metadatos y se encontraron ${results.length} ubicaciones candidatas. Ninguna ha sido autorizada automáticamente.`;
-  $('#discoveryList').innerHTML=results.length?results.map((r,i)=>`<div class="listrow discovery-row"><div><b>${esc(r.level)} · ${esc(r.path)}</b><span>${esc((r.reasons||[]).join(' · ')||`${r.businessFiles||0} archivos de datos compatibles`)}</span></div><button class="mini discovery-auth" data-index="${i}">Autorizar</button></div>`).join(''):'<div class="empty">No he encontrado una carpeta suficientemente clara. Prueba “Elegir dónde buscar” y selecciona la carpeta del programa o una unidad concreta.</div>';
+  $('#discoveryStatus').textContent=`Búsqueda terminada. He revisado ${data.visited||0} carpetas y he encontrado ${results.length} posibles ubicaciones. Tú decides cuál autorizar.`;
+  $('#discoveryList').innerHTML=results.length?results.map((r,i)=>`<div class="listrow discovery-row"><div><b>${esc(r.level)} · ${esc(r.path)}</b><span>${esc((r.reasons||[]).join(' · ')||`${r.businessFiles||0} archivos de datos compatibles`)}</span></div><button class="mini discovery-auth" data-index="${i}">Autorizar</button></div>`).join(''):'<div class="empty">No he encontrado una carpeta clara. Prueba “Elegir dónde buscar” y selecciona la carpeta del programa o una unidad concreta.</div>';
   $$('.discovery-auth').forEach(btn=>btn.onclick=async()=>{
     const r=results[Number(btn.dataset.index)];
     if(!r)return;
@@ -293,22 +293,22 @@ async function runDiscovery(mode){
     const ok=confirm('VentaNexIA buscará posibles datos empresariales en ubicaciones habituales de este ordenador.\n\nSolo analizará localmente nombres, tipos, fechas y tamaños. No abrirá el contenido de los documentos ni enviará estos metadatos a Internet.\n\n¿Continuar?');
     if(!ok)return;
   }
-  status.textContent='Buscando ubicaciones probables… Puede tardar unos segundos.';
+  status.textContent='Buscando tus datos… Puede tardar unos segundos.';
   $('#discoveryList').innerHTML='';
   try{
     const data=mode==='common'?await window.vnx.scanCommonData():await window.vnx.chooseAndScanData();
     if(!data){status.textContent='Búsqueda cancelada.';return;}
     renderDiscovery(data);
-  }catch(e){status.textContent=`No se pudo completar la búsqueda: ${e.message}`}
+  }catch(e){status.textContent=`No pude terminar la búsqueda: ${e.message}`}
 }
 $('#scanCommon').onclick=()=>runDiscovery('common');
 $('#scanChoose').onclick=()=>runDiscovery('choose');
 
-$('#supportBtn').onclick=async()=>{if(!confirm('Se abrirá Asistencia rápida de Windows. Ninguna persona podrá controlar tu equipo hasta que tú aceptes la sesión dentro de Windows. ¿Continuar?'))return;await window.vnx.openQuickAssist();$('#supportMsg').textContent='Asistencia rápida abierta. Acepta solo si reconoces al técnico y el código de sesión.';await refresh()};
-$('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMsg').textContent='Fin de asistencia registrado. Cierra también Asistencia rápida si siguiera abierta.';await refresh()};
+$('#supportBtn').onclick=async()=>{if(!confirm('Se abrirá Asistencia rápida de Windows. Ninguna persona podrá controlar tu equipo hasta que tú aceptes la sesión dentro de Windows. ¿Continuar?'))return;await window.vnx.openQuickAssist();$('#supportMsg').textContent='Se ha abierto la ayuda de Windows. Acepta solo si reconoces al técnico.';await refresh()};
+$('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMsg').textContent='La ayuda ha terminado. Si la ventana de Windows sigue abierta, ciérrala también.';await refresh()};
 $('#refreshActivity').onclick=refresh;
 
 function renderMessages(){const root=$('#messages');root.innerHTML='<div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div>'+messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}">${esc(m.content)}</div>`).join('');root.scrollTop=root.scrollHeight}
-$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim();if(!text)return;messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`Error de conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
+$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim();if(!text)return;messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido conectar: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
 
 init();
