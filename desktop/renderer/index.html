@@ -98,6 +98,20 @@
     <section class="tab" id="activity"><div class="card"><h2>Registro de actividad</h2><p>Los accesos locales, conexiones y acciones ejecutadas por VentaNexIA deben quedar trazados para el cliente y para soporte.</p><button id="refreshActivity" class="btn outline">Actualizar</button><div id="activityList" class="list"></div></div></section>
   </main>
 </div>
+<div id="shopifyConnectionModal" style="display:none;position:fixed;inset:0;background:#0008;z-index:10000;align-items:center;justify-content:center">
+  <div style="width:min(680px,94vw);background:#fff;border-radius:18px;padding:22px;box-shadow:0 25px 80px #0005">
+    <div class="eyebrow">SHOPIFY · CONEXIÓN REAL</div>
+    <h2 style="margin-top:8px">Dar acceso a VentaNexIA</h2>
+    <p>Introduce el dominio interno de tu tienda y un token de Admin API con los permisos que quieras conceder. El token se guarda cifrado en este ordenador.</p>
+    <div class="formgrid">
+      <label>Tienda Shopify<input id="shopifyShop" placeholder="tu-tienda.myshopify.com"></label>
+      <label>Token Admin API<input id="shopifyToken" type="password" autocomplete="off" placeholder="shpat_..."></label>
+      <label>Permisos<select id="shopifyMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label>
+    </div>
+    <div class="notice" id="shopifyConnectionMsg"><b>Seguridad:</b> no introduzcas tu contraseña de Shopify. Usa un token de aplicación con permisos mínimos.</div>
+    <div class="row"><button class="btn primary" id="shopifyConnectBtn">Conectar y comprobar</button><button class="btn outline" id="shopifyDisconnectBtn">Desconectar</button><button class="btn outline" id="shopifyCancelBtn">Cancelar</button></div>
+  </div>
+</div>
 <div id="serviceConnectionModal" style="display:none;position:fixed;inset:0;background:#0008;z-index:9999;align-items:center;justify-content:center">
   <div style="width:min(620px,92vw);background:#fff;border-radius:18px;padding:22px;box-shadow:0 25px 80px #0005">
     <div class="eyebrow">CONEXIÓN REAL</div>
