@@ -1,4 +1,4 @@
-import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
+import {aiConfigured,aiModel,createAIResponse} from "../../lib/ai-client.js";
 
 const SYSTEM = `
 Eres VentaNexIA AI, el asistente inteligente de la web de VentaNexIA.
@@ -145,7 +145,7 @@ function parseGmailContext(localContext=[]){
   for(const block of blocks){
     if(!/^Correo\s+\d+/i.test(block))continue;
     const get=(label)=>{
-      const m=block.match(new RegExp("(?:^|\\n)"+label+"\\s*:\\s*(.*)","i"));
+      const m=block.match(new RegExp("(?:^|\\n)(?:"+label+")\\s*:\\s*(.*)","i"));
       return String(m?.[1]||"").trim();
     };
     mails.push({
@@ -254,6 +254,20 @@ function localContextText(files=[]){
   return files.map(f=>`\n--- ARCHIVO AUTORIZADO: ${f.path} ---\n${f.content}`).join("\n").slice(0,120000);
 }
 
+// Registro de fallos de la IA. Antes se devolvía el texto genérico sin dejar rastro.
+// No se registra contenido de usuario, solo tipo de fallo, estado HTTP y mensaje del proveedor.
+function logAiFailure(kind,detail={}){
+  try{
+    const providerError=detail?.data?.error;
+    console.error(JSON.stringify({
+      event:"chat_ai_failure",kind,
+      status:detail?.status||null,
+      model:aiModel(),
+      error:String(detail?.error?.message||providerError?.message||(typeof providerError==="string"?providerError:"")||"").slice(0,300)
+    }));
+  }catch{}
+}
+
 export default async function handler(req,res){
   if(req.method!=="POST") return res.status(405).json({error:"Método no permitido"});
   const messages=Array.isArray(req.body?.messages)?req.body.messages.slice(-20):[];
@@ -264,7 +278,7 @@ export default async function handler(req,res){
   const userMessage=lastUserMessage(messages);
   const fallback=isDesktop?desktopFallback(userMessage,localContext):fallbackReply(userMessage);
 
-  if(!aiConfigured()) return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});
+  if(!aiConfigured()){logAiFailure("not_configured");return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
 
   const input=messages
     .filter(m=>["user","assistant"].includes(m?.role) && typeof m?.content==="string")
@@ -276,11 +290,12 @@ export default async function handler(req,res){
 
   try{
     const r=await createAIResponse({instructions,input,max_output_tokens:1400,store:false});
-    if(!r.ok) return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});
+    if(!r.ok){logAiFailure("http_error",r);return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
     const text=extractOutputText(r.data);
-    if(!text) return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});
+    if(!text){logAiFailure("empty_output",r);return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
     return res.status(200).json({reply:text,source:isDesktop?"desktop-ai":"ai",filesUsed:isDesktop?localContext.length:0});
   }catch(e){
+    logAiFailure("exception",{error:e});
     return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});
   }
 }
