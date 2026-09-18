@@ -77,19 +77,33 @@
     const seen=new Set();
     return out.filter(x=>{const k=x.type==='portal'?'p:'+x.id:x.type==='url'?'u:'+x.url:x.type==='shopify'?'s:'+x.shop:x.type==='integration'?'i:'+x.key:'f:'+x.folder;if(seen.has(k))return false;seen.add(k);return true;});
   }
+  function chatConnectionValue(x){
+    if(x.type==='portal')return 'portal:'+x.id;
+    if(x.type==='integration')return 'integration:'+x.key;
+    if(x.type==='shopify')return 'shopify:'+String(x.shop||x.key||'');
+    if(x.type==='folder')return 'folder:'+String(x.folder||x.key||'');
+    if(x.type==='url')return 'url:'+String(x.url||x.key||'');
+    return '';
+  }
   function refreshChatConnections(){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
-    const items=chatConnections(),previous=sel.value;
-    sel.innerHTML='<option value="">Selecciona una conexión…</option>'+items.map((x,i)=>'<option value="'+i+'">'+escM(x.name)+(x.url?' · '+escM((()=>{try{return new URL(x.url).hostname}catch{return x.url}})()):'')+'</option>').join('');
-    if(previous!==''&&Number(previous)<items.length)sel.value=previous;
-    if(items.length===1){sel.value='0';if(hint)hint.textContent='Trabajando con: '+items[0].name;}
-    else if(items.length>1){if(hint)hint.textContent='Tienes varias cuentas conectadas. Elige cuál quieres usar antes de escribir.';}
+    const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_source')||'';
+    sel.innerHTML='<option value="">Selecciona una fuente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(x.name)+(x.url?' · '+escM((()=>{try{return new URL(x.url).hostname}catch{return x.url}})()):'')+'</option>').join('');
+    const values=[...sel.options].map(o=>o.value);
+    if(previous&&values.includes(previous))sel.value=previous;
+    else if(saved&&values.includes(saved))sel.value=saved;
+    else if(items.length===1)sel.value=chatConnectionValue(items[0]);
+    if(sel.value)localStorage.setItem('vnx_master_chat_source',sel.value);
+    sel.onchange=()=>{if(sel.value)localStorage.setItem('vnx_master_chat_source',sel.value)};
+    const chosen=items.find(x=>chatConnectionValue(x)===sel.value);
+    if(chosen&&hint)hint.textContent='VentaNexIA trabajará con: '+chosen.name;
+    else if(items.length>1&&hint)hint.textContent='Elige el correo, tienda, portal o carpeta que quieres consultar.';
     else if(hint)hint.textContent='Todavía no has conectado ninguna cuenta o programa.';
     if($m('#masterSourceSelect'))renderMasterCenterSources();
   }
   function selectedChatScope(){
-    const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||sel.value==='')return null;
-    const item=items[Number(sel.value)];if(!item)return null;
+    const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
+    const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
     if(item.type==='portal')return {type:'portal',id:item.id,name:item.name};
     if(item.type==='url')return {type:'url',key:item.key,name:item.name,url:item.url};
     if(item.type==='folder')return {type:'folder',key:item.key,name:item.name,folder:item.folder};
@@ -161,6 +175,14 @@
   }
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
+    const clearConversation=()=>{
+      masterMessages=[];
+      const input=$m('#chatInput');if(input)input.value='';
+      renderMasterMessages();
+      if(input)input.focus();
+    };
+    const clearBtn=$m('#chatClearBtn');if(clearBtn)clearBtn.onclick=clearConversation;
+    const newBtn=$m('#chatNewConversation');if(newBtn)newBtn.onclick=clearConversation;
     renderMasterMessages();
     form.onsubmit=async e=>{
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
