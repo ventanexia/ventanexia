@@ -2,6 +2,7 @@ const {app,BrowserWindow,ipcMain,safeStorage,shell,Menu,session}=require('electr
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
+const {normalizeChatScope,emailAgentDirectReply}=require('./agent-email.cjs');
 
 require('./main.cjs');
 
@@ -252,52 +253,12 @@ async function collectGmailContextMaster(integration,question=''){
   return [{path:'GMAIL '+account,content}];
 }
 
-function gmailDirectReply(question,localContext=[]){
-  const file=localContext.find(f=>/^GMAIL\b/i.test(String(f?.path||'')));
-  if(!file)return null;
-  const text=String(file.content||'');
-  const q=norm(question);
-  const total=Number((text.match(/TOTAL_COINCIDENCIAS:\s*(\d+)/i)||[])[1]||0);
-  const blocks=text.split(/\n\s*\n(?=Correo\s+\d+)/i).map(x=>x.trim()).filter(x=>/^Correo\s+\d+/i.test(x));
-  const mails=blocks.map(block=>{
-    const get=(label)=>String((block.match(new RegExp("(?:^|\\n)"+label+"\\s*:\\s*(.*)","i"))||[])[1]||'').trim();
-    return {from:get('De|From'),subject:get('Asunto|Subject')||'(sin asunto)',date:get('Fecha|Date'),status:get('Estado|Status'),snippet:get('Vista previa|Snippet|Resumen')};
-  });
-  const score=(m)=>{
-    const t=norm([m.subject,m.snippet,m.status].join(' '));let s=0;
-    if(/no leido|unread/.test(t))s+=2;
-    if(/importante|important/.test(t))s+=3;
-    if(/urgente|incidencia|problema|error|pago|factura|pedido|reclam|venc|cancel|devoluc|bloque|seguridad|confirm|respuesta|consulta|pregunta|plazo/.test(t))s+=2;
-    return s;
-  };
-  if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)){
-    return 'He consultado el correo seleccionado. Hay '+total+' correo(s)'+(/hoy|today/.test(q)?' hoy':'')+' en la bandeja de entrada.';
-  }
-  if((/ultim|recient/.test(q))&&/correo|correos|email|emails/.test(q)){
-    const n=Math.max(1,Math.min(10,Number((q.match(/\b(\d{1,2})\b/)||[])[1]||5)));
-    const chosen=mails.slice(0,n);
-    if(!chosen.length)return 'He consultado el correo seleccionado, pero no he encontrado mensajes que mostrar.';
-    const lines=chosen.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(m.date?' — '+m.date:'')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
-    const top=[...chosen].sort((a,b)=>score(b)-score(a))[0];
-    return 'He consultado el correo seleccionado. Estos son los últimos '+chosen.length+' correos:\n\n'+lines.join('\n\n')+(top?'\n\nEl que revisaría primero es «'+top.subject+'» de '+(top.from||'ese remitente')+'.':'');
-  }
-  if(/pedido|pedidos/.test(q)){
-    const related=mails.filter(m=>/pedido|order|compra|presupuesto|entrega|envio|expedicion/i.test([m.subject,m.snippet].join(' ')));
-    const pool=related.length?related:mails;
-    if(!pool.length)return 'He consultado el correo seleccionado, pero no he encontrado mensajes relacionados con pedidos.';
-    const ranked=[...pool].sort((a,b)=>score(b)-score(a)).slice(0,5);
-    const lines=ranked.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
-    const top=ranked[0];
-    return 'He revisado el correo seleccionado y he buscado mensajes relacionados con pedidos:\n\n'+lines.join('\n\n')+'\n\nEl que parece requerir respuesta primero es «'+top.subject+'» de '+(top.from||'ese remitente')+'.';
-  }
-  return null;
-}
-
+// La lógica de priorización y respuesta directa del Agente Email vive en agent-email.cjs y se prueba de forma aislada.
 
 ipcMain.removeHandler('chat:send');
 ipcMain.handle('chat:send',async(_e,payload={})=>{
   const messages=Array.isArray(payload)?payload:(Array.isArray(payload?.messages)?payload.messages:[]);
-  const scope=Array.isArray(payload)?null:(payload?.scope||null);
+  const scope=normalizeChatScope(Array.isArray(payload)?null:(payload?.scope||null));
   const question=lastUserMessage(messages),s=await readState();
   let localContext=[],portalContext=[],portalFiles=[];
 
@@ -306,8 +267,8 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     if(!integration)throw new Error('El agente Email todavía no tiene una cuenta conectada.');
     if(integration.provider==='gmail'){
       localContext=await collectGmailContextMaster(integration,question);
-      const direct=gmailDirectReply(question,localContext);
-      if(direct){await audit('ai.chat','Consulta directa con agente Email · Gmail');return {reply:direct,source:'desktop-gmail-direct'};}
+      const direct=emailAgentDirectReply(question,localContext);
+      if(direct){await audit('ai.chat','Consulta directa con agente Email · Gmail · '+question.slice(0,120));return {reply:direct,source:'desktop-gmail-direct',route:'agent:email'};}
     }else throw new Error('Esta cuenta de correo todavía no está preparada para consultas desde el chat.');
   }else if(scope?.type==='agent'&&scope?.key==='core_ai'){
     localContext=await collectAuthorizedContext();
@@ -342,23 +303,22 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='shopify'){
     throw new Error('La consulta directa de Shopify desde este chat todavía no está preparada.');
+  }else if(scope){
+    throw new Error('El agente seleccionado no tiene una ruta válida. No se mezclarán datos de otras conexiones.');
   }else{
     localContext=await collectAuthorizedContext();
-    if(!scope){
-      const integration=s.secret?.integrations?.email;
-      const portals=(s.portals||[]).filter(p=>p.mode==='read'||p.mode==='write');
-      if(integration?.provider==='gmail'&&portals.length===0&&(s.permissions?.folders||[]).length===0){
-        localContext=await collectGmailContextMaster(integration,question);
-      }else{
-        portalContext=await collectPortalContext(question);portalFiles=portalAsLocalFiles(portalContext);
-        localContext=[...localContext,...portalFiles].slice(0,MAX_CONTEXT_FILES);
-      }
+    const integration=s.secret?.integrations?.email;
+    const portals=(s.portals||[]).filter(p=>p.mode==='read'||p.mode==='write');
+    if(integration?.provider==='gmail'&&portals.length===0&&(s.permissions?.folders||[]).length===0){
+      localContext=await collectGmailContextMaster(integration,question);
+    }else{
+      throw new Error('Selecciona un agente antes de consultar. VentaNexIA no mezclará automáticamente correo, portales y carpetas.');
     }
   }
 
   const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   const images=[],seen=new Set();for(const p of portalContext)for(const img of p.images||[]){if(!img?.src||seen.has(img.src))continue;seen.add(img.src);images.push({src:img.src,alt:img.alt||p.name});if(images.length>=8)break}
-  j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));
+  j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));j.route=scope?.type==='agent'?'agent:'+scope.key:(scope?.type||null);
   await audit('ai.chat',`Consulta con ${localContext.length} fuente(s) autorizada(s)`);return j;
 });
