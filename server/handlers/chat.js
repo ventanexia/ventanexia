@@ -278,7 +278,7 @@ export default async function handler(req,res){
   const userMessage=lastUserMessage(messages);
   const fallback=isDesktop?desktopFallback(userMessage,localContext):fallbackReply(userMessage);
 
-  if(!aiConfigured()){logAiFailure("not_configured");return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
+  if(!aiConfigured()&&!req.headers?.["x-vercel-oidc-token"]){logAiFailure("not_configured");return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
 
   const input=messages
     .filter(m=>["user","assistant"].includes(m?.role) && typeof m?.content==="string")
@@ -289,7 +289,8 @@ export default async function handler(req,res){
     : SYSTEM;
 
   try{
-    const r=await createAIResponse({instructions,input,max_output_tokens:1400,store:false});
+    const runtimeOidc=String(req.headers?.["x-vercel-oidc-token"]||req.headers?.["X-Vercel-Oidc-Token"]||"");
+    const r=await createAIResponse({instructions,input,max_output_tokens:1400,store:false},{oidcToken:runtimeOidc});
     if(!r.ok){logAiFailure("http_error",r);return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
     const text=extractOutputText(r.data);
     if(!text){logAiFailure("empty_output",r);return res.status(200).json({reply:fallback,source:isDesktop?"desktop-local-fallback":"fallback"});}
