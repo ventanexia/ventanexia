@@ -8,6 +8,7 @@ export default async function handler(req,res){
     const customerId=String(req.body?.customerId||"").trim();
     const deviceId=String(req.body?.deviceId||"").trim();
     const shop=String(req.body?.shop||"").trim();
+    const account=String(req.body?.account||"").trim();
     const cfg=connector(provider,{shop});
     if(!cfg.clientId)return res.status(503).json({error:"Conector todavía no configurado en VentaNexIA",code:"CONNECTOR_NOT_CONFIGURED",provider});
     const state=randState();
@@ -21,6 +22,8 @@ export default async function handler(req,res){
       state
     });
     for(const [k,v] of Object.entries(cfg.extra||{}))params.set(k,v);
+    if(account&&provider==="gmail")params.set("login_hint",account);
+    if(account&&provider==="microsoft_365")params.set("login_hint",account);
     if(cfg.pkce){params.set("code_challenge",proof.challenge);params.set("code_challenge_method","S256")}
     const row={state,provider,module,customer_id:customerId||null,device_id:deviceId||null,shop:cfg.shop||shop||null,code_verifier:proof.verifier,status:"pending",expires_at:new Date(Date.now()+15*60*1000).toISOString()};
     await sbFetch("vnx_oauth_sessions",{method:"POST",body:JSON.stringify(row)});
