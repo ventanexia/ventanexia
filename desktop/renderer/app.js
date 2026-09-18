@@ -559,6 +559,16 @@ $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMs
 $('#refreshActivity').onclick=refresh;
 
 function renderMessages(){const root=$('#messages');root.innerHTML='<div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div>'+messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}">${esc(m.content)}</div>`).join('');root.scrollTop=root.scrollHeight}
+function clearChatConversation(){
+  messages=[];
+  const input=$('#chatInput');if(input)input.value='';
+  renderMessages();
+}
+const chatClearBtn=$('#chatClearBtn');if(chatClearBtn)chatClearBtn.onclick=clearChatConversation;
+const chatNewConversation=$('#chatNewConversation');if(chatNewConversation)chatNewConversation.onclick=()=>{
+  clearChatConversation();
+  const input=$('#chatInput');if(input)input.focus();
+};
 $('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba qué correo, tienda, programa o carpeta quieres que consulte VentaNexIA.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
 
 init();
