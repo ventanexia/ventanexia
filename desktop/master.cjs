@@ -327,10 +327,11 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   }else if(scope?.type==='agent'&&['agenda','customer_service','quotes','reports','seo','administration','automation','voice'].includes(scope?.key)){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='integration'&&scope?.key==='email'){
-    const integrations=emailAccountsForState(s);
+    const allIntegrations=emailAccountsForState(s);
+    const integrations=Number.isInteger(scope?.accountIndex)?[allIntegrations[scope.accountIndex]].filter(Boolean):allIntegrations;
     if(!integrations.length)throw new Error('El correo seleccionado ya no está conectado.');
     for(const integration of integrations)if(integration.provider==='gmail')localContext.push(...await collectGmailContextMaster(integration,question));
-    if(!localContext.length)throw new Error('Las cuentas de correo conectadas todavía no están preparadas para consultas desde el chat.');
+    if(!localContext.length)throw new Error('La cuenta de correo seleccionada todavía no está preparada para consultas desde el chat.');
   }else if(scope?.type==='portal'&&scope?.id){
     const p=await getPortal(clean(scope.id,80));
     if(!p)throw new Error('Portal no encontrado');
