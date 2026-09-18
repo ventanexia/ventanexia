@@ -12,6 +12,7 @@ import clientConfig from "../server/handlers/client-config.js";
 import clientLead from "../server/handlers/client-lead.js";
 import contractAccept from "../server/handlers/contract-accept.js";
 import createCheckout from "../server/handlers/create-checkout.js";
+import createCreditCheckout from "../server/handlers/create-credit-checkout.js";
 import customerEvent from "../server/handlers/customer-event.js";
 import customerPortal from "../server/handlers/customer-portal.js";
 import deviceRegister from "../server/handlers/device-register.js";
@@ -70,6 +71,7 @@ const handlers = {
   "client-lead": clientLead,
   "contract-accept": contractAccept,
   "create-checkout": createCheckout,
+  "create-credit-checkout": createCreditCheckout,
   "customer-event": customerEvent,
   "customer-portal": customerPortal,
   "device-register": deviceRegister,
