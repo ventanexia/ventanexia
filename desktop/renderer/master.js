@@ -70,11 +70,12 @@
     const real=getRealSourcesForChat();
     for(const [key,v] of Object.entries(real)){
       if(key==='shopify'&&v&&v.status==='connected')out.push({type:'shopify',key:key,name:'Shopify · '+(v.shopName||v.shop||'Tienda'),shop:v.shop||null});
+      else if(['email','whatsapp','social','crm'].includes(key)&&v&&v.status==='connected')out.push({type:'integration',key:key,name:(labels[key]||key)+' · '+(v.label||v.account||'Conectado')});
       else if(v&&v.url)out.push({type:'url',key:key,name:labels[key]||key,url:v.url});
       else if(v&&v.folder)out.push({type:'folder',key:key,name:labels[key]||key,folder:v.folder});
     }
     const seen=new Set();
-    return out.filter(x=>{const k=x.type==='portal'?'p:'+x.id:x.type==='url'?'u:'+x.url:x.type==='shopify'?'s:'+x.shop:'f:'+x.folder;if(seen.has(k))return false;seen.add(k);return true;});
+    return out.filter(x=>{const k=x.type==='portal'?'p:'+x.id:x.type==='url'?'u:'+x.url:x.type==='shopify'?'s:'+x.shop:x.type==='integration'?'i:'+x.key:'f:'+x.folder;if(seen.has(k))return false;seen.add(k);return true;});
   }
   function refreshChatConnections(){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
@@ -92,6 +93,7 @@
     if(item.type==='url')return {type:'url',key:item.key,name:item.name,url:item.url};
     if(item.type==='folder')return {type:'folder',key:item.key,name:item.name,folder:item.folder};
     if(item.type==='shopify')return {type:'shopify',key:item.key,name:item.name,shop:item.shop};
+    if(item.type==='integration')return {type:'integration',key:item.key,name:item.name};
     return null;
   }
 
