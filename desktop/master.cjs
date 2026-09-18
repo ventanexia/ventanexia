@@ -44,6 +44,13 @@ function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u
 function portalId(url){return crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,16)}
 function partitionFor(id){return `persist:vnx-portal-${String(id||'portal').replace(/[^a-z0-9_-]/gi,'')}`}
 function validHttps(url){try{return new URL(url).protocol==='https:'}catch{return false}}
+function isShopifyAdminUrl(url=''){
+  try{
+    const u=new URL(String(url||''));
+    const h=u.hostname.toLowerCase(),p=u.pathname.toLowerCase();
+    return h==='admin.shopify.com'||(h.endsWith('.myshopify.com')&&(/^\/admin(?:\/|$)/.test(p)||/\/settings(?:\/|$)/.test(p)));
+  }catch{return false}
+}
 function sameOrigin(a,b){try{return new URL(a).origin===new URL(b).origin}catch{return false}}
 function looksAuthenticated(text=''){
   const t=norm(text).slice(0,8000);
@@ -89,11 +96,18 @@ app.on('browser-window-created',(_event,win)=>{installEditing(win);});
 
 async function listPortals(){
   const s=await readState();
-  return (s.portals||[]).map(p=>({id:p.id,name:p.name,url:p.url,mode:p.mode||'read',connectedAt:p.connectedAt||null,lastCheckedAt:p.lastCheckedAt||null,lastStatus:p.lastStatus||'not_connected',lastUrl:p.lastUrl||null}));
+  const all=Array.isArray(s.portals)?s.portals:[];
+  const valid=all.filter(p=>!isShopifyAdminUrl(p.url)&&!isShopifyAdminUrl(p.lastUrl));
+  if(valid.length!==all.length){
+    s.portals=valid;await writeState(s);
+    audit('portal.cleanup','Se eliminaron conexiones Shopify Admin guardadas erróneamente como portal genérico').catch(()=>{});
+  }
+  return valid.map(p=>({id:p.id,name:p.name,url:p.url,mode:p.mode||'read',connectedAt:p.connectedAt||null,lastCheckedAt:p.lastCheckedAt||null,lastStatus:p.lastStatus||'not_connected',lastUrl:p.lastUrl||null}));
 }
 async function savePortal(payload={}){
   const name=clean(payload.name,120),url=clean(payload.url,1000),mode=payload.mode==='write'?'write':'read';
   if(!name||!validHttps(url))throw new Error('Indica un nombre y una URL segura https://');
+  if(isShopifyAdminUrl(url))throw new Error('Shopify no debe conectarse como portal del navegador. Usa “Conexiones > Shopify” para crear una conexión real y verificada por API.');
   const s=await readState();s.portals=Array.isArray(s.portals)?s.portals:[];
   const id=clean(payload.id,80)||portalId(url),i=s.portals.findIndex(p=>p.id===id||p.url===url),old=i>=0?s.portals[i]:{};
   const next={...old,id,name,url,mode,createdAt:old.createdAt||new Date().toISOString()};
@@ -160,7 +174,7 @@ async function readPortal(portal,question=''){
   }finally{if(!win.isDestroyed())win.destroy()}
 }
 async function collectPortalContext(question=''){
-  const s=await readState(),connected=(s.portals||[]).filter(p=>p.mode==='read'||p.mode==='write'),out=[];
+  const s=await readState(),connected=(s.portals||[]).filter(p=>!isShopifyAdminUrl(p.url)&&!isShopifyAdminUrl(p.lastUrl)&&(p.mode==='read'||p.mode==='write')),out=[];
   for(const portal of connected.slice(0,4)){try{out.push(await readPortal(portal,question))}catch(e){out.push({name:portal.name,url:portal.url,status:'error',mode:portal.mode,pages:[],images:[],error:String(e?.message||e).slice(0,200)})}}return out;
 }
 
@@ -192,7 +206,7 @@ function agentSourceForState(s,agent){
   if(agent.requires==='prospecting'&&(s.permissions?.folders||[]).length)return {type:'folder',key:'prospecting',name:'Datos autorizados',folder:(s.permissions.folders||[])[0]};
   if(agent.requires==='web'){
     if(ints.shopify)return {type:'shopify',key:'shopify',name:'Shopify · '+(ints.shopify.shopName||ints.shopify.shop||'Tienda'),shop:ints.shopify.shop||null};
-    const p=(s.portals||[]).find(x=>x.lastStatus==='connected'&&['read','write'].includes(x.mode));
+    const p=(s.portals||[]).find(x=>!isShopifyAdminUrl(x.url)&&!isShopifyAdminUrl(x.lastUrl)&&x.lastStatus==='connected'&&['read','write'].includes(x.mode));
     if(p)return {type:'portal',id:p.id,name:p.name,url:p.url};
   }
   return null;
