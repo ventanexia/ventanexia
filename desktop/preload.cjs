@@ -31,6 +31,8 @@ contextBridge.exposeInMainWorld('vnx',{
   pollOAuth:(payload)=>ipcRenderer.invoke('oauth:status',payload),
   openExternal:(url)=>ipcRenderer.invoke('app:open-external',url),
   checkUpdate:()=>ipcRenderer.invoke('update:check'),
+  usageOverview:()=>ipcRenderer.invoke('usage:overview'),
+  consumeUsage:(payload)=>ipcRenderer.invoke('usage:consume',payload),
   videoQuota:()=>ipcRenderer.invoke('video:quota'),
   consumeVideoCredits:(seconds)=>ipcRenderer.invoke('video:consume',seconds),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
