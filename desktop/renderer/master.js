@@ -152,7 +152,7 @@
 
   function renderMasterMessages(){
     const root=$m('#messages');if(!root)return;
-    const intro='<div class="msg ai">Soy el asistente de VentaNexIA Master. Consulto tus carpetas autorizadas y los portales privados que hayas conectado. En los portales configurados como solo lectura nunca ejecuto modificaciones.</div>';
+    const intro='<div class="msg ai">Estoy listo para ayudarte. Para usar datos reales, elige arriba la cuenta, tienda, portal o carpeta con la que quieres trabajar.</div>';
     root.innerHTML=intro+masterMessages.map(m=>{
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       return `<div class="msg ${m.role==='user'?'user':'ai'}"><div>${escM(m.content).replace(/\n/g,'<br>')}</div>${imgs?`<div>${imgs}</div>`:''}</div>`;
@@ -165,7 +165,8 @@
     form.onsubmit=async e=>{
       e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
       const connections=chatConnections(),scope=selectedChatScope();
-      if(connections.length>1&&!scope){masterMessages.push({role:'assistant',content:'Tienes varias cuentas conectadas. Elige primero cuál quieres usar: '+connections.map(x=>x.name).join(', ')+'.'});renderMasterMessages();return;}
+      if(!connections.length){masterMessages.push({role:'assistant',content:'Todavía no tienes ninguna cuenta o programa conectado. Ve a “Conexiones”, conecta la herramienta donde están tus datos y después vuelve aquí.'});renderMasterMessages();return;}
+      if(!scope){masterMessages.push({role:'assistant',content:'Elige arriba la cuenta o programa con el que quieres trabajar. Así puedo darte datos precisos sin mezclar información.'});renderMasterMessages();return;}
       masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
