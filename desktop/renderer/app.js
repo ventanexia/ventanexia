@@ -73,8 +73,8 @@ function setupRealModuleMode(){
   const saved=getRealModuleSources();
   $$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
-    if(current?.folder)btn.textContent=\`🟢 ${label} · datos reales autorizados\`;
-    if(current?.url)btn.textContent=\`${label} · URL registrada\`;
+    if(current?.folder)btn.textContent=`🟢 ${label} · datos reales autorizados`;
+    if(current?.url)btn.textContent=`${label} · URL registrada`;
     btn.onclick=async()=>{
       if(['shopify','wordpress','github_vercel'].includes(key)){
         const previous=current?.url||'';
@@ -83,16 +83,16 @@ function setupRealModuleMode(){
         const url=String(entered||'').trim();
         if(!/^https:\/\//i.test(url)){alert('La URL debe empezar por https://');return;}
         setRealModuleSource(key,{url,authorizedAt:new Date().toISOString(),mode:'real',connection:'url_registered'});
-        btn.textContent=\`${label} · URL registrada\`;
-        alert(\`${label}: URL real registrada. Para leer pedidos, clientes, productos o realizar cambios necesitaremos conectar la API/OAuth oficial de esa cuenta. La URL por sí sola no se marcará como conexión activa.\`);
+        btn.textContent=`${label} · URL registrada`;
+        alert(`${label}: URL real registrada. Para leer pedidos, clientes, productos o realizar cambios necesitaremos conectar la API/OAuth oficial de esa cuenta. La URL por sí sola no se marcará como conexión activa.`);
         return;
       }
       const folder=await window.vnx.chooseFolder();
       if(!folder)return;
       setRealModuleSource(key,{folder,authorizedAt:new Date().toISOString(),mode:'real'});
-      btn.textContent=\`🟢 ${label} · datos reales autorizados\`;
+      btn.textContent=`🟢 ${label} · datos reales autorizados`;
       await refresh();
-      alert(\`${label}: fuente real autorizada. VentaNexIA podrá consultar los archivos compatibles de esta carpeta desde “Habla con tu equipo”. No se ha simulado ninguna conexión externa.\`);
+      alert(`${label}: fuente real autorizada. VentaNexIA podrá consultar los archivos compatibles de esta carpeta desde “Habla con tu equipo”. No se ha simulado ninguna conexión externa.`);
     };
   });
 }
