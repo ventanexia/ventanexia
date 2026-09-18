@@ -717,9 +717,15 @@ ipcMain.handle('connection:list',async()=>{
 
 ipcMain.handle('chat:send',async(_e,payload={})=>{
   const messages=Array.isArray(payload)?payload:(Array.isArray(payload.messages)?payload.messages:[]);
-  const scope=Array.isArray(payload)?'':String(payload.scope||'').trim();
+  let scope=Array.isArray(payload)?'':String(payload.scope||'').trim();
   let localContext=await collectAuthorizedContext();
   const s=await readState();
+  if(!scope){
+    const connected=Object.entries(s.secret?.integrations||{}).filter(([,x])=>Boolean(x));
+    const folders=(s.permissions?.folders||[]).filter(Boolean);
+    if(connected.length===1&&folders.length===0)scope='integration:'+connected[0][0];
+    else if(connected.length===0&&folders.length===1)scope='folder:'+folders[0];
+  }
   if(scope.startsWith('integration:')){
     const module=scope.slice('integration:'.length);
     const integration=s.secret?.integrations?.[module];
