@@ -451,6 +451,19 @@ ipcMain.handle('shopify:disconnect',async()=>{
   const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
 });
 
+ipcMain.handle('provisioning:list',async()=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
+  return postJson(CLOUD+'/api/provisioning-admin',{action:'list',customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+});
+ipcMain.handle('provisioning:start',async(_e,taskId)=>{
+  const s=await readState();
+  return postJson(CLOUD+'/api/provisioning-admin',{action:'start',taskId,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+});
+ipcMain.handle('provisioning:complete',async(_e,taskId)=>{
+  const s=await readState();
+  return postJson(CLOUD+'/api/provisioning-admin',{action:'complete',taskId,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
+});
 ipcMain.handle('usage:buy-pack',async(_e,packKey)=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
