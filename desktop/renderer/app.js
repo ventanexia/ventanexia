@@ -69,36 +69,64 @@ function getRealModuleSources(){
 }
 function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
 function setupServiceConnectionWizard(){
-  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),cancel=$('#serviceCancelBtn');
+  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),accountId=$('#serviceAccountId'),accountIdWrap=$('#serviceAccountIdWrap'),username=$('#serviceUsername'),usernameWrap=$('#serviceUsernameWrap'),token=$('#serviceToken'),mode=$('#serviceMode'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
   if(!modal)return ()=>{};
   const providers={
-    email:['Gmail','Microsoft 365','Otro correo compatible'],
-    whatsapp:['WhatsApp Business Platform'],
-    social:['Instagram / Facebook','LinkedIn','X / Twitter','Otra red compatible'],
-    crm:['HubSpot','Salesforce','Pipedrive','Otro CRM compatible']
+    email:[['gmail','Gmail'],['microsoft_365','Microsoft 365']],
+    whatsapp:[['whatsapp_business','WhatsApp Business Platform']],
+    social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
+    crm:[['hubspot','HubSpot']]
   };
-  let activeKey=null,activeButton=null;
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'CRM'};
-  cancel.onclick=()=>{modal.style.display='none';activeKey=null;activeButton=null};
-  prepare.onclick=()=>{
+  let activeKey=null,activeButton=null;
+  function updateFields(){
+    const p=provider.value;
+    const needsId=['instagram','facebook','whatsapp_business'].includes(p);
+    const needsUser=p==='x_twitter';
+    accountIdWrap.style.display=needsId?'block':'none';
+    usernameWrap.style.display=needsUser?'block':'none';
+    accountId.placeholder=p==='whatsapp_business'?'Phone Number ID':p==='instagram'?'Instagram Business Account ID':'Facebook Page ID';
+    notice.innerHTML='<b>Conexión real:</b> usa un token oficial del proveedor. VentaNexIA lo comprobará antes de marcar la cuenta como conectada. El token se guarda cifrado en este ordenador.';
+  }
+  provider.onchange=updateFields;
+  cancel.onclick=()=>{modal.style.display='none';token.value='';activeKey=null;activeButton=null};
+  prepare.onclick=async()=>{
     if(!activeKey)return;
-    const p=provider.value,a=account.value.trim();
-    if(!a){notice.innerHTML='<b>Falta la cuenta.</b> Indica el email, usuario o identificador de la cuenta que quieres conectar.';return;}
-    const all=getRealModuleSources();
-    all[activeKey]={provider:p,account:a,mode:'real',status:'authorization_required',preparedAt:new Date().toISOString()};
-    localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
-    if(activeButton)activeButton.textContent='Pendiente de autorización oficial';
-    notice.innerHTML='<b>Cuenta preparada.</b> VentaNexIA no la marcará como conectada hasta completar la autorización OAuth/API oficial del proveedor.';
-    setTimeout(()=>{modal.style.display='none'},900);
+    const payload={module:activeKey,provider:provider.value,account:account.value.trim(),accountId:accountId.value.trim(),username:username.value.trim(),token:token.value.trim(),mode:mode.value};
+    if(!payload.token){notice.innerHTML='<b>Falta el token.</b> Introduce un token OAuth/API oficial del proveedor.';return;}
+    prepare.disabled=true;prepare.textContent='Comprobando conexión…';notice.textContent='Verificando credenciales con el proveedor…';
+    try{
+      const st=await window.vnx.connectIntegration(payload);
+      const all=getRealModuleSources();
+      all[activeKey]={provider:st.provider,account:payload.account,accountId:payload.accountId,username:payload.username,label:st.label,mode:st.mode,status:'connected',connectedAt:new Date().toISOString()};
+      localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+      if(activeButton)activeButton.textContent='🟢 '+labels[activeKey]+' · '+(st.label||'Conectado');
+      token.value='';
+      notice.innerHTML='<b>🟢 Conectado de verdad.</b> '+esc(st.label||labels[activeKey])+' ha respondido correctamente. VentaNexIA ya puede usar esta fuente dentro de los permisos concedidos.';
+    }catch(e){
+      notice.innerHTML='<b>No se pudo conectar.</b> '+esc(e.message||String(e));
+    }finally{prepare.disabled=false;prepare.textContent='Conectar y comprobar'}
   };
-  return (key,button)=>{
+  disconnect.onclick=async()=>{
+    if(!activeKey)return;
+    if(!confirm('¿Desconectar '+labels[activeKey]+' de VentaNexIA en este ordenador?'))return;
+    await window.vnx.disconnectIntegration(activeKey);
+    const all=getRealModuleSources();delete all[activeKey];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+    if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar CRM';
+    account.value='';accountId.value='';username.value='';token.value='';notice.innerHTML='<b>Desconectado.</b>';
+  };
+  return async(key,button)=>{
     activeKey=key;activeButton=button;
     title.textContent='Conectar '+labels[key];
-    text.textContent='Selecciona el proveedor e indica la cuenta real que quieres autorizar.';
-    provider.innerHTML=(providers[key]||[]).map(x=>'<option>'+esc(x)+'</option>').join('');
+    text.textContent='Selecciona el proveedor e introduce las credenciales API/OAuth de la cuenta real que quieres autorizar.';
+    provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
     const saved=getRealModuleSources()[key];
-    account.value=saved?.account||'';
-    notice.innerHTML='<b>Conexión real:</b> este módulo debe usar OAuth o API oficial. No se abrirá el selector de carpetas.';
+    account.value=saved?.account||'';accountId.value=saved?.accountId||'';username.value=saved?.username||'';mode.value=saved?.mode||'read';token.value='';
+    updateFields();
+    try{
+      const st=await window.vnx.integrationStatus(key);
+      if(st?.connected)notice.innerHTML='<b>🟢 Ya conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
+    }catch{}
     modal.style.display='flex';
   };
 }
