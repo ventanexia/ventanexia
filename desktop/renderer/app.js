@@ -87,32 +87,8 @@ function getRealModuleSources(){
 function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
 
 async function refreshChatConnections(){
-  const select=$('#chatConnectionSelect'),hint=$('#chatConnectionHint');if(!select)return;
-  const previous=select.value;
-  let items=[];
-  try{items=await window.vnx.listConnections()}catch{}
-  const options=['<option value="">Selecciona una conexión…</option>'];
-  for(const x of items||[]){
-    const prefix=x.module==='email'?'📧 Correo · ':x.module==='shopify'?'🛒 Tienda · ':x.type==='folder'?'📁 Carpeta · ':'🔗 ';
-    options.push('<option value="'+esc(x.key)+'">'+prefix+esc(x.label||x.module||x.key)+'</option>');
-  }
-  select.innerHTML=options.join('');
-  const saved=localStorage.getItem('vnx_chat_source')||'';
-  if(previous&&[...select.options].some(o=>o.value===previous))select.value=previous;
-  else if(saved&&[...select.options].some(o=>o.value===saved))select.value=saved;
-  else if((items||[]).length===1)select.value=items[0].key;
-  if(select.value)localStorage.setItem('vnx_chat_source',select.value);
-  if(hint){
-    if(!(items||[]).length)hint.textContent='Conecta primero el correo, la tienda, el programa o la carpeta que quieras consultar.';
-    else if((items||[]).length===1){
-      const x=items[0];
-      hint.textContent=x.module==='email'
-        ?'VentaNexIA consultará este correo para responder con datos reales.'
-        :x.type==='folder'
-          ?'VentaNexIA consultará esta carpeta para responder con datos reales.'
-          :'VentaNexIA usará esta fuente para responder con datos reales.';
-    }else hint.textContent='Elige exactamente qué correo, tienda, programa o carpeta quieres consultar.';
-  }
+  if(typeof window.vnxRefreshAgentUi==='function')return window.vnxRefreshAgentUi();
+  return null;
 }
 function setupServiceConnectionWizard(){
   const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
@@ -561,18 +537,6 @@ $('#supportBtn').onclick=async()=>{if(!confirm('Se abrirá Asistencia rápida de
 $('#supportStop').onclick=async()=>{await window.vnx.stopSupport();$('#supportMsg').textContent='La ayuda ha terminado. Si la ventana de Windows sigue abierta, ciérrala también.';await refresh()};
 $('#refreshActivity').onclick=refresh;
 
-function renderMessages(){const root=$('#messages');root.innerHTML='<div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar la información que hayas autorizado y darte respuestas concretas basadas en tus datos.</div>'+messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}">${esc(m.content)}</div>`).join('');root.scrollTop=root.scrollHeight}
-function clearChatConversation(){
-  messages=[];
-  const input=$('#chatInput');if(input)input.value='';
-  renderMessages();
-}
-const chatSelect=$('#chatConnectionSelect');if(chatSelect)chatSelect.onchange=()=>{if(chatSelect.value)localStorage.setItem('vnx_chat_source',chatSelect.value)};
-const chatClearBtn=$('#chatClearBtn');if(chatClearBtn)chatClearBtn.onclick=clearChatConversation;
-const chatNewConversation=$('#chatNewConversation');if(chatNewConversation)chatNewConversation.onclick=()=>{
-  clearChatConversation();
-  const input=$('#chatInput');if(input)input.focus();
-};
-$('#chatForm').onsubmit=async e=>{e.preventDefault();const input=$('#chatInput'),text=input.value.trim(),scope=$('#chatConnectionSelect')?.value||localStorage.getItem('vnx_chat_source')||'';if(!text)return;if(!scope){messages.push({role:'assistant',content:'Elige arriba qué correo, tienda, programa o carpeta quieres que consulte VentaNexIA.'});renderMessages();return;}messages.push({role:'user',content:text});input.value='';renderMessages();const btn=e.submitter;btn.disabled=true;btn.textContent='Pensando…';try{const r=await window.vnx.sendChat(messages,scope);messages.push({role:'assistant',content:r.reply||'Sin respuesta'});renderMessages();await refresh()}catch(err){messages.push({role:'assistant',content:`No he podido consultar esa conexión: ${err.message}`});renderMessages()}finally{btn.disabled=false;btn.textContent='Enviar'}};
+// El chat lo gestiona exclusivamente renderer/master.js para evitar que las conexiones sobrescriban el selector de agentes.
 
 init();
