@@ -69,60 +69,65 @@ function getRealModuleSources(){
 }
 function setRealModuleSource(key,value){const all=getRealModuleSources();all[key]=value;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));}
 function setupServiceConnectionWizard(){
-  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),account=$('#serviceAccount'),accountId=$('#serviceAccountId'),accountIdWrap=$('#serviceAccountIdWrap'),username=$('#serviceUsername'),usernameWrap=$('#serviceUsernameWrap'),token=$('#serviceToken'),mode=$('#serviceMode'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
+  const modal=$('#serviceConnectionModal'),title=$('#serviceConnectionTitle'),text=$('#serviceConnectionText'),provider=$('#serviceProvider'),notice=$('#serviceConnectionNotice'),prepare=$('#servicePrepareBtn'),disconnect=$('#serviceDisconnectBtn'),cancel=$('#serviceCancelBtn');
   if(!modal)return ()=>{};
   const providers={
     email:[['gmail','Gmail'],['microsoft_365','Microsoft 365']],
-    whatsapp:[['whatsapp_business','WhatsApp Business Platform']],
+    whatsapp:[['whatsapp_business','WhatsApp Business']],
     social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
     crm:[['hubspot','HubSpot']]
   };
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'CRM'};
-  let activeKey=null,activeButton=null;
-  function updateFields(){
-    const p=provider.value;
-    const needsId=['instagram','facebook','whatsapp_business'].includes(p);
-    const needsUser=p==='x_twitter';
-    accountIdWrap.style.display=needsId?'block':'none';
-    usernameWrap.style.display=needsUser?'block':'none';
-    accountId.placeholder=p==='whatsapp_business'?'Phone Number ID':p==='instagram'?'Instagram Business Account ID':'Facebook Page ID';
-    notice.innerHTML='<b>Conexión real:</b> usa un token oficial del proveedor. VentaNexIA lo comprobará antes de marcar la cuenta como conectada. El token se guarda cifrado en este ordenador.';
-  }
-  provider.onchange=updateFields;
-  cancel.onclick=()=>{modal.style.display='none';token.value='';activeKey=null;activeButton=null};
+  let activeKey=null,activeButton=null,oauthState=null,pollTimer=null;
+  function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
+  cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null};
   prepare.onclick=async()=>{
     if(!activeKey)return;
-    const payload={module:activeKey,provider:provider.value,account:account.value.trim(),accountId:accountId.value.trim(),username:username.value.trim(),token:token.value.trim(),mode:mode.value};
-    if(!payload.token){notice.innerHTML='<b>Falta el token.</b> Introduce un token OAuth/API oficial del proveedor.';return;}
-    prepare.disabled=true;prepare.textContent='Comprobando conexión…';notice.textContent='Verificando credenciales con el proveedor…';
+    prepare.disabled=true;prepare.textContent='Abriendo autorización…';
+    notice.innerHTML='<b>Autoriza el acceso en tu navegador.</b> Cuando termines, VentaNexIA detectará la conexión automáticamente.';
     try{
-      const st=await window.vnx.connectIntegration(payload);
-      const all=getRealModuleSources();
-      all[activeKey]={provider:st.provider,account:payload.account,accountId:payload.accountId,username:payload.username,label:st.label,mode:st.mode,status:'connected',connectedAt:new Date().toISOString()};
-      localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
-      if(activeButton)activeButton.textContent='🟢 '+labels[activeKey]+' · '+(st.label||'Conectado');
-      token.value='';
-      notice.innerHTML='<b>🟢 Conectado de verdad.</b> '+esc(st.label||labels[activeKey])+' ha respondido correctamente. VentaNexIA ya puede usar esta fuente dentro de los permisos concedidos.';
+      const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value});
+      oauthState=started.state;
+      stopPoll();
+      pollTimer=setInterval(async()=>{
+        try{
+          const st=await window.vnx.pollOAuth({state:oauthState});
+          if(st?.status==='connected'){
+            stopPoll();
+            const all=getRealModuleSources();
+            all[activeKey]={provider:st.provider,label:st.label,mode:st.mode||'write',status:'connected',connectedAt:new Date().toISOString()};
+            localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+            if(activeButton)activeButton.textContent='🟢 '+labels[activeKey]+' · '+(st.label||'Conectado');
+            notice.innerHTML='<b>🟢 Conectado correctamente.</b> '+esc(st.label||labels[activeKey])+' ya está disponible para VentaNexIA.';
+            prepare.disabled=false;prepare.textContent='Autorizar y conectar';
+          }else if(['denied','expired','error'].includes(st?.status)){
+            stopPoll();prepare.disabled=false;prepare.textContent='Autorizar y conectar';
+            notice.innerHTML='<b>No se completó la autorización.</b> '+esc(st?.error||'Vuelve a intentarlo.');
+          }
+        }catch(err){
+          if(String(err?.message||'').includes('ya recogida'))stopPoll();
+        }
+      },2000);
     }catch(e){
-      notice.innerHTML='<b>No se pudo conectar.</b> '+esc(e.message||String(e));
-    }finally{prepare.disabled=false;prepare.textContent='Conectar y comprobar'}
+      prepare.disabled=false;prepare.textContent='Autorizar y conectar';
+      const msg=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'Este conector todavía necesita que VentaNexIA registre su aplicación oficial con el proveedor.':(e.message||String(e));
+      notice.innerHTML='<b>No se pudo iniciar.</b> '+esc(msg);
+    }
   };
   disconnect.onclick=async()=>{
     if(!activeKey)return;
     if(!confirm('¿Desconectar '+labels[activeKey]+' de VentaNexIA en este ordenador?'))return;
-    await window.vnx.disconnectIntegration(activeKey);
+    stopPoll();await window.vnx.disconnectIntegration(activeKey);
     const all=getRealModuleSources();delete all[activeKey];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
     if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar CRM';
-    account.value='';accountId.value='';username.value='';token.value='';notice.innerHTML='<b>Desconectado.</b>';
+    notice.innerHTML='<b>Desconectado.</b>';
   };
   return async(key,button)=>{
-    activeKey=key;activeButton=button;
-    title.textContent='Conectar '+labels[key];
-    text.textContent='Selecciona el proveedor e introduce las credenciales API/OAuth de la cuenta real que quieres autorizar.';
+    activeKey=key;activeButton=button;oauthState=null;stopPoll();
+    title.textContent='Autorizar '+labels[key];
+    text.textContent='Elige el proveedor. Se abrirá su página oficial para que inicies sesión y concedas los permisos.';
     provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
-    const saved=getRealModuleSources()[key];
-    account.value=saved?.account||'';accountId.value=saved?.accountId||'';username.value=saved?.username||'';mode.value=saved?.mode||'read';token.value='';
-    updateFields();
+    notice.innerHTML='<b>No necesitas tokens, IDs ni contraseñas.</b> La autorización se hace directamente con el proveedor.';
     try{
       const st=await window.vnx.integrationStatus(key);
       if(st?.connected)notice.innerHTML='<b>🟢 Ya conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.';
@@ -132,40 +137,55 @@ function setupServiceConnectionWizard(){
 }
 
 function setupShopifyConnectionUi(){
-  const modal=$('#shopifyConnectionModal'),shop=$('#shopifyShop'),token=$('#shopifyToken'),mode=$('#shopifyMode'),msg=$('#shopifyConnectionMsg'),connect=$('#shopifyConnectBtn'),disconnect=$('#shopifyDisconnectBtn'),cancel=$('#shopifyCancelBtn');
+  const modal=$('#shopifyConnectionModal'),shop=$('#shopifyShop'),msg=$('#shopifyConnectionMsg'),connect=$('#shopifyConnectBtn'),disconnect=$('#shopifyDisconnectBtn'),cancel=$('#shopifyCancelBtn');
   if(!modal)return ()=>{};
-  let activeButton=null;
+  let activeButton=null,oauthState=null,pollTimer=null;
+  function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   async function refreshShopifyStatus(){
     try{
       const st=await window.vnx.shopifyStatus();
       if(st?.connected){
-        shop.value=st.shop||'';mode.value=st.mode||'read';
-        msg.innerHTML='<b>🟢 Conectado:</b> '+esc(st.shopName||st.shop)+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+' · '+(st.scopes||[]).length+' permisos concedidos.';
+        shop.value=st.shop||'';
+        msg.innerHTML='<b>🟢 Conectado:</b> '+esc(st.shopName||st.shop)+' · '+(st.scopes||[]).length+' permisos concedidos.';
         if(activeButton)activeButton.textContent='🟢 Shopify · '+(st.shopName||st.shop);
-      }else msg.innerHTML='<b>Sin conectar.</b> Introduce el dominio .myshopify.com y un token de Admin API.';
+      }else msg.innerHTML='<b>Sin conectar.</b> Indica tu dominio .myshopify.com y autoriza el acceso directamente en Shopify.';
     }catch(e){msg.textContent=e.message||'No se pudo comprobar Shopify'}
   }
-  cancel.onclick=()=>{modal.style.display='none';token.value='';activeButton=null};
+  cancel.onclick=()=>{stopPoll();modal.style.display='none';activeButton=null;oauthState=null};
   connect.onclick=async()=>{
-    const s=shop.value.trim(),t=token.value.trim();
-    if(!s||!t){msg.innerHTML='<b>Faltan datos.</b> Indica la tienda .myshopify.com y el token de Admin API.';return;}
-    connect.disabled=true;connect.textContent='Comprobando Shopify…';msg.textContent='Verificando el token y los permisos concedidos…';
+    const s=shop.value.trim();
+    if(!s){msg.innerHTML='<b>Falta la tienda.</b> Indica tu dominio interno, por ejemplo tienda.myshopify.com.';return;}
+    connect.disabled=true;connect.textContent='Abriendo Shopify…';msg.innerHTML='<b>Autoriza en Shopify.</b> VentaNexIA detectará la conexión cuando termines.';
     try{
-      const st=await window.vnx.connectShopify({shop:s,token:t,mode:mode.value});
-      setRealModuleSource('shopify',{integration:'shopify',status:'connected',shop:st.shop,shopName:st.shopName,mode:st.mode,connectedAt:new Date().toISOString()});
-      token.value='';
-      msg.innerHTML='<b>🟢 Shopify conectado de verdad.</b> '+esc(st.shopName||st.shop)+' · '+(st.scopes||[]).length+' permisos detectados.';
-      if(activeButton)activeButton.textContent='🟢 Shopify · '+(st.shopName||st.shop);
-    }catch(e){msg.innerHTML='<b>No se pudo conectar.</b> '+esc(e.message||String(e));}
-    finally{connect.disabled=false;connect.textContent='Conectar y comprobar'}
+      const started=await window.vnx.startOAuth({module:'shopify',provider:'shopify',shop:s});
+      oauthState=started.state;stopPoll();
+      pollTimer=setInterval(async()=>{
+        try{
+          const st=await window.vnx.pollOAuth({state:oauthState});
+          if(st?.status==='connected'){
+            stopPoll();
+            setRealModuleSource('shopify',{integration:'shopify',status:'connected',shop:st.shop,shopName:st.shopName||st.label,mode:'write',connectedAt:new Date().toISOString()});
+            msg.innerHTML='<b>🟢 Shopify conectado.</b> '+esc(st.shopName||st.label||st.shop);
+            if(activeButton)activeButton.textContent='🟢 Shopify · '+esc(st.shopName||st.label||st.shop);
+            connect.disabled=false;connect.textContent='Autorizar con Shopify';
+          }else if(['denied','expired','error'].includes(st?.status)){
+            stopPoll();connect.disabled=false;connect.textContent='Autorizar con Shopify';msg.innerHTML='<b>No se completó la autorización.</b> '+esc(st?.error||'Vuelve a intentarlo.');
+          }
+        }catch(err){}
+      },2000);
+    }catch(e){
+      connect.disabled=false;connect.textContent='Autorizar con Shopify';
+      const msgText=e?.data?.code==='CONNECTOR_NOT_CONFIGURED'?'El conector Shopify todavía necesita registrar la aplicación oficial de VentaNexIA.':(e.message||String(e));
+      msg.innerHTML='<b>No se pudo iniciar.</b> '+esc(msgText);
+    }
   };
   disconnect.onclick=async()=>{
     if(!confirm('¿Desconectar Shopify de VentaNexIA en este ordenador?'))return;
-    await window.vnx.disconnectShopify();
+    stopPoll();await window.vnx.disconnectShopify();
     const all=getRealModuleSources();delete all.shopify;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
-    shop.value='';token.value='';msg.innerHTML='<b>Shopify desconectado.</b>';if(activeButton)activeButton.textContent='Añadir tienda Shopify';
+    shop.value='';msg.innerHTML='<b>Shopify desconectado.</b>';if(activeButton)activeButton.textContent='Añadir tienda Shopify';
   };
-  return async button=>{activeButton=button;modal.style.display='flex';token.value='';await refreshShopifyStatus()};
+  return async button=>{activeButton=button;modal.style.display='flex';await refreshShopifyStatus()};
 }
 
 function setupRealModuleMode(){
