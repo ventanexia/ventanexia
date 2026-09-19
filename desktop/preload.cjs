@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('vnx',{
   getAutoSupport:()=>ipcRenderer.invoke('support:auto-mode-status'),
   listConnections:()=>ipcRenderer.invoke('connection:list'),
   agentCatalog:()=>ipcRenderer.invoke('agent:catalog'),
+  prospectingCatalogStatus:()=>ipcRenderer.invoke('prospecting:catalog-status'),
   emailAction:(payload)=>ipcRenderer.invoke('email:action',payload),
   sendChat:(messages,scope)=>ipcRenderer.invoke('chat:send',{messages,scope}),
   pairDemo:()=>ipcRenderer.invoke('device:pair-demo')
