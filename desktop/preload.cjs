@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('vnx',{
   removePortal:(id)=>ipcRenderer.invoke('portal:remove',id),
   exportData:(payload)=>ipcRenderer.invoke('export:data',payload),
   connectShopify:(payload)=>ipcRenderer.invoke('shopify:connect',payload),
+  connectOwnedShopify:(payload)=>ipcRenderer.invoke('shopify:connect-owned',payload),
   shopifyStatus:()=>ipcRenderer.invoke('shopify:status'),
   disconnectShopify:()=>ipcRenderer.invoke('shopify:disconnect'),
   connectIntegration:(payload)=>ipcRenderer.invoke('integration:connect',payload),
