@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.49",
+  "version": "0.6.50",
   "private": true,
-  "description": "VentaNexIA Desktop · Corrección real de Marcar leído en Gmail · 0.6.49",
+  "description": "VentaNexIA Desktop · Marcar leído corrige toda la conversación de Gmail · 0.6.50",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
