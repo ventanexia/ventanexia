@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.52",
+  "version": "0.6.53",
   "private": true,
-  "description": "VentaNexIA Desktop · Corrección conexión WhatsApp runtime · 0.6.52",
+  "description": "VentaNexIA Desktop · Documentos formateados con formulario lateral editable · 0.6.53",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
