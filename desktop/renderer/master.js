@@ -426,7 +426,7 @@
       +'</div>';
   }
   async function refreshWhatsAppWorkspaceMetrics(){
-    const root=$m('#whatsappWorkspaceMetrics');if(!root)return;
+    const root=document.querySelector('[data-whatsapp-workspace-metrics]');if(!root)return;
     const manual=whatsappManualModeEnabled();
     if(manual){root.innerHTML=whatsappMetricsHtml({},true);return}
     root.innerHTML='<div class="wa-metrics-loading">Consultando WhatsApp…</div>';
@@ -447,7 +447,7 @@
     if(title)title.textContent=(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
     if(chosen.key==='email'){renderEmailDashboard(chosen);renderGuidedOtherCards(chatConnections(),chosen);return;}
-    if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div id="whatsappWorkspaceMetrics"></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
+    if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div data-whatsapp-workspace-metrics></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(chosen.key==='whatsapp')refreshWhatsAppWorkspaceMetrics();
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
     if(primary){primary.textContent=cfg.primary||'✨ Empezar';primary.dataset.agentKey=chosen.key}
