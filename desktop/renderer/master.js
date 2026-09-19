@@ -14,6 +14,7 @@
     crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes conectados',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
+    orders:'Ej.: revisa los pedidos recibidos por email o portal y prepara su alta en el programa de gestión',
     social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora la visibilidad en Google de la página del producto',
     web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
     administration:'Ej.: organiza mis tareas de esta semana, prepara seguimientos y ordena estos documentos',
@@ -112,6 +113,19 @@
       ],
       capabilities:['Estructurar presupuestos','Preparar propuestas comerciales','Calcular subtotales cuando hay tarifas','Marcar claramente los precios que faltan','No inventar precios'],
       steps:['Datos','Propuesta','Revisión']
+    },
+    orders:{
+      subtitle:'Recoge pedidos del correo o de páginas privadas y los prepara para tu programa de gestión.',
+      primary:'📦 Revisar pedidos',
+      fields:[
+        {key:'source',label:'¿DE DÓNDE LLEGAN?',type:'select',options:['Email','Página privada / ERP web','Email y página privada']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Preparar pedidos para introducir','Revisar pedidos con errores','Comprobar cliente y referencias','Preparar alta en el sistema','Otra gestión']},
+        {key:'system',label:'PROGRAMA DONDE SE INTRODUCEN',type:'text',wide:true,placeholder:'Ej. Dynamics, Business Central, SAP, Sage, Odoo, Holded...'},
+        {key:'mode',label:'FORMA DE TRABAJO',type:'select',options:['Solo preparar','Pedirme permiso antes de crear','Automático solo si todo coincide']},
+        {key:'rules',label:'REGLAS / COMPROBACIONES',type:'textarea',wide:true,placeholder:'Ej. comprobar cliente, referencia, cantidades, dirección y no crear nada si falta algún dato'}
+      ],
+      capabilities:['Detectar pedidos recibidos por email','Leer pedidos disponibles en páginas privadas autorizadas','Extraer cliente, referencias, cantidades y dirección','Comprobar datos antes de crear un pedido','Preparar el envío al programa de gestión','No inventar clientes, referencias ni cantidades'],
+      steps:['Recibir','Comprobar','Introducir']
     },
     social:{
       subtitle:'Crea campañas, contenido y mejoras de visibilidad para tu negocio.',
@@ -223,12 +237,12 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. No inventes datos y marca cualquier duda antes de crear nada',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
     const matches=[];
-    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],orders:['email','portal'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
@@ -264,6 +278,7 @@
       crm:'seguimiento y cierre',
       customer_service:'responder dudas e incidencias',
       quotes:'crear presupuestos y ofertas',
+      orders:'recibir y pasar pedidos al sistema',
       social:'redes y campañas',
       web_ecommerce:'pedidos, productos y tienda',
       administration:'tareas, agenda y gestión',
