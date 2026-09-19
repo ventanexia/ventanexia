@@ -145,7 +145,9 @@ function setupServiceConnectionWizard(){
         prepare.disabled=false;prepare.textContent='Conectar ahora';
         return;
       }
-      const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:account?.value?.trim()||''});
+      const requestedAccount=account?.value?.trim()||'';
+      if(activeKey==='email'&&addAnother&&!requestedAccount){prepare.disabled=false;prepare.textContent='Conectar ahora';notice.innerHTML='<b>Escribe la nueva cuenta de email que quieres añadir.</b>';return;}
+      const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:requestedAccount});
       oauthState=started.state;
       if(started.authUrl){
         notice.innerHTML='<b>Se ha abierto tu navegador para autorizar la cuenta.</b> Si no lo ves, <button class="mini" id="oauthOpenFallback" type="button">Abrir autorización</button>';
@@ -191,8 +193,9 @@ function setupServiceConnectionWizard(){
     notice.innerHTML='<b>Desconectado.</b> El cambio se ha aplicado en todo VentaNexIA.';
     await refreshChatConnections();
   };
-  return async(key,button)=>{
+  return async(key,button,options={})=>{
     activeKey=key;activeButton=button;oauthState=null;stopPoll();
+    const addAnother=Boolean(options?.addAnother&&key==='email');
     title.textContent='Autorizar '+labels[key];
     text.textContent='Elige la cuenta que quieres conectar. Se abrirá su página oficial para que inicies sesión y aceptes el acceso.';
     provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
@@ -200,8 +203,9 @@ function setupServiceConnectionWizard(){
     if(genericPass)genericPass.value='';
     if(account){
       const saved=getRealModuleSources()[key];
-      account.value=saved?.account||'';
+      account.value=addAnother?'':(saved?.account||'');
       account.placeholder=key==='email'?'Ej.: ventas@empresa.com':key==='social'?'Ej.: mobiliario.sanitario':'Ej.: nombre de la cuenta';
+      if(addAnother)setTimeout(()=>account.focus(),50);
     }
     const masterUnlimited=key==='email'&&String(state.license?.plan||'').toLowerCase()==='master';
     notice.innerHTML=key==='email'
@@ -214,7 +218,11 @@ function setupServiceConnectionWizard(){
       const st=await window.vnx.integrationStatus(key);
       if(st?.connected){
         const accounts=Array.isArray(st.accounts)?st.accounts:[];
-        notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.'+(key==='email'&&accounts.length>1?'<br><small>'+accounts.map(x=>esc(x.label)).join(' · ')+'</small>':'');
+        if(addAnother&&key==='email'){
+          notice.innerHTML='<b>♛ Añadir otra cuenta.</b> Escribe arriba el nuevo email. Ya tienes '+accounts.length+' cuenta'+(accounts.length===1?'':'s')+' conectada'+(accounts.length===1?'':'s')+':<br><small>'+accounts.map(x=>esc(x.label)).join(' · ')+'</small>';
+        }else{
+          notice.innerHTML='<b>🟢 Ya está conectado:</b> '+esc(st.label||labels[key])+' · '+(st.mode==='write'?'lectura y escritura':'solo lectura')+'.'+(key==='email'&&accounts.length>1?'<br><small>'+accounts.map(x=>esc(x.label)).join(' · ')+'</small>':'');
+        }
       }
     }catch{}
     modal.style.display='flex';
@@ -294,6 +302,7 @@ function setupRealModuleMode(){
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
+  window.vnxOpenServiceWizard=openServiceWizard;
   const openShopify=setupShopifyConnectionUi();
   $$('[data-real-module]').forEach(btn=>{
     const key=btn.dataset.realModule,label=labels[key]||key,current=saved[key];
@@ -516,7 +525,9 @@ const buyStoragePack=$('#buyStoragePack');if(buyStoragePack)buyStoragePack.oncli
 
 const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{
   if(String(state.license?.plan||'').toLowerCase()==='master'){
-    const connectBtn=document.querySelector('[data-real-module="email"]');if(connectBtn)connectBtn.click();return;
+    const connectBtn=document.querySelector('[data-real-module="email"]');
+    if(typeof window.vnxOpenServiceWizard==='function'){await window.vnxOpenServiceWizard('email',connectBtn,{addAnother:true});return;}
+    if(connectBtn)connectBtn.click();return;
   }
   await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=email_account');
 };
