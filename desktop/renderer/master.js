@@ -130,7 +130,9 @@
         {key:'purchasingEmail',label:'EMAIL DE COMPRAS',type:'text',wide:true,placeholder:'Ej. compras@empresa.com'},
         {key:'orderRefPrefix',label:'FORMATO DEL NÚMERO INTERNO DE PEDIDO',type:'text',wide:true,placeholder:'Ej. VNX-PED · VentaNexIA añadirá una referencia única a cada pedido'},
         {key:'noStockAction',label:'SI NO HAY STOCK',type:'select',options:['Consultar automáticamente a Compras','Preparar consulta a Compras y pedirme permiso','Dejar el pedido pendiente']},
-        {key:'customerNoStock',label:'CUANDO COMPRAS RESPONDA',type:'select',options:['Informar automáticamente al cliente y pedir confirmación','Preparar respuesta y pedirme permiso','Solo actualizar el pedido']},
+        {key:'customerNoStock',label:'CUANDO COMPRAS RESPONDA',type:'select',options:['Crear pedido en el sistema e informar automáticamente al cliente','Crear pedido y pedirme permiso antes de informar','Solo actualizar el pedido']},
+        {key:'erpReferenceMode',label:'REFERENCIA EN EL SISTEMA',type:'select',options:['Usar siempre el número interno de VentaNexIA como referencia','Guardar número interno y número definitivo del sistema','Pedirme qué referencia usar']},
+        {key:'customerLeadMessage',label:'MENSAJE AL CLIENTE CUANDO COMPRAS CONFIRME PLAZO',type:'textarea',wide:true,placeholder:'Ej. Hemos recibido su pedido. La fecha aproximada de envío es el 15/10/2026. Le avisaremos cuando salga de nuestras instalaciones.'},
         {key:'rules',label:'REGLAS / COMPROBACIONES',type:'textarea',wide:true,placeholder:'Ej. comprobar cliente, referencia, cantidades, dirección, stock y no crear nada si falta algún dato'}
       ],
       capabilities:[
@@ -147,13 +149,16 @@
         'Incluir ese número de pedido en el asunto y cuerpo del email enviado a Compras',
         'Si no hay stock, consultar automáticamente a Compras por las referencias y cantidades que faltan',
         'Relacionar la respuesta de Compras únicamente con el pedido cuyo número interno coincida',
+        'Crear el pedido en el programa de gestión manteniendo esa referencia interna',
+        'Guardar junto al pedido el plazo o fecha facilitada por Compras',
+        'Informar automáticamente al cliente de la fecha aproximada de envío cuando el pedido ya esté registrado',
         'Reconocer la respuesta de Compras y extraer el plazo de entrega',
         'Informar al cliente del plazo indicado por Compras y pedir su confirmación',
         'Continuar con el pedido cuando el cliente confirme',
         'Preparar el envío al programa de gestión',
         'No inventar clientes, referencias, cantidades, stock, plazos ni datos fiscales'
       ],
-      steps:['Recibir','Asignar nº de pedido','Comprobar cliente','Comprobar stock','Consultar Compras si falta stock','Relacionar respuesta','Informar al cliente','Confirmar','Introducir pedido']
+      steps:['Recibir','Asignar nº de pedido','Comprobar cliente','Comprobar stock','Consultar Compras si falta stock','Relacionar respuesta','Crear pedido en el sistema','Guardar plazo de Compras','Informar al cliente']
     },
     social:{
       subtitle:'Crea campañas, contenido y mejoras de visibilidad para tu negocio.',
@@ -265,7 +270,7 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. Si el cliente no existe, comprueba qué datos necesita el sistema para el alta. Si faltan datos y está elegido el modo automático, solicita por email únicamente los datos que falten y deja el pedido pendiente de alta. Cuando llegue la respuesta, relaciónala con el pedido original, completa el alta y continúa. Si el cliente ya existe, comprueba el stock real de cada referencia. Si hay stock y está permitido el envío automático, informa al cliente de que hay disponibilidad e indica exactamente el plazo configurado por su empresa, por ejemplo 3 días laborables. Si no hay stock suficiente, no inventes un plazo. Antes de contactar con Compras, asigna al pedido una referencia interna única y estable. Esa referencia debe mantenerse durante todo el ciclo y no reutilizarse para otro pedido. El email a Compras debe llevar la referencia en el asunto y en el cuerpo, junto con cliente, referencias y cantidades sin stock, y debe indicar claramente que Compras debe responder manteniendo ese mismo número de pedido. Cuando llegue la respuesta de Compras, solo relaciónala automáticamente si contiene la misma referencia interna; si falta o hay más de una coincidencia posible, déjala pendiente de revisión. Extrae el plazo comunicado y prepara o envía al cliente un email informando de ese plazo y pidiendo su confirmación. Solo continúa con el pedido cuando la confirmación requerida exista. Nunca inventes datos fiscales, clientes, referencias, cantidades, stock, plazos ni direcciones. Si una conexión real no permite leer stock, enviar email, crear cliente o crear pedido, indícalo claramente y no afirmes que se ha ejecutado.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. Si el cliente no existe, comprueba qué datos necesita el sistema para el alta. Si faltan datos y está elegido el modo automático, solicita por email únicamente los datos que falten y deja el pedido pendiente de alta. Cuando llegue la respuesta, relaciónala con el pedido original, completa el alta y continúa. Si el cliente ya existe, comprueba el stock real de cada referencia. Si hay stock y está permitido el envío automático, informa al cliente de que hay disponibilidad e indica exactamente el plazo configurado por su empresa, por ejemplo 3 días laborables. Si no hay stock suficiente, no inventes un plazo. Antes de contactar con Compras, asigna al pedido una referencia interna única y estable. Esa referencia debe mantenerse durante todo el ciclo y no reutilizarse para otro pedido. El email a Compras debe llevar la referencia en el asunto y en el cuerpo, junto con cliente, referencias y cantidades sin stock, y debe indicar claramente que Compras debe responder manteniendo ese mismo número de pedido. Cuando llegue la respuesta de Compras, solo relaciónala automáticamente si contiene la misma referencia interna; si falta o hay más de una coincidencia posible, déjala pendiente de revisión. Extrae el plazo o fecha comunicada por Compras. A continuación, si la conexión real del programa de gestión permite escritura, crea el pedido en el sistema manteniendo el número interno de VentaNexIA como referencia o guardándolo junto al número definitivo que asigne el ERP. Guarda también en el pedido el plazo facilitado por Compras para que quede trazabilidad de quién confirmó esa fecha. Solo después de que el pedido esté registrado correctamente, envía al cliente un email automático indicando la fecha aproximada de envío basada exactamente en la respuesta de Compras. No inventes fechas ni plazos. Si el alta en el sistema falla, no informes al cliente de que el pedido está registrado y deja el caso pendiente de revisión. Solo continúa con el pedido cuando la confirmación requerida exista. Nunca inventes datos fiscales, clientes, referencias, cantidades, stock, plazos ni direcciones. Si una conexión real no permite leer stock, enviar email, crear cliente o crear pedido, indícalo claramente y no afirmes que se ha ejecutado.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
@@ -306,7 +311,7 @@
       crm:'seguimiento y cierre',
       customer_service:'responder dudas e incidencias',
       quotes:'crear presupuestos y ofertas',
-      orders:'recibir pedidos, comprobar stock y coordinar con Compras',
+      orders:'recibir pedidos, comprobar stock, coordinar Compras y avisar al cliente',
       social:'redes y campañas',
       web_ecommerce:'pedidos, productos y tienda',
       administration:'tareas, agenda y gestión',
