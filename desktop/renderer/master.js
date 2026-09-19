@@ -14,8 +14,8 @@
     crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes conectados',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
-    social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora el visibilidad en Google de la página del producto',
-    web_tienda online:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
+    social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora la visibilidad en Google de la página del producto',
+    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
     administration:'Ej.: organiza mis tareas de esta semana, prepara seguimientos y ordena estos documentos',
     reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
     automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos hacer automáticamente'
@@ -126,7 +126,7 @@
       capabilities:['Crear publicaciones y campañas','Preparar calendarios de contenido','Mejorar títulos, descripciones y visibilidad en Google','Adaptar mensajes a cada red','Usar datos reales de redes conectadas cuando existan'],
       steps:['Objetivo','Contenido','Publicar']
     },
-    web_tienda online:{
+    web_ecommerce:{
       subtitle:'Consulta y trabaja con tu web o tienda conectada.',
       primary:'✨ Ejecutar consulta',
       fields:[
@@ -223,12 +223,12 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_tienda online:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
     const matches=[];
-    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_tienda online:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
@@ -265,7 +265,7 @@
       customer_service:'responder dudas e incidencias',
       quotes:'crear presupuestos y ofertas',
       social:'redes y campañas',
-      web_tienda online:'pedidos, productos y tienda',
+      web_ecommerce:'pedidos, productos y tienda',
       administration:'tareas, agenda y gestión',
       reports:'datos y resultados',
       automation:'ahorrar tiempo y repetir tareas'
@@ -753,7 +753,7 @@
   function chatConnections(){
     const out=[];
     for(const agent of runtimeAgents||[]){
-      if(agent.key==='web_tienda online'&&agent.included){
+      if(agent.key==='web_ecommerce'&&agent.included){
         const sh=(runtimeConnections||[]).find(x=>(x.module||x.key)==='shopify');
         if(sh){
           out.push({...agent,connected:true,ready:true,source:{type:'shopify',key:'shopify',name:'Shopify · '+(sh.label||'Tienda'),shop:sh.shop||sh.label||null}});
@@ -785,7 +785,7 @@
       customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
       quotes:'Presupuestos y ofertas comerciales con datos reales.',
       social:'Publicaciones, campañas y visibilidad en Google.',
-      web_tienda online:'Pedidos, clientes, productos y contenido de tu web o tienda.',
+      web_ecommerce:'Pedidos, clientes, productos y contenido de tu web o tienda.',
       administration:'Documentos, tareas, agenda y organización del día a día.',
       reports:'Explica tus datos y resultados de forma sencilla.',
       automation:'Hace tareas repetitivas por ti siguiendo reglas claras.'
