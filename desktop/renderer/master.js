@@ -327,35 +327,15 @@
     try{
       const allInbox=await window.vnx.emailInbox({limit:30});
       const accountNames=Array.isArray(allInbox?.accounts)?allInbox.accounts:[];
-      let accountIndex=-1;
-      let messages=Array.isArray(allInbox?.messages)?allInbox.messages:[];
+      let messages=[];
+      let selected=0,filter='all',search='';
       const accountOptions=['Todas las cuentas',...accountNames];
       host.innerHTML='<div class="email-dashboard">'
         +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i-1)+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
         +'<div class="email-metric-grid" data-email-metrics></div>'
         +'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
-      let selected=0,filter='all',search='';
       const list=host.querySelector('[data-email-list]'),detail=host.querySelector('[data-email-detail]');
-      async function refreshAccountData(){
-        const metricsRoot=host.querySelector('[data-email-metrics]');
-        const accountSel=host.querySelector('[data-email-account]');
-        accountIndex=Number(accountSel?.value??-1);
-        const [inbox,metrics]=await Promise.all([
-          window.vnx.emailInbox({limit:30,accountIndex:accountIndex>=0?accountIndex:null}),
-          window.vnx.emailMetrics({accountIndex:accountIndex>=0?accountIndex:null}).catch(()=>window.vnx.emailMetrics())
-        ]);
-        messages=Array.isArray(inbox?.messages)?inbox.messages:[];
-        selected=0;
-        if(metricsRoot)metricsRoot.innerHTML=
-          '<article><span class="metric-ico blue">✉</span><b>'+Number(metrics?.received||0)+'</b><strong>Recibidos</strong><small>Hoy</small></article>'
-          +'<article><span class="metric-ico green">✓</span><b>'+Number(metrics?.responded||0)+'</b><strong>Respondidos</strong><small>Enviados hoy</small></article>'
-          +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
-          +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>';
-        const allBtn=host.querySelector('[data-email-filter="all"]');if(allBtn)allBtn.textContent='✉ Recibidos ('+messages.length+')';
-        const accountSel=host.querySelector('[data-email-account]');if(accountSel)accountSel.onchange=()=>refreshAccountData();
-      refreshAccountData();
-      }
       const visibleIndexes=()=>messages.map((m,i)=>({m,i})).filter(({m})=>{
         const statusOk=filter==='all'||m.status===filter;
         const q=search.toLowerCase();
@@ -365,7 +345,8 @@
       function renderList(){
         const idxs=visibleIndexes();
         if(!idxs.includes(selected)&&idxs.length)selected=idxs[0];
-        list.innerHTML=idxs.length?idxs.map(i=>emailListItem(messages[i],i,i===selected)).join(''):'<div class="email-no-results">No hay correos con este filtro.</div>';
+        if(!idxs.length){list.innerHTML='<div class="email-no-results">No hay correos con este filtro.</div>';detail.innerHTML='';return}
+        list.innerHTML=idxs.map(i=>emailListItem(messages[i],i,i===selected)).join('');
         list.querySelectorAll('[data-email-row]').forEach(btn=>btn.onclick=()=>{selected=Number(btn.dataset.emailRow);renderList();renderDetail();});
       }
       function renderDetail(){
@@ -383,12 +364,12 @@
         detail.querySelector('[data-email-draft]').onclick=async()=>{
           const btn=detail.querySelector('[data-email-draft]');btn.disabled=true;msg.textContent='Creando borrador en Gmail…';
           try{const r=await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'draft_reply',body:ta.value});msg.textContent=r?.message||'Borrador creado en Gmail.';await refreshAgentMetrics()}
-          catch(e){msg.textContent=e.message||'No se pudo crear el borrador.'}finally{btn.disabled=false}
+          catch(err){msg.textContent=err.message||'No se pudo crear el borrador.'}finally{btn.disabled=false}
         };
         detail.querySelector('[data-email-read]').onclick=async()=>{
           const btn=detail.querySelector('[data-email-read]');btn.disabled=true;
           try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});m.unread=false;if(m.status==='unread')m.status=m.responded?'responded':'pending';msg.textContent='Correo marcado como leído.';renderList();renderDetail();await refreshAgentMetrics()}
-          catch(e){msg.textContent=e.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
+          catch(err){msg.textContent=err.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
         };
         detail.querySelector('[data-email-no-reply]').onclick=async()=>{
           const btn=detail.querySelector('[data-email-no-reply]');btn.disabled=true;msg.textContent='Marcando como no requiere respuesta…';
@@ -397,15 +378,35 @@
             m.unread=false;m.noReply=true;m.status='no_reply';
             msg.textContent=r?.message||'Marcado como no requiere respuesta.';
             renderList();renderDetail();await refreshAgentMetrics();
-          }catch(e){msg.textContent=e.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
+          }catch(err){msg.textContent=err.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
         };
         detail.querySelector('[data-email-open]').onclick=()=>{const u='https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id);window.open(u,'_blank','noopener,noreferrer')};
       }
+      async function refreshAccountData(){
+        const metricsRoot=host.querySelector('[data-email-metrics]');
+        const accountControl=host.querySelector('[data-email-account]');
+        const accountIndex=Number(accountControl?.value??-1);
+        const scope=accountIndex>=0?{accountIndex}:{};
+        const [inbox,metrics]=await Promise.all([
+          window.vnx.emailInbox({limit:30,...scope}),
+          window.vnx.emailMetrics(scope)
+        ]);
+        messages=Array.isArray(inbox?.messages)?inbox.messages:[];
+        selected=0;
+        if(metricsRoot)metricsRoot.innerHTML=
+          '<article><span class="metric-ico blue">✉</span><b>'+Number(metrics?.received||0)+'</b><strong>Recibidos</strong><small>Hoy</small></article>'
+          +'<article><span class="metric-ico green">✓</span><b>'+Number(metrics?.responded||0)+'</b><strong>Respondidos</strong><small>Enviados hoy</small></article>'
+          +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
+          +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>';
+        const allBtn=host.querySelector('[data-email-filter="all"]');if(allBtn)allBtn.textContent='✉ Recibidos ('+messages.length+')';
+        renderList();renderDetail();
+      }
       host.querySelectorAll('[data-email-filter]').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.emailFilter;host.querySelectorAll('[data-email-filter]').forEach(x=>x.classList.toggle('active',x===btn));renderList();renderDetail()});
       const searchEl=host.querySelector('[data-email-search]');searchEl.oninput=()=>{search=searchEl.value.trim();renderList();renderDetail()};
-      renderList();renderDetail();
-    }catch(e){
-      host.innerHTML='<div class="email-dashboard-empty">No he podido cargar la bandeja: '+escM(e.message||e)+'</div>';
+      const accountControl=host.querySelector('[data-email-account]');if(accountControl)accountControl.onchange=()=>refreshAccountData();
+      await refreshAccountData();
+    }catch(err){
+      host.innerHTML='<div class="email-dashboard-empty">No he podido cargar la bandeja: '+escM(err.message||err)+'</div>';
     }
   }
 
