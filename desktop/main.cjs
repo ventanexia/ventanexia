@@ -8,6 +8,7 @@ const nodemailer=require('nodemailer');
 const {EDITION,assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
 const {storeFile,readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
+const {shopifyCall}=require('./shopify-auth.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -666,7 +667,7 @@ async function runHealthCheck(){
       }
       catch(e){ok=false;detail='La autorización puede haber caducado'}
     }else if(ok&&key==='shopify'){
-      try{await shopifyGraphql(x.shop,x.token,`query VentaNexIAHealth { shop { name } }`);detail='Conexión comprobada'}catch{ok=false;detail='La autorización puede haber caducado'}
+      try{await shopifyCall(x,tok=>shopifyGraphql(x.shop,tok,`query VentaNexIAHealth { shop { name } }`));detail='Conexión comprobada'}catch(e){ok=false;detail=e?.code==='SHOPIFY_SHOP_NOT_FOUND'||e?.code==='REAUTH_REQUIRED'?String(e.message).slice(0,200):'La autorización puede haber caducado'}
     }
     add('Conexión · '+String(x.label||key),ok,detail);
   }
