@@ -23,3 +23,17 @@ body{overflow:hidden}.shell{display:grid;grid-template-columns:248px 1fr;height:
 input,textarea,select{pointer-events:auto!important;-webkit-app-region:no-drag!important}
 input,textarea{-webkit-user-select:text!important;user-select:text!important;caret-color:#fff}
 .tab.active input:not(:disabled),.tab.active textarea:not(:disabled),.tab.active select:not(:disabled){pointer-events:auto!important}
+
+
+/* Chat input must remain editable even when the selected agent still needs a connection. */
+#chatInput{
+  pointer-events:auto !important;
+  user-select:text !important;
+  -webkit-user-select:text !important;
+  -webkit-app-region:no-drag !important;
+}
+#chatInput:disabled,
+#chatInput[readonly]{
+  opacity:1 !important;
+  cursor:text !important;
+}
