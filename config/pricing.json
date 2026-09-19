@@ -48,9 +48,9 @@
     "scale": {
       "name": "VNX Premium",
       "monthly": 1750,
-      "agents_included": 10,
+      "agents_included": 9,
       "integrations_included": 10,
-      "description": "VentaNexIA Desktop con los 10 agentes estándar y hasta 10 conexiones externas.",
+      "description": "VentaNexIA Desktop con todos los agentes estándar y hasta 10 conexiones externas. Web & Ecommerce se contrata como módulo adicional.",
       "devices_included": 5,
       "video_credits_monthly": 30,
       "usage_limits": {
@@ -122,6 +122,11 @@
       "units_gb": 10,
       "billing": "monthly",
       "description": "10 GB adicionales de espacio para datos y archivos usados por VentaNexIA mientras la ampliación esté activa."
+    },
+    "web_ecommerce": {
+      "monthly": 550,
+      "billing": "monthly",
+      "description": "Módulo Web & Ecommerce para Shopify y otras plataformas compatibles cuando el conector esté disponible."
     }
   },
   "delivery_model": "VentaNexIA Desktop",
