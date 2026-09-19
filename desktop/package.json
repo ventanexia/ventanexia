@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.47",
+  "version": "0.6.48",
   "private": true,
-  "description": "VentaNexIA Desktop · Pedidos con alta ERP tras respuesta de Compras y aviso automático al cliente · 0.6.47",
+  "description": "VentaNexIA Desktop · Pedidos incluido en todos los planes con límites por volumen · 0.6.48",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
