@@ -236,8 +236,8 @@
         const prompt=guidedPrompt(scope.key,data);
         r=await window.vnx.sendChat([{role:'user',content:prompt}],scope);
       }
-      out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" id="guidedContinueFree" class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
-      const cont=$m('#guidedContinueFree');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
+      out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
+      const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
     }catch(e){out.textContent='No he podido completar la tarea: '+(e.message||e)}
     finally{btn.disabled=false;btn.textContent=old}
   }
