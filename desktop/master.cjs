@@ -6,6 +6,8 @@ const {normalizeChatScope,parseGmailContext,emailAgentDirectReply}=require('./ag
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster}=require('./agent-policy.cjs');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
+let prospecting=null;
+try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
 
 require('./main.cjs');
 
@@ -444,18 +446,11 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       if(direct)return {reply:direct,source:'desktop-support-email',route:'agent:customer_service'};
     }
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
-    const desktop={customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null};
-    const search=await fetch(CLOUD+'/api/prospect-search',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({request:question,desktop})});
-    const data=await search.json().catch(()=>({}));
-    if(!search.ok)throw new Error(data.error||'No se pudo realizar la búsqueda de clientes');
-    const leads=Array.isArray(data.leads)?data.leads:[];
-    const lines=leads.map((x,i)=>{
-      const contact=[x.phone?('Tel. '+x.phone):'',x.email?('Email '+x.email):'',x.website?('Web '+x.website):''].filter(Boolean).join(' · ');
-      return (i+1)+'. '+x.name+(x.activity?' — '+x.activity:'')+(x.address?'\n   '+x.address:'')+(contact?'\n   '+contact:'')+(x.fit?'\n   Encaje: '+x.fit:'');
-    });
-    const q=data.query||{};
-    await audit('ai.prospecting','Búsqueda real · '+leads.length+' resultados · '+String(q.zone||'').slice(0,80));
-    return {reply:'He buscado empresas reales según tu petición.'+(q.clientType?'\n\nPerfil: '+q.clientType:'')+(q.zone?' · Zona: '+q.zone:'')+'\n\n'+(lines.join('\n\n')||'No he encontrado resultados fiables.')+'\n\nFuente: '+(data.sourceMode||'fuentes públicas')+'. No invento teléfonos, emails ni empresas que no estén publicados.',source:'desktop-prospect-search',route:'agent:prospecting',leads};
+    if(prospecting){
+      const handled=await prospecting.handleChat(question);
+      if(handled)return handled;
+    }
+    localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&['quotes','reports','administration','automation'].includes(scope?.key)){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='integration'&&scope?.key==='email'){
@@ -486,3 +481,5 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));j.route=scope?.type==='agent'?'agent:'+scope.key:(scope?.type||null);
   await audit('ai.chat',`Consulta con ${localContext.length} fuente(s) autorizada(s)`);return j;
 });
+
+if(prospecting)app.whenReady().then(()=>prospecting.startScheduler());
