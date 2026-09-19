@@ -1,4 +1,4 @@
-const EDITION='master';
+const EDITION=String(process.env.VNX_EDITION||'master').trim().toLowerCase();
 
 const AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
@@ -23,13 +23,13 @@ function purchasedFeatures(license={}){
   const p=license?.featurePolicy||{};
   return new Set([...(p.purchased_included||[]),...(p.purchased_extras||[])].map(x=>String(x||'').trim().toLowerCase()).filter(Boolean));
 }
-function isMaster(license={}){return EDITION==='master'||cleanPlan(license?.plan)==='master'||cleanPlan(license?.edition)==='master'}
+function isMaster(license={},edition=EDITION){return cleanPlan(edition)==='master'||cleanPlan(license?.plan)==='master'||cleanPlan(license?.edition)==='master'}
 function standardPremiumPlan(license={}){
   return ['scale','empresa','premium'].includes(cleanPlan(license?.plan));
 }
-function isAgentIncluded(license={},agentKey){
+function isAgentIncluded(license={},agentKey,edition=EDITION){
   const a=AGENT_CATALOG.find(x=>x.key===agentKey);if(!a)return false;
-  if(isMaster(license)||!a.entitlement)return true;
+  if(isMaster(license,edition)||!a.entitlement)return true;
   const purchased=purchasedFeatures(license);
   if(purchased.has(a.entitlement))return true;
   if(standardPremiumPlan(license)&&!['crm','web_ecommerce'].includes(a.entitlement))return true;
@@ -51,8 +51,8 @@ function moduleEntitlement(module=''){
   if(m==='shopify'||m==='wordpress'||m==='github_vercel'||m==='web_ecommerce')return 'web_ecommerce';
   return m||null;
 }
-function isModuleIncluded(license={},module=''){
-  if(isMaster(license))return true;
+function isModuleIncluded(license={},module='',edition=EDITION){
+  if(isMaster(license,edition))return true;
   const ent=moduleEntitlement(module);if(!ent)return false;
   const purchased=purchasedFeatures(license);
   if(purchased.has(ent))return true;
