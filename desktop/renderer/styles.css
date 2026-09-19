@@ -189,18 +189,18 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;car
 .vnx-doc-toolbar>div:first-child{display:grid;gap:3px}
 .vnx-doc-toolbar small{color:#7898b0;font-size:10px}
 .vnx-doc-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}
-.vnx-doc-workspace{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(270px,.75fr);gap:14px;align-items:start}
-.vnx-doc-preview{background:#dfe7ed;border-radius:12px;padding:16px;min-width:0;max-height:70vh;overflow:auto}
-.vnx-doc-paper{background:#fff;color:#17212b;border-radius:5px;box-shadow:0 10px 35px rgba(0,0,0,.18);padding:34px 38px;min-height:560px;font-family:Arial,Helvetica,sans-serif;line-height:1.6;font-size:13px}
-.vnx-doc-paper h1{font-size:24px;text-align:center;margin:0 0 24px;color:#10263b}
-.vnx-doc-paper h2{font-size:18px;margin:24px 0 10px;color:#10263b;border-bottom:1px solid #d9e1e7;padding-bottom:5px}
-.vnx-doc-paper h3{font-size:15px;margin:20px 0 8px;color:#173a59}
+.vnx-doc-workspace{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(250px,.62fr);gap:18px;align-items:start}
+.vnx-doc-preview{background:#dce5eb;border-radius:14px;padding:24px;min-width:0;max-height:76vh;overflow:auto}
+.vnx-doc-paper{background:#fff;color:#111820;border-radius:6px;box-shadow:0 12px 38px rgba(0,0,0,.22);padding:48px 54px;min-height:720px;max-width:860px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;line-height:1.72;font-size:15px}
+.vnx-doc-paper h1{font-size:27px;text-align:center;margin:0 0 28px;color:#0b2032;line-height:1.25}
+.vnx-doc-paper h2{font-size:20px;margin:28px 0 12px;color:#0b2032;border-bottom:1px solid #cfd9df;padding-bottom:7px;line-height:1.3}
+.vnx-doc-paper h3{font-size:17px;margin:22px 0 9px;color:#123b5b;line-height:1.35}
 .vnx-doc-paper h4{font-size:13px;margin:16px 0 7px}
-.vnx-doc-paper p{margin:0 0 10px}
+.vnx-doc-paper p{margin:0 0 12px;color:#111820}
 .vnx-doc-paper ul{margin:5px 0 14px;padding-left:22px}
-.vnx-doc-paper li{margin:4px 0}
+.vnx-doc-paper li{margin:6px 0;color:#111820}
 .vnx-doc-paper hr{border:0;border-top:1px solid #cfd9df;margin:20px 0}
-.vnx-doc-fields{border:1px solid #1b5d86;background:#071f36;border-radius:12px;padding:14px;position:sticky;top:8px;max-height:70vh;overflow:auto}
+.vnx-doc-fields{border:1px solid #1b5d86;background:#071f36;border-radius:12px;padding:14px;position:sticky;top:8px;max-height:76vh;overflow:auto;min-width:0}
 .vnx-doc-fields-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
 .vnx-doc-fields-head b{color:#eff9ff;font-size:14px}
 .vnx-doc-fields-head span{font-size:10px;color:#63d9ff;background:#073653;border:1px solid #176d96;border-radius:999px;padding:4px 7px}
@@ -211,7 +211,7 @@ input,textarea{-webkit-user-select:text!important;user-select:text!important;car
 .vnx-doc-fields-list input{width:100%;box-sizing:border-box;background:#051729;border:1px solid #1b5a84;border-radius:9px;color:#eff8ff;padding:10px 11px;outline:none}
 .vnx-doc-fields-list input:focus{border-color:#31c9f6;box-shadow:0 0 0 3px rgba(49,201,246,.08)}
 .vnx-doc-fields.empty{min-height:120px}
-@media(max-width:1180px){.vnx-doc-workspace{grid-template-columns:1fr}.vnx-doc-fields{position:static;max-height:none}.vnx-doc-paper{min-height:420px}}
+@media(max-width:1180px){.vnx-doc-workspace{grid-template-columns:1fr}.vnx-doc-fields{position:static;max-height:none}.vnx-doc-paper{min-height:520px;max-width:100%;padding:38px 34px;font-size:14px}}
 
 .guided-loading{color:#7ecff0}
 .guided-help-title{font-size:15px;font-weight:900;color:#eff9ff}
@@ -815,3 +815,6 @@ body{
 .wa-mode-foot b{color:#72ddff}
 @media(max-width:650px){.wa-mode-grid{grid-template-columns:1fr}}
 /* VNX WHATSAPP PERSONAL LIMITS END */
+
+.vnx-doc-zoom-note{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;color:#5d7485;font-size:11px}
+.vnx-doc-zoom-note b{color:#27475f}
