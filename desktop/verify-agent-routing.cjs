@@ -181,6 +181,7 @@ assert.match(master,/chooseEmailTarget/,'Debe localizar el correo concreto antes
 assert.match(master,/No ejecutaré ninguna acción hasta que pulses una opción/,'Las acciones requieren elección del cliente');
 
 const app=fs.readFileSync(path.join(__dirname,'renderer','app.js'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'renderer','index.html'),'utf8');
 assert.doesNotMatch(app,/Selecciona una conexión…|VentaNexIA consultará este correo para responder con datos reales/);
 assert.match(app,/Maestro: cuentas de email ilimitadas/);
 assert.match(app,/await refreshChatConnections\(\)/,'Desconectar debe refrescar agentes y Centro Maestro inmediatamente');
@@ -197,7 +198,6 @@ assert.doesNotMatch(html,/HABLA CON TU EQUIPO/,'No debe quedar el nombre anterio
 assert.match(renderer,/window\.vnx\.emailAction/,'Los botones deben ejecutar la acción elegida por el cliente');
 assert.match(renderer,/confirm\(action==='trash'/,'Mover a papelera debe pedir confirmación');
 assert.match(renderer,/Texto de la respuesta/,'Responder debe permitir revisar/editar el texto antes de crear o enviar');
-const html=fs.readFileSync(path.join(__dirname,'renderer','index.html'),'utf8');
 assert.match(html,/id="emailAccountPolicyText"/);
 assert.doesNotMatch(renderer,/admin\.shopify\.com.*out\.push\(\{type:'portal'/s,'Shopify Admin no puede aparecer como portal del Centro Maestro');
 
