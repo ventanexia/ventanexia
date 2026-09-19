@@ -52,6 +52,7 @@ contextBridge.exposeInMainWorld('vnx',{
   prospectingCatalogStatus:()=>ipcRenderer.invoke('prospecting:catalog-status'),
   emailAction:(payload)=>ipcRenderer.invoke('email:action',payload),
   emailMetrics:()=>ipcRenderer.invoke('email:metrics'),
+  emailInbox:(payload)=>ipcRenderer.invoke('email:inbox',payload),
   whatsappRuntime:(payload)=>ipcRenderer.invoke('whatsapp:runtime',payload),
   sendChat:(messages,scope)=>ipcRenderer.invoke('chat:send',{messages,scope}),
   pairDemo:()=>ipcRenderer.invoke('device:pair-demo')
