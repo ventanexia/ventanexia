@@ -53,10 +53,19 @@ function scoreMailAttention(m){
 function needsReplyScore(m){
   const t=norm([m.from,m.subject,m.snippet,m.status].join(' '));
   let s=0;
-  if(/consulta|pregunta|solicitud|request|interes|interested|presupuesto|quote|proposal|propuesta|cooperation|colabor|pedido|order|disponibilidad|precio|condiciones|confirmar|respuesta|reply|contact/.test(t))s+=4;
+
+  // Peticiones humanas/comerciales: señales fuertes de que esperan respuesta.
+  if(/consulta|pregunta|solicitud|request|interes|interested|presupuesto|quote|proposal|propuesta|cooperation|colabor|pedido|order|disponibilidad|precio|condiciones|confirmar|respuesta|reply|contact|necesito|necesitamos|mandes|enviar|envies|catalogo|documentacion|ficha tecnica|tarifa/.test(t))s+=5;
   if(/proveedor|supplier|cliente|customer|dear sir|dear madam|hello|hola|buenos dias|buenas tardes/.test(t))s+=2;
   if(/no leido|unread/.test(t))s+=1;
-  if(/no-?reply|noreply|do not reply|notification|notificacion|linkedin|instagram|facebook|canva|report domain:|dmarc|pago de una factura fallo|fallo el pago/.test(t))s-=6;
+
+  // Mensajes automáticos o de seguridad: pueden requerir atención, pero no respuesta por email.
+  if(/codigo de verificacion|verification code|login code|log in code|sign-in|sign in|new sign-in|nuevo inicio de sesion|one-time|otp|2fa|autenticacion de dos factores|vence en \d+ minutos|expires in \d+ minutes|no compartas|do not share/.test(t))s-=10;
+  if(/no-?reply|noreply|do not reply|notification|notificacion|mailer@shopify\.com|system@vercel\.com|notifications@vercel\.com|linkedin|instagram|facebook|canva|newsletter|boletin|promocion|marketing|report domain:|dmarc/.test(t))s-=8;
+
+  // Avisos de pago/error pueden ser importantes, pero normalmente no se responden al remitente automático.
+  if(/pago de una factura fallo|fallo el pago|payment failed|card declined/.test(t))s-=6;
+
   return s;
 }
 
@@ -84,11 +93,17 @@ function emailAgentDirectReply(question,localContext=[]){
   if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)){
     return 'He consultado tu correo. Hay '+(gmail.total||mails.length)+' correo(s)'+(/hoy|today/.test(q)?' hoy':'')+' en la bandeja de entrada.';
   }
-  if(/atencion|prioridad|prioritarios|requieren|requiere|necesitan|necesita|revisar primero|contestar primero|responder primero|pendientes de responder/.test(q)){
+  if(/responder primero|contestar primero|pendientes de responder|requieren respuesta|requiere respuesta|necesitan respuesta|necesita respuesta|que correos responder|que emails responder/.test(q)){
+    const replyable=mails.map((m,i)=>({m,i,score:needsReplyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,8);
+    if(!replyable.length)return 'He revisado los correos recientes y no veo ninguno que claramente requiera una respuesta ahora mismo.';
+    const lines=replyable.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: parece una solicitud humana o comercial que espera respuesta'+(x.m.snippet?'\n   '+x.m.snippet:''));
+    return 'He separado los correos que requieren respuesta de los avisos automáticos o de seguridad. Estos son los que sí parecen necesitar contestación:\n\n'+lines.join('\n\n')+'\n\nEmpezaría por el nº 1.';
+  }
+  if(/atencion|prioridad|prioritarios|requieren|requiere|necesitan|necesita|revisar primero/.test(q)){
     const ranked=mails.map((m,i)=>({m,i,score:scoreMailAttention(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,5);
     if(!ranked.length)return 'He revisado tu correo y no veo mensajes recientes que destaquen claramente como prioritarios.';
     const lines=ranked.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: '+attentionReason(x.m)+(x.m.snippet?'\n   '+x.m.snippet:''));
-    return 'He revisado tu correo. Estos son los mensajes que requieren más atención:\n\n'+lines.join('\n\n')+'\n\nEmpezaría por el nº 1. Si quieres, puedo preparar después las respuestas de los que realmente necesiten contestación.';
+    return 'He revisado tu correo. Estos son los mensajes que requieren más atención:\n\n'+lines.join('\n\n')+'\n\nOjo: prioridad no significa necesariamente que haya que responder por email.';
   }
   if((/ultim|recient/.test(q))&&/correo|correos|email|emails/.test(q)){
     const n=Math.max(1,Math.min(10,Number((q.match(/\b(\d{1,2})\b/)||[])[1]||5)));
