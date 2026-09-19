@@ -125,13 +125,14 @@ const masterLicense={plan:'master',featurePolicy:{}};
 assert.equal(isMaster(masterLicense),true);
 for(const agent of AGENT_CATALOG)assert.equal(isAgentIncluded(masterLicense,agent.key),true,'Maestro debe incluir '+agent.key);
 const clientLicense={plan:'start',featurePolicy:{purchased_included:['email','agenda','atencion'],purchased_extras:[]}};
-assert.equal(isAgentIncluded(clientLicense,'email'),true);
-assert.equal(isAgentIncluded(clientLicense,'agenda'),true);
-assert.equal(isAgentIncluded(clientLicense,'social'),false);
-assert.equal(isAgentIncluded(clientLicense,'whatsapp'),false);
+assert.equal(isAgentIncluded(clientLicense,'email','customer'),true);
+assert.equal(isAgentIncluded(clientLicense,'agenda','customer'),true);
+assert.equal(isAgentIncluded(clientLicense,'social','customer'),false);
+assert.equal(isAgentIncluded(clientLicense,'whatsapp','customer'),false);
 
 const master=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
 const main=fs.readFileSync(path.join(__dirname,'main.cjs'),'utf8');
+const policy=fs.readFileSync(path.join(__dirname,'agent-policy.cjs'),'utf8');
 const entry=fs.readFileSync(path.join(__dirname,'master-entry.cjs'),'utf8');
 assert.match(master,/normalizeChatScope/);
 assert.match(master,/emailAgentDirectReply/);
@@ -163,6 +164,8 @@ assert.doesNotMatch(renderer,/Object\.entries\(real\)/,'El panel central no pued
 assert.match(main,/emailAccountsFromState/);
 assert.match(main,/addMasterEmailAccount/);
 assert.match(main,/isMaster\(s\.license\).*unlimited/s,'Maestro debe evitar consumos limitados');
+assert.match(policy,/VNX_EDITION/,'La edición debe poder separarse entre Maestro y cliente');
+assert.match(policy,/process\.env\.VNX_EDITION\|\|'master'/,'Esta compilación debe ser Maestro por defecto');
 assert.match(main,/s\.secret\.emailAccounts=\[\]/,'Desconectar Email debe limpiar todas las cuentas del Maestro');
 assert.match(main,/accountIndex:i/,'Cada cuenta Email del Maestro debe aparecer separada en el panel central');
 assert.match(master,/scope\?\.accountIndex/,'El panel central debe consultar la cuenta Email elegida, no todas');
