@@ -1,4 +1,4 @@
-const EDITION=String(process.env.VNX_EDITION||'master').trim().toLowerCase();
+const {EDITION}=require('./edition.generated.cjs');
 
 const AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
