@@ -200,6 +200,7 @@
           <article class="modulecard"><b>🎯 Buscar posibles clientes</b><span>Buscar clientes puede buscar empresas en información pública. Aquí puedes añadir también datos propios para enriquecer las búsquedas.</span><button class="btn outline" data-real-module="prospecting">Añadir mis datos</button></article>
           <article class="modulecard connection-live-card" data-connection-card="crm"><b>👥 Ventas y clientes</b><span>Conecta tus datos de clientes, ventas, oportunidades y tareas comerciales.</span><div class="connection-live-summary" data-connection-summary="crm"><span class="connection-summary-loading">Comprobando Ventas y clientes…</span></div><button class="btn outline" data-real-module="crm">Gestionar ventas y clientes</button></article>
           <article class="modulecard connection-live-card" data-connection-card="local"><b>🧠 Archivos y programas</b><span>Permite usar archivos y datos de programas de tu empresa que tú autorices.</span><div class="connection-live-summary" data-connection-summary="local"><span class="connection-summary-loading">Comprobando carpetas autorizadas…</span></div><button class="btn outline" data-tab-jump="discovery">Gestionar datos locales</button></article>
+          <article class="modulecard connection-live-card" data-connection-card="orders"><b>📦 Pedidos y programa de gestión</b><span>Recibe pedidos por email o páginas privadas y prepáralos para introducirlos en Dynamics, Business Central, SAP, Sage, Odoo, Holded u otros sistemas compatibles.</span><div class="connection-live-summary"><small>La conexión final puede hacerse por conexión oficial del programa, intercambio de archivos o página privada autorizada.</small></div><button class="btn outline" data-tab-jump="chat">Trabajar con Pedidos</button></article>
           <article class="modulecard connection-live-card" data-connection-card="portal"><b>🌐 Páginas privadas de empresa</b><span>Conecta páginas privadas de proveedores, clientes o programas online. Puedes dejarlo solo para consultar.</span><div class="connection-live-summary" data-connection-summary="portal"><span class="connection-summary-loading">Comprobando páginas privadas…</span></div><button class="btn outline" id="showPortalSetup">Gestionar páginas privadas</button></article>
         </div>
         <div class="card" id="usageOverview" style="margin-top:18px">
@@ -221,12 +222,12 @@
           <div class="formgrid" style="margin-top:12px">
             <label>Nombre de la conexión<input id="portalName" placeholder="Ej.: Portal de agentes"></label>
             <label>URL de acceso<input id="portalUrl" placeholder="https://..."></label>
-            <label>Permisos<select id="portalMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label>
+            <label>Permisos<select id="portalMode"><option value="read">Solo lectura</option><option value="write">Lectura y escritura</option></select></label><label>Uso principal<select id="portalPurpose"><option value="general">Consulta general</option><option value="orders">Recibir o introducir pedidos</option></select></label>
           </div>
           <div class="row"><button class="btn primary" id="savePortal">Guardar conexión</button><button class="btn outline" id="openPortal">Abrir portal para iniciar sesión</button></div>
           <div id="portalMsg"></div>
           <div id="portalList" class="list"></div>
-          <small>VentaNexIA no guarda la contraseña del portal en esta pantalla. La conexión real de datos deberá usar sesión autorizada, API o un conector compatible. En modo solo lectura se bloquearán las acciones de modificación.</small>
+          <small>VentaNexIA no guarda la contraseña del portal en esta pantalla. Para pedidos, una página privada puede servir tanto para leer pedidos recibidos como, cuando el portal y los permisos lo permiten, para introducirlos. La conexión real deberá usar una sesión autorizada, conexión oficial del programa o un conector compatible. En modo solo lectura se bloquearán las acciones de modificación.</small>
         </div>
       </div>
     </section>
