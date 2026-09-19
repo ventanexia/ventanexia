@@ -427,7 +427,18 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     if(!s.secret?.integrations?.social)throw new Error('Conecta primero tus redes sociales para usar este agente.');
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
-    localContext=await collectAuthorizedContext();
+    const desktop={customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null};
+    const search=await fetch(CLOUD+'/api/prospect-search',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({request:question,desktop})});
+    const data=await search.json().catch(()=>({}));
+    if(!search.ok)throw new Error(data.error||'No se pudo realizar la búsqueda de clientes');
+    const leads=Array.isArray(data.leads)?data.leads:[];
+    const lines=leads.map((x,i)=>{
+      const contact=[x.phone?('Tel. '+x.phone):'',x.email?('Email '+x.email):'',x.website?('Web '+x.website):''].filter(Boolean).join(' · ');
+      return (i+1)+'. '+x.name+(x.activity?' — '+x.activity:'')+(x.address?'\n   '+x.address:'')+(contact?'\n   '+contact:'')+(x.fit?'\n   Encaje: '+x.fit:'');
+    });
+    const q=data.query||{};
+    await audit('ai.prospecting','Búsqueda real · '+leads.length+' resultados · '+String(q.zone||'').slice(0,80));
+    return {reply:'He buscado empresas reales según tu petición.'+(q.clientType?'\n\nPerfil: '+q.clientType:'')+(q.zone?' · Zona: '+q.zone:'')+'\n\n'+(lines.join('\n\n')||'No he encontrado resultados fiables.')+'\n\nFuente: '+(data.sourceMode||'fuentes públicas')+'. No invento teléfonos, emails ni empresas que no estén publicados.',source:'desktop-prospect-search',route:'agent:prospecting',leads};
   }else if(scope?.type==='agent'&&['agenda','customer_service','quotes','reports','seo','administration','automation','voice'].includes(scope?.key)){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='integration'&&scope?.key==='email'){
