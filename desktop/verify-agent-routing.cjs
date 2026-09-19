@@ -124,11 +124,20 @@ assert.doesNotMatch(needsReply,/Código de verificación|New sign-in detected|Pr
 const masterLicense={plan:'master',featurePolicy:{}};
 assert.equal(isMaster(masterLicense),true);
 for(const agent of AGENT_CATALOG)assert.equal(isAgentIncluded(masterLicense,agent.key),true,'Maestro debe incluir '+agent.key);
-const clientLicense={plan:'start',featurePolicy:{purchased_included:['email','agenda','atencion'],purchased_extras:[]}};
-assert.equal(isAgentIncluded(clientLicense,'email','customer'),true);
-assert.equal(isAgentIncluded(clientLicense,'agenda','customer'),true);
+const clientLicense={plan:'start',featurePolicy:{purchased_included:['atencion','administracion'],purchased_extras:[]}};
+assert.equal(isAgentIncluded(clientLicense,'customer_service','customer'),true);
+assert.equal(isAgentIncluded(clientLicense,'administration','customer'),true);
 assert.equal(isAgentIncluded(clientLicense,'social','customer'),false);
-assert.equal(isAgentIncluded(clientLicense,'whatsapp','customer'),false);
+assert.equal(isAgentIncluded(clientLicense,'crm','customer'),false);
+assert.equal(AGENT_CATALOG.length,10,'El selector debe mostrar exactamente 10 agentes claros');
+assert.equal(AGENT_CATALOG.some(a=>a.key==='email'),false,'Email debe ser una conexión, no un agente');
+assert.equal(AGENT_CATALOG.some(a=>a.key==='whatsapp'),false,'WhatsApp debe ser una conexión, no un agente');
+assert.equal(AGENT_CATALOG.some(a=>a.key==='voice'),false,'Voz debe ser una conexión/capacidad, no un agente');
+assert.equal(AGENT_CATALOG.some(a=>a.key==='agenda'),false,'Agenda debe estar integrada en Administración');
+assert.equal(AGENT_CATALOG.some(a=>a.key==='seo'),false,'SEO debe estar integrado en Marketing y visibilidad');
+assert.match(AGENT_CATALOG.find(a=>a.key==='crm')?.name||'',/Ventas y CRM/);
+assert.match(AGENT_CATALOG.find(a=>a.key==='social')?.name||'',/Marketing y visibilidad/);
+
 
 const master=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
 const main=fs.readFileSync(path.join(__dirname,'main.cjs'),'utf8');
@@ -200,15 +209,12 @@ assert.match(renderer,/email-action-btn/,'El chat debe mostrar botones de acció
 assert.match(renderer,/Vas a cambiar de agente/,'Cambiar de agente debe pedir confirmación si hay un trabajo en curso');
 assert.match(renderer,/masterMessages=\[\]/,'Cambiar de agente debe limpiar la conversación actual tras confirmar');
 assert.match(renderer,/activeAgentValue/,'Debe poder volver al agente anterior si el usuario cancela el cambio');
-assert.match(renderer,/agent:email:'\+x\.accountIndex/,'Cada cuenta Email debe tener un valor distinto en el selector');
-assert.match(renderer,/accountLabel/,'El selector debe mostrar la cuenta Email concreta');
-assert.match(renderer,/accountIndex:Number\.isInteger\(item\.accountIndex\)/,'El scope del agente Email debe enviar la cuenta seleccionada');
 assert.match(app,/function ensureEditableControls/,'La UI debe reparar controles editables si quedan bloqueados');
 assert.match(app,/el\.readOnly=false/,'Los campos de texto visibles no deben quedar en solo lectura accidentalmente');
 assert.match(app,/el\.style\.pointerEvents='auto'/,'Los campos editables deben aceptar clics');
 assert.match(app,/if\(name==='chat'\)/,'Al entrar en chat debe recuperar el foco del cuadro de texto');
 assert.match(master,/Number\.isInteger\(scope\?\.accountIndex\)\?\[allIntegrations\[scope\.accountIndex\]\]/,'El backend debe limitar el Agente Email a la cuenta elegida');
-assert.match(html,/DIME QUÉ NECESITAS/,'La zona de chat debe llamarse Dime qué necesitas');
+assert.match(html,/TRABAJAR CON VENTANEXIA/,'La zona de trabajo debe usar la nueva cabecera simplificada');
 assert.doesNotMatch(html,/HABLA CON TU EQUIPO/,'No debe quedar el nombre anterior en la cabecera del chat');
 assert.match(renderer,/window\.vnx\.emailAction/,'Los botones deben ejecutar la acción elegida por el cliente');
 assert.match(renderer,/confirm\(action==='trash'/,'Mover a papelera debe pedir confirmación');
