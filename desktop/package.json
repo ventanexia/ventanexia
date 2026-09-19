@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.31",
+  "version": "0.6.32",
   "private": true,
-  "description": "VentaNexIA Desktop SecureCore Master · Guided Email and WhatsApp Workspaces · Prospecting Opportunity Cards · 0.6.31",
+  "description": "VentaNexIA Desktop SecureCore Master · Customer-owned WhatsApp Webhook · Email and Approval Workflows · 0.6.32",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
