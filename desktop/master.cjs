@@ -469,9 +469,18 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
   if(action==='trash')await gmailWriteAuth('messages/'+safeId+'/trash');
   else if(action==='archive')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['INBOX']}});
   else if(action==='mark_read'){
-    await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
-    const check=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+safeId+'?format=minimal'));
-    if((check.labelIds||[]).includes('UNREAD'))throw new Error('Gmail no ha confirmado el cambio a leído. Vuelve a intentarlo.');
+    const threadId=String(payload.threadId||'').trim();
+    if(threadId){
+      const safeThreadId=encodeURIComponent(threadId);
+      await gmailWriteAuth('threads/'+safeThreadId+'/modify',{body:{removeLabelIds:['UNREAD']}});
+      const checkThread=await gmailCall(integration,tok=>gmailApi(tok,'threads/'+safeThreadId+'?format=minimal'));
+      const stillUnread=(checkThread.messages||[]).some(x=>(x.labelIds||[]).includes('UNREAD'));
+      if(stillUnread)throw new Error('Gmail no ha confirmado que toda la conversación esté leída. Vuelve a intentarlo.');
+    }else{
+      await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
+      const check=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+safeId+'?format=minimal'));
+      if((check.labelIds||[]).includes('UNREAD'))throw new Error('Gmail no ha confirmado el cambio a leído. Vuelve a intentarlo.');
+    }
   }
   else if(action==='mark_unread')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['UNREAD']}});
   else if(action==='star')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['STARRED']}});
