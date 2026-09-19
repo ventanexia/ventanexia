@@ -93,11 +93,31 @@
   }
   function agentDisplayName(x){
     const base=(x.icon||'🤖')+' Agente '+(x.name||x.key||'');
+    if(x.key==='email'&&x.accountLabel)return base+' · '+x.accountLabel;
     if(x.key==='email'&&x.source?.name)return base+' · '+String(x.source.name).replace(/^Email · /,'');
     return base;
   }
-  function chatConnections(){return runtimeAgents||[]}
-  function chatConnectionValue(x){return x?.key?'agent:'+x.key:''}
+  function chatConnections(){
+    const out=[];
+    for(const agent of runtimeAgents||[]){
+      if(agent.key==='email'&&agent.included){
+        const emails=(runtimeConnections||[]).filter(x=>(x.module||x.key)==='email');
+        if(emails.length){
+          for(const x of emails){
+            out.push({...agent,accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,accountLabel:x.label||'Cuenta de correo',source:{type:'integration',key:'email',name:'Email · '+(x.label||'Cuenta de correo'),accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null}});
+          }
+          continue;
+        }
+      }
+      out.push(agent);
+    }
+    return out;
+  }
+  function chatConnectionValue(x){
+    if(!x?.key)return '';
+    if(x.key==='email'&&Number.isInteger(x.accountIndex))return 'agent:email:'+x.accountIndex;
+    return 'agent:'+x.key;
+  }
   function agentStatusText(x){
     if(!x?.included)return '🔒 No incluido en tu plan';
     if(!x?.connected)return '🟠 Incluido · falta conectar';
@@ -132,7 +152,7 @@
     const values=[...sel.options].map(o=>o.value);
     if(previous&&values.includes(previous))sel.value=previous;
     else if(saved&&values.includes(saved))sel.value=saved;
-    else if(items.some(x=>x.key==='email'&&x.ready))sel.value='agent:email';
+    else if(items.some(x=>x.key==='email'&&x.ready))sel.value=chatConnectionValue(items.find(x=>x.key==='email'&&x.ready));
     else if(items.some(x=>x.ready))sel.value=chatConnectionValue(items.find(x=>x.ready));
     else sel.value='';
     if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
@@ -162,7 +182,7 @@
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
     const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
-    return {type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null};
+    return {type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
   }
 
   function masterCenterItems(){
