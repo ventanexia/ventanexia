@@ -20,7 +20,7 @@ async function rpc(name,body){
 }
 async function validateMaster({customerId,activationCode,deviceKey}){
   const device=await rpc("vnx_device_status_public",{p_customer_code:customerId,p_activation_code:activationCode,p_device_key:deviceKey});
-  if(!device?.ok||String(device.plan||"").toLowerCase()!=="master")return false;
+  if(!device?.ok||String(device.planKey||device.plan||"").toLowerCase()!=="master")return false;
   return true;
 }
 async function sendReadyEmail(tenantId,title){
