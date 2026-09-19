@@ -6,21 +6,16 @@
   let runtimeConnections=[];
   let runtimeAgents=[];
   const AGENT_INPUT_EXAMPLES={
-    core_ai:'Ej.: analiza estos datos, resume este documento, ayúdame a preparar una propuesta o dime qué tareas puedo automatizar',
-    prospecting:'Ej.: busca 20 posibles clientes en Barcelona, prepara una lista de empresas objetivo o dime a quién deberíamos contactar hoy',
-    whatsapp:'Ej.: revisa las consultas pendientes de WhatsApp, prepara una respuesta para este cliente o redacta un seguimiento',
-    email:'Ej.: dime los últimos 5 correos, cuáles necesitan respuesta, crea un borrador para este cliente o archiva este mensaje',
-    agenda:'Ej.: qué tengo hoy, prepara mi agenda de mañana, recuérdame llamar a este cliente o organiza mis seguimientos',
-    customer_service:'Ej.: qué consultas de clientes están pendientes, prepara respuestas para estas incidencias o resume los problemas más repetidos',
-    quotes:'Ej.: prepara un presupuesto para este cliente, revisa este presupuesto o calcula una propuesta con estos productos y cantidades',
-    social:'Ej.: prepara una publicación para Instagram, crea el texto de LinkedIn de esta semana o propón 5 ideas de contenido',
-    reports:'Ej.: resume las ventas de esta semana, compara este mes con el anterior o prepara un informe con los datos disponibles',
-    seo:'Ej.: revisa el SEO de esta página, mejora el título y la descripción, busca oportunidades de palabras clave o prepara contenido SEO',
-    administration:'Ej.: organiza estos documentos, revisa tareas administrativas pendientes, resume esta información o prepara los datos para gestión',
-    automation:'Ej.: automatiza esta tarea repetitiva, crea un flujo para avisarme de nuevos pedidos o dime qué procesos podemos automatizar',
-    voice:'Ej.: prepara el guion para atender llamadas, define cómo responder preguntas frecuentes o crea un protocolo para la secretaria virtual',
-    crm:'Ej.: muéstrame los clientes recientes, qué oportunidades tengo abiertas, quién necesita seguimiento o actualiza los datos de este cliente',
-    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana, cuántos productos tenemos, revisa clientes o actualiza precios'
+    core_ai:'Ej.: analiza estos datos, resume este documento, prepara una propuesta o ayúdame a resolver este problema',
+    prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros y ordénalas por encaje',
+    crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes del CRM conectado',
+    customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
+    quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
+    social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora el SEO de la página del producto',
+    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
+    administration:'Ej.: organiza mis tareas de esta semana, prepara seguimientos y ordena estos documentos',
+    reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
+    automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos automatizar'
   };
   function ensureChatInputEditable(){
     const input=$m('#chatInput');if(!input)return null;
@@ -126,23 +121,11 @@
     });
   }
   function agentDisplayName(x){
-    const base=(x.icon||'🤖')+' Agente '+(x.name||x.key||'');
-    if(x.key==='email'&&x.accountLabel)return base+' · '+x.accountLabel;
-    if(x.key==='email'&&x.source?.name)return base+' · '+String(x.source.name).replace(/^Email · /,'');
-    return base;
+    return (x.icon||'🤖')+' '+(x.name||x.key||'');
   }
   function chatConnections(){
     const out=[];
     for(const agent of runtimeAgents||[]){
-      if(agent.key==='email'&&agent.included){
-        const emails=(runtimeConnections||[]).filter(x=>(x.module||x.key)==='email');
-        if(emails.length){
-          for(const x of emails){
-            out.push({...agent,accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,accountLabel:x.label||'Cuenta de correo',source:{type:'integration',key:'email',name:'Email · '+(x.label||'Cuenta de correo'),accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null}});
-          }
-          continue;
-        }
-      }
       if(agent.key==='web_ecommerce'&&agent.included){
         const sh=(runtimeConnections||[]).find(x=>(x.module||x.key)==='shopify');
         if(sh){
@@ -167,55 +150,22 @@
   function renderConnectionAgentCards(items){
     const root=$m('#allAgentConnections');if(!root)return;
     const descriptions={
-      core_ai:'Piensa, redacta, analiza y organiza trabajo usando el motor IA de VentaNexIA.',
-      prospecting:'Busca y ordena posibles clientes. Puede usar fuentes de datos autorizadas para trabajar con información real.',
-      whatsapp:'Responde y gestiona conversaciones cuando conectes WhatsApp Business.',
-      email:'Lee, clasifica, prepara y envía correo cuando conectes una cuenta.',
-      agenda:'Planifica tareas, seguimientos y agenda con el motor IA de VentaNexIA.',
-      customer_service:'Prepara respuestas, clasifica incidencias y ayuda a gestionar atención al cliente.',
-      quotes:'Prepara y revisa presupuestos a partir de los datos que le facilites o conectes.',
-      social:'Prepara contenido y trabaja con redes sociales cuando conectes las cuentas correspondientes.',
-      reports:'Analiza datos disponibles y prepara informes con el motor IA.',
-      seo:'Analiza y prepara mejoras SEO y contenido con el motor IA; puede usar una web conectada cuando exista.',
-      administration:'Organiza tareas administrativas, documentos y datos autorizados.',
-      automation:'Diseña automatizaciones y flujos de trabajo con el motor IA; las acciones reales dependen de las herramientas conectadas.',
-      voice:'Prepara guiones y protocolos de atención con el motor IA. Las llamadas reales requieren una integración telefónica específica.',
-      crm:'Consulta y trabaja con clientes y oportunidades cuando conectes el CRM.',
-      web_ecommerce:'Consulta y gestiona Shopify, WooCommerce, webs o portales cuando conectes una fuente compatible.'
-    };
-    const actionFor=a=>{
-      if(!a.included)return {label:'🔒 No incluido en tu plan',kind:'locked'};
-      if(!a.requires)return {label:'🟢 Motor IA activo',kind:'active'};
-      if(a.connected)return {label:'🟢 Conectado',kind:'connected'};
-      if(a.key==='email')return {label:'Conectar Email',kind:'service',service:'email'};
-      if(a.key==='whatsapp')return {label:'Conectar WhatsApp',kind:'service',service:'whatsapp'};
-      if(a.key==='social')return {label:'Conectar redes',kind:'service',service:'social'};
-      if(a.key==='crm')return {label:'Conectar CRM',kind:'service',service:'crm'};
-      if(a.key==='prospecting')return {label:'Añadir fuente de datos',kind:'click-module',service:'prospecting'};
-      if(a.key==='web_ecommerce')return {label:'Configurar Web & Ecommerce',kind:'tab',tab:'webcommerce'};
-      return {label:'Configurar',kind:'noop'};
+      core_ai:'Análisis, redacción y apoyo general con el motor IA.',
+      prospecting:'Busca empresas reales y prepara la prospección comercial.',
+      crm:'Ventas, oportunidades, seguimiento y CRM.',
+      customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
+      quotes:'Presupuestos y propuestas comerciales con datos reales.',
+      social:'Redes sociales, contenido, campañas y SEO.',
+      web_ecommerce:'Pedidos, clientes, productos, stock y contenido web.',
+      administration:'Documentos, tareas, agenda y seguimiento interno.',
+      reports:'Informes, comparativas, tendencias y conclusiones.',
+      automation:'Diseño de flujos y automatización de procesos.'
     };
     root.innerHTML=items.map(a=>{
-      const ac=actionFor(a);
-      const source=a.source?.name?'<small style="display:block;margin-top:6px">Fuente: '+escM(a.source.name)+'</small>':'';
-      const status=!a.included?'🔒 No incluido':(!a.requires?'🟢 Motor IA activo':a.connected?'🟢 Conectado':'🟠 Necesita conexión');
-      const disabled=['active','connected'].includes(ac.kind)?' disabled':'';
-      return '<article class="modulecard" data-agent-connect-card="'+escM(a.key)+'"><b>'+escM((a.icon||'🤖')+' '+a.name)+'</b><span>'+escM(descriptions[a.key]||'Agente de VentaNexIA.')+source+'</span><small><strong>'+escM(status)+'</strong></small><button class="btn outline agent-connect-action" data-agent-key="'+escM(a.key)+'" data-kind="'+escM(ac.kind)+'" data-service="'+escM(ac.service||'')+'" data-tab="'+escM(ac.tab||'')+'"'+disabled+'>'+escM(ac.label)+'</button></article>';
+      const status=!a.included?'🔒 No incluido':a.ready?'🟢 Listo para usar':'🟠 Necesita una conexión';
+      const source=a.source?.name?'<small class="agent-source">Usará: '+escM(a.source.name)+'</small>':'';
+      return '<article class="agent-overview-card"><div class="agent-overview-icon">'+escM(a.icon||'🤖')+'</div><div><b>'+escM(a.name)+'</b><span>'+escM(descriptions[a.key]||'Agente de VentaNexIA.')+'</span>'+source+'<small class="agent-state">'+escM(status)+'</small></div></article>';
     }).join('');
-    $m('.agent-connect-action').forEach(btn=>btn.onclick=()=>{
-      const kind=btn.dataset.kind,service=btn.dataset.service;
-      if(kind==='locked'){window.vnx.openExternal('https://www.ventanexia.es/planes.html');return}
-      if(kind==='service'&&window.vnxOpenServiceWizard){window.vnxOpenServiceWizard(service,btn);return}
-      if(kind==='click-module'){
-        const target=document.querySelector('[data-real-module="'+service+'"]');
-        if(target){target.scrollIntoView({behavior:'smooth',block:'center'});target.click();}
-        return;
-      }
-      if(kind==='tab'){
-        const target=document.querySelector('.nav[data-tab="'+btn.dataset.tab+'"],[data-tab-jump="'+btn.dataset.tab+'"]');
-        if(target)target.click();
-      }
-    });
   }
   function renderHomeAgents(items){
     const root=$m('#homeAgentsList'),summary=$m('#homeAgentsSummary');if(!root)return;
@@ -233,7 +183,7 @@
   }
   function updateAgentHint(chosen,hint){
     if(!hint)return;
-    if(!chosen){hint.textContent='Elige el agente de VentaNexIA con el que quieres trabajar.';return}
+    if(!chosen){hint.textContent='Elige el especialista que mejor encaja con lo que quieres conseguir.';return}
     if(!chosen.included){hint.textContent='🔒 '+agentDisplayName(chosen)+' no está incluido en este plan. Puedes verlo, pero no conectarlo ni utilizarlo hasta contratarlo.';return}
     if(!chosen.connected){hint.textContent='🟠 '+agentDisplayName(chosen)+' está incluido, pero necesita una conexión. Ve a “Conexiones” para activarlo.';return}
     hint.textContent='🟢 '+agentDisplayName(chosen)+' está listo para usar.';
