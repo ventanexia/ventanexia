@@ -1,12 +1,12 @@
-const {app,BrowserWindow,ipcMain,safeStorage,session}=require('electron');
+const {app,BrowserWindow,ipcMain,session}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
+const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const MAX_FILES=80,MAX_CHARS=120000,MAX_FILE_CHARS=20000;
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
-const storeFile=()=>path.join(app.getPath('userData'),'secure-state.json');
 const norm=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const clean=(v,n=1000)=>String(v||'').trim().slice(0,n);
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
@@ -24,23 +24,6 @@ const CATEGORIES={
   dashboard:['dashboard','resumen','inicio','home','facturado','ventas']
 };
 const DANGEROUS=/logout|cerrar sesion|delete|eliminar|borrar|remove|cancel|anular|editar|edit|nuevo|new|crear|create|guardar|save|actualizar|update|publicar|publish|enviar|send/;
-
-async function readState(){
-  try{
-    const raw=JSON.parse(await fs.readFile(storeFile(),'utf8'));
-    if(raw.secret&&safeStorage.isEncryptionAvailable()) raw.secret=JSON.parse(safeStorage.decryptString(Buffer.from(raw.secret,'base64'))); else raw.secret={};
-    raw.permissions=raw.permissions||{folders:[]};raw.activity=raw.activity||[];raw.license=raw.license||{};raw.portals=Array.isArray(raw.portals)?raw.portals:[];
-    return raw;
-  }catch{return {permissions:{folders:[]},activity:[],license:{},portals:[],secret:{}}}
-}
-async function writeState(state){
-  const out={...state,secret:state.secret||{}};
-  if(safeStorage.isEncryptionAvailable()) out.secret=Buffer.from(safeStorage.encryptString(JSON.stringify(state.secret||{}))).toString('base64');
-  await fs.writeFile(storeFile(),JSON.stringify(out,null,2),'utf8');
-}
-async function audit(type,detail){const s=await readState();s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,200);await writeState(s)}
-async function getPortal(id){return (await readState()).portals.find(p=>p.id===id)||null}
-async function patchPortal(id,patch){const s=await readState(),i=s.portals.findIndex(p=>p.id===id);if(i<0)return null;s.portals[i]={...s.portals[i],...patch};await writeState(s);return s.portals[i]}
 
 function categoryForQuestion(question=''){
   const q=norm(question);
