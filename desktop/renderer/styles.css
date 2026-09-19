@@ -465,3 +465,50 @@ body{
 }
 @media(max-width:1050px){.prospect-grid{grid-template-columns:1fr}}
 /* VNX PROSPECTING CARDS END */
+
+
+/* VNX EMAIL AGENT 0.6.30 START */
+.guided-agent-tabs{
+  grid-template-columns:repeat(6,minmax(130px,1fr))!important;
+}
+.guided-agent-tab small{
+  display:block;
+  margin-top:5px;
+  color:#9ec7da;
+  font-size:11px;
+  line-height:1.25;
+  font-weight:500;
+}
+.guided-agent-tab.active small{color:#cceeff}
+.guided-email-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid #155a82;
+}
+.guided-email-actions .mini{
+  min-height:38px;
+  padding:0 12px;
+}
+.guided-email-safety{
+  display:block;
+  margin-top:12px;
+  color:#9fcadd;
+}
+.guided-email-done{
+  margin-top:12px;
+  padding:10px 12px;
+  border:1px solid #19789f;
+  border-radius:9px;
+  background:#062d45;
+  color:#c8f4e4;
+}
+@media(max-width:1280px){
+  .guided-agent-tabs{grid-template-columns:repeat(4,minmax(125px,1fr))!important}
+}
+@media(max-width:820px){
+  .guided-agent-tabs{grid-template-columns:repeat(2,minmax(120px,1fr))!important}
+}
+/* VNX EMAIL AGENT 0.6.30 END */
