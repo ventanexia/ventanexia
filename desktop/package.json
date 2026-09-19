@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.33",
+  "version": "0.6.34",
   "private": true,
-  "description": "VentaNexIA Desktop · Live Email and WhatsApp Counters · Approval Workflows · 0.6.33",
+  "description": "VentaNexIA Desktop · Professional Email Inbox Workspace · Live Email and WhatsApp Counters · 0.6.34",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
