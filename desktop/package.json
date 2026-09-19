@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.45",
+  "version": "0.6.46",
   "private": true,
-  "description": "VentaNexIA Desktop · Pedidos con stock y coordinación automática con Compras · 0.6.45",
+  "description": "VentaNexIA Desktop · Pedidos con referencia única para Compras · 0.6.46",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
