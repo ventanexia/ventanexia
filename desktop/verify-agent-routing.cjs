@@ -189,6 +189,11 @@ assert.match(app,/vnxOpenServiceWizard/,'El botón de cuenta Email extra debe ab
 assert.match(app,/addAnother:true/,'Maestro debe abrir el asistente sin reutilizar la cuenta ya conectada');
 assert.match(app,/account\.value=addAnother\?'':/,'Añadir otra cuenta debe dejar vacío el campo del nuevo email');
 assert.match(renderer,/email-action-btn/,'El chat debe mostrar botones de acción para Gmail');
+assert.match(renderer,/Vas a cambiar de agente/,'Cambiar de agente debe pedir confirmación si hay un trabajo en curso');
+assert.match(renderer,/masterMessages=\[\]/,'Cambiar de agente debe limpiar la conversación actual tras confirmar');
+assert.match(renderer,/activeAgentValue/,'Debe poder volver al agente anterior si el usuario cancela el cambio');
+assert.match(html,/DIME QUÉ NECESITAS/,'La zona de chat debe llamarse Dime qué necesitas');
+assert.doesNotMatch(html,/HABLA CON TU EQUIPO/,'No debe quedar el nombre anterior en la cabecera del chat');
 assert.match(renderer,/window\.vnx\.emailAction/,'Los botones deben ejecutar la acción elegida por el cliente');
 assert.match(renderer,/confirm\(action==='trash'/,'Mover a papelera debe pedir confirmación');
 assert.match(renderer,/Texto de la respuesta/,'Responder debe permitir revisar/editar el texto antes de crear o enviar');
