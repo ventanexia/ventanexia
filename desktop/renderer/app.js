@@ -5,6 +5,7 @@ let browsingFolder=null;
 setTimeout(()=>{const splash=document.querySelector('#futureSplash');if(splash)splash.classList.add('hide')},2300);
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
+function cleanIpcError(e){return String(e?.message||e||'').replace(/^Error invoking remote method '[^']*':\s*(Error:\s*)?/i,'').trim()}
 function versionGreater(a,b){
   const A=String(a||'').split('.').map(Number),B=String(b||'').split('.').map(Number);
   for(let i=0;i<Math.max(A.length,B.length);i++){const x=A[i]||0,y=B[i]||0;if(x>y)return true;if(x<y)return false}return false
