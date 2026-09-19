@@ -468,7 +468,11 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
   const safeId=encodeURIComponent(messageId);
   if(action==='trash')await gmailWriteAuth('messages/'+safeId+'/trash');
   else if(action==='archive')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['INBOX']}});
-  else if(action==='mark_read')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
+  else if(action==='mark_read'){
+    await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
+    const check=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+safeId+'?format=minimal'));
+    if((check.labelIds||[]).includes('UNREAD'))throw new Error('Gmail no ha confirmado el cambio a leído. Vuelve a intentarlo.');
+  }
   else if(action==='mark_unread')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['UNREAD']}});
   else if(action==='star')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['STARRED']}});
   else if(action==='unstar')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['STARRED']}});
