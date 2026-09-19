@@ -325,21 +325,37 @@
     if(!host)return;
     host.innerHTML='<div class="email-dashboard-loading">Consultando Gmail y preparando tu bandeja…</div>';
     try{
-      const [metrics,inbox]=await Promise.all([window.vnx.emailMetrics(),window.vnx.emailInbox({limit:20})]);
-      const messages=Array.isArray(inbox?.messages)?inbox.messages:[];
+      const allInbox=await window.vnx.emailInbox({limit:30});
+      const accountNames=Array.isArray(allInbox?.accounts)?allInbox.accounts:[];
+      let accountIndex=-1;
+      let messages=Array.isArray(allInbox?.messages)?allInbox.messages:[];
+      const accountOptions=['Todas las cuentas',...accountNames];
       host.innerHTML='<div class="email-dashboard">'
-        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div>'
-        +'<div class="email-metric-grid">'
-        +'<article><span class="metric-ico blue">✉</span><b>'+Number(metrics?.received||0)+'</b><strong>Recibidos</strong><small>Hoy</small></article>'
-        +'<article><span class="metric-ico green">✓</span><b>'+Number(metrics?.responded||0)+'</b><strong>Respondidos</strong><small>Enviados hoy</small></article>'
-        +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
-        +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>'
-        +'</div>'
-        +(messages.length?'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos ('+messages.length+')</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>':'<div class="email-dashboard-empty">No hay correos disponibles en la cuenta de Gmail conectada.</div>')
+        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i-1)+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
+        +'<div class="email-metric-grid" data-email-metrics></div>'
+        +'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
-      if(!messages.length)return;
       let selected=0,filter='all',search='';
       const list=host.querySelector('[data-email-list]'),detail=host.querySelector('[data-email-detail]');
+      async function refreshAccountData(){
+        const metricsRoot=host.querySelector('[data-email-metrics]');
+        const accountSel=host.querySelector('[data-email-account]');
+        accountIndex=Number(accountSel?.value??-1);
+        const [inbox,metrics]=await Promise.all([
+          window.vnx.emailInbox({limit:30,accountIndex:accountIndex>=0?accountIndex:null}),
+          window.vnx.emailMetrics({accountIndex:accountIndex>=0?accountIndex:null}).catch(()=>window.vnx.emailMetrics())
+        ]);
+        messages=Array.isArray(inbox?.messages)?inbox.messages:[];
+        selected=0;
+        if(metricsRoot)metricsRoot.innerHTML=
+          '<article><span class="metric-ico blue">✉</span><b>'+Number(metrics?.received||0)+'</b><strong>Recibidos</strong><small>Hoy</small></article>'
+          +'<article><span class="metric-ico green">✓</span><b>'+Number(metrics?.responded||0)+'</b><strong>Respondidos</strong><small>Enviados hoy</small></article>'
+          +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
+          +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>';
+        const allBtn=host.querySelector('[data-email-filter="all"]');if(allBtn)allBtn.textContent='✉ Recibidos ('+messages.length+')';
+        const accountSel=host.querySelector('[data-email-account]');if(accountSel)accountSel.onchange=()=>refreshAccountData();
+      refreshAccountData();
+      }
       const visibleIndexes=()=>messages.map((m,i)=>({m,i})).filter(({m})=>{
         const statusOk=filter==='all'||m.status===filter;
         const q=search.toLowerCase();
