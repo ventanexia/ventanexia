@@ -407,7 +407,8 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   let localContext=[],portalContext=[],portalFiles=[];
 
   if(scope?.type==='agent'&&scope?.key==='email'){
-    const integrations=emailAccountsForState(s);
+    const allIntegrations=emailAccountsForState(s);
+    const integrations=Number.isInteger(scope?.accountIndex)?[allIntegrations[scope.accountIndex]].filter(Boolean):allIntegrations;
     if(!integrations.length)throw new Error('El agente Email todavía no tiene ninguna cuenta conectada.');
     const failures=[];
     for(const integration of integrations){
