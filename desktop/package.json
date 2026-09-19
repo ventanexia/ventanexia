@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.43",
+  "version": "0.6.44",
   "private": true,
-  "description": "VentaNexIA Desktop · Pedidos desde Email y Portal/ERP web · 0.6.43",
+  "description": "VentaNexIA Desktop · Alta automática de clientes desde pedidos · 0.6.44",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
