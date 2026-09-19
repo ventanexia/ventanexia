@@ -164,8 +164,10 @@ assert.doesNotMatch(renderer,/Object\.entries\(real\)/,'El panel central no pued
 assert.match(main,/emailAccountsFromState/);
 assert.match(main,/addMasterEmailAccount/);
 assert.match(main,/isMaster\(s\.license\).*unlimited/s,'Maestro debe evitar consumos limitados');
-assert.match(policy,/VNX_EDITION/,'La edición debe poder separarse entre Maestro y cliente');
-assert.match(policy,/process\.env\.VNX_EDITION\|\|'master'/,'Esta compilación debe ser Maestro por defecto');
+assert.match(policy,/edition\.generated\.cjs/,'La edición debe venir fijada por un archivo generado al compilar');
+assert.doesNotMatch(policy,/process\.env\.VNX_EDITION/,'La edición no puede depender de una variable del ordenador del cliente');
+const buildEdition=fs.readFileSync(path.join(__dirname,'build-edition.cjs'),'utf8');
+assert.match(buildEdition,/VNX_BUILD_EDITION/,'La edición de release debe fijarse durante la compilación');
 assert.match(main,/s\.secret\.emailAccounts=\[\]/,'Desconectar Email debe limpiar todas las cuentas del Maestro');
 assert.match(main,/accountIndex:i/,'Cada cuenta Email del Maestro debe aparecer separada en el panel central');
 assert.match(master,/scope\?\.accountIndex/,'El panel central debe consultar la cuenta Email elegida, no todas');
