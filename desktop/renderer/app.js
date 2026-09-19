@@ -93,7 +93,7 @@ function setPortals(items){localStorage.setItem('vnx_portals',JSON.stringify(ite
 function renderPortals(){
   const root=$('#portalList');if(!root)return;
   const items=getPortals();
-  root.innerHTML=items.length?items.map((p,i)=>`<div class="listrow"><div><b>${esc(p.name)}</b><span>${esc(p.url)} · ${p.mode==='read'?'Solo lectura':'Lectura y escritura'}</span></div><div class="row"><button class="mini portal-open" data-i="${i}">Abrir</button><button class="mini portal-remove" data-i="${i}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay portales configurados.</div>';
+  root.innerHTML=items.length?items.map((p,i)=>`<div class="listrow"><div><b>${esc(p.name)}</b><span>${esc(p.url)} · ${p.mode==='read'?'Solo lectura':'Lectura y escritura'}</span></div><div class="row"><button class="mini portal-open" data-i="${i}">Abrir</button><button class="mini portal-remove" data-i="${i}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
   $$('.portal-open').forEach(b=>b.onclick=()=>{const p=items[Number(b.dataset.i)];if(p?.url)window.open(p.url,'_blank')});
   $$('.portal-remove').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.i);const next=getPortals();next.splice(i,1);setPortals(next);renderPortals()});
 }
@@ -131,7 +131,7 @@ function setupServiceConnectionWizard(){
     social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
     crm:[['hubspot','HubSpot']]
   };
-  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'CRM'};
+  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'Ventas y clientes'};
   let activeKey=null,activeButton=null,oauthState=null,pollTimer=null,currentAddAnother=false;
   const genericBox=$('#genericEmailFields'),genericUser=$('#genericEmailUser'),genericPass=$('#genericEmailPassword'),imapHost=$('#genericImapHost'),imapPort=$('#genericImapPort'),smtpHost=$('#genericSmtpHost'),smtpPort=$('#genericSmtpPort');
   function updateEmailProviderFields(){
@@ -216,7 +216,7 @@ function setupServiceConnectionWizard(){
     if(!confirm('¿Desconectar '+labels[activeKey]+' de VentaNexIA en este ordenador?'))return;
     stopPoll();await window.vnx.disconnectIntegration(activeKey);
     const all=getRealModuleSources();delete all[activeKey];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
-    if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar CRM';
+    if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar ventas y clientes';
     if(account&&activeKey==='email')account.value='';
     notice.innerHTML='<b>Desconectado.</b> El cambio se ha aplicado en todo VentaNexIA.';
     await refreshChatConnections();
@@ -325,7 +325,7 @@ async function enforcePurchasedFeatures(){
   let agents=[];
   try{agents=await window.vnx.agentCatalog()||[]}catch{agents=[]}
   const byKey=new Map(agents.map(a=>[a.key,a]));
-  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',shopify:'web_ecommerce',wordpress:'web_ecommerce',github_vercel:'web_ecommerce'};
+  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',shopify:'web_tienda online',wordpress:'web_tienda online',github_vercel:'web_tienda online'};
   $$('[data-real-module]').forEach(btn=>{
     const agentKey=map[btn.dataset.realModule];if(!agentKey)return;
     const agent=byKey.get(agentKey);
@@ -350,7 +350,7 @@ function connectionProviderLabel(provider=''){
     facebook:'Facebook',
     linkedin:'LinkedIn',
     x_twitter:'X / Twitter',
-    hubspot:'HubSpot'
+    hubspot:'HubSpot · ventas y clientes'
   }[provider]||String(provider||'').replace(/_/g,' ');
 }
 function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conectada.'){
@@ -368,7 +368,7 @@ async function renderConnectionSummaries(){
 
   set('email',connectionSummaryHtml(email,'No hay ninguna cuenta de correo conectada.'));
   set('social',connectionSummaryHtml(social,'No hay ninguna red social conectada.'));
-  set('crm',connectionSummaryHtml(crm,'No hay ningún CRM conectado.'));
+  set('crm',connectionSummaryHtml(crm,'No hay ningún sistema de ventas y clientes conectado.'));
 
   if(wa.length){
     let extra='';
@@ -379,7 +379,7 @@ async function renderConnectionSummaries(){
         +(ch.displayPhone?'<span><b>Número</b>'+esc(ch.displayPhone)+'</span>':'')
         +(ch.verifiedName?'<span><b>Empresa</b>'+esc(ch.verifiedName)+'</span>':'')
         +'<span><b>Modo</b>'+(ch.replyMode==='automatic'?'Automático':'Con autorización')+'</span>'
-        +'<span><b>Webhook</b>'+(ch.webhookReady?'Activo':'Pendiente')+'</span>'
+        +'<span><b>Conexión automática</b>'+(ch.webhookReady?'Activo':'Pendiente')+'</span>'
         +'</div>';
     }catch{}
     set('whatsapp',connectionSummaryHtml(wa,'No hay WhatsApp conectado.')+extra);
@@ -392,8 +392,8 @@ async function renderConnectionSummaries(){
 
   let portals=[];try{portals=await window.vnx.listPortals()||[]}catch{}
   set('portal',portals.length
-    ?'<div class="connection-count">🟢 '+portals.length+' '+(portals.length===1?'portal conectado':'portales conectados')+'</div><div class="connection-account-list">'+portals.map(p=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(p.name||'Portal')+'</b><small>'+esc(p.url||'')+' · '+(p.lastStatus==='connected'?'Conectado':'Revisar conexión')+'</small></div></div>').join('')+'</div>'
-    :'<div class="connection-empty"><i></i><span>No hay portales privados conectados.</span></div>');
+    ?'<div class="connection-count">🟢 '+portals.length+' '+(portals.length===1?'portal conectado':'páginas privadas conectados')+'</div><div class="connection-account-list">'+portals.map(p=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(p.name||'Portal')+'</b><small>'+esc(p.url||'')+' · '+(p.lastStatus==='connected'?'Conectado':'Revisar conexión')+'</small></div></div>').join('')+'</div>'
+    :'<div class="connection-empty"><i></i><span>No hay páginas privadas conectados.</span></div>');
 
   try{
     const shop=await window.vnx.shopifyStatus();
@@ -408,7 +408,7 @@ async function renderConnectionSummaries(){
 window.vnxRefreshConnectionSummaries=renderConnectionSummaries;
 
 function setupRealModuleMode(){
-  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
+  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Buscar clientes',crm:'Ventas y clientes',shopify:'Tienda Shopify',wordpress:'Tienda WordPress',github_vercel:'Web personalizada'};
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
   window.vnxOpenServiceWizard=openServiceWizard;
@@ -473,7 +473,7 @@ async function safeUi(area,fn){
 }
 async function init(){
   bindTabs();
-  await safeUi('portales',async()=>setupPortalUi());
+  await safeUi('páginas privadas',async()=>setupPortalUi());
   await safeUi('conexiones',async()=>setupRealModuleMode());
   const sys=await safeUi('estado del sistema',()=>window.vnx.systemStatus());
   if(sys){
@@ -566,11 +566,11 @@ async function refreshUsageOverview(){
     image_credits:['🖼️','Imágenes','créditos'],
     voice_minutes:['☎️','Voz','minutos'],
     whatsapp_messages:['💬','WhatsApp','mensajes'],
-    lead_credits:['🎯','Captación','créditos'],
+    lead_credits:['🎯','Buscar clientes','créditos'],
     ai_heavy_tasks:['🧠','Tareas intensivas de IA','tareas'],
     email_ai_actions:['📧','Email con IA','acciones'],
-    automation_runs:['⚙️','Automatizaciones','ejecuciones'],
-    seo_pages:['🔎','SEO','páginas'],
+    automation_runs:['⚙️','Tareas automáticas','ejecuciones'],
+    seo_pages:['🔎','visibilidad en Google','páginas'],
     report_generations:['📊','Informes','informes'],
     storage_mb:['💾','Almacenamiento','MB']
   };
