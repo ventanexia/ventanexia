@@ -2,7 +2,7 @@ const {app,BrowserWindow,ipcMain,safeStorage,shell,Menu,session}=require('electr
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
-const {normalizeChatScope,emailAgentDirectReply}=require('./agent-email.cjs');
+const {normalizeChatScope,parseGmailContext,emailAgentDirectReply}=require('./agent-email.cjs');
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster}=require('./agent-policy.cjs');
 
 require('./main.cjs');
@@ -237,6 +237,72 @@ async function gmailApi(token,pathAndQuery){
   if(!r.ok)throw new Error(j?.error?.message||('Gmail respondió '+r.status));
   return j;
 }
+async function gmailWrite(token,pathAndQuery,{method='POST',body=null,raw=false}={}){
+  const headers={Authorization:'Bearer '+token};
+  if(body!==null)headers['Content-Type']='application/json';
+  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{method,headers,body:body===null?undefined:JSON.stringify(body)});
+  const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={raw:txt}}
+  if(!r.ok)throw new Error(j?.error?.message||('Gmail respondió '+r.status));
+  return j;
+}
+function b64url(s=''){return Buffer.from(String(s),'utf8').toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+function emailAddress(v=''){
+  const s=String(v||'').trim(),m=s.match(/<([^>]+)>/);
+  return (m?.[1]||s).trim();
+}
+function defaultReplyBody(mail){
+  const t=norm([mail?.subject,mail?.snippet].join(' '));
+  if(/catalogo/.test(t))return 'Hola,\n\nClaro. He recibido tu solicitud del catálogo. Lo estoy preparando para enviártelo con la información correspondiente.\n\nSi necesitas además precios, disponibilidad o información de algún producto concreto, indícamelo.\n\nUn saludo.';
+  if(/presupuesto|precio|tarifa/.test(t))return 'Hola,\n\nGracias por tu mensaje. He recibido tu solicitud y estoy preparando la información de precio/presupuesto para responderte con detalle.\n\nUn saludo.';
+  return 'Hola,\n\nGracias por tu mensaje. He recibido tu consulta y la estoy revisando. Te responderé con la información correspondiente.\n\nUn saludo.';
+}
+function emailActionLabels(){
+  return [
+    {key:'draft_reply',label:'✉️ Crear borrador'},
+    {key:'send_reply',label:'🚀 Enviar respuesta'},
+    {key:'send_reply_cc',label:'👥 Enviar con copia'},
+    {key:'archive',label:'🗂️ Archivar'},
+    {key:'trash',label:'🗑️ Mover a papelera'},
+    {key:'mark_read',label:'✅ Marcar leído'},
+    {key:'mark_unread',label:'◻️ Marcar no leído'},
+    {key:'star',label:'⭐ Destacar'},
+    {key:'unstar',label:'☆ Quitar destacado'},
+    {key:'important',label:'❗ Marcar importante'},
+    {key:'not_important',label:'➖ Quitar importante'}
+  ];
+}
+function wantsEmailActions(question=''){
+  const q=norm(question);
+  return /elimina|eliminar|borra|borrar|papelera|archiv|marca|marcar|leido|no leido|sin leer|estrella|destac|importante|borrador|responde|responder|contesta|contestar|envia|enviar|que puedo hacer|opciones/.test(q);
+}
+function chooseEmailTarget(question,localContext=[]){
+  const parsed=parseGmailContext(localContext);if(!parsed?.mails?.length)return null;
+  const mails=parsed.mails,q=norm(question);
+  const numbered=q.match(/(?:correo|email|mensaje)\s*(?:n[oº°]?\.?\s*)?(\d{1,2})/);
+  if(numbered){const idx=Number(numbered[1])-1;if(mails[idx])return mails[idx]}
+  if(/primer correo|primer email|primer mensaje/.test(q))return mails[0];
+  const stop=new Set(['elimina','eliminar','borra','borrar','papelera','archiva','archivar','marca','marcar','leido','no','sin','leer','correo','email','mensaje','por','favor','quiero','que','el','la','los','las','un','una','de','del','al','en','y','a']);
+  const terms=q.split(/[^a-z0-9@._-]+/).filter(x=>x.length>=3&&!stop.has(x));
+  let best=null,bestScore=0;
+  for(const m of mails){
+    const hay=norm([m.from,m.subject,m.snippet].join(' '));
+    const score=terms.reduce((n,t)=>n+(hay.includes(t)?1:0),0);
+    if(score>bestScore){best=m;bestScore=score}
+  }
+  return bestScore>0?best:null;
+}
+function emailActionPayload(mail){
+  return {
+    account:mail.account||'',
+    messageId:mail.id||'',
+    threadId:mail.threadId||'',
+    subject:mail.subject||'(sin asunto)',
+    from:mail.from||'',
+    snippet:mail.snippet||'',
+    defaultBody:defaultReplyBody(mail),
+    options:emailActionLabels()
+  };
+}
 function gmailQueryForQuestion(question=''){
   const q=norm(question);
   const parts=['in:inbox'];
@@ -273,7 +339,7 @@ async function collectGmailContextMaster(integration,question=''){
     for(const h of ['From','To','Subject','Date'])p.append('metadataHeaders',h);
     const m=await gmailApi(token,'messages/'+encodeURIComponent(id)+'?'+p.toString());
     const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
-    return {from:headers.from||'',to:headers.to||'',subject:headers.subject||'(sin asunto)',date:headers.date||'',snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),unread:(m.labelIds||[]).includes('UNREAD'),important:(m.labelIds||[]).includes('IMPORTANT')};
+    return {id:m.id||id,threadId:m.threadId||'',from:headers.from||'',to:headers.to||'',subject:headers.subject||'(sin asunto)',date:headers.date||'',snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),unread:(m.labelIds||[]).includes('UNREAD'),important:(m.labelIds||[]).includes('IMPORTANT')};
   }));
   const account=integration?.meta?.email||integration?.label||integration?.account||'Gmail';
   const content=[
@@ -284,6 +350,8 @@ async function collectGmailContextMaster(integration,question=''){
     '',
     ...rows.flatMap((m,i)=>[
       'Correo '+(i+1),
+      'ID: '+m.id,
+      'Hilo: '+m.threadId,
       'De: '+m.from,
       'Para: '+m.to,
       'Asunto: '+m.subject,
@@ -295,6 +363,38 @@ async function collectGmailContextMaster(integration,question=''){
   ].join('\n');
   return [{path:'GMAIL '+account,content}];
 }
+
+ipcMain.handle('email:action',async(_e,payload={})=>{
+  const s=await readState();assertAgentIncluded(s.license,'email');
+  const account=String(payload.account||'').trim(),messageId=String(payload.messageId||'').trim(),action=String(payload.action||'').trim();
+  if(!messageId||!action)throw new Error('Falta el correo o la acción.');
+  const integration=emailAccountsForState(s).find(x=>x.provider==='gmail'&&(!account||(x.meta?.email||x.label||x.account||'')===account));
+  if(!integration)throw new Error('No encuentro la cuenta de Gmail de este correo.');
+  const token=String(integration.token||'').trim();if(!token)throw new Error('La conexión de Gmail ya no tiene acceso válido.');
+  const safeId=encodeURIComponent(messageId);
+  if(action==='trash')await gmailWrite(token,'messages/'+safeId+'/trash');
+  else if(action==='archive')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['INBOX']}});
+  else if(action==='mark_read')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
+  else if(action==='mark_unread')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{addLabelIds:['UNREAD']}});
+  else if(action==='star')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{addLabelIds:['STARRED']}});
+  else if(action==='unstar')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['STARRED']}});
+  else if(action==='important')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{addLabelIds:['IMPORTANT']}});
+  else if(action==='not_important')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['IMPORTANT']}});
+  else if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
+    const to=emailAddress(payload.from),subject=/^re:/i.test(String(payload.subject||''))?String(payload.subject):'Re: '+String(payload.subject||'(sin asunto)');
+    const body=String(payload.body||'').trim();if(!to||!body)throw new Error('Falta el destinatario o el texto de la respuesta.');
+    const cc=action==='send_reply_cc'?String(payload.cc||'').trim():'';
+    if(action==='send_reply_cc'&&!cc)throw new Error('Indica a quién quieres poner en copia.');
+    const headers=['To: '+to,cc?'Cc: '+cc:'','Subject: '+subject,'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8'].filter(Boolean);
+    const raw=b64url(headers.join('\r\n')+'\r\n\r\n'+body);
+    const message={raw};if(payload.threadId)message.threadId=String(payload.threadId);
+    if(action==='draft_reply')await gmailWrite(token,'drafts',{body:{message}});
+    else await gmailWrite(token,'messages/send',{body:message});
+  }else throw new Error('Acción de correo no reconocida.');
+  const labels={trash:'movido a la papelera',archive:'archivado',mark_read:'marcado como leído',mark_unread:'marcado como no leído',star:'destacado',unstar:'sin destacar',important:'marcado como importante',not_important:'marcado como no importante',draft_reply:'borrador creado',send_reply:'respuesta enviada',send_reply_cc:'respuesta enviada con copia'};
+  await audit('email.action',(labels[action]||action)+' · '+String(payload.subject||'').slice(0,120));
+  return {ok:true,action,message:'Correo '+(labels[action]||'actualizado')+'.'};
+});
 
 // La lógica de priorización y respuesta directa del Agente Email vive en agent-email.cjs y se prueba de forma aislada.
 
@@ -317,8 +417,18 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       }else failures.push((integration.label||integration.account||integration.provider||'Correo')+': lectura desde chat pendiente');
     }
     if(!localContext.length)throw new Error('No he podido leer ninguna de las cuentas de correo conectadas. '+failures.join(' · '));
+    const actionTarget=wantsEmailActions(question)?chooseEmailTarget(question,localContext):null;
+    if(actionTarget?.id){
+      const actions=emailActionPayload(actionTarget);
+      await audit('ai.chat','Opciones de acción Email · '+String(actionTarget.subject||'').slice(0,120));
+      return {reply:'He localizado este correo: «'+actions.subject+'» de '+(actions.from||'remitente no disponible')+'.\n\nElige qué quieres hacer. No ejecutaré ninguna acción hasta que pulses una opción.',source:'desktop-email-actions',route:'agent:email',accounts:localContext.length,emailActions:actions};
+    }
     const direct=emailAgentDirectReply(question,localContext);
-    if(direct){await audit('ai.chat','Consulta directa con agente Email · '+localContext.length+' cuenta(s) · '+question.slice(0,120));return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length};}
+    if(direct){
+      const target=chooseEmailTarget(question,localContext);
+      await audit('ai.chat','Consulta directa con agente Email · '+localContext.length+' cuenta(s) · '+question.slice(0,120));
+      return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length,emailActions:target?.id?emailActionPayload(target):null};
+    }
   }else if(scope?.type==='agent'&&scope?.key==='core_ai'){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='agent'&&scope?.key==='web_ecommerce'){
