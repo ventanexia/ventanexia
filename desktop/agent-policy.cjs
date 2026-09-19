@@ -8,6 +8,7 @@ const AGENT_CATALOG=[
   {key:'crm',icon:'🤝',name:'Ventas y clientes',entitlement:'crm',requires:null},
   {key:'customer_service',icon:'🎧',name:'Atención al cliente',entitlement:'atencion',requires:null},
   {key:'quotes',icon:'🧾',name:'Presupuestos y ofertas',entitlement:'presupuestos',requires:null},
+  {key:'orders',icon:'📦',name:'Pedidos',entitlement:'pedidos',requires:null},
   {key:'social',icon:'📣',name:'Redes y publicidad',entitlement:'redes',requires:null},
   {key:'web_ecommerce',icon:'🌐',name:'Web y tienda',entitlement:'web_ecommerce',requires:'web'},
   {key:'administration',icon:'🗂️',name:'Administración y agenda',entitlement:'administracion',requires:null},
