@@ -56,6 +56,7 @@ import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
 import videoUsage from "../server/handlers/video-usage.js";
 import usageMeter from "../server/handlers/usage-meter.js";
 import provisioningAdmin from "../server/handlers/provisioning-admin.js";
+import shopifyOwnConnect from "../server/handlers/shopify-own-connect.js";
 
 export const config = { api: { bodyParser: false } };
 
@@ -117,7 +118,8 @@ const handlers = {
   "whatsapp-simulator": whatsappSimulator,
   "video-usage": videoUsage,
   "usage-meter": usageMeter,
-  "provisioning-admin": provisioningAdmin
+  "provisioning-admin": provisioningAdmin,
+  "shopify-own-connect": shopifyOwnConnect
 };
 
 async function readRaw(req) {
