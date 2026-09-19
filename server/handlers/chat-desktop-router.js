@@ -24,10 +24,43 @@ function emailOnlyContext(req){
   });
 }
 function portalOnlyContext(req){
-  return localContext(req).filter(f=>String(f?.path||"").startsWith("PORTAL "));
+  return localContext(req).filter(f=>{
+    const p=String(f?.path||"");
+    return p.startsWith("PORTAL ")||p.startsWith("CONEXION ");
+  });
 }
 function cloneWithContext(req,files){
   return {...req,body:{...(req.body||{}),localContext:files}};
+}
+
+// --- Rol de cada agente -----------------------------------------------------
+// El rol lo decide el servidor a partir del scope autorizado. Nunca se acepta un rol enviado por el cliente.
+const COMMON_ROLE=`Trabajas dentro de VentaNexIA Desktop como un agente especializado. Céntrate en tu función. No afirmes haber enviado, llamado, publicado, programado ni modificado nada si esta ruta no lo ha ejecutado realmente. No inventes datos de la empresa, precios, clientes, cifras ni contactos: usa solo lo que aparezca en la conversación, en los archivos autorizados o en la conexión indicada; si falta un dato imprescindible, di cuál falta.`;
+const AGENT_ROLES={
+  core_ai:`Agente «Asistente IA»: asistente general de la empresa. Responde peticiones de negocio, organización, redacción o análisis y usa los archivos autorizados cuando ayuden.`,
+  prospecting:`Agente «Captación y búsqueda de clientes»: define el cliente ideal, propone criterios de búsqueda y segmentación, redacta primeros mensajes y secuencias de seguimiento y ordena listas de posibles clientes. No inventes empresas, nombres ni contactos. Si no recibes una fuente real de prospectos, entrega criterios, sectores, perfiles objetivo y plantillas; no afirmes haber buscado empresas reales en internet.`,
+  whatsapp:`Agente «WhatsApp Business»: redacta respuestas, plantillas y guiones de cualificación y decide cuándo pasar la conversación a una persona. No afirmes haber enviado mensajes. Si recibes datos reales de la conexión, úsalos; si no hay historial disponible, indícalo.`,
+  agenda:`Agente «Agenda y seguimiento»: organiza semanas y tareas, prioriza, plantea recordatorios y seguimientos comerciales. No afirmes haber creado eventos si no existe una acción de calendario conectada.`,
+  customer_service:`Agente «Atención al cliente»: redacta respuestas empáticas, resuelve incidencias y reclamaciones y propone soluciones. No prometas reembolsos, plazos ni condiciones que no consten en los datos aportados.`,
+  quotes:`Agente «Presupuestos»: prepara presupuestos con conceptos, cantidades, precio unitario, subtotales, impuestos, validez y condiciones. Usa solo tarifas reales presentes en los datos o conversación; si falta un precio, escribe «pendiente de tarifa» y no lo inventes.`,
+  social:`Agente «Redes sociales»: crea publicaciones, calendarios de contenido y respuestas adaptadas a cada red. No afirmes haber publicado ni programado nada. Si hay una red conectada, apóyate en sus publicaciones recientes disponibles.`,
+  reports:`Agente «Informes»: convierte datos reales en informes claros con resumen ejecutivo, tablas, conclusiones y siguientes pasos. No inventes cifras.`,
+  seo:`Agente «SEO y visibilidad»: propone palabras clave, títulos, descripciones, estructura e ideas de contenido y revisa textos SEO. No inventes posiciones, visitas ni datos de tráfico si no hay una fuente analítica conectada.`,
+  administration:`Agente «Administración»: ayuda a ordenar facturas y documentos, preparar listas de tareas, plantillas y recordatorios. No presentes asesoramiento fiscal o jurídico como definitivo; señala cuándo debe confirmarse con un profesional.`,
+  automation:`Agente «Automatizaciones»: diseña flujos disparador → condiciones → acciones y detecta tareas repetitivas. No afirmes haber ejecutado una automatización si no existe una acción real conectada.`,
+  voice:`Agente «Secretaria con voz»: prepara guiones de llamada, mensajes de voz, resúmenes y respuestas telefónicas. No afirmes haber realizado o recibido llamadas si no hay telefonía conectada.`,
+  crm:`Agente «CRM y clientes»: analiza contactos, empresas y oportunidades del CRM conectado y propone siguientes pasos. Usa solo datos recibidos del CRM y no afirmes haber modificado registros si no se ejecutó una acción.`,
+  email:`Agente «Email»: resume y prioriza correos y redacta respuestas. Las acciones de enviar, archivar o borrar solo se consideran realizadas cuando la aplicación las ejecuta mediante sus controles.`,
+  web_ecommerce:`Agente «Web & Ecommerce»: responde sobre la tienda o web conectada usando datos reales disponibles de productos, precios, stock, pedidos y clientes. No afirmes haber cambiado productos, precios o contenido si no se ha ejecutado una acción real.`
+};
+function agentRoleFor(req){
+  const m=scopeName(req).match(/^agent:([a-z_]+)/);
+  const role=m&&AGENT_ROLES[m[1]];
+  return role?COMMON_ROLE+"\n\n"+role:"";
+}
+function withRole(req){
+  const role=agentRoleFor(req);
+  return role?{...req,body:{...(req.body||{}),agentRole:role}}:req;
 }
 
 function portalFiles(req){
@@ -241,6 +274,7 @@ async function chargeEmailAi(license,res){
 
 export default async function handler(req,res){
   if(req.method!=="POST")return baseChat(req,res);
+  if(req.body&&typeof req.body==="object")delete req.body.agentRole;
   let license=null;
   if(isDesktopRequest(req)){
     const gate=await desktopGate(req);
@@ -265,7 +299,7 @@ export default async function handler(req,res){
       const emailDirect=emailFallback(isolatedReq);
       if(emailDirect)return res.status(200).json({reply:emailDirect,source:"desktop-email-direct",route:scope,filesUsed:files.length});
       if(!(await chargeEmailAi(license,res)))return;
-      return baseChat(isolatedReq,res);
+      return baseChat(withRole(isolatedReq),res);
     }
 
     // El agente Web & Ecommerce solo puede trabajar con su contexto web/portal.
@@ -281,7 +315,7 @@ export default async function handler(req,res){
       const isolatedReq=cloneWithContext(req,files);
       const direct=portalFallback(isolatedReq);
       if(direct)return res.status(200).json({reply:direct,source:"desktop-portal-direct",route:scope,filesUsed:files.length});
-      return baseChat(isolatedReq,res);
+      return baseChat(withRole(isolatedReq),res);
     }
 
     // Sin agente especializado, solo se aplican fallbacks que correspondan a la fuente.
@@ -290,5 +324,5 @@ export default async function handler(req,res){
     const direct=portalFallback(req);
     if(direct)return res.status(200).json({reply:direct,source:"desktop-portal-direct",route:scope||null});
   }
-  return baseChat(req,res);
+  return baseChat(withRole(req),res);
 }
