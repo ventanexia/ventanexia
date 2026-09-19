@@ -7,7 +7,7 @@
   let runtimeAgents=[];
   const AGENT_INPUT_EXAMPLES={
     core_ai:'Ej.: analiza estos datos, resume este documento, prepara una propuesta o ayúdame a resolver este problema',
-    prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros y ordénalas por encaje',
+    prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
     crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes del CRM conectado',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
