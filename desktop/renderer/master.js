@@ -8,6 +8,7 @@
   const AGENT_INPUT_EXAMPLES={
     core_ai:'Ej.: analiza estos datos, resume este documento, prepara una propuesta o ayúdame a resolver este problema',
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
+    whatsapp:'Ej.: prepara una respuesta para este cliente y déjamela lista para autorizar antes de enviarla',
     prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
     crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes del CRM conectado',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
@@ -41,6 +42,19 @@
       ],
       capabilities:['Leer los correos de Gmail conectado','Mostrar los correos de hoy y los más recientes','Detectar cuáles necesitan respuesta','Preparar respuestas y solicitudes de datos','Crear borradores directamente en Gmail','Enviar solo cuando confirmes la acción','Archivar, marcar leído o destacar correos'],
       steps:['Revisar','Preparar','Autorizar']
+    },
+    whatsapp:{
+      subtitle:'Atiende conversaciones de WhatsApp Business con el nivel de control que elijas.',
+      primary:'💬 Preparar gestión de WhatsApp',
+      fields:[
+        {key:'mode',label:'MODO DE RESPUESTA',type:'select',options:['Con autorización: enseñarme el texto antes de enviar','Automático: responder según reglas autorizadas (requiere recepción en tiempo real)']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Preparar respuesta a un cliente','Solicitar datos que faltan','Responder una consulta frecuente','Preparar seguimiento','Escalar a una persona','Otra gestión']},
+        {key:'customer',label:'CLIENTE / TELÉFONO',type:'text',placeholder:'Ej. Marta o +34 600 000 000'},
+        {key:'context',label:'MENSAJE O CONTEXTO',type:'textarea',wide:true,placeholder:'Pega aquí el mensaje recibido o explica qué necesita el cliente',required:true},
+        {key:'instruction',label:'QUÉ DEBE CONSEGUIR LA RESPUESTA',type:'textarea',wide:true,placeholder:'Ej. pedir CIF y dirección de entrega, confirmar horario, resolver una duda'}
+      ],
+      capabilities:['Preparar respuestas claras y profesionales','Solicitar al cliente los datos que falten','Mostrar el texto antes de enviar en modo autorización','Permitir respuesta automática solo con reglas y recepción en tiempo real activas','Escalar casos sensibles o fuera de las reglas a una persona','No comprometer precios, descuentos o condiciones no autorizadas'],
+      steps:['Entender','Preparar','Autorizar / responder']
     },
     prospecting:{
       subtitle:'Encuentra nuevas oportunidades de negocio y llega a más clientes.',
@@ -187,6 +201,19 @@
       else if(task.includes('archivar'))lead='Muéstrame las opciones para archivar o marcar '+(target||'el correo indicado')+'.';
       return [lead,target?'Correo o referencia: '+target:'',instruction?'Instrucciones para la respuesta: '+instruction:'',result?'Resultado deseado: '+result:''].filter(Boolean).join('\n');
     }
+    if(key==='whatsapp'){
+      const mode=String(data.mode||''),task=String(data.task||''),customer=String(data.customer||'').trim(),context=String(data.context||'').trim(),instruction=String(data.instruction||'').trim();
+      const automatic=/^Automático/i.test(mode);
+      return [
+        'Prepara una gestión de WhatsApp Business.',
+        'Modo: '+(automatic?'Automático solicitado. Solo puede ejecutarse si la recepción en tiempo real está activa y la respuesta entra dentro de reglas autorizadas. Si no, debe quedar pendiente de autorización.':'Con autorización. Debes mostrar el texto antes de cualquier envío.'),
+        task?'Tarea: '+task:'',
+        customer?'Cliente: '+customer:'',
+        context?'Mensaje o contexto: '+context:'',
+        instruction?'Objetivo de la respuesta: '+instruction:'',
+        'No envíes ni afirmes que se ha enviado nada sin una acción real de WhatsApp disponible.'
+      ].filter(Boolean).join('\n');
+    }
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
@@ -195,7 +222,7 @@
   }
   function guidedConnectedLabels(key){
     const matches=[];
-    const wants={email:['email'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
@@ -203,6 +230,7 @@
     return {
       core_ai:'ideas, textos y tareas',
       email:'leer, responder y borradores',
+      whatsapp:'responder clientes y pedir datos',
       prospecting:'buscar empresas y oportunidades',
       crm:'seguimiento y cierre',
       customer_service:'responder dudas e incidencias',
@@ -567,6 +595,7 @@
     const descriptions={
       core_ai:'Análisis, redacción y apoyo general con el motor IA.',
       email:'Lee Gmail, detecta correos pendientes, prepara respuestas y crea borradores para autorizar.',
+      whatsapp:'Atiende WhatsApp Business, prepara respuestas y permite elegir entre autorización previa o automatización controlada.',
       prospecting:'Busca empresas reales y prepara la prospección comercial.',
       crm:'Ventas, oportunidades, seguimiento y CRM.',
       customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
