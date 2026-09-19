@@ -503,14 +503,19 @@ ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
   if(!shop)throw new Error('Indica la tienda .myshopify.com');
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero la licencia de VentaNexIA');
   const result=await postJson(CLOUD+'/api/shopify-own-connect',{shop,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()},20000);
-  const token=String(result.access_token||'').trim();
-  if(!token)throw new Error('Shopify no devolvió un token de acceso');
+  const token=String(result.accessToken||result.access_token||'').trim();
+  if(!token){
+    const e=new Error('El servidor conectó con Shopify pero no entregó el token a VentaNexIA.');
+    e.code='SHOPIFY_TOKEN_MISSING_IN_RESPONSE';
+    e.data={tokenReceived:Boolean(result.tokenReceived),shop:result.shop||shop};
+    throw e;
+  }
   const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
   const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
   const fresh=await readState();fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};
-  fresh.secret.integrations.shopify={shop,token,mode:'write',connectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+Number(result.expires_in||86399)*1000).toISOString(),shopName:data.shop?.name||shop,scopes,authMode:'client_credentials'};
+  fresh.secret.integrations.shopify={shop,token,mode:'write',connectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+Number(result.expiresIn||result.expires_in||86399)*1000).toISOString(),shopName:data.shop?.name||shop,scopes,authMode:'client_credentials'};
   await writeState(fresh);await audit('integration.shopify_connected',(data.shop?.name||shop)+' · client credentials');
-  return {connected:true,shop,shopName:data.shop?.name||shop,mode:'write',scopes,expiresIn:Number(result.expires_in||86399)};
+  return {connected:true,shop,shopName:data.shop?.name||shop,mode:'write',scopes,expiresIn:Number(result.expiresIn||result.expires_in||86399)};
 });
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
