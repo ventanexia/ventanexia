@@ -127,11 +127,11 @@ function setupServiceConnectionWizard(){
   if(!modal)return ()=>{};
   const providers={
     email:[['gmail','Gmail / Google Workspace'],['microsoft_365','Outlook / Hotmail / Live / Microsoft'],['yahoo_mail','Yahoo Mail'],['icloud_mail','iCloud Mail'],['generic_imap','Correo de empresa / otro proveedor']],
-    whatsapp:[['whatsapp_business','WhatsApp Business']],
+    whatsapp:[['whatsapp_personal','WhatsApp normal'],['whatsapp_business','WhatsApp para empresa']],
     social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
     crm:[['hubspot','HubSpot']]
   };
-  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'Ventas y clientes'};
+  const labels={email:'Email',whatsapp:'WhatsApp',social:'Redes sociales',crm:'Ventas y clientes'};
   let activeKey=null,activeButton=null,oauthState=null,pollTimer=null,currentAddAnother=false;
   const genericBox=$('#genericEmailFields'),genericUser=$('#genericEmailUser'),genericPass=$('#genericEmailPassword'),imapHost=$('#genericImapHost'),imapPort=$('#genericImapPort'),smtpHost=$('#genericSmtpHost'),smtpPort=$('#genericSmtpPort');
   function updateEmailProviderFields(){
@@ -144,7 +144,7 @@ function setupServiceConnectionWizard(){
     if(p==='yahoo_mail'){imapHost.value='imap.mail.yahoo.com';imapPort.value='993';smtpHost.value='smtp.mail.yahoo.com';smtpPort.value='465';}
     else if(p==='icloud_mail'){imapHost.value='imap.mail.me.com';imapPort.value='993';smtpHost.value='smtp.mail.me.com';smtpPort.value='587';}
   }
-  if(provider)provider.onchange=updateEmailProviderFields;
+  if(provider)provider.onchange=()=>{updateEmailProviderFields();if(activeKey==='whatsapp'){prepare.textContent=provider.value==='whatsapp_personal'?'Guardar':'Conectar ahora';notice.innerHTML=provider.value==='whatsapp_personal'?'<b>WhatsApp normal.</b> VentaNexIA preparará respuestas, pero tú las enviarás desde WhatsApp.':'<b>WhatsApp para empresa.</b> Puedes conectarlo para recibir mensajes y elegir respuestas con autorización o automáticas.';}};
   if(account)account.addEventListener('input',()=>{if(genericUser&&genericBox?.style.display!=='none'&&!genericUser.value)genericUser.value=account.value.trim()});
   function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null;currentAddAnother=false;renderConnectionSummaries()};
@@ -174,6 +174,16 @@ function setupServiceConnectionWizard(){
         return;
       }
       const requestedAccount=account?.value?.trim()||'';
+      if(activeKey==='whatsapp'&&provider.value==='whatsapp_personal'){
+        const all=getRealModuleSources();
+        all.whatsapp={provider:'whatsapp_personal',label:'WhatsApp normal',account:requestedAccount,mode:'manual',status:'manual_ready',connectedAt:new Date().toISOString()};
+        localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
+        if(activeButton)activeButton.textContent='🟢 WhatsApp normal · modo manual';
+        notice.innerHTML='<b>🟢 Listo para usar.</b> VentaNexIA preparará las respuestas y tú decidirás cuándo enviarlas desde WhatsApp. No se leerán mensajes automáticamente.';
+        prepare.disabled=false;prepare.textContent='Guardar';
+        await refreshChatConnections();await renderConnectionSummaries();
+        return;
+      }
       if(activeKey==='email'&&currentAddAnother&&!requestedAccount){prepare.disabled=false;prepare.textContent='Conectar ahora';notice.innerHTML='<b>Escribe la nueva cuenta de email que quieres añadir.</b>';return;}
       const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:requestedAccount});
       oauthState=started.state;
@@ -214,9 +224,9 @@ function setupServiceConnectionWizard(){
   disconnect.onclick=async()=>{
     if(!activeKey)return;
     if(!confirm('¿Desconectar '+labels[activeKey]+' de VentaNexIA en este ordenador?'))return;
-    stopPoll();await window.vnx.disconnectIntegration(activeKey);
+    stopPoll();if(!(activeKey==='whatsapp'&&getRealModuleSources()?.whatsapp?.provider==='whatsapp_personal'))await window.vnx.disconnectIntegration(activeKey);
     const all=getRealModuleSources();delete all[activeKey];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
-    if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Conectar WhatsApp Business':activeKey==='social'?'Conectar redes sociales':'Conectar ventas y clientes';
+    if(activeButton)activeButton.textContent=activeKey==='email'?'Conectar correo':activeKey==='whatsapp'?'Gestionar WhatsApp':activeKey==='social'?'Conectar redes sociales':'Conectar ventas y clientes';
     if(account&&activeKey==='email')account.value='';
     notice.innerHTML='<b>Desconectado.</b> El cambio se ha aplicado en todo VentaNexIA.';
     await refreshChatConnections();
@@ -241,7 +251,10 @@ function setupServiceConnectionWizard(){
       ?(masterUnlimited
         ?'<b>♛ Maestro: cuentas de email ilimitadas.</b> Puedes añadir tantas cuentas como necesites. Una nueva conexión no sustituye las anteriores.'
         :'<b>Elige tu proveedor.</b> Gmail y Outlook/Hotmail usan autorización oficial. Para Yahoo, iCloud o un correo corporativo puedes usar la conexión segura IMAP/SMTP.')
-      :'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
+      :key==='whatsapp'
+        ?'<b>Elige qué WhatsApp utilizas.</b><br><small><b>WhatsApp normal:</b> VentaNexIA prepara la respuesta y tú la envías.<br><b>WhatsApp para empresa:</b> permite conexión y automatización cuando esté configurado.</small>'
+        :'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
+    if(key==='whatsapp')prepare.textContent=provider.value==='whatsapp_personal'?'Guardar':'Conectar ahora';
     updateEmailProviderFields();
     try{
       const st=await window.vnx.integrationStatus(key);
@@ -370,7 +383,11 @@ async function renderConnectionSummaries(){
   set('social',connectionSummaryHtml(social,'No hay ninguna red social conectada.'));
   set('crm',connectionSummaryHtml(crm,'No hay ningún sistema de ventas y clientes conectado.'));
 
-  if(wa.length){
+  const savedWhatsApp=getRealModuleSources()?.whatsapp;
+  if(savedWhatsApp?.provider==='whatsapp_personal'&&savedWhatsApp?.status==='manual_ready'){
+    const label=savedWhatsApp.account?('WhatsApp normal · '+savedWhatsApp.account):'WhatsApp normal';
+    set('whatsapp','<div class="connection-count">🟢 Listo en modo manual</div><div class="connection-account-list"><div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(label)+'</b><small>VentaNexIA prepara la respuesta · tú decides cuándo enviarla</small></div></div></div>');
+  }else if(wa.length){
     let extra='';
     try{
       const st=await window.vnx.whatsappRuntime({action:'status'});
