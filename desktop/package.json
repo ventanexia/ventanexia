@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.44",
+  "version": "0.6.45",
   "private": true,
-  "description": "VentaNexIA Desktop · Alta automática de clientes desde pedidos · 0.6.44",
+  "description": "VentaNexIA Desktop · Pedidos con stock y coordinación automática con Compras · 0.6.45",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
