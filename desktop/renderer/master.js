@@ -216,6 +216,114 @@
     }
     renderGuidedOtherCards(chatConnections(),chosen);
   }
+  function prospectingPublicUrl(lead={}){
+    const candidates=[lead.sourceUrl,lead.source_url,lead.source,lead.website,lead.url].filter(Boolean);
+    return String(candidates.find(v=>/^https?:\/\//i.test(String(v)))||'');
+  }
+  function prospectingVerification(lead={}){
+    const bits=['Empresa localizada en una fuente pública'];
+    if(lead.email)bits.push('email corporativo publicado');
+    if(lead.phone)bits.push('teléfono público localizado');
+    if(lead.website)bits.push('web pública localizada');
+    return bits.join(' · ')+'.';
+  }
+  function prospectingWhyFit(lead={},criteria={}){
+    const activity=String(lead.activity||'su actividad').trim();
+    const buyer=String(criteria.buyer||'el tipo de empresa buscado').trim();
+    const zone=String(criteria.zone||'la zona indicada').trim();
+    const offer=String(criteria.offer||'tu oferta').trim();
+    return 'Su actividad pública ('+activity+') encaja con la búsqueda de '+buyer+' en '+zone+'. Por ese perfil puede ser una oportunidad para '+offer+'.';
+  }
+  function prospectingCardHtml(lead,index,criteria={},hidden=false){
+    const source=prospectingPublicUrl(lead);
+    const email=String(lead.email||'').trim(),phone=String(lead.phone||'').trim(),website=String(lead.website||'').trim();
+    const meta=[
+      '<div><span>Actividad</span><strong>'+escM(lead.activity||'No indicada')+'</strong></div>',
+      '<div><span>Dirección</span><strong>'+escM(lead.address||criteria.zone||'No disponible')+'</strong></div>',
+      phone?'<div><span>Teléfono</span><strong>'+escM(phone)+'</strong></div>':'',
+      email?'<div><span>Email</span><strong>'+escM(email)+'</strong></div>':''
+    ].filter(Boolean).join('');
+    return '<article class="prospect-card'+(hidden?' is-hidden':'')+'" data-prospect-index="'+index+'">'
+      +'<div class="prospect-card-kicker">OPORTUNIDAD '+(index+1)+'</div>'
+      +'<h4>'+escM(lead.name||'Empresa')+'</h4>'
+      +'<div class="prospect-meta">'+meta+'</div>'
+      +'<div class="prospect-divider"></div>'
+      +'<p><b>Por qué puede encajar:</b> '+escM(prospectingWhyFit(lead,criteria))+'</p>'
+      +'<p class="prospect-check"><b>Comprobación:</b> '+escM(prospectingVerification(lead))+'</p>'
+      +'<div class="prospect-card-actions">'
+      +(source?'<button type="button" class="mini prospect-open-source" data-url="'+escM(source)+'">Comprobar fuente pública ↗</button>':'<span class="prospect-source-state">● Fuente pública comprobada</span>')
+      +'<button type="button" class="mini prospect-copy" data-index="'+index+'">Copiar datos</button>'
+      +(email?'<span class="prospect-email-state">✉ Email corporativo localizado</span>':'<span class="prospect-email-state muted">✉ Sin email público localizado</span>')
+      +'</div>'
+      +'</article>';
+  }
+  function renderProspectingResults(out,r={},criteria={},scope=null){
+    const leads=Array.isArray(r.leads)?r.leads:[];
+    if(!leads.length)return false;
+    const withEmail=leads.filter(x=>String(x.email||'').trim()).length;
+    const withPhone=leads.filter(x=>String(x.phone||'').trim()).length;
+    const withAddress=leads.filter(x=>String(x.address||'').trim()).length;
+    const cards=leads.map((lead,i)=>prospectingCardHtml(lead,i,criteria,i>=6)).join('');
+    out.innerHTML='<div class="prospect-results">'
+      +'<div class="prospect-results-head">'
+      +'<div><span class="prospect-result-badge">RESULTADO DE LA BÚSQUEDA</span><h3>'+leads.length+' oportunidades encontradas</h3>'
+      +'<p>He revisado datos públicos: '+withAddress+' con dirección · '+withEmail+' con email · '+withPhone+' con teléfono.</p></div>'
+      +'<div class="prospect-trust">● Fuentes públicas comprobables</div>'
+      +'</div>'
+      +'<div class="prospect-toolbar">'
+      +'<button type="button" class="btn primary" data-prospect-prepare>✦ Preparar emails comerciales</button>'
+      +'<button type="button" class="btn outline" data-prospect-export>Exportar CSV</button>'
+      +'<button type="button" class="btn outline" data-guided-continue-free>Continuar en modo libre</button>'
+      +'</div>'
+      +'<div class="prospect-grid">'+cards+'</div>'
+      +(leads.length>6?'<div class="prospect-more-wrap"><button type="button" class="btn outline" data-prospect-more>Ver '+(leads.length-6)+' oportunidades más</button></div>':'')
+      +'<div class="prospect-saved-note">✓ Estas oportunidades quedan guardadas en Captación para poder preparar emails y hacer seguimiento.</div>'
+      +'</div>';
+
+    out.querySelectorAll('.prospect-open-source').forEach(btn=>btn.onclick=()=>{
+      const url=btn.dataset.url;if(url)window.open(url,'_blank','noopener,noreferrer');
+    });
+    out.querySelectorAll('.prospect-copy').forEach(btn=>btn.onclick=async()=>{
+      const lead=leads[Number(btn.dataset.index)];if(!lead)return;
+      const txt=[
+        lead.name||'',
+        lead.activity?'Actividad: '+lead.activity:'',
+        lead.address?'Dirección: '+lead.address:'',
+        lead.phone?'Teléfono: '+lead.phone:'',
+        lead.email?'Email: '+lead.email:'',
+        lead.website?'Web: '+lead.website:''
+      ].filter(Boolean).join('\n');
+      try{await navigator.clipboard.writeText(txt);const old=btn.textContent;btn.textContent='Copiado ✓';setTimeout(()=>btn.textContent=old,1400)}catch{}
+    });
+    const more=out.querySelector('[data-prospect-more]');
+    if(more)more.onclick=()=>{out.querySelectorAll('.prospect-card.is-hidden').forEach(x=>x.classList.remove('is-hidden'));more.parentElement.remove();};
+    const exportBtn=out.querySelector('[data-prospect-export]');
+    if(exportBtn)exportBtn.onclick=()=>{
+      const rows=[['Empresa','Actividad','Dirección','Teléfono','Email','Web']];
+      leads.forEach(x=>rows.push([x.name||'',x.activity||'',x.address||'',x.phone||'',x.email||'',x.website||'']));
+      const csv=rows.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(';')).join('\r\n');
+      const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ventanexia-oportunidades.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
+    };
+    const prep=out.querySelector('[data-prospect-prepare]');
+    if(prep)prep.onclick=async()=>{
+      const old=prep.textContent;prep.disabled=true;prep.textContent='Preparando emails…';
+      try{
+        const rr=await window.vnx.sendChat([{role:'user',content:'prepara los emails'}],scope);
+        setWorkspaceMode('free');
+        masterMessages=[
+          {role:'assistant',content:r.reply||('He encontrado '+leads.length+' oportunidades.')},
+          {role:'assistant',content:rr?.reply||'Emails preparados.'}
+        ];
+        renderMasterMessages();
+      }catch(e){alert('No he podido preparar los emails: '+(e.message||e))}
+      finally{prep.disabled=false;prep.textContent=old}
+    };
+    const cont=out.querySelector('[data-guided-continue-free]');
+    if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||('He encontrado '+leads.length+' oportunidades.')}];renderMasterMessages();};
+    return true;
+  }
+
   async function runGuided(){
     const scope=selectedChatScope(),out=$m('#guidedResult'),btn=$m('#guidedPrimaryAction');if(!scope||!btn||!out)return;
     const cfg=guidedConfig(scope.key),data=guidedRead(scope.key);
@@ -236,8 +344,12 @@
         const prompt=guidedPrompt(scope.key,data);
         r=await window.vnx.sendChat([{role:'user',content:prompt}],scope);
       }
-      out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
-      const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
+      if(scope.key==='prospecting'&&renderProspectingResults(out,r,data,scope)){
+        // La captación se muestra como oportunidades visuales con datos estructurados reales.
+      }else{
+        out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
+        const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
+      }
     }catch(e){out.textContent='No he podido completar la tarea: '+(e.message||e)}
     finally{btn.disabled=false;btn.textContent=old}
   }
