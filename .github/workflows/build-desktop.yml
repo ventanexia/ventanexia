@@ -14,6 +14,8 @@ permissions:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      VNX_BUILD_EDITION: master
     defaults:
       run:
         working-directory: desktop
@@ -27,7 +29,7 @@ jobs:
       - run: npm run dist:win
       - uses: actions/upload-artifact@v4
         with:
-          name: VentaNexIA-Desktop-Windows
+          name: VentaNexIA-Desktop-Windows-MASTER
           path: desktop/dist/*.exe
           if-no-files-found: error
           retention-days: 14
