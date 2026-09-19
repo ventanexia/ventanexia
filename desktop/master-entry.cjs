@@ -48,8 +48,12 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
     const scope=scopeOf(payload);
     const type=scopeTypeOf(payload);
 
-    // Los agentes siempre pasan por master.cjs.
-    // Esto incluye Email, CRM, WhatsApp, Redes, Web & Ecommerce, etc.
+    // El agente Web & Ecommerce debe usar la fuente Shopify real cuando está conectada.
+    if(type==='agent'&&String(scope?.key||'')==='web_ecommerce'&&scope?.source?.type==='shopify'){
+      return portalChat(event,{...(payload||{}),scope:{...scope.source,name:scope.source.name||scope.name||'Shopify'}});
+    }
+
+    // El resto de agentes pasan por master.cjs.
     if(type==='agent'||!type)return agentChat(event,payload);
 
     // Las consultas directas del Centro Maestro usan portal-adaptive.cjs.
