@@ -22,8 +22,21 @@
     crm:'Ej.: muéstrame los clientes recientes, qué oportunidades tengo abiertas, quién necesita seguimiento o actualiza los datos de este cliente',
     web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana, cuántos productos tenemos, revisa clientes o actualiza precios'
   };
+  function ensureChatInputEditable(){
+    const input=$m('#chatInput');if(!input)return null;
+    input.disabled=false;
+    input.readOnly=false;
+    input.removeAttribute('disabled');
+    input.removeAttribute('readonly');
+    input.style.pointerEvents='auto';
+    input.style.userSelect='text';
+    input.style.webkitUserSelect='text';
+    input.style.webkitAppRegion='no-drag';
+    input.tabIndex=0;
+    return input;
+  }
   function updateAgentInputExample(chosen){
-    const input=$m('#chatInput');if(!input)return;
+    const input=ensureChatInputEditable();if(!input)return;
     input.placeholder=chosen?AGENT_INPUT_EXAMPLES[chosen.key]||'Escribe aquí lo que necesitas que haga este agente':'Elige un agente arriba y te mostraré ejemplos de lo que puedes pedirle';
   }
 
@@ -240,7 +253,7 @@
     let activeAgentValue=sel.value;
     sel.onchange=()=>{
       const nextValue=sel.value;
-      const input=$m('#chatInput');
+      const input=ensureChatInputEditable();
       const hasCurrentWork=masterMessages.length>0||Boolean(input?.value?.trim());
       if(nextValue!==activeAgentValue&&hasCurrentWork){
         const ok=confirm('Vas a cambiar de agente. ¿Quieres cerrar el trabajo actual y eliminar esta conversación para empezar uno nuevo?');
@@ -257,6 +270,7 @@
       if(nextValue&&input)setTimeout(()=>input.focus(),30);
     };
     const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
+    ensureChatInputEditable();
     updateAgentHint(selectedAgent,hint);
     updateAgentInputExample(selectedAgent);
     renderHomeAgents(items);
@@ -385,9 +399,14 @@
   }
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
+    const chatInput=ensureChatInputEditable();
+    if(chatInput){
+      ['pointerdown','mousedown','click'].forEach(ev=>chatInput.addEventListener(ev,()=>{ensureChatInputEditable();setTimeout(()=>chatInput.focus(),0)},true));
+      chatInput.addEventListener('focus',ensureChatInputEditable,true);
+    }
     const clearConversation=()=>{
       masterMessages=[];
-      const input=$m('#chatInput');if(input)input.value='';
+      const input=ensureChatInputEditable();if(input)input.value='';
       renderMasterMessages();
       if(input)input.focus();
     };
@@ -395,7 +414,7 @@
     const newBtn=$m('#chatNewConversation');if(newBtn)newBtn.onclick=clearConversation;
     renderMasterMessages();
     form.onsubmit=async e=>{
-      e.preventDefault();const input=$m('#chatInput'),text=input?.value.trim();if(!text)return;
+      e.preventDefault();const input=ensureChatInputEditable(),text=input?.value.trim();if(!text)return;
       const connections=chatConnections(),scope=selectedChatScope();
       if(!scope){
         masterMessages.push({role:'assistant',content:'Elige arriba el agente de VentaNexIA con el que quieres trabajar.'});renderMasterMessages();return;
