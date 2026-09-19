@@ -426,6 +426,23 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   }else if(scope?.type==='agent'&&scope?.key==='social'){
     if(!s.secret?.integrations?.social)throw new Error('Conecta primero tus redes sociales para usar este agente.');
     localContext=await collectAuthorizedContext();
+  }else if(scope?.type==='agent'&&scope?.key==='customer_service'){
+    localContext=await collectAuthorizedContext();
+    const emailIntegrations=emailAccountsForState(s);
+    for(const integration of emailIntegrations){
+      if(integration?.provider!=='gmail')continue;
+      try{localContext.push(...await collectGmailContextMaster(integration,question))}catch{}
+    }
+    const gmailOnly=localContext.filter(f=>/^Gmail /i.test(String(f?.path||'')));
+    if(gmailOnly.length){
+      const actionTarget=wantsEmailActions(question)?chooseEmailTarget(question,gmailOnly):null;
+      if(actionTarget?.id){
+        const actions=emailActionPayload(actionTarget);
+        return {reply:'He localizado este correo: «'+actions.subject+'» de '+(actions.from||'remitente no disponible')+'.\n\nElige qué quieres hacer.',source:'desktop-support-email-actions',route:'agent:customer_service',emailActions:actions};
+      }
+      const direct=emailAgentDirectReply(question,gmailOnly);
+      if(direct)return {reply:direct,source:'desktop-support-email',route:'agent:customer_service'};
+    }
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
     const desktop={customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null};
     const search=await fetch(CLOUD+'/api/prospect-search',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({request:question,desktop})});
@@ -439,7 +456,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     const q=data.query||{};
     await audit('ai.prospecting','Búsqueda real · '+leads.length+' resultados · '+String(q.zone||'').slice(0,80));
     return {reply:'He buscado empresas reales según tu petición.'+(q.clientType?'\n\nPerfil: '+q.clientType:'')+(q.zone?' · Zona: '+q.zone:'')+'\n\n'+(lines.join('\n\n')||'No he encontrado resultados fiables.')+'\n\nFuente: '+(data.sourceMode||'fuentes públicas')+'. No invento teléfonos, emails ni empresas que no estén publicados.',source:'desktop-prospect-search',route:'agent:prospecting',leads};
-  }else if(scope?.type==='agent'&&['agenda','customer_service','quotes','reports','seo','administration','automation','voice'].includes(scope?.key)){
+  }else if(scope?.type==='agent'&&['quotes','reports','administration','automation'].includes(scope?.key)){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='integration'&&scope?.key==='email'){
     const allIntegrations=emailAccountsForState(s);
