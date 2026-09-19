@@ -423,8 +423,10 @@
             const result=await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});
             if(!result?.ok)throw new Error(result?.message||'Gmail no confirmó la acción.');
             m.unread=false;if(m.status==='unread')m.status=m.responded?'responded':'pending';
-            await refreshAccountData();
+            await refreshAccountData(m.id);
             await refreshAgentMetrics();
+            const currentMsg=detail.querySelector('[data-email-msg]');
+            if(currentMsg)currentMsg.textContent='Correo y conversación marcados como leídos en Gmail.';
           }catch(err){
             msg.textContent=err.message||'No se pudo actualizar el correo.';
             btn.disabled=false;
@@ -441,7 +443,7 @@
         };
         detail.querySelector('[data-email-open]').onclick=()=>{const u='https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id);window.open(u,'_blank','noopener,noreferrer')};
       }
-      async function refreshAccountData(){
+      async function refreshAccountData(preferredMessageId=''){
         const metricsRoot=host.querySelector('[data-email-metrics]');
         const accountControl=host.querySelector('[data-email-account]');
         const accountIndex=Number(accountControl?.value??-1);
@@ -451,7 +453,8 @@
           window.vnx.emailMetrics(scope)
         ]);
         messages=Array.isArray(inbox?.messages)?inbox.messages:[];
-        selected=0;
+        const keepIndex=preferredMessageId?messages.findIndex(x=>x.id===preferredMessageId):-1;
+        selected=keepIndex>=0?keepIndex:0;
         if(metricsRoot)metricsRoot.innerHTML=
           '<article><span class="metric-ico blue">✉</span><b>'+Number(metrics?.received||0)+'</b><strong>Recibidos</strong><small>Hoy</small></article>'
           +'<article><span class="metric-ico green">✓</span><b>'+Number(metrics?.responded||0)+'</b><strong>Respondidos</strong><small>Enviados hoy</small></article>'
