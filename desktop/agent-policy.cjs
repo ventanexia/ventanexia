@@ -25,9 +25,22 @@ function isMaster(license={},edition=EDITION){return cleanPlan(edition)==='maste
 function standardPremiumPlan(license={}){
   return ['scale','empresa','premium'].includes(cleanPlan(license?.plan));
 }
+function paidPlan(license={}){
+  return ['start','inicio','core','crecimiento','scale','empresa','premium'].includes(cleanPlan(license?.plan));
+}
+function orderMonthlyLimit(license={}){
+  const explicit=Number(license?.featurePolicy?.order_monthly_limit||0);
+  if(explicit>0)return explicit;
+  const p=cleanPlan(license?.plan);
+  if(['start','inicio'].includes(p))return 100;
+  if(['core','crecimiento'].includes(p))return 500;
+  if(['scale','empresa','premium'].includes(p))return 2000;
+  return 0;
+}
 function isAgentIncluded(license={},agentKey,edition=EDITION){
   const a=AGENT_CATALOG.find(x=>x.key===agentKey);if(!a)return false;
   if(isMaster(license,edition)||!a.entitlement)return true;
+  if(agentKey==='orders'&&paidPlan(license))return true;
   const purchased=purchasedFeatures(license);
   if(purchased.has(a.entitlement))return true;
   if(standardPremiumPlan(license)&&!['crm','web_ecommerce'].includes(a.entitlement))return true;
@@ -62,4 +75,4 @@ function assertModuleIncluded(license={},module=''){
   const err=new Error('Esta conexión pertenece a un agente que no está incluido en tu plan actual.');
   err.code='FEATURE_NOT_INCLUDED';err.module=module;err.entitlement=moduleEntitlement(module);throw err;
 }
-module.exports={EDITION,AGENT_CATALOG,isMaster,isAgentIncluded,assertAgentIncluded,isModuleIncluded,assertModuleIncluded,moduleEntitlement,purchasedFeatures};
+module.exports={EDITION,AGENT_CATALOG,isMaster,isAgentIncluded,assertAgentIncluded,isModuleIncluded,assertModuleIncluded,moduleEntitlement,purchasedFeatures,orderMonthlyLimit};
