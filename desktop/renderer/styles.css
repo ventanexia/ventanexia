@@ -632,3 +632,23 @@ body{
 @media(max-width:1100px){.email-workspace{grid-template-columns:1fr}.email-search{min-width:250px}.email-metric-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.email-toolbar{align-items:stretch;flex-direction:column}.email-search{min-width:0}.email-metric-grid{grid-template-columns:1fr 1fr}.email-list-tabs{overflow:auto}.email-action-bar .btn{flex:1}}
 /* VNX PROFESSIONAL EMAIL DASHBOARD END */
+
+
+/* VNX EMAIL NO-REPLY STATUS START */
+.email-status.no-reply{
+  background:#163f48;
+  color:#8ff0dc;
+  border:1px solid #2c746f;
+}
+.email-no-reply-btn{
+  border-color:#2c746f!important;
+  color:#9bf4df!important;
+}
+.email-no-reply-btn:hover{
+  background:#103f3b!important;
+}
+.email-list-tabs button[data-email-filter="no_reply"].active{
+  color:#77efd4;
+  border-bottom-color:#38cfaa;
+}
+/* VNX EMAIL NO-REPLY STATUS END */
