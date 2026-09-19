@@ -689,13 +689,31 @@
     s=s.replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
     return s;
   }
+  function markdownTableCells(line=''){
+    return String(line||'').trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(x=>x.trim());
+  }
+  function isMarkdownTableSeparator(line=''){
+    const cells=markdownTableCells(line);
+    return cells.length>0&&cells.every(x=>/^:?-{3,}:?$/.test(x));
+  }
   function documentHtmlFromMarkdown(text=''){
     const lines=String(text||'').replace(/\r/g,'').split('\n');
     const out=[];let listOpen=false;
     const closeList=()=>{if(listOpen){out.push('</ul>');listOpen=false}};
-    for(const raw of lines){
-      const line=String(raw||'').trimEnd();
+    for(let i=0;i<lines.length;i++){
+      const raw=lines[i],line=String(raw||'').trimEnd();
       if(!line.trim()){closeList();continue}
+      if(line.includes('|')&&i+1<lines.length&&isMarkdownTableSeparator(lines[i+1])){
+        closeList();
+        const headers=markdownTableCells(line);
+        const rows=[];i+=2;
+        while(i<lines.length&&String(lines[i]||'').includes('|')&&String(lines[i]||'').trim()){
+          rows.push(markdownTableCells(lines[i]));i++;
+        }
+        i--;
+        out.push('<div class="vnx-rich-table-wrap"><table class="vnx-rich-table"><thead><tr>'+headers.map(x=>'<th>'+markdownInline(x)+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+headers.map((_,idx)=>'<td>'+markdownInline(row[idx]||'')+'</td>').join('')+'</tr>').join('')+'</tbody></table></div>');
+        continue;
+      }
       const h=line.match(/^(#{1,4})\s+(.+)$/);
       if(h){closeList();const level=Math.min(4,h[1].length);out.push('<h'+level+'>'+markdownInline(h[2])+'</h'+level+'>');continue}
       const bullet=line.match(/^\s*[-*]\s+(.+)$/);
@@ -784,7 +802,7 @@
       }else if(scope.key==='email'&&r?.emailActions?.options?.length){
         const meta=r.emailActions;
         out.innerHTML='<div class="guided-result-head"><b>Email encontrado</b><button type="button" data-guided-continue-free class="mini">Abrir modo libre</button></div>'
-          +'<div class="guided-result-copy">'+escM(r?.reply||'Elige qué quieres hacer.').replace(/\n/g,'<br>')+'</div>'
+          +'<div class="guided-result-copy vnx-rich-result">'+documentHtmlFromMarkdown(r?.reply||'Elige qué quieres hacer.')+'</div>'
           +'<div class="guided-email-actions">'+meta.options.map(a=>'<button type="button" class="mini guided-email-action" data-email-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>'
           +'<small class="guided-email-safety">Nada se envía sin tu confirmación. Puedes crear un borrador en Gmail y revisarlo antes.</small>';
         out.querySelectorAll('.guided-email-action').forEach(actionBtn=>actionBtn.onclick=async()=>{
@@ -807,7 +825,7 @@
         renderAiDocumentResult(out,r?.reply||'Sin respuesta');
         const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
       }else{
-        out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
+        out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy vnx-rich-result">'+documentHtmlFromMarkdown(r?.reply||'Sin respuesta')+'</div>';
         const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
       }
     }catch(e){out.textContent='No he podido completar la tarea: '+(e.message||e)}
@@ -1141,7 +1159,8 @@
     root.innerHTML=intro+masterMessages.map(m=>{
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
-      return `<div class="msg ${m.role==='user'?'user':'ai'}"><div>${escM(m.content).replace(/\n/g,'<br>')}</div>${imgs?`<div>${imgs}</div>`:''}${actions}</div>`;
+      const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
+      return `<div class="msg ${m.role==='user'?'user':'ai'}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
