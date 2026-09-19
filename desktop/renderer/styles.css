@@ -512,3 +512,12 @@ body{
   .guided-agent-tabs{grid-template-columns:repeat(2,minmax(120px,1fr))!important}
 }
 /* VNX EMAIL AGENT 0.6.30 END */
+
+
+/* VNX WHATSAPP AGENT 0.6.31 START */
+.guided-agent-tab[data-guided-agent="whatsapp"] span{font-size:23px}
+.guided-agent-tab[data-guided-agent="whatsapp"].active{
+  border-color:#27d367!important;
+  box-shadow:0 0 0 1px rgba(39,211,103,.18),0 8px 28px rgba(39,211,103,.12)!important
+}
+/* VNX WHATSAPP AGENT 0.6.31 END */
