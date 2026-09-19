@@ -56,11 +56,18 @@ async function audit(type,detail){
   s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,200);
   await writeState(s);
 }
-async function postJson(url,body){
-  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify(body||{})});
-  const j=await r.json().catch(()=>({}));
-  if(!r.ok){const e=new Error(j.error||j.message||`Error ${r.status}`);e.code=j.code;e.data=j;throw e;}
-  return j;
+async function postJson(url,body,timeoutMs=20000){
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify(body||{}),signal:controller.signal});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){const e=new Error(j.error||j.message||`Error ${r.status}`);e.code=j.code;e.data=j;throw e;}
+    return j;
+  }catch(e){
+    if(e?.name==='AbortError'){const err=new Error('La conexión con el servidor ha tardado demasiado. Vuelve a intentarlo.');err.code='REQUEST_TIMEOUT';throw err;}
+    throw e;
+  }finally{clearTimeout(timer)}
 }
 async function ensureDeviceKey(){
   const s=await readState();
@@ -486,6 +493,24 @@ ipcMain.handle('integration:disconnect',async(_e,module)=>{
   if(key==='email'){if(s.secret?.integrations?.email)delete s.secret.integrations.email;s.secret.emailAccounts=[];}
   else if(s.secret?.integrations?.[key])delete s.secret.integrations[key];
   await writeState(s);await audit('integration.disconnected',key);return true;
+});
+
+ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
+  const s=await readState();
+  if(!isMaster(s.license))throw new Error('La conexión directa de tienda propia requiere la edición Maestro');
+  assertModuleIncluded(s.license,'shopify');
+  const shop=normalizeShopifyShop(payload.shop);
+  if(!shop)throw new Error('Indica la tienda .myshopify.com');
+  if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero la licencia de VentaNexIA');
+  const result=await postJson(CLOUD+'/api/shopify-own-connect',{shop,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()},20000);
+  const token=String(result.access_token||'').trim();
+  if(!token)throw new Error('Shopify no devolvió un token de acceso');
+  const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
+  const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
+  const fresh=await readState();fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};
+  fresh.secret.integrations.shopify={shop,token,mode:'write',connectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+Number(result.expires_in||86399)*1000).toISOString(),shopName:data.shop?.name||shop,scopes,authMode:'client_credentials'};
+  await writeState(fresh);await audit('integration.shopify_connected',(data.shop?.name||shop)+' · client credentials');
+  return {connected:true,shop,shopName:data.shop?.name||shop,mode:'write',scopes,expiresIn:Number(result.expires_in||86399)};
 });
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
