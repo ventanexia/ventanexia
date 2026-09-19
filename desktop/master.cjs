@@ -414,9 +414,11 @@ async function gmailTodayBounds(){
   const end=new Date(start);end.setDate(end.getDate()+1);
   return {after:Math.floor(start.getTime()/1000),before:Math.floor(end.getTime()/1000)};
 }
-ipcMain.handle('email:metrics',async()=>{
+ipcMain.handle('email:metrics',async(_e,payload={})=>{
   const s=await readState();assertAgentIncluded(s.license,'email');
-  const accounts=emailAccountsForState(s).filter(x=>x.provider==='gmail');
+  const allAccounts=emailAccountsForState(s).filter(x=>x.provider==='gmail');
+  const idx=Number.isInteger(payload?.accountIndex)?payload.accountIndex:null;
+  const accounts=idx===null?allAccounts:[allAccounts[idx]].filter(Boolean);
   if(!accounts.length)return {connected:false,received:0,responded:0,pending:0,unread:0,accounts:0};
   const {after,before}=await gmailTodayBounds();
   let received=0,responded=0,pending=0,unread=0,okAccounts=0;
