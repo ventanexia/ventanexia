@@ -93,13 +93,16 @@ function emailAgentDirectReply(question,localContext=[]){
   if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)){
     return 'He consultado tu correo. Hay '+(gmail.total||mails.length)+' correo(s)'+(/hoy|today/.test(q)?' hoy':'')+' en la bandeja de entrada.';
   }
-  if(/responder primero|contestar primero|pendientes de responder|requieren respuesta|requiere respuesta|necesitan respuesta|necesita respuesta|que correos responder|que emails responder/.test(q)){
+  const asksReplyQueue=/responder primero|contestar primero|pendientes? de responder|pendientes? de contestar|requieren respuesta|requiere respuesta|necesitan respuesta|necesita respuesta|que correos responder|que emails responder|que correos contestar|que emails contestar|cuales responder|cuales contestar|que tengo que responder|que debo responder|que necesito responder/.test(q);
+  if(asksReplyQueue){
     const replyable=mails.map((m,i)=>({m,i,score:needsReplyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,8);
     if(!replyable.length)return 'He revisado los correos recientes y no veo ninguno que claramente requiera una respuesta ahora mismo.';
-    const lines=replyable.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: parece una solicitud humana o comercial que espera respuesta'+(x.m.snippet?'\n   '+x.m.snippet:''));
-    return 'He separado los correos que requieren respuesta de los avisos automáticos o de seguridad. Estos son los que sí parecen necesitar contestación:\n\n'+lines.join('\n\n')+'\n\nEmpezaría por el nº 1.';
+    const lines=replyable.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: es una solicitud humana o comercial que espera respuesta'+(x.m.snippet?'\n   '+x.m.snippet:''));
+    const n=replyable.length;
+    return 'He revisado los correos. '+(n===1?'Solo encuentro 1 que requiera respuesta:':'Encuentro '+n+' que requieren respuesta:')+'\n\n'+lines.join('\n\n')+'\n\nLos avisos automáticos, códigos de acceso y newsletters se han excluido de esta cola.';
   }
-  if(/atencion|prioridad|prioritarios|requieren|requiere|necesitan|necesita|revisar primero/.test(q)){
+  const asksAttention=/atencion|prioridad|prioritarios|revisar primero|urgente|importante/.test(q);
+  if(asksAttention){
     const ranked=mails.map((m,i)=>({m,i,score:scoreMailAttention(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,5);
     if(!ranked.length)return 'He revisado tu correo y no veo mensajes recientes que destaquen claramente como prioritarios.';
     const lines=ranked.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: '+attentionReason(x.m)+(x.m.snippet?'\n   '+x.m.snippet:''));
