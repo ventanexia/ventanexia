@@ -689,3 +689,33 @@ body{
 .connection-live-card>.btn{margin-top:auto}
 @media(max-width:850px){.connection-detail-grid{grid-template-columns:1fr}}
 /* VNX CONNECTION LIVE SUMMARIES END */
+
+
+/* VNX WHATSAPP DASHBOARD COUNTERS START */
+.wa-metric-wrap{grid-column:1/-1;margin-bottom:4px}
+.wa-metric-grid{margin-bottom:10px}
+.metric-ico.red{background:#5c2028;color:#ff6975}
+.wa-manual-counter-note{
+  border:1px solid #1b6485;
+  background:#06263b;
+  color:#a9cbd9;
+  border-radius:10px;
+  padding:10px 12px;
+  font-size:11px;
+  line-height:1.4;
+  margin-bottom:12px;
+}
+.wa-manual-counter-note b{color:#68dcff}
+.wa-metrics-loading{
+  border:1px solid #1b6485;
+  background:#06263b;
+  color:#8eb9cb;
+  border-radius:10px;
+  padding:14px;
+  text-align:center;
+  margin-bottom:12px;
+}
+@media(max-width:800px){
+  .wa-metric-grid{grid-template-columns:repeat(2,1fr)!important}
+}
+/* VNX WHATSAPP DASHBOARD COUNTERS END */
