@@ -53,6 +53,8 @@ import stripeWebhook from "../server/handlers/stripe-webhook.js";
 import supportEscalate from "../server/handlers/support-escalate.js";
 import trialSweep from "../server/handlers/trial-sweep.js";
 import whatsappSimulator from "../server/handlers/whatsapp-simulator.js";
+import whatsappChannel from "../server/handlers/whatsapp-channel.js";
+import whatsappWebhook from "../server/handlers/whatsapp-webhook.js";
 import videoUsage from "../server/handlers/video-usage.js";
 import usageMeter from "../server/handlers/usage-meter.js";
 import provisioningAdmin from "../server/handlers/provisioning-admin.js";
@@ -116,6 +118,8 @@ const handlers = {
   "support-escalate": supportEscalate,
   "trial-sweep": trialSweep,
   "whatsapp-simulator": whatsappSimulator,
+  "whatsapp-channel": whatsappChannel,
+  "whatsapp-webhook": whatsappWebhook,
   "video-usage": videoUsage,
   "usage-meter": usageMeter,
   "provisioning-admin": provisioningAdmin,
@@ -159,7 +163,7 @@ export default async function router(req, res) {
   const endpoint = String(req.query?.endpoint || "").trim();
   const handler = handlers[endpoint];
   if (!handler) return res.status(404).json({ error: "Endpoint no encontrado" });
-  if (endpoint !== "stripe-webhook") {
+  if (!["stripe-webhook","whatsapp-webhook"].includes(endpoint)) {
     try { await prepareBody(req); }
     catch { return res.status(400).json({ error: "Cuerpo de solicitud no válido" }); }
   }
