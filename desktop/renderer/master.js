@@ -136,10 +136,23 @@
     else if(items.some(x=>x.ready))sel.value=chatConnectionValue(items.find(x=>x.ready));
     else sel.value='';
     if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
+    let activeAgentValue=sel.value;
     sel.onchange=()=>{
-      if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
-      const chosen=items.find(x=>chatConnectionValue(x)===sel.value);
+      const nextValue=sel.value;
+      const input=$m('#chatInput');
+      const hasCurrentWork=masterMessages.length>0||Boolean(input?.value?.trim());
+      if(nextValue!==activeAgentValue&&hasCurrentWork){
+        const ok=confirm('Vas a cambiar de agente. ¿Quieres cerrar el trabajo actual y eliminar esta conversación para empezar uno nuevo?');
+        if(!ok){sel.value=activeAgentValue;return;}
+        masterMessages=[];
+        if(input)input.value='';
+        renderMasterMessages();
+      }
+      activeAgentValue=nextValue;
+      if(nextValue)localStorage.setItem('vnx_master_chat_agent',nextValue);
+      const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
       updateAgentHint(chosen,hint);
+      if(nextValue&&input)setTimeout(()=>input.focus(),30);
     };
     updateAgentHint(items.find(x=>chatConnectionValue(x)===sel.value),hint);
     renderHomeAgents(items);
