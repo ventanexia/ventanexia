@@ -521,3 +521,48 @@ body{
   box-shadow:0 0 0 1px rgba(39,211,103,.18),0 8px 28px rgba(39,211,103,.12)!important
 }
 /* VNX WHATSAPP AGENT 0.6.31 END */
+
+
+/* VNX WHATSAPP RUNTIME 0.6.32 START */
+.guided-check-field{
+  display:flex!important;
+  flex-direction:row!important;
+  align-items:flex-start!important;
+  gap:10px!important;
+  border:1px solid #17648d;
+  background:#05243a;
+  border-radius:10px;
+  padding:11px 12px;
+}
+.guided-check-field input[type="checkbox"]{
+  width:18px!important;height:18px!important;min-height:18px!important;flex:0 0 18px;
+  margin-top:1px;accent-color:#19c8ff;
+}
+.guided-check-field>span{
+  font-size:12px!important;
+  line-height:1.4!important;
+  color:#c7dfea!important;
+  font-weight:600!important;
+  letter-spacing:0!important;
+}
+.wa-pending-list{display:grid;gap:13px;margin-top:13px}
+.wa-pending-card{
+  border:1px solid #176b91;
+  border-radius:14px;
+  background:linear-gradient(180deg,#072740,#052136);
+  padding:15px;
+}
+.wa-pending-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:11px}
+.wa-pending-head b{font-size:15px;color:#fff}.wa-pending-head small{color:#80bad2}
+.wa-inbound{border-left:3px solid #27d367;background:#063247;border-radius:8px;padding:9px 11px;margin-bottom:11px}
+.wa-inbound span,.wa-pending-card label>span{display:block;font-size:10px;font-weight:900;letter-spacing:.3px;color:#78c7df;text-transform:uppercase;margin-bottom:5px}
+.wa-inbound p{margin:0;color:#edfaff;line-height:1.45}
+.wa-pending-card textarea{
+  width:100%;box-sizing:border-box;background:#031c30;border:1px solid #17658d;color:#fff;
+  border-radius:9px;padding:10px 11px;resize:vertical
+}
+.wa-pending-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+.wa-pending-actions .btn.primary{background:linear-gradient(90deg,#16bd72,#14a85d)!important}
+.guided-agent-tab[data-guided-agent="whatsapp"] small{color:#9edbb5}
+.guided-agent-tab[data-guided-agent="whatsapp"].active small{color:#c9f6d8}
+/* VNX WHATSAPP RUNTIME 0.6.32 END */
