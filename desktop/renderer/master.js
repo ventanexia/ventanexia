@@ -209,8 +209,35 @@
     const intro='<div class="msg ai">Estoy listo para ayudarte. Elige arriba el agente de VentaNexIA con el que quieres trabajar. El agente utilizará únicamente las conexiones que tengas autorizadas.</div>';
     root.innerHTML=intro+masterMessages.map(m=>{
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
-      return `<div class="msg ${m.role==='user'?'user':'ai'}"><div>${escM(m.content).replace(/\n/g,'<br>')}</div>${imgs?`<div>${imgs}</div>`:''}</div>`;
+      const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
+      return `<div class="msg ${m.role==='user'?'user':'ai'}"><div>${escM(m.content).replace(/\n/g,'<br>')}</div>${imgs?`<div>${imgs}</div>`:''}${actions}</div>`;
     }).join('');
+    $m('#messages')&&$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
+      const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
+      const meta=msg.emailActions,action=btn.dataset.action;
+      const destructive=action==='trash'||action==='send_reply'||action==='send_reply_cc';
+      let body='',cc='';
+      if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
+        body=prompt('Texto de la respuesta:',meta.defaultBody||'')||'';
+        if(!body.trim())return;
+      }
+      if(action==='send_reply_cc'){
+        cc=prompt('Dirección de email para poner en copia:','')||'';
+        if(!cc.trim())return;
+      }
+      if(destructive&&!confirm(action==='trash'?'¿Mover este correo a la papelera?':'¿Enviar esta respuesta ahora?'))return;
+      const label=meta.options.find(x=>x.key===action)?.label||action;
+      btn.disabled=true;btn.textContent='Procesando…';
+      try{
+        const out=await window.vnx.emailAction({account:meta.account,messageId:meta.messageId,threadId:meta.threadId,subject:meta.subject,from:meta.from,action,body,cc});
+        masterMessages.push({role:'assistant',content:(out?.message||'Acción completada.')+'\n\nAcción: '+label});
+        msg.emailActions=null;
+        renderMasterMessages();
+      }catch(e){
+        masterMessages.push({role:'assistant',content:'No he podido completar la acción: '+(e.message||e)});
+        renderMasterMessages();
+      }
+    });
     root.scrollTop=root.scrollHeight;
   }
   function setupMasterChat(){
@@ -251,7 +278,7 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[]});renderMasterMessages();
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null});renderMasterMessages();
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
