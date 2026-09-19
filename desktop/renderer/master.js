@@ -151,6 +151,59 @@
     if(!x?.connected)return '🟠 Incluido · falta conectar';
     return '🟢 Listo para usar';
   }
+  function renderConnectionAgentCards(items){
+    const root=$m('#allAgentConnections');if(!root)return;
+    const descriptions={
+      core_ai:'Piensa, redacta, analiza y organiza trabajo usando el motor IA de VentaNexIA.',
+      prospecting:'Busca y ordena posibles clientes. Puede usar fuentes de datos autorizadas para trabajar con información real.',
+      whatsapp:'Responde y gestiona conversaciones cuando conectes WhatsApp Business.',
+      email:'Lee, clasifica, prepara y envía correo cuando conectes una cuenta.',
+      agenda:'Planifica tareas, seguimientos y agenda con el motor IA de VentaNexIA.',
+      customer_service:'Prepara respuestas, clasifica incidencias y ayuda a gestionar atención al cliente.',
+      quotes:'Prepara y revisa presupuestos a partir de los datos que le facilites o conectes.',
+      social:'Prepara contenido y trabaja con redes sociales cuando conectes las cuentas correspondientes.',
+      reports:'Analiza datos disponibles y prepara informes con el motor IA.',
+      seo:'Analiza y prepara mejoras SEO y contenido con el motor IA; puede usar una web conectada cuando exista.',
+      administration:'Organiza tareas administrativas, documentos y datos autorizados.',
+      automation:'Diseña automatizaciones y flujos de trabajo con el motor IA; las acciones reales dependen de las herramientas conectadas.',
+      voice:'Prepara guiones y protocolos de atención con el motor IA. Las llamadas reales requieren una integración telefónica específica.',
+      crm:'Consulta y trabaja con clientes y oportunidades cuando conectes el CRM.',
+      web_ecommerce:'Consulta y gestiona Shopify, WooCommerce, webs o portales cuando conectes una fuente compatible.'
+    };
+    const actionFor=a=>{
+      if(!a.included)return {label:'🔒 No incluido en tu plan',kind:'locked'};
+      if(!a.requires)return {label:'🟢 Motor IA activo',kind:'active'};
+      if(a.connected)return {label:'🟢 Conectado',kind:'connected'};
+      if(a.key==='email')return {label:'Conectar Email',kind:'service',service:'email'};
+      if(a.key==='whatsapp')return {label:'Conectar WhatsApp',kind:'service',service:'whatsapp'};
+      if(a.key==='social')return {label:'Conectar redes',kind:'service',service:'social'};
+      if(a.key==='crm')return {label:'Conectar CRM',kind:'service',service:'crm'};
+      if(a.key==='prospecting')return {label:'Añadir fuente de datos',kind:'click-module',service:'prospecting'};
+      if(a.key==='web_ecommerce')return {label:'Configurar Web & Ecommerce',kind:'tab',tab:'webcommerce'};
+      return {label:'Configurar',kind:'noop'};
+    };
+    root.innerHTML=items.map(a=>{
+      const ac=actionFor(a);
+      const source=a.source?.name?'<small style="display:block;margin-top:6px">Fuente: '+escM(a.source.name)+'</small>':'';
+      const status=!a.included?'🔒 No incluido':(!a.requires?'🟢 Motor IA activo':a.connected?'🟢 Conectado':'🟠 Necesita conexión');
+      const disabled=['active','connected'].includes(ac.kind)?' disabled':'';
+      return '<article class="modulecard" data-agent-connect-card="'+escM(a.key)+'"><b>'+escM((a.icon||'🤖')+' '+a.name)+'</b><span>'+escM(descriptions[a.key]||'Agente de VentaNexIA.')+source+'</span><small><strong>'+escM(status)+'</strong></small><button class="btn outline agent-connect-action" data-agent-key="'+escM(a.key)+'" data-kind="'+escM(ac.kind)+'" data-service="'+escM(ac.service||'')+'" data-tab="'+escM(ac.tab||'')+'"'+disabled+'>'+escM(ac.label)+'</button></article>';
+    }).join('');
+    $m('.agent-connect-action').forEach(btn=>btn.onclick=()=>{
+      const kind=btn.dataset.kind,service=btn.dataset.service;
+      if(kind==='locked'){window.vnx.openExternal('https://www.ventanexia.es/planes.html');return}
+      if(kind==='service'&&window.vnxOpenServiceWizard){window.vnxOpenServiceWizard(service,btn);return}
+      if(kind==='click-module'){
+        const target=document.querySelector('[data-real-module="'+service+'"]');
+        if(target){target.scrollIntoView({behavior:'smooth',block:'center'});target.click();}
+        return;
+      }
+      if(kind==='tab'){
+        const target=document.querySelector('.nav[data-tab="'+btn.dataset.tab+'"],[data-tab-jump="'+btn.dataset.tab+'"]');
+        if(target)target.click();
+      }
+    });
+  }
   function renderHomeAgents(items){
     const root=$m('#homeAgentsList'),summary=$m('#homeAgentsSummary');if(!root)return;
     const ready=items.filter(x=>x.ready),pending=items.filter(x=>x.included&&!x.connected),locked=items.filter(x=>!x.included);
@@ -207,6 +260,7 @@
     updateAgentHint(selectedAgent,hint);
     updateAgentInputExample(selectedAgent);
     renderHomeAgents(items);
+    renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
   }
   window.vnxRefreshAgentUi=refreshChatConnections;
