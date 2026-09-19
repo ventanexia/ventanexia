@@ -5,7 +5,7 @@ const os=require('node:os');
 const crypto=require('node:crypto');
 const {ImapFlow}=require('imapflow');
 const nodemailer=require('nodemailer');
-const {assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
+const {EDITION,assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -73,12 +73,15 @@ function fingerprintHash(){
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
 function publicLicenseState(s){
-  const l=s.license||{};
+  const l=s.license||{},master=isMaster(l);
   return {
     activated:Boolean(s.secret?.customerId&&s.secret?.activationCode&&l.deviceId),
     customerId:s.secret?.customerId||l.customerId||null,
     deviceId:l.deviceId||null,
-    plan:l.plan||null,
+    edition:EDITION,
+    master,
+    unlimited:master,
+    plan:master?'master':(l.plan||null),
     activeCount:Number(l.activeCount||0),
     limit:Number(l.limit||0),
     available:Number(l.available||0),
