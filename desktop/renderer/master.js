@@ -159,7 +159,7 @@
     return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><input data-guided-field="'+escM(field.key)+'" type="'+escM(field.type||'text')+'" value="'+escM(value||field.value||'')+'" placeholder="'+escM(field.placeholder||'')+'"></label>';
   }
   function guidedRead(key){
-    const data={};$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.value.trim());guidedSave(key,data);return data;
+    const data={};$$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.value.trim());guidedSave(key,data);return data;
   }
   function guidedPrompt(key,data){
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
@@ -182,13 +182,13 @@
   function renderGuidedAgentTabs(items,selected){
     const root=$m('#guidedAgentTabs');if(!root)return;
     root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b></button>').join('');
-    $m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
+    $$m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
   }
   function renderGuidedOtherCards(items,selected){
     const root=$m('#guidedOtherCards');if(!root)return;
     const list=items.filter(x=>x.key!==selected?.key).slice(0,5);
     root.innerHTML=list.map(a=>{const cfg=guidedConfig(a.key);const labels=(cfg.fields||[]).slice(0,3).map(f=>f.label.toLowerCase()).join(', ');return '<button type="button" data-guided-other="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(labels)+'</small><i>›</i></button>'}).join('');
-    $m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
+    $$m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
   }
   async function refreshGuidedCatalog(){
     const row=$m('#guidedCatalogRow'),txt=$m('#guidedCatalogText');if(!row||row.style.display==='none'||!txt)return;
@@ -209,7 +209,7 @@
     if(consent)consent.style.display=cfg.consent?'flex':'none';
     if(cat)cat.style.display=cfg.catalog?'flex':'none';
     if(summary){const connected=guidedConnectedLabels(chosen.key);summary.innerHTML='<b>Estado</b><span>'+(chosen.ready?'🟢 Agente listo':'🟠 Falta una conexión')+'</span>'+(connected.length?'<small>Conectado: '+escM(connected.join(' · '))+'</small>':'<small>Puede trabajar con IA. Las conexiones añaden datos reales cuando están disponibles.</small>')}
-    $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead(chosen.key)));
+    $$m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead(chosen.key)));
     if(chosen.key==='prospecting'){
       const email=$m('[data-guided-field="email"]');if(email&&!email.value){const e=(runtimeConnections||[]).find(x=>(x.module||x.key)==='email');if(e)email.value=e.label||''}
       refreshGuidedCatalog();
