@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.24",
+  "version": "0.6.25",
   "private": true,
-  "description": "VentaNexIA Desktop SecureCore Master · AI Prospecting",
+  "description": "VentaNexIA Desktop SecureCore Master · Simplified Agent Workspace",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
