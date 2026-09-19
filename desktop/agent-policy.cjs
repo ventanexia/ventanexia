@@ -4,15 +4,15 @@ const AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
   {key:'email',icon:'✉️',name:'Email y bandeja',entitlement:'email',requires:'email'},
   {key:'whatsapp',icon:'💬',name:'WhatsApp',entitlement:'whatsapp',requires:'whatsapp'},
-  {key:'prospecting',icon:'🎯',name:'Captación y prospección',entitlement:'buscador',requires:null},
-  {key:'crm',icon:'🤝',name:'Ventas y CRM',entitlement:'crm',requires:null},
+  {key:'prospecting',icon:'🎯',name:'Buscar clientes',entitlement:'buscador',requires:null},
+  {key:'crm',icon:'🤝',name:'Ventas y clientes',entitlement:'crm',requires:null},
   {key:'customer_service',icon:'🎧',name:'Atención al cliente',entitlement:'atencion',requires:null},
-  {key:'quotes',icon:'🧾',name:'Presupuestos y propuestas',entitlement:'presupuestos',requires:null},
-  {key:'social',icon:'📣',name:'Marketing y visibilidad',entitlement:'redes',requires:null},
-  {key:'web_ecommerce',icon:'🌐',name:'Web & Ecommerce',entitlement:'web_ecommerce',requires:'web'},
+  {key:'quotes',icon:'🧾',name:'Presupuestos y ofertas',entitlement:'presupuestos',requires:null},
+  {key:'social',icon:'📣',name:'Redes y publicidad',entitlement:'redes',requires:null},
+  {key:'web_ecommerce',icon:'🌐',name:'Web y tienda',entitlement:'web_ecommerce',requires:'web'},
   {key:'administration',icon:'🗂️',name:'Administración y agenda',entitlement:'administracion',requires:null},
-  {key:'reports',icon:'📊',name:'Informes y análisis',entitlement:'informes',requires:null},
-  {key:'automation',icon:'⚙️',name:'Automatizaciones',entitlement:'automatizacion',requires:null}
+  {key:'reports',icon:'📊',name:'Informes y resultados',entitlement:'informes',requires:null},
+  {key:'automation',icon:'⚙️',name:'Tareas automáticas',entitlement:'automatizacion',requires:null}
 ];
 
 function cleanPlan(plan=''){return String(plan||'').trim().toLowerCase()}
