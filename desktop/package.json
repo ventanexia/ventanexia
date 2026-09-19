@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.48",
+  "version": "0.6.49",
   "private": true,
-  "description": "VentaNexIA Desktop · Pedidos incluido en todos los planes con límites por volumen · 0.6.48",
+  "description": "VentaNexIA Desktop · Corrección real de Marcar leído en Gmail · 0.6.49",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
