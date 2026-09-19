@@ -2,7 +2,7 @@ const {EDITION}=require('./edition.generated.cjs');
 
 const AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
-  {key:'prospecting',icon:'🎯',name:'Captación y búsqueda de clientes',entitlement:'buscador',requires:'prospecting'},
+  {key:'prospecting',icon:'🎯',name:'Captación y búsqueda de clientes',entitlement:'buscador',requires:null},
   {key:'whatsapp',icon:'💬',name:'WhatsApp Business',entitlement:'whatsapp',requires:'whatsapp'},
   {key:'email',icon:'📧',name:'Email',entitlement:'email',requires:'email'},
   {key:'agenda',icon:'📅',name:'Agenda y seguimiento',entitlement:'agenda',requires:null},
