@@ -198,6 +198,10 @@ assert.match(renderer,/email-action-btn/,'El chat debe mostrar botones de acció
 assert.match(renderer,/Vas a cambiar de agente/,'Cambiar de agente debe pedir confirmación si hay un trabajo en curso');
 assert.match(renderer,/masterMessages=\[\]/,'Cambiar de agente debe limpiar la conversación actual tras confirmar');
 assert.match(renderer,/activeAgentValue/,'Debe poder volver al agente anterior si el usuario cancela el cambio');
+assert.match(renderer,/agent:email:'\+x\.accountIndex/,'Cada cuenta Email debe tener un valor distinto en el selector');
+assert.match(renderer,/accountLabel/,'El selector debe mostrar la cuenta Email concreta');
+assert.match(renderer,/accountIndex:Number\.isInteger\(item\.accountIndex\)/,'El scope del agente Email debe enviar la cuenta seleccionada');
+assert.match(master,/Number\.isInteger\(scope\?\.accountIndex\)\?\[allIntegrations\[scope\.accountIndex\]\]/,'El backend debe limitar el Agente Email a la cuenta elegida');
 assert.match(html,/DIME QUÉ NECESITAS/,'La zona de chat debe llamarse Dime qué necesitas');
 assert.doesNotMatch(html,/HABLA CON TU EQUIPO/,'No debe quedar el nombre anterior en la cabecera del chat');
 assert.match(renderer,/window\.vnx\.emailAction/,'Los botones deben ejecutar la acción elegida por el cliente');
