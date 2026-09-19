@@ -476,6 +476,22 @@ async function oauthStatusOnce(payload={}){
   const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),tokenObtainedAt:Date.now(),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
   await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;return fresh});
   await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
+  if(module==='whatsapp'){
+    try{
+      await postJson(CLOUD+'/api/whatsapp-channel',{
+        action:'register',
+        customerId:s.secret?.customerId||'',
+        activationCode:s.secret?.activationCode||'',
+        deviceKey:s.secret?.deviceKey||'',
+        phoneNumberId:verified.meta?.phoneNumberId||entry.accountId||'',
+        wabaId:result.wabaId||'',
+        displayPhone:verified.meta?.displayPhone||'',
+        verifiedName:verified.meta?.verifiedName||verified.label||'',
+        token
+      });
+      await audit('integration.whatsapp_runtime','Webhook runtime registrado · costes Meta a cargo del cliente');
+    }catch(e){await audit('integration.whatsapp_runtime_error',String(e?.message||e).slice(0,180));}
+  }
   return done({status:'connected',module,provider,label:verified.label,mode:'write',meta:verified.meta||{}});
 }
 
@@ -504,6 +520,18 @@ ipcMain.handle('integration:disconnect',async(_e,module)=>{
   if(key==='email'){if(s.secret?.integrations?.email)delete s.secret.integrations.email;s.secret.emailAccounts=[];}
   else if(s.secret?.integrations?.[key])delete s.secret.integrations[key];
   await writeState(s);await audit('integration.disconnected',key);return true;
+});
+
+ipcMain.handle('whatsapp:runtime',async(_e,payload={})=>{
+  const s=await readState();
+  if(!s.secret?.customerId||!s.secret?.activationCode||!s.secret?.deviceKey)throw new Error('Activa primero la licencia de VentaNexIA');
+  const action=clean(payload.action||'status',40);
+  return postJson(CLOUD+'/api/whatsapp-channel',{
+    ...payload,action,
+    customerId:s.secret.customerId,
+    activationCode:s.secret.activationCode,
+    deviceKey:s.secret.deviceKey
+  });
 });
 
 ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
