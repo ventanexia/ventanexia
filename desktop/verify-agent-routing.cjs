@@ -131,7 +131,7 @@ assert.equal(isAgentIncluded(clientLicense,'social','customer'),false);
 assert.equal(isAgentIncluded(clientLicense,'crm','customer'),false);
 assert.equal(AGENT_CATALOG.length,12,'El selector debe mostrar exactamente 10 agentes claros');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='email'),true,'Email debe tener su agente especialista');
-assert.equal(AGENT_CATALOG.some(a=>a.key==='whatsapp'),false,'WhatsApp debe ser una conexión, no un agente');
+assert.equal(AGENT_CATALOG.some(a=>a.key==='whatsapp'),true,'WhatsApp debe tener su agente especialista');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='voice'),false,'Voz debe ser una conexión/capacidad, no un agente');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='agenda'),false,'Agenda debe estar integrada en Administración');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='seo'),false,'SEO debe estar integrado en Marketing y visibilidad');
