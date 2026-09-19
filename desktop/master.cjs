@@ -203,6 +203,7 @@ async function authoritativeAgentCatalog(){
   });
 }
 ipcMain.handle('agent:catalog',async()=>authoritativeAgentCatalog());
+ipcMain.handle('prospecting:catalog-status',async()=>prospecting?.catalogStatus?prospecting.catalogStatus():{found:false,name:null});
 
 ipcMain.handle('portal:list',async()=>listPortals());
 ipcMain.handle('portal:save',async(_e,payload)=>savePortal(payload));
