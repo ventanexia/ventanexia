@@ -115,16 +115,22 @@
       steps:['Datos','Propuesta','Revisión']
     },
     orders:{
-      subtitle:'Recoge pedidos del correo o de páginas privadas, da de alta clientes nuevos cuando sea necesario y los prepara para tu programa de gestión.',
+      subtitle:'Recoge pedidos del correo o de páginas privadas, da de alta clientes nuevos cuando sea necesario, comprueba stock y coordina automáticamente con Compras y el cliente.',
       primary:'📦 Revisar pedidos',
       fields:[
         {key:'source',label:'¿DE DÓNDE LLEGAN?',type:'select',options:['Email','Página privada / ERP web','Email y página privada']},
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Preparar pedidos para introducir','Revisar pedidos con errores','Comprobar cliente y referencias','Dar de alta un cliente nuevo','Preparar alta en el sistema','Otra gestión']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Preparar pedidos para introducir','Revisar pedidos con errores','Comprobar cliente y referencias','Comprobar stock','Dar de alta un cliente nuevo','Consultar plazo a Compras','Preparar alta en el sistema','Otra gestión']},
         {key:'system',label:'PROGRAMA DONDE SE INTRODUCEN',type:'text',wide:true,placeholder:'Ej. Dynamics, Business Central, SAP, Sage, Odoo, Holded...'},
         {key:'mode',label:'FORMA DE TRABAJO',type:'select',options:['Solo preparar','Pedirme permiso antes de crear','Automático solo si todo coincide']},
         {key:'newCustomer',label:'SI EL CLIENTE NO EXISTE',type:'select',options:['Pedirme permiso antes de solicitar datos','Solicitar automáticamente los datos que falten por email','No hacer el alta automáticamente']},
         {key:'requiredCustomerData',label:'DATOS NECESARIOS PARA DAR DE ALTA AL CLIENTE',type:'textarea',wide:true,placeholder:'Ej. razón social, CIF/NIF, dirección fiscal, dirección de entrega, persona de contacto, teléfono y email'},
-        {key:'rules',label:'REGLAS / COMPROBACIONES',type:'textarea',wide:true,placeholder:'Ej. comprobar cliente, referencia, cantidades, dirección y no crear nada si falta algún dato'}
+        {key:'stockMode',label:'SI EL CLIENTE YA EXISTE',type:'select',options:['Comprobar stock automáticamente','Pedirme permiso antes de comprobar stock','No comprobar stock automáticamente']},
+        {key:'stockAvailable',label:'SI HAY STOCK',type:'select',options:['Enviar email automático confirmando disponibilidad','Preparar email y pedirme permiso','No enviar respuesta automática']},
+        {key:'stockLeadTime',label:'PLAZO A INDICAR CUANDO HAY STOCK',type:'text',placeholder:'Ej. 3 días laborables'},
+        {key:'purchasingEmail',label:'EMAIL DE COMPRAS',type:'text',wide:true,placeholder:'Ej. compras@empresa.com'},
+        {key:'noStockAction',label:'SI NO HAY STOCK',type:'select',options:['Consultar automáticamente a Compras','Preparar consulta a Compras y pedirme permiso','Dejar el pedido pendiente']},
+        {key:'customerNoStock',label:'CUANDO COMPRAS RESPONDA',type:'select',options:['Informar automáticamente al cliente y pedir confirmación','Preparar respuesta y pedirme permiso','Solo actualizar el pedido']},
+        {key:'rules',label:'REGLAS / COMPROBACIONES',type:'textarea',wide:true,placeholder:'Ej. comprobar cliente, referencia, cantidades, dirección, stock y no crear nada si falta algún dato'}
       ],
       capabilities:[
         'Detectar pedidos recibidos por email',
@@ -134,11 +140,16 @@
         'Detectar exactamente qué datos faltan para dar de alta a un cliente nuevo',
         'Solicitar al cliente por email únicamente los datos que falten',
         'Reconocer la respuesta del cliente y completar el alta',
-        'Continuar con el mismo pedido después del alta',
+        'Comprobar stock real antes de confirmar el pedido',
+        'Si hay stock, informar al cliente con el plazo configurado por tu empresa',
+        'Si no hay stock, consultar automáticamente a Compras por las referencias y cantidades que faltan',
+        'Reconocer la respuesta de Compras y extraer el plazo de entrega',
+        'Informar al cliente del plazo indicado por Compras y pedir su confirmación',
+        'Continuar con el pedido cuando el cliente confirme',
         'Preparar el envío al programa de gestión',
-        'No inventar clientes, referencias, cantidades ni datos fiscales'
+        'No inventar clientes, referencias, cantidades, stock, plazos ni datos fiscales'
       ],
-      steps:['Recibir','Comprobar cliente','Pedir datos si faltan','Dar de alta','Introducir pedido']
+      steps:['Recibir','Comprobar cliente','Comprobar stock','Consultar Compras si falta stock','Informar al cliente','Confirmar','Introducir pedido']
     },
     social:{
       subtitle:'Crea campañas, contenido y mejoras de visibilidad para tu negocio.',
@@ -250,7 +261,7 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. Si el cliente no existe, comprueba qué datos necesita el sistema para el alta. Si faltan datos y está elegido el modo automático, prepara la solicitud por email solo con los datos que falten y deja el pedido pendiente de alta. Cuando llegue la respuesta, relaciona esa respuesta con el pedido original, completa el alta del cliente y después continúa con la creación del pedido. Nunca inventes datos fiscales, clientes, referencias, cantidades ni direcciones. Si la conexión del programa no permite crear realmente el cliente o el pedido, indícalo claramente y no afirmes que se ha creado.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. Si el cliente no existe, comprueba qué datos necesita el sistema para el alta. Si faltan datos y está elegido el modo automático, solicita por email únicamente los datos que falten y deja el pedido pendiente de alta. Cuando llegue la respuesta, relaciónala con el pedido original, completa el alta y continúa. Si el cliente ya existe, comprueba el stock real de cada referencia. Si hay stock y está permitido el envío automático, informa al cliente de que hay disponibilidad e indica exactamente el plazo configurado por su empresa, por ejemplo 3 días laborables. Si no hay stock suficiente, no inventes un plazo: envía o prepara un email a Compras indicando cliente, pedido, referencias y cantidades sin stock y solicita fecha o plazo de entrega. Cuando llegue la respuesta de Compras, relaciónala con el pedido original, extrae el plazo comunicado y prepara o envía al cliente un email informando de ese plazo y pidiendo su confirmación. Solo continúa con el pedido cuando la confirmación requerida exista. Nunca inventes datos fiscales, clientes, referencias, cantidades, stock, plazos ni direcciones. Si una conexión real no permite leer stock, enviar email, crear cliente o crear pedido, indícalo claramente y no afirmes que se ha ejecutado.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
@@ -291,7 +302,7 @@
       crm:'seguimiento y cierre',
       customer_service:'responder dudas e incidencias',
       quotes:'crear presupuestos y ofertas',
-      orders:'recibir pedidos, dar de alta clientes y pasarlos al sistema',
+      orders:'recibir pedidos, comprobar stock y coordinar con Compras',
       social:'redes y campañas',
       web_ecommerce:'pedidos, productos y tienda',
       administration:'tareas, agenda y gestión',
