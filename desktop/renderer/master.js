@@ -17,6 +17,247 @@
     reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
     automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos automatizar'
   };
+  const GUIDED_AGENT_FORMS={
+    core_ai:{
+      subtitle:'Analiza, redacta y resuelve tareas de negocio con ayuda de IA.',
+      primary:'✨ Pedir ayuda a VentaNexIA',
+      fields:[
+        {key:'goal',label:'¿QUÉ NECESITAS?',type:'textarea',wide:true,placeholder:'Ej. analiza este problema, prepara una propuesta o resume esta información',required:true},
+        {key:'context',label:'CONTEXTO',type:'textarea',wide:true,placeholder:'Añade los datos importantes que deba tener en cuenta'},
+        {key:'result',label:'¿CÓMO QUIERES EL RESULTADO?',type:'text',wide:true,placeholder:'Ej. breve y ejecutivo, paso a paso, tabla, propuesta comercial'}
+      ],
+      capabilities:['Analizar información','Redactar documentos y propuestas','Resumir y organizar ideas','Ayudarte a tomar decisiones con los datos disponibles'],
+      steps:['Pedir','Revisar','Ajustar']
+    },
+    prospecting:{
+      subtitle:'Encuentra nuevas oportunidades de negocio y llega a más clientes.',
+      primary:'✨ Buscar oportunidades reales',
+      consent:true,catalog:true,
+      fields:[
+        {key:'company',label:'EMPRESA',type:'text',placeholder:'Nombre de tu empresa',required:true},
+        {key:'email',label:'EMAIL DE ENVÍO',type:'email',placeholder:'tu@email.com'},
+        {key:'offer',label:'¿QUÉ VENDES?',type:'text',wide:true,placeholder:'Ej. portasueros, camillas eléctricas, software de gestión',required:true},
+        {key:'buyer',label:'¿QUIÉN PODRÍA COMPRARLO?',type:'text',placeholder:'Ej. clínicas privadas, hospitales, residencias',required:true},
+        {key:'zone',label:'¿DÓNDE?',type:'text',placeholder:'Ej. Barcelona, Cataluña, toda España',required:true},
+        {key:'condition',label:'¿QUIERES AÑADIR ALGUNA CONDICIÓN?',type:'textarea',wide:true,placeholder:'Opcional. Ej. que sean empresas privadas, con varias sedes o de un sector concreto'},
+        {key:'count',label:'NÚMERO DE EMPRESAS',type:'number',placeholder:'10',value:'10'},
+        {key:'signature',label:'FIRMA COMERCIAL',type:'text',placeholder:'Ej. Javier'},
+        {key:'web',label:'WEB',type:'text',wide:true,placeholder:'Ej. mobiliariosanitario.com'}
+      ],
+      capabilities:['Buscar empresas reales con datos públicos','Localizar web, teléfono y email corporativo cuando estén publicados','Ordenar resultados por encaje comercial','Preparar emails personalizados','Adjuntar catálogo autorizado automáticamente','Hacer seguimiento evitando duplicados'],
+      steps:['Buscar','Preparar emails','Enviar','Seguimiento']
+    },
+    crm:{
+      subtitle:'Organiza oportunidades comerciales y decide a quién hacer seguimiento.',
+      primary:'✨ Preparar plan comercial',
+      fields:[
+        {key:'goal',label:'¿QUÉ QUIERES CONSEGUIR?',type:'text',wide:true,placeholder:'Ej. priorizar oportunidades, recuperar clientes o preparar seguimientos',required:true},
+        {key:'segment',label:'CLIENTES / SEGMENTO',type:'text',placeholder:'Ej. clínicas privadas, clientes sin compra 90 días'},
+        {key:'stage',label:'ETAPA',type:'text',placeholder:'Ej. oportunidad abierta, propuesta enviada'},
+        {key:'context',label:'DATOS O CONTEXTO',type:'textarea',wide:true,placeholder:'Añade nombres, importes, notas o criterios importantes'}
+      ],
+      capabilities:['Priorizar oportunidades','Preparar seguimientos comerciales','Usar el CRM conectado cuando exista','Proponer próximos pasos sin inventar datos'],
+      steps:['Analizar','Priorizar','Seguimiento']
+    },
+    customer_service:{
+      subtitle:'Responde mejor a tus clientes y organiza incidencias y consultas.',
+      primary:'✨ Preparar respuesta',
+      fields:[
+        {key:'customer',label:'CLIENTE',type:'text',placeholder:'Nombre o empresa'},
+        {key:'channel',label:'CANAL',type:'select',options:['Email','WhatsApp','Teléfono','Web','Otro']},
+        {key:'request',label:'¿QUÉ HA PEDIDO O QUÉ PROBLEMA TIENE?',type:'textarea',wide:true,placeholder:'Describe la consulta o incidencia',required:true},
+        {key:'desired',label:'¿QUÉ RESULTADO QUIERES?',type:'textarea',wide:true,placeholder:'Ej. responder con una solución, pedir más datos, calmar una reclamación'}
+      ],
+      capabilities:['Preparar respuestas profesionales','Clasificar incidencias','Usar Email o WhatsApp conectados cuando estén disponibles','Crear guiones de llamada','Detectar cuándo debe intervenir una persona'],
+      steps:['Entender','Responder','Resolver']
+    },
+    quotes:{
+      subtitle:'Crea presupuestos y propuestas comerciales con una estructura profesional.',
+      primary:'✨ Preparar propuesta',
+      fields:[
+        {key:'client',label:'CLIENTE',type:'text',placeholder:'Nombre o empresa',required:true},
+        {key:'products',label:'PRODUCTOS / SERVICIOS',type:'textarea',wide:true,placeholder:'Ej. 5 portasueros P616 y 2 mesas Mayo M930',required:true},
+        {key:'prices',label:'PRECIOS O TARIFA',type:'textarea',wide:true,placeholder:'Añade precios si los conoces. Si faltan, VentaNexIA los marcará como pendientes.'},
+        {key:'conditions',label:'CONDICIONES',type:'text',placeholder:'Ej. portes, plazo de entrega, validez'},
+        {key:'tax',label:'IVA',type:'text',placeholder:'Ej. 21%'}
+      ],
+      capabilities:['Estructurar presupuestos','Preparar propuestas comerciales','Calcular subtotales cuando hay tarifas','Marcar claramente los precios que faltan','No inventar precios'],
+      steps:['Datos','Propuesta','Revisión']
+    },
+    social:{
+      subtitle:'Crea campañas, contenido y mejoras de visibilidad para tu negocio.',
+      primary:'✨ Crear campaña',
+      fields:[
+        {key:'channel',label:'CANAL',type:'select',options:['Instagram','Facebook','LinkedIn','X','Web / SEO','Multicanal']},
+        {key:'goal',label:'OBJETIVO',type:'text',placeholder:'Ej. conseguir leads, vender un producto, ganar visibilidad',required:true},
+        {key:'product',label:'PRODUCTO / SERVICIO',type:'text',placeholder:'Qué quieres promocionar'},
+        {key:'audience',label:'PÚBLICO',type:'text',placeholder:'Ej. clínicas, fisioterapeutas, responsables de compras'},
+        {key:'style',label:'ESTILO Y CONDICIONES',type:'textarea',wide:true,placeholder:'Ej. profesional, cercano, sin emojis, CTA final'}
+      ],
+      capabilities:['Crear publicaciones y campañas','Preparar calendarios de contenido','Mejorar títulos, descripciones y SEO','Adaptar mensajes a cada red','Usar datos reales de redes conectadas cuando existan'],
+      steps:['Objetivo','Contenido','Publicar']
+    },
+    web_ecommerce:{
+      subtitle:'Consulta y trabaja con tu web o tienda conectada.',
+      primary:'✨ Ejecutar consulta',
+      fields:[
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Consultar pedidos','Consultar facturación','Consultar clientes','Consultar productos y stock','Preparar cambios de producto','Preparar cambio de contenido','Otra tarea']},
+        {key:'target',label:'¿SOBRE QUÉ?',type:'text',placeholder:'Ej. pedidos de hoy, producto P616, página de inicio'},
+        {key:'detail',label:'DETALLE',type:'textarea',wide:true,placeholder:'Explica exactamente qué necesitas',required:true},
+        {key:'expected',label:'RESULTADO ESPERADO',type:'text',wide:true,placeholder:'Ej. una tabla, el total, una propuesta de cambio'}
+      ],
+      capabilities:['Consultar pedidos, clientes y productos','Revisar stock y precios','Usar Shopify conectado con datos reales','Preparar cambios de contenido','No aplicar cambios importantes sin permiso'],
+      steps:['Consultar','Preparar','Confirmar']
+    },
+    administration:{
+      subtitle:'Organiza tareas, documentos, agenda y seguimientos internos.',
+      primary:'✨ Organizar trabajo',
+      fields:[
+        {key:'task',label:'TAREA',type:'text',wide:true,placeholder:'Ej. organizar facturas, preparar agenda, ordenar pendientes',required:true},
+        {key:'period',label:'FECHA / PERIODO',type:'text',placeholder:'Ej. esta semana, mañana, septiembre'},
+        {key:'priority',label:'PRIORIDAD',type:'select',options:['Normal','Alta','Urgente']},
+        {key:'details',label:'DETALLES',type:'textarea',wide:true,placeholder:'Añade personas, documentos, plazos o condiciones'}
+      ],
+      capabilities:['Ordenar tareas y prioridades','Preparar agendas y seguimientos','Organizar información administrativa','Trabajar con archivos autorizados'],
+      steps:['Organizar','Priorizar','Seguimiento']
+    },
+    reports:{
+      subtitle:'Convierte tus datos en informes claros y decisiones accionables.',
+      primary:'✨ Crear informe',
+      fields:[
+        {key:'source',label:'DATOS A ANALIZAR',type:'text',wide:true,placeholder:'Ej. ventas Shopify, clientes, pedidos, archivo autorizado',required:true},
+        {key:'period',label:'PERIODO',type:'text',placeholder:'Ej. esta semana, agosto vs septiembre'},
+        {key:'question',label:'¿QUÉ QUIERES SABER?',type:'textarea',wide:true,placeholder:'Ej. qué ha cambiado, qué productos venden más, dónde estamos perdiendo margen',required:true},
+        {key:'format',label:'FORMATO',type:'select',options:['Resumen ejecutivo','Informe detallado','Tabla comparativa','Conclusiones y acciones']}
+      ],
+      capabilities:['Comparar periodos','Resumir tendencias','Preparar tablas y conclusiones','Usar únicamente cifras disponibles'],
+      steps:['Datos','Análisis','Conclusiones']
+    },
+    automation:{
+      subtitle:'Convierte tareas repetitivas en flujos claros y controlados.',
+      primary:'✨ Diseñar automatización',
+      fields:[
+        {key:'trigger',label:'¿CUÁNDO DEBE EMPEZAR?',type:'text',wide:true,placeholder:'Ej. cuando entra un pedido, llega un email o cambia un estado',required:true},
+        {key:'condition',label:'CONDICIONES',type:'textarea',wide:true,placeholder:'Ej. solo pedidos superiores a 500 €'},
+        {key:'action',label:'¿QUÉ DEBE HACER?',type:'textarea',wide:true,placeholder:'Ej. avisarme, crear una tarea, preparar un email',required:true},
+        {key:'tools',label:'HERRAMIENTAS IMPLICADAS',type:'text',wide:true,placeholder:'Ej. Shopify, Gmail, CRM'}
+      ],
+      capabilities:['Diseñar flujos paso a paso','Detectar tareas repetitivas','Definir disparadores y condiciones','Separar lo que se puede automatizar de lo que requiere aprobación'],
+      steps:['Disparador','Condiciones','Acciones']
+    }
+  };
+
+  const guidedStorageKey=key=>'vnx_guided_'+key;
+  function guidedConfig(key){return GUIDED_AGENT_FORMS[key]||GUIDED_AGENT_FORMS.core_ai}
+  function guidedSaved(key){try{return JSON.parse(localStorage.getItem(guidedStorageKey(key))||'{}')}catch{return {}}}
+  function guidedSave(key,data){try{localStorage.setItem(guidedStorageKey(key),JSON.stringify(data))}catch{}}
+  function guidedFieldHtml(field,value=''){
+    const cls=field.wide?' guided-field wide':' guided-field';
+    const req=field.required?' <em>obligatorio</em>':'';
+    if(field.type==='textarea')return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><textarea data-guided-field="'+escM(field.key)+'" rows="3" placeholder="'+escM(field.placeholder||'')+'">'+escM(value||field.value||'')+'</textarea></label>';
+    if(field.type==='select')return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><select data-guided-field="'+escM(field.key)+'">'+(field.options||[]).map(o=>'<option value="'+escM(o)+'"'+(value===o?' selected':'')+'>'+escM(o)+'</option>').join('')+'</select></label>';
+    return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><input data-guided-field="'+escM(field.key)+'" type="'+escM(field.type||'text')+'" value="'+escM(value||field.value||'')+'" placeholder="'+escM(field.placeholder||'')+'"></label>';
+  }
+  function guidedRead(key){
+    const data={};$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.value.trim());guidedSave(key,data);return data;
+  }
+  function guidedPrompt(key,data){
+    const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
+      const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
+    });
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y CRM con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web & Ecommerce',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una automatización segura y clara con estos datos'};
+    return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
+  }
+  function guidedConnectedLabels(key){
+    const matches=[];
+    const wants={prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
+    return [...new Set(matches)];
+  }
+  function selectAgentKey(key){
+    const sel=$m('#chatConnectionSelect');if(!sel)return;
+    const value='agent:'+key;
+    if([...sel.options].some(o=>o.value===value)){sel.value=value;sel.dispatchEvent(new Event('change',{bubbles:true}));}
+  }
+  function renderGuidedAgentTabs(items,selected){
+    const root=$m('#guidedAgentTabs');if(!root)return;
+    root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b></button>').join('');
+    $m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
+  }
+  function renderGuidedOtherCards(items,selected){
+    const root=$m('#guidedOtherCards');if(!root)return;
+    const list=items.filter(x=>x.key!==selected?.key).slice(0,5);
+    root.innerHTML=list.map(a=>{const cfg=guidedConfig(a.key);const labels=(cfg.fields||[]).slice(0,3).map(f=>f.label.toLowerCase()).join(', ');return '<button type="button" data-guided-other="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(labels)+'</small><i>›</i></button>'}).join('');
+    $m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
+  }
+  async function refreshGuidedCatalog(){
+    const row=$m('#guidedCatalogRow'),txt=$m('#guidedCatalogText');if(!row||row.style.display==='none'||!txt)return;
+    txt.textContent='Buscando catálogo autorizado…';
+    try{const r=await window.vnx.prospectingCatalogStatus();txt.textContent=r?.found?'Catálogo detectado: '+r.name:'No hay un PDF con “catálogo” en las carpetas autorizadas.';}
+    catch{txt.textContent='No se ha podido comprobar el catálogo.'}
+  }
+  function renderGuidedWorkspace(chosen){
+    if(!chosen)return;
+    const cfg=guidedConfig(chosen.key),saved=guidedSaved(chosen.key);
+    const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
+    if(title)title.textContent=(chosen.icon||'🤖')+' '+chosen.name;
+    if(sub)sub.textContent=cfg.subtitle||'';
+    if(host)host.innerHTML='<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
+    if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
+    if(primary){primary.textContent=cfg.primary||'✨ Empezar';primary.dataset.agentKey=chosen.key}
+    if(steps)steps.innerHTML=(cfg.steps||[]).map((x,i)=>'<div><span>'+(i+1)+'</span><b>'+escM(x)+'</b></div>').join('<i>→</i>');
+    if(consent)consent.style.display=cfg.consent?'flex':'none';
+    if(cat)cat.style.display=cfg.catalog?'flex':'none';
+    if(summary){const connected=guidedConnectedLabels(chosen.key);summary.innerHTML='<b>Estado</b><span>'+(chosen.ready?'🟢 Agente listo':'🟠 Falta una conexión')+'</span>'+(connected.length?'<small>Conectado: '+escM(connected.join(' · '))+'</small>':'<small>Puede trabajar con IA. Las conexiones añaden datos reales cuando están disponibles.</small>')}
+    $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead(chosen.key)));
+    if(chosen.key==='prospecting'){
+      const email=$m('[data-guided-field="email"]');if(email&&!email.value){const e=(runtimeConnections||[]).find(x=>(x.module||x.key)==='email');if(e)email.value=e.label||''}
+      refreshGuidedCatalog();
+    }
+    renderGuidedOtherCards(chatConnections(),chosen);
+  }
+  async function runGuided(){
+    const scope=selectedChatScope(),out=$m('#guidedResult'),btn=$m('#guidedPrimaryAction');if(!scope||!btn||!out)return;
+    const cfg=guidedConfig(scope.key),data=guidedRead(scope.key);
+    const missing=(cfg.fields||[]).filter(f=>f.required&&!String(data[f.key]||'').trim());
+    if(missing.length){out.style.display='block';out.innerHTML='<b>Falta completar:</b> '+escM(missing.map(x=>x.label).join(', '));return}
+    if(cfg.consent&&!$m('#guidedConsent')?.checked){out.style.display='block';out.textContent='Confirma primero los criterios de búsqueda.';return}
+    if(scope.included===false){out.style.display='block';out.textContent='Este agente no está incluido en tu plan.';return}
+    if(scope.connected===false){out.style.display='block';out.textContent='Este agente necesita una conexión. Configúrala en Conexiones y vuelve aquí.';return}
+    btn.disabled=true;const old=btn.textContent;btn.textContent='Trabajando…';out.style.display='block';out.innerHTML='<div class="guided-loading">VentaNexIA está trabajando con tus datos…</div>';
+    try{
+      let r;
+      if(scope.key==='prospecting'){
+        const profile=['mi empresa: '+data.company,'vendemos: '+data.offer,data.web?'web: '+data.web:'',data.signature?'firma: '+data.signature:''].filter(Boolean).join('; ');
+        await window.vnx.sendChat([{role:'user',content:profile}],scope);
+        const search='busca '+(data.count||10)+' '+data.buyer+' en '+data.zone+(data.condition?'. Condición: '+data.condition:'');
+        r=await window.vnx.sendChat([{role:'user',content:search}],scope);
+      }else{
+        const prompt=guidedPrompt(scope.key,data);
+        r=await window.vnx.sendChat([{role:'user',content:prompt}],scope);
+      }
+      out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" id="guidedContinueFree" class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
+      const cont=$m('#guidedContinueFree');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
+    }catch(e){out.textContent='No he podido completar la tarea: '+(e.message||e)}
+    finally{btn.disabled=false;btn.textContent=old}
+  }
+  function setWorkspaceMode(mode){
+    const guided=$m('#guidedModePanel'),free=$m('#freeModePanel'),gbtn=$m('#guidedModeBtn'),fbtn=$m('#freeModeBtn');
+    const isGuided=mode!=='free';
+    if(guided)guided.style.display=isGuided?'block':'none';
+    if(free)free.style.display=isGuided?'none':'block';
+    gbtn?.classList.toggle('active',isGuided);fbtn?.classList.toggle('active',!isGuided);
+    localStorage.setItem('vnx_workspace_mode',isGuided?'guided':'free');
+    if(!isGuided)setTimeout(()=>ensureChatInputEditable()?.focus(),30);
+  }
+  function setupGuidedUi(){
+    const g=$m('#guidedModeBtn'),f=$m('#freeModeBtn'),primary=$m('#guidedPrimaryAction');
+    if(g)g.onclick=()=>setWorkspaceMode('guided');
+    if(f)f.onclick=()=>setWorkspaceMode('free');
+    if(primary)primary.onclick=runGuided;
+    setWorkspaceMode(localStorage.getItem('vnx_workspace_mode')==='free'?'free':'guided');
+  }
+
   function ensureChatInputEditable(){
     const input=$m('#chatInput');if(!input)return null;
     input.disabled=false;
@@ -217,12 +458,16 @@
       const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
       updateAgentHint(chosen,hint);
       updateAgentInputExample(chosen);
-      if(nextValue&&input)setTimeout(()=>input.focus(),30);
+      renderGuidedAgentTabs(items,chosen);
+      renderGuidedWorkspace(chosen);
+      if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>input.focus(),30);
     };
     const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
     ensureChatInputEditable();
     updateAgentHint(selectedAgent,hint);
     updateAgentInputExample(selectedAgent);
+    renderGuidedAgentTabs(items,selectedAgent);
+    renderGuidedWorkspace(selectedAgent);
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -400,6 +645,7 @@
     await migrateLegacyPortals();
     setupMasterPortalUi();
     setupMasterChat();
+    setupGuidedUi();
     setupMasterCenter();
     await renderMasterPortals();
     await refreshChatConnections();
