@@ -274,7 +274,8 @@ export default async function handler(req,res){
   if(!messages.length) return res.status(400).json({error:"Conversación vacía"});
 
   const localContext=normalizeLocalContext(req.body?.localContext);
-  const isDesktop=localContext.length>0;
+  const agentRole=String(req.body?.agentRole||"").slice(0,7000);
+  const isDesktop=localContext.length>0||Boolean(req.body?.desktop)||Boolean(agentRole);
   const userMessage=lastUserMessage(messages);
   const fallback=isDesktop?desktopFallback(userMessage,localContext):fallbackReply(userMessage);
 
@@ -285,7 +286,7 @@ export default async function handler(req,res){
     .map(m=>({role:m.role,content:[{type:"input_text",text:m.content.slice(0,7000)}]}));
 
   const instructions=isDesktop
-    ? `${SYSTEM}\n${DESKTOP_RULES}\n\nDATOS LOCALES AUTORIZADOS:\n${localContextText(localContext)}`
+    ? `${SYSTEM}\n${DESKTOP_RULES}${agentRole?`\n\nROL DEL AGENTE SELECCIONADO:\n${agentRole}`:""}${localContext.length?`\n\nDATOS LOCALES AUTORIZADOS:\n${localContextText(localContext)}`:""}`
     : SYSTEM;
 
   try{
