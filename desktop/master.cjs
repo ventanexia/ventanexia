@@ -563,6 +563,21 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       const direct=emailAgentDirectReply(question,gmailOnly);
       if(direct)return {reply:direct,source:'desktop-support-email',route:'agent:customer_service'};
     }
+  }else if(scope?.type==='agent'&&scope?.key==='orders'){
+    const emailIntegrations=emailAccountsForState(s);
+    for(const integration of emailIntegrations){
+      if(integration?.provider!=='gmail')continue;
+      try{localContext.push(...await collectGmailContextMaster(integration,question))}catch{}
+    }
+    const portals=(Array.isArray(s.portals)?s.portals:[]).filter(p=>p&&p.url&&!isShopifyAdminUrl(p.url));
+    for(const p of portals.slice(0,4)){
+      try{
+        const pr=await readPortal(p,question);
+        portalContext.push(pr);
+        localContext.push(...portalAsLocalFiles([pr]));
+      }catch{}
+    }
+    if(!localContext.length)throw new Error('Conecta al menos un correo o una página privada para revisar pedidos.');
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
     if(prospecting){
       const handled=await prospecting.handleChat(question);
