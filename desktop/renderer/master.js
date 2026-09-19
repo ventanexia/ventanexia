@@ -7,6 +7,7 @@
   let runtimeAgents=[];
   const AGENT_INPUT_EXAMPLES={
     core_ai:'Ej.: analiza estos datos, resume este documento, prepara una propuesta o ayúdame a resolver este problema',
+    email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
     prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
     crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes del CRM conectado',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
@@ -28,6 +29,18 @@
       ],
       capabilities:['Analizar información','Redactar documentos y propuestas','Resumir y organizar ideas','Ayudarte a tomar decisiones con los datos disponibles'],
       steps:['Pedir','Revisar','Ajustar']
+    },
+    email:{
+      subtitle:'Lee, organiza y prepara respuestas de tu correo conectado.',
+      primary:'✉️ Revisar correo',
+      fields:[
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver los últimos correos','Ver los correos de hoy','Ver cuáles necesitan respuesta','Preparar una respuesta','Pedir datos que faltan','Crear borrador en Gmail','Archivar o marcar un correo','Otra gestión']},
+        {key:'target',label:'¿DE QUÉ CORREO?',type:'text',wide:true,placeholder:'Opcional. Ej. correo de Marta, asunto pedido 301, primer correo'},
+        {key:'instruction',label:'¿QUÉ QUIERES QUE RESPONDA O PIDA?',type:'textarea',wide:true,placeholder:'Ej. agradecer el mensaje y pedir dirección de entrega y CIF'},
+        {key:'result',label:'CÓMO QUIERES DEJARLO',type:'select',options:['Preparado para revisar','Crear borrador en Gmail','Mostrarme primero la respuesta']}
+      ],
+      capabilities:['Leer los correos de Gmail conectado','Mostrar los correos de hoy y los más recientes','Detectar cuáles necesitan respuesta','Preparar respuestas y solicitudes de datos','Crear borradores directamente en Gmail','Enviar solo cuando confirmes la acción','Archivar, marcar leído o destacar correos'],
+      steps:['Revisar','Preparar','Autorizar']
     },
     prospecting:{
       subtitle:'Encuentra nuevas oportunidades de negocio y llega a más clientes.',
@@ -162,6 +175,18 @@
     const data={};$$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.value.trim());guidedSave(key,data);return data;
   }
   function guidedPrompt(key,data){
+    if(key==='email'){
+      const task=String(data.task||'').toLowerCase(),target=String(data.target||'').trim(),instruction=String(data.instruction||'').trim(),result=String(data.result||'').trim();
+      let lead='Gestiona mi correo.';
+      if(task.includes('últimos'))lead='Dime los últimos 5 correos.';
+      else if(task.includes('hoy'))lead='Dime los correos de hoy.';
+      else if(task.includes('necesitan respuesta'))lead='Dime qué correos necesitan respuesta.';
+      else if(task.includes('preparar una respuesta'))lead='Prepara una respuesta para '+(target||'el correo que mejor coincida')+'.';
+      else if(task.includes('pedir datos'))lead='Prepara una respuesta para '+(target||'el correo que mejor coincida')+' solicitando los datos que faltan.';
+      else if(task.includes('borrador'))lead='Crea un borrador de respuesta para '+(target||'el correo que mejor coincida')+'.';
+      else if(task.includes('archivar'))lead='Muéstrame las opciones para archivar o marcar '+(target||'el correo indicado')+'.';
+      return [lead,target?'Correo o referencia: '+target:'',instruction?'Instrucciones para la respuesta: '+instruction:'',result?'Resultado deseado: '+result:''].filter(Boolean).join('\n');
+    }
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
@@ -170,9 +195,24 @@
   }
   function guidedConnectedLabels(key){
     const matches=[];
-    const wants={prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    const wants={email:['email'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
+  }
+  function agentShortFunction(key){
+    return {
+      core_ai:'ideas, textos y tareas',
+      email:'leer, responder y borradores',
+      prospecting:'buscar empresas y oportunidades',
+      crm:'seguimiento y cierre',
+      customer_service:'responder dudas e incidencias',
+      quotes:'crear presupuestos y ofertas',
+      social:'redes y campañas',
+      web_ecommerce:'pedidos, productos y tienda',
+      administration:'tareas, agenda y gestión',
+      reports:'datos y resultados',
+      automation:'ahorrar tiempo y repetir tareas'
+    }[key]||'ayuda para tu negocio';
   }
   function selectAgentKey(key){
     const sel=$m('#chatConnectionSelect');if(!sel)return;
@@ -181,13 +221,13 @@
   }
   function renderGuidedAgentTabs(items,selected){
     const root=$m('#guidedAgentTabs');if(!root)return;
-    root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b></button>').join('');
+    root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small></button>').join('');
     $$m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
   }
   function renderGuidedOtherCards(items,selected){
     const root=$m('#guidedOtherCards');if(!root)return;
     const list=items.filter(x=>x.key!==selected?.key).slice(0,5);
-    root.innerHTML=list.map(a=>{const cfg=guidedConfig(a.key);const labels=(cfg.fields||[]).slice(0,3).map(f=>f.label.toLowerCase()).join(', ');return '<button type="button" data-guided-other="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(labels)+'</small><i>›</i></button>'}).join('');
+    root.innerHTML=list.map(a=>'<button type="button" data-guided-other="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small><i>›</i></button>').join('');
     $$m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
   }
   async function refreshGuidedCatalog(){
@@ -346,6 +386,28 @@
       }
       if(scope.key==='prospecting'&&renderProspectingResults(out,r,data,scope)){
         // La captación se muestra como oportunidades visuales con datos estructurados reales.
+      }else if(scope.key==='email'&&r?.emailActions?.options?.length){
+        const meta=r.emailActions;
+        out.innerHTML='<div class="guided-result-head"><b>Email encontrado</b><button type="button" data-guided-continue-free class="mini">Abrir modo libre</button></div>'
+          +'<div class="guided-result-copy">'+escM(r?.reply||'Elige qué quieres hacer.').replace(/\n/g,'<br>')+'</div>'
+          +'<div class="guided-email-actions">'+meta.options.map(a=>'<button type="button" class="mini guided-email-action" data-email-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>'
+          +'<small class="guided-email-safety">Nada se envía sin tu confirmación. Puedes crear un borrador en Gmail y revisarlo antes.</small>';
+        out.querySelectorAll('.guided-email-action').forEach(actionBtn=>actionBtn.onclick=async()=>{
+          const action=actionBtn.dataset.emailAction;
+          let body='',cc='';
+          if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
+            const edited=await openReplyEditor({meta,action});if(!edited)return;
+            body=edited.body;cc=edited.cc||'';
+          }
+          if(['trash','send_reply','send_reply_cc'].includes(action)&&!confirm(action==='trash'?'¿Mover este correo a la papelera?':'¿Enviar esta respuesta ahora?'))return;
+          const oldLabel=actionBtn.textContent;actionBtn.disabled=true;actionBtn.textContent='Procesando…';
+          try{
+            const done=await window.vnx.emailAction({account:meta.account,messageId:meta.messageId,threadId:meta.threadId,subject:meta.subject,from:meta.from,action,body,cc});
+            const note=document.createElement('div');note.className='guided-email-done';note.textContent=done?.message||'Acción completada.';out.appendChild(note);
+          }catch(e){alert('No he podido completar la acción: '+(e.message||e))}
+          finally{actionBtn.disabled=false;actionBtn.textContent=oldLabel}
+        });
+        const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Email localizado.',emailActions:r.emailActions}];renderMasterMessages();};
       }else{
         out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
         const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
@@ -504,6 +566,7 @@
     const root=$m('#allAgentConnections');if(!root)return;
     const descriptions={
       core_ai:'Análisis, redacción y apoyo general con el motor IA.',
+      email:'Lee Gmail, detecta correos pendientes, prepara respuestas y crea borradores para autorizar.',
       prospecting:'Busca empresas reales y prepara la prospección comercial.',
       crm:'Ventas, oportunidades, seguimiento y CRM.',
       customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
