@@ -382,7 +382,7 @@
       let selected=0,filter='all',search='';
       const accountOptions=['Todas las cuentas',...accountNames];
       host.innerHTML='<div class="email-dashboard">'
-        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i-1)+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
+        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
         +'<div class="email-metric-grid" data-email-metrics></div>'
         +'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
@@ -446,12 +446,19 @@
       async function refreshAccountData(preferredMessageId=''){
         const metricsRoot=host.querySelector('[data-email-metrics]');
         const accountControl=host.querySelector('[data-email-account]');
-        const accountIndex=Number(accountControl?.value??-1);
-        const scope=accountIndex>=0?{accountIndex}:{};
+        const selectedAccount=String(accountControl?.value||'').trim();
+        const scope=selectedAccount?{account:selectedAccount}:{};
         const [inbox,metrics]=await Promise.all([
           window.vnx.emailInbox({limit:30,...scope}),
           window.vnx.emailMetrics(scope)
         ]);
+        const backendErrors=[...(inbox?.errors||[]),...(metrics?.errors||[])].filter(Boolean);
+        if(backendErrors.length&&!Array.isArray(inbox?.messages)?.length){
+          list.innerHTML='<div class="email-no-results">No he podido leer esta cuenta.<br><small>'+escM(backendErrors[0])+'</small></div>';
+          detail.innerHTML='';
+          if(metricsRoot)metricsRoot.innerHTML='<article><span class="metric-ico amber">!</span><b>—</b><strong>Cuenta</strong><small>Revisa la conexión de Gmail</small></article>';
+          return;
+        }
         messages=Array.isArray(inbox?.messages)?inbox.messages:[];
         const keepIndex=preferredMessageId?messages.findIndex(x=>x.id===preferredMessageId):-1;
         selected=keepIndex>=0?keepIndex:0;
