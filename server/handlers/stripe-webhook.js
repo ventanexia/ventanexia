@@ -84,10 +84,12 @@ async function claimWebhookEvent(event){if(!event?.id)return{claimed:true};try{a
 async function finishWebhookEvent(event,status,lastError=null){if(!event?.id)return;await sbFetch(`vnx_webhook_events?provider=eq.stripe&event_id=eq.${encodeURIComponent(event.id)}`,{method:"PATCH",body:JSON.stringify({status,last_error:lastError,processed_at:status==="processed"?new Date().toISOString():null})}).catch(()=>{})}
 function featurePolicyFromMeta(meta={}){
   const split=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
+  const included=new Set(split(meta.included));if(String(meta.orders_included||'')==='pedidos')included.add('pedidos');
   return {
-    purchased_included:split(meta.included),
+    purchased_included:[...included],
     purchased_extras:split(meta.extras),
-    extra_agents:Math.max(0,Number(meta.extra_agents||0)||0)
+    extra_agents:Math.max(0,Number(meta.extra_agents||0)||0),
+    order_monthly_limit:Math.max(0,Number(meta.order_monthly_limit||0)||0)
   };
 }
 const CREDIT_PACKS={
