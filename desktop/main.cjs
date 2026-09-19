@@ -509,8 +509,7 @@ ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
   const s=await readState();
   if(!isMaster(s.license))throw new Error('La conexión directa de tienda propia requiere la edición Maestro');
   assertModuleIncluded(s.license,'shopify');
-  const shop=normalizeShopifyShop(payload.shop);
-  if(!shop)throw new Error('Indica la tienda .myshopify.com');
+  const shop=await resolveShopifyShop(payload.shop);
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero la licencia de VentaNexIA');
   const result=await postJson(CLOUD+'/api/shopify-own-connect',{shop,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()},20000);
   const token=String(result.accessToken||result.access_token||'').trim();
@@ -530,10 +529,10 @@ ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
   const policyState=await readState();assertModuleIncluded(policyState.license,'shopify');
-  const shop=normalizeShopifyShop(payload.shop);
+  const shop=await resolveShopifyShop(payload.shop);
   const token=String(payload.token||'').trim();
   const mode=payload.mode==='write'?'write':'read';
-  if(!shop||!token)throw new Error('Indica la tienda .myshopify.com y el token de Admin API');
+  if(!token)throw new Error('Indica el token de Admin API');
   const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
   const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
   const s=await readState();s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
