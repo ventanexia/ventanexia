@@ -45,15 +45,15 @@
       steps:['Revisar','Preparar','Autorizar']
     },
     whatsapp:{
-      subtitle:'Atiende conversaciones de WhatsApp Business con el nivel de control que elijas.',
+      subtitle:'Prepara respuestas para WhatsApp. Puedes usar tu WhatsApp normal o conectar WhatsApp para empresa.',
       primary:'💬 Preparar gestión de WhatsApp',
       fields:[
-        {key:'mode',label:'MODO DE RESPUESTA',type:'select',options:['Con autorización: enseñarme el texto antes de enviar','Automático: responder solo siguiendo las reglas que hayas aprobado']},
+        {key:'mode',label:'MODO DE RESPUESTA',type:'select',options:['WhatsApp normal: enséñame la respuesta y yo la envío','WhatsApp para empresa: con autorización antes de enviar','WhatsApp para empresa: responder automáticamente según mis reglas']},
         {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver mensajes pendientes de autorización','Preparar respuesta a un cliente','Solicitar datos que faltan','Responder una consulta frecuente','Preparar seguimiento','Escalar a una persona','Otra gestión']},
         {key:'customer',label:'CLIENTE / TELÉFONO',type:'text',placeholder:'Ej. Marta o +34 600 000 000'},
         {key:'context',label:'MENSAJE O CONTEXTO',type:'textarea',wide:true,placeholder:'Pega aquí el mensaje recibido o explica qué necesita el cliente',required:true},
         {key:'instruction',label:'QUÉ DEBE CONSEGUIR LA RESPUESTA',type:'textarea',wide:true,placeholder:'Ej. pedir CIF y dirección de entrega, confirmar horario, resolver una duda'},
-        {key:'billingAck',label:'Entiendo que los posibles cargos de Meta/WhatsApp se pagan desde la cuenta de WhatsApp Business de mi empresa. VentaNexIA no los incluye ni los absorbe.',type:'checkbox',wide:true}
+        {key:'billingAck',label:'Si conecto WhatsApp para empresa, entiendo que los posibles cargos de Meta se pagan desde la cuenta de mi empresa y no están incluidos en VentaNexIA.',type:'checkbox',wide:true}
       ],
       capabilities:['Preparar respuestas claras y profesionales','Solicitar al cliente los datos que falten','Mostrar el texto antes de enviar en modo autorización','Responder automáticamente solo cuando el webhook esté activo y las reglas lo permitan','Escalar casos sensibles o fuera de las reglas a una persona','Uso del agente sin límite propio: los posibles cargos de Meta los paga la cuenta del cliente'],
       steps:['Entender','Preparar','Autorizar / responder']
@@ -191,6 +191,9 @@
   function guidedRead(key){
     const data={};$$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.type==='checkbox'?el.checked:el.value.trim());guidedSave(key,data);return data;
   }
+  function whatsappManualModeEnabled(){
+    try{const x=JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')?.whatsapp;return x?.provider==='whatsapp_personal'&&x?.status==='manual_ready'}catch{return false}
+  }
   function guidedPrompt(key,data){
     if(key==='email'){
       const task=String(data.task||'').toLowerCase(),target=String(data.target||'').trim(),instruction=String(data.instruction||'').trim(),result=String(data.result||'').trim();
@@ -206,10 +209,10 @@
     }
     if(key==='whatsapp'){
       const mode=String(data.mode||''),task=String(data.task||''),customer=String(data.customer||'').trim(),context=String(data.context||'').trim(),instruction=String(data.instruction||'').trim();
-      const automatic=/^Automático/i.test(mode);
+      const manual=/^WhatsApp normal/i.test(mode);const automatic=/responder automáticamente/i.test(mode);
       return [
         'Prepara una gestión de WhatsApp Business.',
-        'Modo: '+(automatic?'Automático solicitado. Solo puede ejecutarse si la recepción en tiempo real está activa y la respuesta entra dentro de reglas autorizadas. Si no, debe quedar pendiente de autorización.':'Con autorización. Debes mostrar el texto antes de cualquier envío.'),
+        'Modo: '+(manual?'WhatsApp normal. Prepara el texto y muéstralo; no envíes nada automáticamente.':automatic?'WhatsApp para empresa en automático. Solo ejecuta si la conexión está activa y las reglas autorizadas lo permiten.':'WhatsApp para empresa con autorización. Muestra el texto antes de enviar.'),
         task?'Tarea: '+task:'',
         customer?'Cliente: '+customer:'',
         context?'Mensaje o contexto: '+context:'',
@@ -572,9 +575,12 @@
     try{
       let r;
       if(scope.key==='whatsapp'){
-        const automatic=String(data.mode||'').startsWith('Automático');
-        if(automatic&&!data.billingAck)throw new Error('Confirma primero que los posibles cargos de Meta corresponden a la cuenta de WhatsApp Business del cliente.');
-        await window.vnx.whatsappRuntime({action:'set_mode',mode:automatic?'automatic':'approval',billingAcknowledged:Boolean(data.billingAck)});
+        const manual=String(data.mode||'').startsWith('WhatsApp normal')||whatsappManualModeEnabled();
+        const automatic=String(data.mode||'').includes('responder automáticamente');
+        if(!manual){
+          if(automatic&&!data.billingAck)throw new Error('Confirma primero que los posibles cargos de Meta corresponden a la cuenta de WhatsApp para empresa del cliente.');
+          await window.vnx.whatsappRuntime({action:'set_mode',mode:automatic?'automatic':'approval',billingAcknowledged:Boolean(data.billingAck)});
+        }
         if(String(data.task||'').toLowerCase().includes('pendientes')){
           r=await window.vnx.whatsappRuntime({action:'pending'});
           renderWhatsAppPending(out,r?.drafts||[]);
