@@ -51,6 +51,9 @@ export default async function handler(req,res){
           code:"SHOPIFY_SHOP_NOT_PERMITTED"
         });
       }
+      if(r.status===404){
+        return res.status(404).json({error:"Shopify no reconoce esa tienda. Revisa el dominio interno o escribe el dominio público de tu web desde VentaNexIA.",code:"SHOPIFY_SHOP_NOT_FOUND"});
+      }
       return res.status(502).json({error:description||"Shopify no ha entregado un token de acceso.",code:"SHOPIFY_TOKEN_FAILED"});
     }
 
