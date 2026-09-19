@@ -115,12 +115,74 @@
     </section>
 
     <section class="tab" id="chat">
-      <div class="card chatcard">
-        <div class="eyebrow">TRABAJAR CON VENTANEXIA</div>
-        <div class="panel-head"><div><h2>¿Qué quieres conseguir?</h2><p class="chat-subtitle">Elige un especialista y escríbele como se lo pedirías a una persona de tu equipo.</p></div><button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button></div>
-        <div class="agent-picker" id="chatScopeBar"><label><span class="agent-picker-label">Especialista</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label><small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small></div>
-        <div id="messages" class="messages"><div class="msg ai">Elige un especialista arriba y dime qué necesitas. Usaré únicamente las herramientas y datos que tengas autorizados.</div></div>
-        <form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Cuéntame qué necesitas. Ej.: revisa los correos pendientes, dime los pedidos de hoy o prepara una publicación para Instagram"></textarea><div class="row" style="justify-content:space-between;align-items:center"><button class="btn outline" id="chatClearBtn" type="button">Limpiar conversación</button><button class="btn primary">Enviar</button></div></form>
+      <div class="guided-shell">
+        <div class="guided-page-head">
+          <div>
+            <div class="eyebrow">TRABAJAR CON VENTANEXIA</div>
+            <h2>¿Qué necesitas hacer?</h2>
+            <p>Elige un especialista. VentaNexIA te guía paso a paso para que no tengas que saber qué escribir.</p>
+          </div>
+          <button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button>
+        </div>
+
+        <div id="guidedAgentTabs" class="guided-agent-tabs"></div>
+
+        <div class="guided-layout">
+          <div class="guided-main-card">
+            <div class="guided-card-head">
+              <div>
+                <div id="guidedAgentTitle" class="guided-agent-title">🎯 Captación y prospección</div>
+                <div id="guidedAgentSubtitle" class="guided-agent-subtitle">Encuentra nuevas oportunidades de negocio y llega a más clientes.</div>
+              </div>
+              <div class="mode-switch">
+                <button id="guidedModeBtn" type="button" class="active">Modo guiado</button>
+                <button id="freeModeBtn" type="button">Modo libre</button>
+              </div>
+            </div>
+
+            <div id="guidedModePanel">
+              <div id="guidedFormHost"></div>
+              <div id="guidedCatalogRow" class="guided-file-row" style="display:none">
+                <div><span class="guided-file-icon">PDF</span><span id="guidedCatalogText">Buscando catálogo autorizado…</span></div>
+                <button class="btn outline" type="button" data-tab-jump="files">Cambiar archivo</button>
+              </div>
+              <label id="guidedConsentRow" class="guided-consent" style="display:none">
+                <input id="guidedConsent" type="checkbox">
+                <span>Confirmo los criterios de búsqueda y que utilizaré los datos obtenidos conforme a la normativa aplicable.</span>
+              </label>
+              <button id="guidedPrimaryAction" class="btn guided-primary" type="button">✨ Empezar</button>
+              <div id="guidedSteps" class="guided-steps"></div>
+              <div id="guidedResult" class="guided-result" style="display:none"></div>
+            </div>
+
+            <div id="freeModePanel" style="display:none">
+              <div class="agent-picker" id="chatScopeBar">
+                <label><span class="agent-picker-label">Especialista</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label>
+                <small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small>
+              </div>
+              <div id="messages" class="messages"><div class="msg ai">Elige un especialista arriba y dime qué necesitas. Usaré únicamente las herramientas y datos que tengas autorizados.</div></div>
+              <form id="chatForm">
+                <textarea id="chatInput" rows="4" placeholder="Cuéntame qué necesitas"></textarea>
+                <div class="row" style="justify-content:space-between;align-items:center">
+                  <button class="btn outline" id="chatClearBtn" type="button">Limpiar conversación</button>
+                  <button class="btn primary">Enviar</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <aside class="guided-help-card">
+            <div class="guided-help-title">💡 Qué puede hacer este agente</div>
+            <p id="guidedHelpIntro">La IA te guía durante todo el proceso.</p>
+            <div id="guidedCapabilities" class="guided-capabilities"></div>
+            <div id="guidedConnectionSummary" class="guided-connection-summary"></div>
+          </aside>
+        </div>
+
+        <div class="guided-other-agents">
+          <div class="guided-other-head"><div><b>Plantillas guiadas para otros agentes</b><small>Todos los agentes tienen su propio formulario sencillo.</small></div><span>Cambia de agente en cualquier momento.</span></div>
+          <div id="guidedOtherCards" class="guided-other-grid"></div>
+        </div>
       </div>
     </section>
 
