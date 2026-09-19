@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.38",
+  "version": "0.6.39",
   "private": true,
-  "description": "VentaNexIA Desktop · Plain Language UI · Live Connections · Multi-account Email · 0.6.38",
+  "description": "VentaNexIA Desktop · Personal or Business WhatsApp Modes · Plain Language UI · 0.6.39",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
