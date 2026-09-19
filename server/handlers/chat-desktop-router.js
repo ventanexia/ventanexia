@@ -91,7 +91,7 @@ function emailFallback(req){
     return `He consultado el correo seleccionado. Has recibido ${Number(totalMatch)} correo(s)${when} en la bandeja de entrada.`;
   }
 
-  if(/requieren respuesta|requiere respuesta|pendientes? de responder|tengo que responder|debo responder|necesitan respuesta/.test(q)){
+  if(/requieren respuesta|requiere respuesta|pendientes? de responder|pendientes? de contestar|tengo que responder|debo responder|necesito responder|que correos responder|que emails responder|que correos contestar|que emails contestar|cuales responder|cuales contestar|necesitan respuesta/.test(q)){
     const replyScore=(m)=>{
       const t=norm([m.from,m.subject,m.snippet,m.status].join(" "));
       let s=0;
@@ -106,7 +106,7 @@ function emailFallback(req){
     const pending=emails.map(m=>({m,score:replyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
     if(!pending.length)return "He revisado los correos visibles y no encuentro ninguno que parezca requerir una respuesta clara.";
     const lines=pending.slice(0,10).map((x,i)=>`${i+1}. ${x.m.subject} — ${x.m.from||"remitente no disponible"}${x.m.date?` — ${x.m.date}`:""}${x.m.status?` — ${x.m.status}`:""}\n   ${x.m.snippet||"Sin vista previa disponible."}`);
-    return `He revisado los correos visibles. Hay ${pending.length} que parecen requerir respuesta:\n\n${lines.join("\n\n")}`;
+    return `He revisado los correos. ${pending.length===1?"Solo encuentro 1 que requiera respuesta:":"Encuentro "+pending.length+" que requieren respuesta:"}\n\n${lines.join("\n\n")}\n\nLos avisos automáticos, códigos de acceso y newsletters se han excluido de esta cola.`;
   }
 
   if(/redacta|prepara|escribe|respuesta amable|responder al primer correo|responde al primer correo/.test(q)){
