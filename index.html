@@ -64,6 +64,30 @@ body{background:radial-gradient(circle at 78% 0,#163f73 0,#071d33 34%,#031523 72
 .home-v632-content{display:grid;grid-template-columns:1.55fr .8fr;gap:10px;margin-top:12px}.home-v632-agents{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.v632-agent{min-height:82px;border:1px solid #185a80;border-radius:10px;padding:8px 5px;text-align:center;background:#06223a;display:flex;flex-direction:column;align-items:center;justify-content:center}.v632-agent.selected{border-color:#22d7ff;box-shadow:0 0 0 1px #22d7ff44,0 0 22px #0dcfff1c}.v632-agent.whatsapp{border-color:#1b8a5a}.v632-agent i{font-style:normal;font-size:17px}.v632-agent b{font-size:7px;line-height:1.15;margin-top:3px}.v632-agent span{font-size:5.5px;color:#9fbfd2;line-height:1.25;margin-top:3px}
 .home-v632-detail{border:1px solid #176a97;border-radius:12px;background:#06243c;padding:11px}.home-v632-detail-title{display:flex;align-items:center;gap:7px}.home-v632-detail-title>i{font-style:normal;font-size:19px}.home-v632-detail-title b{font-size:10px}.home-v632-detail-title span{display:block;font-size:5px;color:#44ddff;margin-top:2px}.home-v632-detail p{font-size:7px;line-height:1.4;color:#bbd1df}.home-v632-detail ul{margin:8px 0 10px;padding-left:13px}.home-v632-detail li{font-size:6px;line-height:1.8;color:#d7edf7}.home-v632-detail button{width:100%;border:0;border-radius:8px;padding:8px 5px;background:linear-gradient(90deg,#19c9f7,#8436ff);color:#fff;font-size:7px;font-weight:900}
 @media(max-width:960px){.home-v632-window{transform:none}.home-v632-content{grid-template-columns:1fr}.home-v632-detail{display:none}.home-v632-agents{grid-template-columns:repeat(4,1fr)}}
+/* Mobile fix: software preview fits viewport */
+@media(max-width:600px){
+.home-hero{padding:38px 0 30px}
+.home-hero-grid{gap:26px}
+.home-product-shot{width:100%;min-width:0;perspective:none;overflow:hidden}
+.home-v632-window{width:100%;min-width:0;min-height:0;grid-template-columns:74px minmax(0,1fr);border-radius:16px;transform:none}
+.home-v632-side{min-width:0;padding:10px 6px;gap:3px}
+.home-v632-brand{gap:4px;margin-bottom:5px}
+.home-v632-brand>span{width:24px;height:24px;border-radius:7px;font-size:8px;flex:0 0 24px}
+.home-v632-brand b{font-size:7px}.home-v632-brand small{font-size:5px}
+.home-v632-side>div:not(.home-v632-brand){min-width:0;padding:5px 4px;font-size:5.5px;line-height:1.15;white-space:normal}
+.home-v632-side>div span{margin-left:1px}.home-v632-protect{font-size:5px}
+.home-v632-main{min-width:0;padding:10px 8px}
+.home-v632-top{gap:6px}.home-v632-top>div{min-width:0}
+.home-v632-top small{font-size:5px;letter-spacing:.08em}
+.home-v632-top h3{font-size:15px;line-height:1.05;margin:3px 0 2px}
+.home-v632-top p{font-size:6px;line-height:1.25}.home-v632-top>b{display:none}
+.home-v632-content{min-width:0;grid-template-columns:1fr;gap:7px;margin-top:9px}
+.home-v632-agents{min-width:0;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.v632-agent{min-width:0;min-height:74px;padding:7px 4px}
+.v632-agent i{font-size:15px}.v632-agent b{font-size:6.5px;line-height:1.05;overflow-wrap:anywhere}
+.v632-agent span{font-size:5px;line-height:1.15;overflow-wrap:anywhere}
+.home-v632-detail{display:none}
+}
 </style></head><body>
 <header class="top home-top"><div class="wrap nav"><a class="brand home-brand" href="#inicio" aria-label="VentaNexIA - Inicio"><span class="brand-logo" aria-hidden="true"></span><span>VentaNexIA</span></a><nav class="links home-links"><a href="#que-hace">Qué hace</a><a href="#resuelve">Cómo te ayuda</a><a href="/demos-funciones.html">Demos</a><a href="/planes.html">Precios</a><a href="#confianza">Seguridad</a></nav><div class="home-nav-actions"><a class="home-login" href="/app">Entrar</a><a class="btn primary small" href="/planes.html">Ver planes →</a></div></div></header>
 <main id="inicio"><section class="hero home-hero"><div class="wrap home-hero-grid">
