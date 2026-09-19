@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.54",
+  "version": "0.6.55",
   "private": true,
-  "description": "VentaNexIA Desktop · Documento A4 más grande y legible · 0.6.54",
+  "description": "VentaNexIA Desktop · Resultados visuales con Markdown y tablas formateadas · 0.6.55",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
