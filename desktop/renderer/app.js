@@ -83,7 +83,7 @@ function renderState(){
   $$('.revoke').forEach(b=>b.onclick=async()=>{await window.vnx.revokeFolder(b.dataset.folder);await refresh()});
   $('#activityList').innerHTML=(state.activity||[]).length?state.activity.map(a=>`<div class="listrow"><div><b>${esc(a.type)}</b><span>${esc(a.detail)}</span></div><small>${new Date(a.at).toLocaleString('es-ES')}</small></div>`).join(''):'<div class="empty">Todavía no hay actividad.</div>';
 }
-async function refresh(){state=await window.vnx.getState();renderState()}
+async function refresh(){state=await window.vnx.getState();renderState();if(typeof renderConnectionSummaries==='function')await renderConnectionSummaries()}
 setTimeout(()=>ensureEditableControls(document),500);
 
 function getPortals(){
@@ -147,7 +147,7 @@ function setupServiceConnectionWizard(){
   if(provider)provider.onchange=updateEmailProviderFields;
   if(account)account.addEventListener('input',()=>{if(genericUser&&genericBox?.style.display!=='none'&&!genericUser.value)genericUser.value=account.value.trim()});
   function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
-  cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null;currentAddAnother=false};
+  cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null;currentAddAnother=false;renderConnectionSummaries()};
   prepare.onclick=async()=>{
     if(!activeKey)return;
     prepare.disabled=true;prepare.textContent='Abriendo la página para conectar…';
@@ -169,7 +169,7 @@ function setupServiceConnectionWizard(){
         localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
         if(activeButton)activeButton.textContent='🟢 Email · '+(result.label||account.value.trim());
         notice.innerHTML='<b>🟢 Correo conectado correctamente.</b> Entrada y salida han sido comprobadas.';
-        await refreshChatConnections();
+        await refreshChatConnections();await renderConnectionSummaries();
         prepare.disabled=false;prepare.textContent='Conectar ahora';
         return;
       }
@@ -338,6 +338,75 @@ async function enforcePurchasedFeatures(){
     }
   });
 }
+function connectionProviderLabel(provider=''){
+  return {
+    gmail:'Gmail / Google Workspace',
+    microsoft_365:'Outlook / Microsoft 365',
+    yahoo_mail:'Yahoo Mail',
+    icloud_mail:'iCloud Mail',
+    generic_imap:'Correo de empresa',
+    whatsapp_business:'WhatsApp Business',
+    instagram:'Instagram',
+    facebook:'Facebook',
+    linkedin:'LinkedIn',
+    x_twitter:'X / Twitter',
+    hubspot:'HubSpot'
+  }[provider]||String(provider||'').replace(/_/g,' ');
+}
+function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conectada.'){
+  if(!items.length)return '<div class="connection-empty"><i></i><span>'+esc(emptyText)+'</span></div>';
+  return '<div class="connection-count">🟢 '+items.length+' '+(items.length===1?'conexión activa':'conexiones activas')+'</div>'
+    +'<div class="connection-account-list">'
+    +items.map(x=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(x.label||'Conectado')+'</b><small>'+esc(connectionProviderLabel(x.provider||x.module))+'</small></div></div>').join('')
+    +'</div>';
+}
+async function renderConnectionSummaries(){
+  let connections=[];try{connections=await window.vnx.listConnections()||[]}catch{}
+  const byModule=module=>connections.filter(x=>(x.module||'')===module);
+  const email=byModule('email'),wa=byModule('whatsapp'),social=byModule('social'),crm=byModule('crm');
+  const set=(key,html)=>{const el=$('[data-connection-summary="'+key+'"]');if(el)el.innerHTML=html};
+
+  set('email',connectionSummaryHtml(email,'No hay ninguna cuenta de correo conectada.'));
+  set('social',connectionSummaryHtml(social,'No hay ninguna red social conectada.'));
+  set('crm',connectionSummaryHtml(crm,'No hay ningún CRM conectado.'));
+
+  if(wa.length){
+    let extra='';
+    try{
+      const st=await window.vnx.whatsappRuntime({action:'status'});
+      const ch=st?.channel||{};
+      extra='<div class="connection-detail-grid">'
+        +(ch.displayPhone?'<span><b>Número</b>'+esc(ch.displayPhone)+'</span>':'')
+        +(ch.verifiedName?'<span><b>Empresa</b>'+esc(ch.verifiedName)+'</span>':'')
+        +'<span><b>Modo</b>'+(ch.replyMode==='automatic'?'Automático':'Con autorización')+'</span>'
+        +'<span><b>Webhook</b>'+(ch.webhookReady?'Activo':'Pendiente')+'</span>'
+        +'</div>';
+    }catch{}
+    set('whatsapp',connectionSummaryHtml(wa,'No hay WhatsApp conectado.')+extra);
+  }else set('whatsapp',connectionSummaryHtml([],'No hay ningún WhatsApp Business conectado.'));
+
+  const folders=state?.permissions?.folders||[];
+  set('local',folders.length
+    ?'<div class="connection-count">🟢 '+folders.length+' '+(folders.length===1?'carpeta autorizada':'carpetas autorizadas')+'</div><div class="connection-account-list">'+folders.map(f=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(String(f).split(/[\\/]/).pop()||f)+'</b><small>'+esc(f)+'</small></div></div>').join('')+'</div>'
+    :'<div class="connection-empty"><i></i><span>No hay carpetas autorizadas.</span></div>');
+
+  let portals=[];try{portals=await window.vnx.listPortals()||[]}catch{}
+  set('portal',portals.length
+    ?'<div class="connection-count">🟢 '+portals.length+' '+(portals.length===1?'portal conectado':'portales conectados')+'</div><div class="connection-account-list">'+portals.map(p=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(p.name||'Portal')+'</b><small>'+esc(p.url||'')+' · '+(p.lastStatus==='connected'?'Conectado':'Revisar conexión')+'</small></div></div>').join('')+'</div>'
+    :'<div class="connection-empty"><i></i><span>No hay portales privados conectados.</span></div>');
+
+  try{
+    const shop=await window.vnx.shopifyStatus();
+    const target=$('[data-connection-summary="shopify"]');
+    if(target){
+      target.innerHTML=shop?.status==='connected'
+        ?'<div class="connection-count">🟢 Shopify conectado</div><div class="connection-account-list"><div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(shop.shopName||shop.label||shop.shop||'Tienda Shopify')+'</b><small>'+esc(shop.shop||'')+'</small></div></div></div>'
+        :'<div class="connection-empty"><i></i><span>Shopify no está conectado.</span></div>';
+    }
+  }catch{}
+}
+window.vnxRefreshConnectionSummaries=renderConnectionSummaries;
+
 function setupRealModuleMode(){
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
   const saved=getRealModuleSources();
@@ -413,6 +482,7 @@ async function init(){
   }
   await safeUi('estado local',()=>refresh());
   await safeUi('fuentes del chat',()=>refreshChatConnections());
+  await safeUi('resumen de conexiones',()=>renderConnectionSummaries());
   await safeUi('permisos del plan',async()=>enforcePurchasedFeatures());
   if(sys) safeUi('actualizaciones',()=>checkForUpdates(sys.version));
   if((Boolean(state.license?.master||state.license?.unlimited)||String(state.license?.edition||'').toLowerCase()==='master'||String(state.license?.plan||'').toLowerCase()==='master'))safeUi('activaciones pendientes',()=>refreshProvisioningTasks());
