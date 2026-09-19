@@ -5,6 +5,7 @@
   let masterMessages=[];
   let runtimeConnections=[];
   let runtimeAgents=[];
+  let agentMetrics={};
   const AGENT_INPUT_EXAMPLES={
     core_ai:'Ej.: analiza estos datos, resume este documento, prepara una propuesta o ayúdame a resolver este problema',
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
@@ -228,6 +229,29 @@
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
+  function agentMetricHtml(key){
+    const m=agentMetrics[key];if(!m||!m.connected)return '';
+    return '<div class="agent-live-metrics">'
+      +'<span title="Recibidos hoy"><i>'+Number(m.received||0)+'</i><em>recibidos</em></span>'
+      +'<span title="'+(key==='email'?'Respondidos/enviados hoy':'Respondidos hoy')+'"><i>'+Number(m.responded||0)+'</i><em>respondidos</em></span>'
+      +'<span class="'+(Number(m.pending||0)>0?'has-pending':'')+'" title="Pendientes"><i>'+Number(m.pending||0)+'</i><em>pendientes</em></span>'
+      +'</div>';
+  }
+  async function refreshAgentMetrics(){
+    const next={};
+    const emailAgent=(runtimeAgents||[]).find(x=>x.key==='email');
+    const waAgent=(runtimeAgents||[]).find(x=>x.key==='whatsapp');
+    const jobs=[];
+    if(emailAgent?.connected||emailAgent?.ready)jobs.push(
+      window.vnx.emailMetrics().then(x=>{next.email=x||{}}).catch(()=>{next.email={connected:false}})
+    );
+    if(waAgent?.connected||waAgent?.ready)jobs.push(
+      window.vnx.whatsappRuntime({action:'metrics'}).then(x=>{next.whatsapp=x||{}}).catch(()=>{next.whatsapp={connected:false}})
+    );
+    await Promise.all(jobs);
+    agentMetrics=next;
+    return next;
+  }
   function agentShortFunction(key){
     return {
       core_ai:'ideas, textos y tareas',
@@ -251,13 +275,13 @@
   }
   function renderGuidedAgentTabs(items,selected){
     const root=$m('#guidedAgentTabs');if(!root)return;
-    root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small></button>').join('');
+    root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'</button>').join('');
     $$m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
   }
   function renderGuidedOtherCards(items,selected){
     const root=$m('#guidedOtherCards');if(!root)return;
     const list=items.filter(x=>x.key!==selected?.key).slice(0,5);
-    root.innerHTML=list.map(a=>'<button type="button" data-guided-other="'+escM(a.key)+'"><span>'+escM(a.icon||'🤖')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small><i>›</i></button>').join('');
+    root.innerHTML=list.map(a=>'<button type="button" data-guided-other="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'<i>›</i></button>').join('');
     $$m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
   }
   async function refreshGuidedCatalog(){
@@ -301,8 +325,8 @@
       +'<small class="guided-email-safety">En modo autorización nunca se envía nada hasta que pulses “Enviar esta respuesta”. Los cargos externos de Meta corresponden a la cuenta del cliente.</small>';
     out.querySelectorAll('[data-wa-draft]').forEach(card=>{
       const id=card.dataset.waDraft,approve=card.querySelector('[data-wa-approve]'),reject=card.querySelector('[data-wa-reject]'),ta=card.querySelector('[data-wa-text]');
-      if(approve)approve.onclick=async()=>{if(!confirm('¿Enviar esta respuesta por WhatsApp?'))return;approve.disabled=true;try{const rr=await window.vnx.whatsappRuntime({action:'approve',draftId:id,text:ta?.value||''});card.innerHTML='<div class="guided-email-done">'+escM(rr?.message||'Respuesta enviada.')+'</div>'}catch(e){alert(e.message||e)}finally{approve.disabled=false}};
-      if(reject)reject.onclick=async()=>{if(!confirm('¿Descartar esta respuesta preparada?'))return;reject.disabled=true;try{await window.vnx.whatsappRuntime({action:'reject',draftId:id});card.remove()}catch(e){alert(e.message||e)}finally{reject.disabled=false}};
+      if(approve)approve.onclick=async()=>{if(!confirm('¿Enviar esta respuesta por WhatsApp?'))return;approve.disabled=true;try{const rr=await window.vnx.whatsappRuntime({action:'approve',draftId:id,text:ta?.value||''});card.innerHTML='<div class="guided-email-done">'+escM(rr?.message||'Respuesta enviada.')+'</div>';await refreshChatConnections()}catch(e){alert(e.message||e)}finally{approve.disabled=false}};
+      if(reject)reject.onclick=async()=>{if(!confirm('¿Descartar esta respuesta preparada?'))return;reject.disabled=true;try{await window.vnx.whatsappRuntime({action:'reject',draftId:id});card.remove();await refreshChatConnections()}catch(e){alert(e.message||e)}finally{reject.disabled=false}};
     });
   }
   function prospectingPublicUrl(lead={}){
@@ -462,7 +486,7 @@
           const oldLabel=actionBtn.textContent;actionBtn.disabled=true;actionBtn.textContent='Procesando…';
           try{
             const done=await window.vnx.emailAction({account:meta.account,messageId:meta.messageId,threadId:meta.threadId,subject:meta.subject,from:meta.from,action,body,cc});
-            const note=document.createElement('div');note.className='guided-email-done';note.textContent=done?.message||'Acción completada.';out.appendChild(note);
+            const note=document.createElement('div');note.className='guided-email-done';note.textContent=done?.message||'Acción completada.';out.appendChild(note);await refreshChatConnections();
           }catch(e){alert('No he podido completar la acción: '+(e.message||e))}
           finally{actionBtn.disabled=false;actionBtn.textContent=oldLabel}
         });
@@ -667,6 +691,7 @@
   async function refreshChatConnections(){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
     await refreshRuntimeConnections();
+    await refreshAgentMetrics();
     const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
     sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(agentDisplayName(x)+' — '+agentStatusText(x))+'</option>').join('');
     const values=[...sel.options].map(o=>o.value);
