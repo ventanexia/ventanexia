@@ -33,7 +33,7 @@ function parseGmailContext(localContext=[]){
     const blocks=[...text.matchAll(/Correo\s+\d+[\s\S]*?(?=\n\s*\nCorreo\s+\d+|$)/gi)].map(m=>m[0].trim());
     for(const block of blocks){
       const get=(label)=>String((block.match(new RegExp('(?:^|\\n)(?:'+label+')\\s*:\\s*(.*)','i'))||[])[1]||'').trim();
-      mails.push({account,from:get('De|From'),subject:get('Asunto|Subject')||'(sin asunto)',date:get('Fecha|Date'),status:get('Estado|Status'),snippet:get('Vista previa|Snippet|Resumen')});
+      mails.push({account,id:get('ID|Message ID'),threadId:get('Hilo|Thread ID'),from:get('De|From'),subject:get('Asunto|Subject')||'(sin asunto)',date:get('Fecha|Date'),status:get('Estado|Status'),snippet:get('Vista previa|Snippet|Resumen')});
     }
   }
   return {path:files.map(f=>f.path).join(' + '),total,mails,accounts:files.length};
