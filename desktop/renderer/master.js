@@ -655,6 +655,97 @@
     return true;
   }
 
+  function documentFieldKey(label=''){
+    return String(label||'').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,80)||'campo';
+  }
+  function documentFieldsFromText(text=''){
+    const found=[],seen=new Set();
+    const rx=/\[([^\]\n]{2,80})\]/g;let match;
+    while((match=rx.exec(String(text||'')))!==null){
+      const label=String(match[1]||'').trim();
+      if(!label||/^https?:\/\//i.test(label))continue;
+      const key=documentFieldKey(label);
+      if(seen.has(key))continue;
+      seen.add(key);found.push({key,label,token:match[0]});
+      if(found.length>=40)break;
+    }
+    return found;
+  }
+  function fillDocumentText(source='',values={}){
+    let out=String(source||'');
+    for(const field of documentFieldsFromText(source)){
+      const value=String(values[field.key]||'').trim();
+      if(!value)continue;
+      out=out.split(field.token).join(value);
+    }
+    return out;
+  }
+  function markdownInline(text=''){
+    let s=escM(String(text||''));
+    s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    s=s.replace(/__([^_]+)__/g,'<strong>$1</strong>');
+    s=s.replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+    return s;
+  }
+  function documentHtmlFromMarkdown(text=''){
+    const lines=String(text||'').replace(/\r/g,'').split('\n');
+    const out=[];let listOpen=false;
+    const closeList=()=>{if(listOpen){out.push('</ul>');listOpen=false}};
+    for(const raw of lines){
+      const line=String(raw||'').trimEnd();
+      if(!line.trim()){closeList();continue}
+      const h=line.match(/^(#{1,4})\s+(.+)$/);
+      if(h){closeList();const level=Math.min(4,h[1].length);out.push('<h'+level+'>'+markdownInline(h[2])+'</h'+level+'>');continue}
+      const bullet=line.match(/^\s*[-*]\s+(.+)$/);
+      if(bullet){if(!listOpen){out.push('<ul>');listOpen=true}out.push('<li>'+markdownInline(bullet[1])+'</li>');continue}
+      const numbered=line.match(/^\s*\d+[.)]\s+(.+)$/);
+      if(numbered){if(!listOpen){out.push('<ul>');listOpen=true}out.push('<li>'+markdownInline(numbered[1])+'</li>');continue}
+      closeList();
+      if(/^---+$/.test(line.trim())){out.push('<hr>');continue}
+      out.push('<p>'+markdownInline(line)+'</p>');
+    }
+    closeList();
+    return out.join('');
+  }
+  function downloadDocumentWord(title,text){
+    const safeTitle=String(title||'Documento VentaNexIA').replace(/[<>:"/\\|?*]+/g,' ').trim()||'Documento VentaNexIA';
+    const html='<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;line-height:1.55;color:#111;padding:36px}h1,h2,h3{color:#10263b}p{margin:0 0 10px}li{margin:4px 0}</style></head><body>'+documentHtmlFromMarkdown(text)+'</body></html>';
+    const blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=safeTitle+'.doc';document.body.appendChild(a);a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1200);
+  }
+  function printDocumentPdf(text){
+    const frame=document.createElement('iframe');
+    frame.style.position='fixed';frame.style.right='0';frame.style.bottom='0';frame.style.width='1px';frame.style.height='1px';frame.style.opacity='0';frame.style.pointerEvents='none';
+    document.body.appendChild(frame);
+    const doc=frame.contentDocument;
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Documento VentaNexIA</title><style>@page{margin:18mm}body{font-family:Arial,sans-serif;line-height:1.55;color:#111;font-size:12pt}h1{font-size:22pt}h2{font-size:17pt}h3{font-size:14pt}p{margin:0 0 9pt}li{margin:3pt 0}hr{border:0;border-top:1px solid #bbb}</style></head><body>'+documentHtmlFromMarkdown(text)+'</body></html>');
+    doc.close();
+    setTimeout(()=>{try{frame.contentWindow.focus();frame.contentWindow.print()}finally{setTimeout(()=>frame.remove(),1200)}},250);
+  }
+  function renderAiDocumentResult(out,reply=''){
+    const source=String(reply||'Sin respuesta');
+    const fields=documentFieldsFromText(source);
+    const values={};
+    const fieldsHtml=fields.length
+      ?'<aside class="vnx-doc-fields"><div class="vnx-doc-fields-head"><b>✍️ Rellena el documento</b><span>'+fields.length+' campo'+(fields.length===1?'':'s')+'</span></div><p>Completa los datos y el documento de la izquierda se actualizará al momento.</p><div class="vnx-doc-fields-list">'+fields.map(f=>'<label><span>'+escM(f.label)+'</span><input type="text" data-doc-field="'+escM(f.key)+'" placeholder="'+escM(f.label)+'"></label>').join('')+'</div></aside>'
+      :'<aside class="vnx-doc-fields empty"><b>✓ Documento preparado</b><p>No he detectado campos pendientes de rellenar.</p></aside>';
+    out.innerHTML='<div class="guided-result-head vnx-doc-toolbar"><div><b>Documento preparado</b><small>Vista limpia · puedes completarlo antes de guardarlo</small></div><div class="vnx-doc-actions"><button type="button" class="mini" data-doc-copy>Copiar</button><button type="button" class="mini" data-doc-word>Guardar en Word</button><button type="button" class="mini" data-doc-pdf>Imprimir / PDF</button><button type="button" data-guided-continue-free class="mini">Modo libre</button></div></div>'
+      +'<div class="vnx-doc-workspace"><section class="vnx-doc-preview"><div class="vnx-doc-paper" data-doc-preview>'+documentHtmlFromMarkdown(source)+'</div></section>'+fieldsHtml+'</div>';
+    const preview=out.querySelector('[data-doc-preview]');
+    const currentText=()=>fillDocumentText(source,values);
+    const refresh=()=>{if(preview)preview.innerHTML=documentHtmlFromMarkdown(currentText())};
+    out.querySelectorAll('[data-doc-field]').forEach(input=>input.addEventListener('input',()=>{values[input.dataset.docField]=input.value;refresh()}));
+    const copy=out.querySelector('[data-doc-copy]');
+    if(copy)copy.onclick=async()=>{try{await navigator.clipboard.writeText(currentText());const old=copy.textContent;copy.textContent='Copiado ✓';setTimeout(()=>copy.textContent=old,1200)}catch{copy.textContent='No se pudo copiar'}};
+    const word=out.querySelector('[data-doc-word]');
+    if(word)word.onclick=()=>downloadDocumentWord('Documento VentaNexIA',currentText());
+    const pdf=out.querySelector('[data-doc-pdf]');
+    if(pdf)pdf.onclick=()=>printDocumentPdf(currentText());
+  }
   async function runGuided(){
     const scope=selectedChatScope(),out=$m('#guidedResult'),btn=$m('#guidedPrimaryAction');if(!scope||!btn||!out)return;
     const cfg=guidedConfig(scope.key),data=guidedRead(scope.key);
@@ -712,6 +803,9 @@
           finally{actionBtn.disabled=false;actionBtn.textContent=oldLabel}
         });
         const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Email localizado.',emailActions:r.emailActions}];renderMasterMessages();};
+      }else if(scope.key==='core_ai'){
+        renderAiDocumentResult(out,r?.reply||'Sin respuesta');
+        const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
       }else{
         out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy">'+escM(r?.reply||'Sin respuesta').replace(/\n/g,'<br>')+'</div>';
         const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
