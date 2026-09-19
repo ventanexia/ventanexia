@@ -525,7 +525,7 @@ ipcMain.handle('integration:disconnect',async(_e,module)=>{
 ipcMain.handle('whatsapp:runtime',async(_e,payload={})=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode||!s.secret?.deviceKey)throw new Error('Activa primero la licencia de VentaNexIA');
-  const action=clean(payload.action||'status',40);
+  const action=String(payload.action||'status').trim().slice(0,40);
   return postJson(CLOUD+'/api/whatsapp-channel',{
     ...payload,action,
     customerId:s.secret.customerId,
