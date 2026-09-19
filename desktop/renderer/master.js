@@ -237,6 +237,34 @@
     renderMasterCenterSources();
   }
 
+  function openReplyEditor({meta,action}){
+    return new Promise(resolve=>{
+      const okLabel=action==='draft_reply'?'Crear borrador':action==='send_reply_cc'?'Enviar con copia':'Enviar respuesta';
+      const subj=/^re:/i.test(meta.subject||'')?(meta.subject||''):'Re: '+(meta.subject||'');
+      const overlay=document.createElement('div');
+      overlay.id='vnxReplyOverlay';
+      overlay.style.cssText='position:fixed;inset:0;background:rgba(2,11,19,.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+      overlay.innerHTML='<div style="width:min(720px,96vw);max-height:92vh;overflow:auto;background:#061c31;border:1px solid #2eb7ef;border-radius:16px;padding:20px;color:#fff">'
+        +'<h3 style="margin:0 0 6px">'+escM(okLabel)+'</h3>'
+        +'<div style="opacity:.8;font-size:13px;margin-bottom:12px">Para: '+escM(meta.from||'')+'<br>Asunto: '+escM(subj)+'</div>'
+        +(action==='send_reply_cc'?'<label style="display:block;font-size:12px;margin-bottom:10px">Copia (CC)<input id="vnxReplyCc" type="email" style="width:100%;margin-top:4px;padding:10px;border-radius:8px;border:1px solid #286b93;background:#031522;color:#fff"></label>':'')
+        +'<label style="display:block;font-size:12px">Texto de la respuesta<textarea id="vnxReplyBody" rows="10" style="width:100%;margin-top:4px;padding:10px;border-radius:8px;border:1px solid #286b93;background:#031522;color:#fff;font:inherit"></textarea></label>'
+        +(meta.attachment?'<div style="margin-top:10px;font-size:13px">📎 Se adjuntará: <b>'+escM(meta.attachment.name)+'</b></div>':'')
+        +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px"><button type="button" id="vnxReplyCancel" class="mini">Cancelar</button><button type="button" id="vnxReplyOk" class="mini" style="background:#1d7dff;border-color:#1d7dff">'+escM(okLabel)+'</button></div></div>';
+      document.body.appendChild(overlay);
+      const ta=overlay.querySelector('#vnxReplyBody');ta.value=meta.defaultBody||'';ta.focus();
+      const close=v=>{overlay.remove();resolve(v)};
+      overlay.querySelector('#vnxReplyCancel').onclick=()=>close(null);
+      overlay.onclick=e=>{if(e.target===overlay)close(null)};
+      overlay.querySelector('#vnxReplyOk').onclick=()=>{
+        const body=ta.value.trim();if(!body){ta.focus();return}
+        let cc='';const ccEl=overlay.querySelector('#vnxReplyCc');
+        if(ccEl){cc=ccEl.value.trim();if(!cc){ccEl.focus();return}}
+        close({body,cc});
+      };
+    });
+  }
+
   function renderMasterMessages(){
     const root=$m('#messages');if(!root)return;
     const intro='<div class="msg ai">Estoy listo para ayudarte. Elige arriba el agente de VentaNexIA con el que quieres trabajar. El agente utilizará únicamente las conexiones que tengas autorizadas.</div>';
@@ -251,12 +279,9 @@
       const destructive=action==='trash'||action==='send_reply'||action==='send_reply_cc';
       let body='',cc='';
       if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
-        body=prompt('Texto de la respuesta:',meta.defaultBody||'')||'';
-        if(!body.trim())return;
-      }
-      if(action==='send_reply_cc'){
-        cc=prompt('Dirección de email para poner en copia:','')||'';
-        if(!cc.trim())return;
+        const edited=await openReplyEditor({meta,action});
+        if(!edited)return;
+        body=edited.body;cc=edited.cc||'';
       }
       if(destructive&&!confirm(action==='trash'?'¿Mover este correo a la papelera?':'¿Enviar esta respuesta ahora?'))return;
       const label=meta.options.find(x=>x.key===action)?.label||action;
