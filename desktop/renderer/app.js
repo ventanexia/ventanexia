@@ -20,9 +20,35 @@ async function checkForUpdates(currentVersion){
     panel.style.display='block';
   }catch{}
 }
+function ensureEditableControls(root=document){
+  const scope=root||document;
+  scope.querySelectorAll('input,textarea,select').forEach(el=>{
+    if(el.dataset?.vnxLocked==='1')return;
+    if(el instanceof HTMLInputElement||el instanceof HTMLTextAreaElement){
+      el.readOnly=false;
+      el.style.userSelect='text';
+      el.style.webkitUserSelect='text';
+    }
+    el.disabled=false;
+    el.style.pointerEvents='auto';
+    el.style.webkitAppRegion='no-drag';
+  });
+}
+document.addEventListener('pointerdown',e=>{
+  const el=e.target?.closest?.('input,textarea');
+  if(!el||el.disabled||el.readOnly)return;
+  setTimeout(()=>{try{el.focus({preventScroll:true})}catch{el.focus()}},0);
+},true);
+
 function openTab(name){
-  $$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
-  $$('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
+  $('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+  $('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
+  const active=document.getElementById(name);
+  ensureEditableControls(active||document);
+  if(name==='chat'){
+    const input=$('#chatInput');
+    if(input)setTimeout(()=>input.focus(),40);
+  }
 }
 function bindTabs(){
   $$('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
@@ -57,6 +83,7 @@ function renderState(){
   $('#activityList').innerHTML=(state.activity||[]).length?state.activity.map(a=>`<div class="listrow"><div><b>${esc(a.type)}</b><span>${esc(a.detail)}</span></div><small>${new Date(a.at).toLocaleString('es-ES')}</small></div>`).join(''):'<div class="empty">Todavía no hay actividad.</div>';
 }
 async function refresh(){state=await window.vnx.getState();renderState()}
+setTimeout(()=>ensureEditableControls(document),500);
 
 function getPortals(){
   try{return JSON.parse(localStorage.getItem('vnx_portals')||'[]')}catch{return []}
