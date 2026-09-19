@@ -1,5 +1,7 @@
 import {db} from "../../lib/entitlement.js";
 import {requestSignals,recordTrialAttempt} from "../../lib/trial-abuse.js";
+import {authenticateDesktop,checkScopeAllowed,consumeMeter} from "../../lib/desktop-license.js";
+import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
 
 function clean(value,max=220){return String(value||"").trim().replace(/\s+/g," ").slice(0,max)}
 function emailOk(v){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v||"").trim())}
@@ -48,6 +50,7 @@ async function fetchJson(url,options={},timeout=18000){const c=new AbortControll
 async function geocodeZone(zone){const q=encodeURIComponent(`${zone}, España`);const data=await fetchJson(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=es&q=${q}`,{headers:{"user-agent":"VentaNexIA/1.0 (ventas@ventanexia.es)","accept-language":"es"}},10000);const x=Array.isArray(data)?data[0]:null;if(!x?.boundingbox)return null;return{south:Number(x.boundingbox[0]),north:Number(x.boundingbox[1]),west:Number(x.boundingbox[2]),east:Number(x.boundingbox[3]),lat:Number(x.lat),long:Number(x.lon)}}
 function osmAddress(t,zone){const line=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ");return [line,t["addr:postcode"],t["addr:city"]||t["addr:town"]||zone].filter(Boolean).join(", ")}
 function osmActivity(t,clientType){return t.amenity||t.shop||t.office||t.tourism||t.leisure||clientType}
+function requestedCount(input){return Math.max(1,Math.min(20,Number(input?.count||3)))}
 async function callOverpass(input){
   const filter=categoryFilter(input.clientType,input.sells);if(!filter)return null;
   const box=await geocodeZone(input.zone);if(!box)return null;
@@ -55,24 +58,95 @@ async function callOverpass(input){
   const q=`[out:json][timeout:22];(nwr["name"]["${filter.key}"~"^(${filter.regex})$"](${bbox}););out center tags 60;`;
   const data=await fetchJson("https://overpass-api.de/api/interpreter",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","user-agent":"VentaNexIA/1.0 (ventas@ventanexia.es)"},body:`data=${encodeURIComponent(q)}`},28000);
   const leads=[];const seen=new Set();
-  for(const e of data?.elements||[]){const t=e.tags||{};const name=clean(t.name,160);if(!name||seen.has(name.toLowerCase()))continue;seen.add(name.toLowerCase());const website=t.website||t["contact:website"]||"";const phone=t.phone||t["contact:phone"]||"";const email=t.email||t["contact:email"]||"";const lat=e.lat??e.center?.lat;const long=e.lon??e.center?.lon;const osm=`https://www.openstreetmap.org/${e.type}/${e.id}`;leads.push(normalizeLead({name,activity:osmActivity(t,input.clientType),address:osmAddress(t,input.zone),phone,email,website,lat,long,fit:`Su actividad pública encaja con ${input.clientType} en ${input.zone}; por ese perfil puede ser un posible comprador de ${input.sells}.`,evidence:"Negocio existente localizado en OpenStreetMap.",sources:[website,osm].filter(Boolean)}));if(leads.length>=3)break}
-  const final=leads.filter(plausible).slice(0,3);if(!final.length)return null;return{interpreted:{sells:input.sells,clientType:input.clientType,zone:input.zone,summary:userNeed(input)},leads:final,provider:"openstreetmap-overpass"}
+  for(const e of data?.elements||[]){const t=e.tags||{};const name=clean(t.name,160);if(!name||seen.has(name.toLowerCase()))continue;seen.add(name.toLowerCase());const website=t.website||t["contact:website"]||"";const phone=t.phone||t["contact:phone"]||"";const email=t.email||t["contact:email"]||"";const lat=e.lat??e.center?.lat;const long=e.lon??e.center?.lon;const osm=`https://www.openstreetmap.org/${e.type}/${e.id}`;leads.push(normalizeLead({name,activity:osmActivity(t,input.clientType),address:osmAddress(t,input.zone),phone,email,website,lat,long,fit:`Su actividad pública encaja con ${input.clientType} en ${input.zone}; por ese perfil puede ser un posible comprador de ${input.sells}.`,evidence:"Negocio existente localizado en OpenStreetMap.",sources:[website,osm].filter(Boolean)}));if(leads.length>=requestedCount(input))break}
+  const final=leads.filter(plausible).slice(0,requestedCount(input));if(!final.length)return null;return{interpreted:{sells:input.sells,clientType:input.clientType,zone:input.zone,summary:userNeed(input)},leads:final,provider:"openstreetmap-overpass"}
 }
 
 async function callNominatim(input){
   const generic=/^(tiendas?|comercios?|empresas?|negocios?|distribuidores?|mayoristas?|pymes?)$/i.test(clean(input.clientType));
   const q=generic&&input.sells?`${input.sells} ${input.zone}, España`:`${input.clientType} ${input.zone}, España`;
   const data=await fetchJson(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&namedetails=1&limit=15&countrycodes=es&q=${encodeURIComponent(q)}`,{headers:{"user-agent":"VentaNexIA/1.0 (ventas@ventanexia.es)","accept-language":"es"}},12000);
-  const leads=(Array.isArray(data)?data:[]).map(x=>{const t=x.extratags||{};const name=x.namedetails?.name||String(x.display_name||"").split(",")[0];const website=t.website||t["contact:website"]||"";const osm=x.osm_type&&x.osm_id?`https://www.openstreetmap.org/${x.osm_type}/${x.osm_id}`:"";return normalizeLead({name,activity:input.clientType,address:x.display_name||"",phone:t.phone||t["contact:phone"]||"",email:t.email||t["contact:email"]||"",website,lat:Number(x.lat),long:Number(x.lon),fit:`Negocio localizado en ${input.zone} que coincide con el perfil buscado y podría necesitar ${input.sells}.`,evidence:"Registro público de OpenStreetMap.",sources:[website,osm].filter(Boolean)})}).filter(plausible).slice(0,3);
+  const leads=(Array.isArray(data)?data:[]).map(x=>{const t=x.extratags||{};const name=x.namedetails?.name||String(x.display_name||"").split(",")[0];const website=t.website||t["contact:website"]||"";const osm=x.osm_type&&x.osm_id?`https://www.openstreetmap.org/${x.osm_type}/${x.osm_id}`:"";return normalizeLead({name,activity:input.clientType,address:x.display_name||"",phone:t.phone||t["contact:phone"]||"",email:t.email||t["contact:email"]||"",website,lat:Number(x.lat),long:Number(x.lon),fit:`Negocio localizado en ${input.zone} que coincide con el perfil buscado y podría necesitar ${input.sells}.`,evidence:"Registro público de OpenStreetMap.",sources:[website,osm].filter(Boolean)})}).filter(plausible).slice(0,requestedCount(input));
   if(!leads.length)return null;return{interpreted:{sells:input.sells,clientType:input.clientType,zone:input.zone,summary:userNeed(input)},leads,provider:"openstreetmap-search"}
 }
 
-async function callGooglePlaces(input){const key=String(process.env.GOOGLE_PLACES_API_KEY||"").trim();if(!key)return null;const generic=/^(tiendas?|comercios?|empresas?|negocios?|distribuidores?|mayoristas?|pymes?)$/i.test(clean(input.clientType));const textQuery=generic&&input.sells?`${input.clientType} ${input.sells} en ${input.zone}, España`:`${input.clientType} en ${input.zone}, España`;const data=await fetchJson("https://places.googleapis.com/v1/places:searchText",{method:"POST",headers:{"Content-Type":"application/json","X-Goog-Api-Key":key,"X-Goog-FieldMask":"places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.location,places.primaryTypeDisplayName"},body:JSON.stringify({textQuery,languageCode:"es",regionCode:"ES",pageSize:5})},16000);const leads=(data?.places||[]).map(p=>normalizeLead({name:p.displayName?.text,activity:p.primaryTypeDisplayName?.text||input.clientType,address:p.formattedAddress,phone:p.nationalPhoneNumber,website:p.websiteUri,lat:p.location?.latitude,long:p.location?.longitude,fit:`Por su actividad en ${input.zone}, puede ser un posible comprador de ${input.sells}.`,evidence:"Resultado localizado mediante Google Places.",sources:[p.websiteUri,p.googleMapsUri].filter(Boolean)})).filter(plausible).slice(0,3);if(!leads.length)return null;return{interpreted:{sells:input.sells,clientType:input.clientType,zone:input.zone,summary:userNeed(input)},leads,provider:"google-places"}}
+async function callGooglePlaces(input){const key=String(process.env.GOOGLE_PLACES_API_KEY||"").trim();if(!key)return null;const generic=/^(tiendas?|comercios?|empresas?|negocios?|distribuidores?|mayoristas?|pymes?)$/i.test(clean(input.clientType));const textQuery=generic&&input.sells?`${input.clientType} ${input.sells} en ${input.zone}, España`:`${input.clientType} en ${input.zone}, España`;const data=await fetchJson("https://places.googleapis.com/v1/places:searchText",{method:"POST",headers:{"Content-Type":"application/json","X-Goog-Api-Key":key,"X-Goog-FieldMask":"places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.location,places.primaryTypeDisplayName"},body:JSON.stringify({textQuery,languageCode:"es",regionCode:"ES",pageSize:Math.min(20,requestedCount(input))})},16000);const leads=(data?.places||[]).map(p=>normalizeLead({name:p.displayName?.text,activity:p.primaryTypeDisplayName?.text||input.clientType,address:p.formattedAddress,phone:p.nationalPhoneNumber,website:p.websiteUri,lat:p.location?.latitude,long:p.location?.longitude,fit:`Por su actividad en ${input.zone}, puede ser un posible comprador de ${input.sells}.`,evidence:"Resultado localizado mediante Google Places.",sources:[p.websiteUri,p.googleMapsUri].filter(Boolean)})).filter(plausible).slice(0,requestedCount(input));if(!leads.length)return null;return{interpreted:{sells:input.sells,clientType:input.clientType,zone:input.zone,summary:userNeed(input)},leads,provider:"google-places"}}
 
-async function findProspects(input){const errors=[];for(const [name,fn] of [["overpass",callOverpass],["google",callGooglePlaces],["nominatim",callNominatim]]){try{const r=await fn(input);if(r?.leads?.length)return{...r,diagnostics:errors}}catch(e){const m=`${name}:${String(e?.message||e)}`;errors.push(m);console.error("prospect-search-provider",m)}}throw new Error(errors.join(" | ")||"NO_RESULTS")}
+async function findProspects(input){
+  const errors=[],wanted=requestedCount(input),merged=[],seen=new Set(),providers=[];
+  for(const [name,fn] of [["overpass",callOverpass],["google",callGooglePlaces],["nominatim",callNominatim]]){
+    try{
+      const r=await fn(input);
+      if(r?.leads?.length){
+        providers.push(r.provider||name);
+        for(const lead of r.leads){
+          const key=fold((lead.website||lead.name)+"|"+lead.address);
+          if(!key||seen.has(key))continue;
+          seen.add(key);merged.push(lead);
+          if(merged.length>=wanted)break;
+        }
+      }
+      if(merged.length>=wanted)break;
+    }catch(e){const m=`${name}:${String(e?.message||e)}`;errors.push(m);console.error("prospect-search-provider",m)}
+  }
+  if(!merged.length)throw new Error(errors.join(" | ")||"NO_RESULTS");
+  return {interpreted:{sells:input.sells,clientType:input.clientType,zone:input.zone,summary:userNeed(input)},leads:merged.slice(0,wanted),provider:providers.join("+")||"public-sources",diagnostics:errors};
+}
+
+async function interpretDesktopRequest(request){
+  const raw=clean(request,900);
+  const count=Math.max(1,Math.min(20,Number((raw.match(/\b(\d{1,2})\b/)||[])[1]||10)));
+  const fallback=()=>{
+    const zone=(raw.match(/\ben\s+([A-Za-zÁÉÍÓÚÜÑáéíóúüñ .'-]{2,60})(?:$|,|\.|\s+para\s+)/i)||[])[1]?.trim()||"Barcelona";
+    let sells=(raw.match(/(?:vender(?:les)?|ofrecer(?:les)?|presentar(?:les)?|comercializar)\s+(?:mis|nuestros?|unas?|los|las)?\s*([^,.]{3,80}?)(?:\s+en\s+|\s+para\s+|$)/i)||[])[1]?.trim()||"productos o servicios";
+    if(/portasueros?/i.test(raw))sells="portasueros";
+    let clientType="clínicas, hospitales y centros médicos";
+    if(/farmac/i.test(raw))clientType="farmacias";
+    else if(/dent/i.test(raw))clientType="clínicas dentales";
+    else if(/veterin/i.test(raw))clientType="clínicas veterinarias";
+    else if(/hospital|clinic|centro medic|sanitari|salud/i.test(raw))clientType="clínicas, hospitales y centros médicos";
+    return {request:raw,sells,clientType,zone,count};
+  };
+  if(!aiConfigured())return fallback();
+  try{
+    const prompt=`Extrae criterios de prospección comercial del texto. Devuelve SOLO JSON válido con: sells (qué vende), clientType (tipo de empresa que podría comprarlo), zone (ciudad/provincia/zona) y count (1-20). Si el usuario vende material sanitario como portasueros, los compradores razonables incluyen clínicas, hospitales, centros médicos, residencias y distribuidores sanitarios. Texto: ${raw}`;
+    const out=await createAIResponse({input:prompt,max_output_tokens:220,store:false});
+    const text=String(out?.data?.output_text||out?.data?.choices?.[0]?.message?.content||"").replace(/^```json\s*|```$/g,"").trim();
+    const j=JSON.parse(text);
+    const fb=fallback();
+    return {request:raw,sells:clean(j.sells,180)||fb.sells,clientType:clean(j.clientType,180)||fb.clientType,zone:clean(j.zone,180)||fb.zone,count:Math.max(1,Math.min(20,Number(j.count||count)))};
+  }catch{return fallback()}
+}
 
 export default async function handler(req,res){
   if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
+
+  // VentaNexIA Desktop: búsqueda real de prospectos a partir de lenguaje natural.
+  if(req.body?.desktop){
+    const auth=await authenticateDesktop(req.body);
+    if(!auth.ok)return res.status(auth.status).json({error:auth.message,code:auth.code});
+    const allowed=checkScopeAllowed(auth.license,"agent:prospecting");
+    if(!allowed.ok)return res.status(allowed.status).json({error:allowed.message,code:allowed.code});
+    const request=clean(req.body?.request,900);
+    if(!request)return res.status(400).json({error:"Indica qué tipo de clientes quieres buscar.",code:"PROSPECT_REQUEST_REQUIRED"});
+    const input=await interpretDesktopRequest(request);
+    try{
+      const result=await findProspects(input);
+      await consumeMeter(auth.license,"lead_search",result.leads.length,{zone:input.zone,clientType:input.clientType});
+      return res.status(200).json({
+        query:result.interpreted,
+        leads:result.leads,
+        sourceMode:result.provider,
+        requestedCount:input.count,
+        verificationMessage:"Empresas localizadas en fuentes públicas. Los teléfonos, webs y direcciones solo se muestran cuando la fuente los publica."
+      });
+    }catch(error){
+      console.error("prospect-search-desktop",error);
+      return res.status(502).json({error:"No he podido obtener prospectos fiables de las fuentes públicas en este momento.",code:"PROSPECT_SEARCH_UNAVAILABLE"});
+    }
+  }
+
+  // Demo pública existente.
   const email=clean(req.body?.email,240).toLowerCase();const company=clean(req.body?.company,180);const deviceId=clean(req.body?.deviceId,160);const consent=req.body?.consent===true;
   const request=clean(req.body?.request,900),sells=clean(req.body?.sells,180),clientType=clean(req.body?.clientType,180),zone=clean(req.body?.zone,180);
   if(!emailOk(email)||!company||!consent)return res.status(400).json({error:"Para hacer la prueba indica empresa, un email válido y acepta el uso de tus datos para esta demostración."});
@@ -80,7 +154,7 @@ export default async function handler(req,res){
   const cookies=parseCookies(req);if(!internalEmail(email)&&cookies.vnx_prospect_demo==="used")return res.status(429).json({error:"Esta prueba gratuita ya se ha utilizado en este navegador. Para seguir buscando clientes, solicita una demo o activa VentaNexIA.",code:"TRIAL_ALREADY_USED"});
   const trial=await persistentTrialState(req,email,deviceId);if(!trial.allowed)return res.status(429).json({error:"Este email o dispositivo ya ha utilizado la búsqueda gratuita. Para seguir buscando clientes, solicita una demo o activa VentaNexIA.",code:"TRIAL_ALREADY_USED"});
   try{
-    const result=await findProspects({request,sells,clientType,zone});
+    const result=await findProspects({request,sells,clientType,zone,count:3});
     if(!internalEmail(email)){await consumeTrial(trial);res.setHeader("Set-Cookie","vnx_prospect_demo=used; Max-Age=15552000; Path=/; HttpOnly; Secure; SameSite=Lax")}
     return res.status(200).json({query:result.interpreted,leads:result.leads.slice(0,3),sourceMode:result.provider,trialConsumed:!internalEmail(email),verificationMessage:"Empresas localizadas en fuentes públicas. Si un dato de contacto no está publicado, no lo inventamos."});
   }catch(error){console.error("prospect-search",error);return res.status(502).json({error:"No hemos podido obtener resultados fiables de las fuentes públicas en este momento. La prueba no se ha consumido; puedes volver a intentarlo.",code:"PROSPECT_SEARCH_UNAVAILABLE"})}
