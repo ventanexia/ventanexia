@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.40",
+  "version": "0.6.41",
   "private": true,
-  "description": "VentaNexIA Desktop · Simple WhatsApp Phone Connection · Plain Language UI · 0.6.40",
+  "description": "VentaNexIA Desktop · WhatsApp Live Dashboard Counters · Simple Phone Connection · 0.6.41",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
