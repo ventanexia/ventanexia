@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.32",
+  "version": "0.6.33",
   "private": true,
-  "description": "VentaNexIA Desktop SecureCore Master · Customer-owned WhatsApp Webhook · Email and Approval Workflows · 0.6.32",
+  "description": "VentaNexIA Desktop · Live Email and WhatsApp Counters · Approval Workflows · 0.6.33",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
