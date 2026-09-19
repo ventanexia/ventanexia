@@ -596,3 +596,39 @@ body{
 .guided-agent-tab[data-guided-agent="email"],
 .guided-agent-tab[data-guided-agent="whatsapp"]{min-height:136px!important}
 /* VNX LIVE MESSAGE COUNTERS END */
+
+
+/* VNX PROFESSIONAL EMAIL DASHBOARD START */
+.guided-layout.email-dashboard-mode{grid-template-columns:1fr!important}
+.email-dashboard-mode .guided-main-card{padding:0!important;overflow:hidden}
+.email-dashboard-mode .guided-card-head{padding:18px 20px;border-bottom:1px solid #164c6b}
+.email-dashboard-mode #guidedModePanel{padding:0}
+.email-dashboard{padding:18px;background:linear-gradient(180deg,#061b2e,#041522)}
+.email-dashboard-loading,.email-dashboard-empty{padding:38px;text-align:center;color:#a8c8d9;border:1px solid #1b5b7e;border-radius:14px;background:#062038}
+.email-toolbar{display:flex;justify-content:space-between;gap:18px;align-items:center;margin-bottom:15px}
+.email-toolbar>div:first-child{display:flex;gap:12px;align-items:center}.email-work-icon{font-size:27px;color:#33d2ff}
+.email-toolbar h3{margin:0;color:#fff;font-size:25px}.email-toolbar p{margin:3px 0 0;color:#9fc4d5;font-size:12px}
+.email-search{min-width:330px;display:flex;gap:8px;align-items:center;border:1px solid #1a638a;border-radius:10px;padding:9px 12px;background:#06213a;color:#6bdfff}
+.email-search input{width:100%;border:0!important;background:transparent!important;padding:0!important;min-height:0!important;color:#e8f7ff!important;outline:0}
+.email-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;margin-bottom:14px}
+.email-metric-grid article{position:relative;display:grid;grid-template-columns:46px auto 1fr;grid-template-rows:auto auto;column-gap:10px;align-items:center;border:1px solid #17658d;border-radius:13px;padding:12px;background:#07243d}
+.metric-ico{grid-row:1/3;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-size:19px}.metric-ico.blue{background:#0c4c7b;color:#55cfff}.metric-ico.green{background:#0a5848;color:#56f2bb}.metric-ico.amber{background:#55451b;color:#ffd45b}
+.email-metric-grid b{font-size:23px;color:#fff;line-height:1}.email-metric-grid strong{font-size:12px;color:#8fe4ff}.email-metric-grid small{grid-column:2/4;color:#86a9bb;font-size:10px;margin-top:3px}
+.email-workspace{display:grid;grid-template-columns:.84fr 1.16fr;gap:14px;min-height:520px}
+.email-list-panel,.email-detail-panel{border:1px solid #17658d;border-radius:14px;background:#061e34;overflow:hidden}
+.email-list-tabs{display:flex;align-items:center;border-bottom:1px solid #164c6b;background:#061b2f}.email-list-tabs button{flex:1;border:0;background:transparent;color:#b9d0dd;padding:12px 9px;font-weight:800;font-size:11px;cursor:pointer;border-bottom:3px solid transparent}.email-list-tabs button.active{color:#46d8ff;border-bottom-color:#23c9f6;background:#082942}
+.email-list{max-height:610px;overflow:auto}.email-list-row{width:100%;display:grid;grid-template-columns:45px minmax(0,1fr) auto;gap:10px;align-items:center;border:0;border-bottom:1px solid #143f5b;background:transparent;color:#fff;padding:13px;text-align:left;cursor:pointer}.email-list-row:hover,.email-list-row.selected{background:#092d49}.email-list-row.selected{box-shadow:inset 3px 0 #26d2ff}
+.email-avatar{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#5d73ff,#8b4ce8);color:#fff;font-weight:900}.email-avatar.large{width:44px;height:44px;font-size:15px}
+.email-row-copy{min-width:0;display:grid;gap:3px}.email-row-copy b,.email-row-copy strong,.email-row-copy small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.email-row-copy b{font-size:11px}.email-row-copy strong{font-size:12px}.email-row-copy small{font-size:10px;color:#8eb0c2}
+.email-row-side{display:flex;flex-direction:column;align-items:flex-end;gap:8px}.email-row-side time{font-size:9px;color:#9bb9c8;white-space:nowrap}
+.email-status{display:inline-flex;border-radius:999px;padding:4px 7px;font-size:9px;font-weight:850}.email-status.unread{background:#0757a9;color:#dff4ff}.email-status.responded{background:#0b6b51;color:#d7fff0}.email-status.pending{background:#66422d;color:#ffe2ca}
+.email-detail-panel{padding:17px;overflow:auto}.email-detail-head{display:grid;grid-template-columns:46px minmax(0,1fr) auto auto;gap:10px;align-items:center}.email-detail-head>div{display:grid}.email-detail-head b{font-size:13px}.email-detail-head small,.email-detail-head time{color:#98b8c9;font-size:10px}.email-detail-panel>h3{font-size:20px;margin:18px 0 10px;color:#fff}
+.email-original-body{font-size:12px;line-height:1.55;color:#d8e8f0;max-height:180px;overflow:auto;padding-right:5px}
+.email-reply-tabs{display:flex;gap:14px;border-bottom:1px solid #17658d;margin-top:18px}.email-reply-tabs button{border:0;background:transparent;color:#acc8d6;padding:9px 3px;font-size:10px;font-weight:800}.email-reply-tabs button.active{color:#3dd8ff;border-bottom:3px solid #29caff}
+.email-suggestion{border:1px solid #1d7aa3;border-radius:11px;margin-top:8px;background:#05233a;overflow:hidden}.email-suggestion-head{display:flex;justify-content:space-between;align-items:center;padding:9px 11px;border-bottom:1px solid #175a7d;color:#56dfff}.email-suggestion-head button{border:1px solid #26779e;background:#08263e;color:#dff5ff;border-radius:8px;padding:6px 9px;font-size:9px;cursor:pointer}
+.email-suggestion textarea{width:100%;border:0!important;background:#031b2d!important;color:#ecf8ff!important;padding:12px!important;line-height:1.5;resize:vertical;min-height:165px}
+.email-action-bar{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}.email-action-bar .btn{padding:9px 11px;font-size:10px}.email-action-msg{min-height:19px;margin-top:8px;color:#7de5bd;font-size:10px}
+.email-no-results{padding:28px;text-align:center;color:#8db0c2}
+@media(max-width:1100px){.email-workspace{grid-template-columns:1fr}.email-search{min-width:250px}.email-metric-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.email-toolbar{align-items:stretch;flex-direction:column}.email-search{min-width:0}.email-metric-grid{grid-template-columns:1fr 1fr}.email-list-tabs{overflow:auto}.email-action-bar .btn{flex:1}}
+/* VNX PROFESSIONAL EMAIL DASHBOARD END */
