@@ -8,6 +8,8 @@
   },
   "dependencies": {
     "ai": "latest",
-    "@ai-sdk/gateway": "latest"
+    "@ai-sdk/gateway": "latest",
+    "@vercel/og": "latest",
+    "react": "latest"
   }
 }
