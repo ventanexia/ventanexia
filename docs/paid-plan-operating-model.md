@@ -138,3 +138,19 @@ Debe explicar:
 - a quién escalaría si no pudiera cerrarla.
 
 La demo no debe afirmar que ha ejecutado acciones reales si no existen integraciones activas.
+
+## Política comercial del agente Pedidos
+
+El agente **Pedidos** forma parte de los tres planes mensuales y no consume una de las funciones estándar elegibles.
+
+- VNX Inicio: hasta 100 pedidos procesados al mes.
+- VNX Crecimiento: hasta 500 pedidos procesados al mes.
+- VNX Premium: hasta 2.000 pedidos procesados al mes.
+
+Los precios base permanecen en 350 €, 900 € y 1.750 € al mes + IVA.
+
+Un conector estándar ya compatible con VentaNexIA puede utilizarse dentro del número de conexiones incluidas en el plan. Cuando un ERP, programa propio o portal requiera desarrollo específico, debe presupuestarse como **conector personalizado**, desde 150 €/mes según complejidad, y no se activa sin aprobación previa.
+
+El vídeo generado con IA no se considera uso mensual incluido por defecto. Se ofrece mediante paquetes de créditos para evitar trasladar ese coste a clientes que no lo utilizan.
+
+Nunca se debe vender “uso ilimitado” de Pedidos. Si una empresa necesita más volumen, debe ampliarse su capacidad o prepararse una propuesta específica.
