@@ -29,7 +29,7 @@
       "monthly": 900,
       "agents_included": 6,
       "integrations_included": 5,
-      "description": "VentaNexIA Desktop con 6 funciones estándar, coordinación y hasta 5 conexiones externas.",
+      "description": "VentaNexIA Desktop con 6 agentes estándar y hasta 5 conexiones externas.",
       "devices_included": 3,
       "video_credits_monthly": 12,
       "usage_limits": {
@@ -48,9 +48,9 @@
     "scale": {
       "name": "VNX Premium",
       "monthly": 1750,
-      "agents_included": 12,
+      "agents_included": 10,
       "integrations_included": 10,
-      "description": "VentaNexIA Desktop con todo el catálogo estándar y hasta 10 conexiones externas.",
+      "description": "VentaNexIA Desktop con los 10 agentes estándar y hasta 10 conexiones externas.",
       "devices_included": 5,
       "video_credits_monthly": 30,
       "usage_limits": {
@@ -79,7 +79,7 @@
   "addons": {
     "extra_agent": {
       "monthly": 150,
-      "description": "Agente VNX estándar adicional sobre los incluidos en el plan.",
+      "description": "Agente estándar adicional sobre los incluidos en el plan, cuando el catálogo comercial lo permita.",
       "billing": "monthly"
     },
     "extra_email_account": {
@@ -88,7 +88,7 @@
       "billing": "monthly"
     },
     "video_pack": {
-      "description": "10 créditos de vídeo adicionales al mes para el agente de Redes Sociales.",
+      "description": "10 créditos de vídeo adicionales. Pago único.",
       "one_time": 99,
       "credits": 10,
       "billing": "one_time"
