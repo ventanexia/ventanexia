@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.36",
+  "version": "0.6.37",
   "private": true,
-  "description": "VentaNexIA Desktop · Multi-account Email Inbox Selector · No Reply Needed Workflow · 0.6.36",
+  "description": "VentaNexIA Desktop · Live Connected Accounts Overview · Multi-account Email Inbox · 0.6.37",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
