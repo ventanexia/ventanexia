@@ -48,6 +48,16 @@ export default async function handler(req,res){
       const updated=await db("vnx_whatsapp_channels?id=eq."+encodeURIComponent(channel.id),{method:"PATCH",body:{reply_mode:mode,billing_acknowledged:billingAcknowledged||channel.billing_acknowledged,updated_at:new Date().toISOString()}});
       return res.status(200).json({ok:true,replyMode:updated?.[0]?.reply_mode||mode,webhookReady:Boolean(updated?.[0]?.webhook_ready),billingModel:"customer_meta_account"});
     }
+    if(action==="metrics"){
+      const start=new Date();start.setHours(0,0,0,0);
+      const iso=encodeURIComponent(start.toISOString());
+      const [incoming,outgoing,pendingRows]=await Promise.all([
+        db("vnx_whatsapp_messages?tenant_id=eq."+encodeURIComponent(tenant.id)+"&direction=eq.inbound&created_at=gte."+iso+"&select=id"),
+        db("vnx_whatsapp_messages?tenant_id=eq."+encodeURIComponent(tenant.id)+"&direction=eq.outbound&created_at=gte."+iso+"&select=id"),
+        db("vnx_whatsapp_drafts?tenant_id=eq."+encodeURIComponent(tenant.id)+"&status=eq.pending&select=id")
+      ]);
+      return res.status(200).json({ok:true,connected:true,received:(incoming||[]).length,responded:(outgoing||[]).length,pending:(pendingRows||[]).length,label:"Hoy"});
+    }
     if(action==="pending"){
       const drafts=await db("vnx_whatsapp_drafts?tenant_id=eq."+encodeURIComponent(tenant.id)+"&status=eq.pending&select=id,customer_number,customer_name,inbound_text,proposed_text,requires_approval,created_at&order=created_at.desc&limit=30");
       return res.status(200).json({ok:true,drafts:drafts||[]});
