@@ -109,6 +109,13 @@
           continue;
         }
       }
+      if(agent.key==='web_ecommerce'&&agent.included){
+        const sh=(runtimeConnections||[]).find(x=>(x.module||x.key)==='shopify');
+        if(sh){
+          out.push({...agent,connected:true,ready:true,source:{type:'shopify',key:'shopify',name:'Shopify · '+(sh.label||'Tienda'),shop:sh.shop||sh.label||null}});
+          continue;
+        }
+      }
       out.push(agent);
     }
     return out;
