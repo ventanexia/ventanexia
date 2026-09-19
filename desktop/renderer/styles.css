@@ -566,3 +566,33 @@ body{
 .guided-agent-tab[data-guided-agent="whatsapp"] small{color:#9edbb5}
 .guided-agent-tab[data-guided-agent="whatsapp"].active small{color:#c9f6d8}
 /* VNX WHATSAPP RUNTIME 0.6.32 END */
+
+
+/* VNX LIVE MESSAGE COUNTERS START */
+.agent-icon-wrap{position:relative;display:inline-grid!important;place-items:center}
+.agent-pending-badge{
+  position:absolute;top:-9px;right:-14px;min-width:19px;height:19px;padding:0 5px;
+  display:grid;place-items:center;border-radius:999px;background:#ef3340;color:#fff;
+  border:2px solid #061b2f;font-size:10px;font-weight:950;font-style:normal;
+  box-shadow:0 3px 10px rgba(239,51,64,.45)
+}
+.agent-live-metrics{
+  width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;margin-top:8px
+}
+.agent-live-metrics span{
+  min-width:0;border:1px solid #2f536c;background:#071a2b;border-radius:7px;
+  padding:4px 3px;display:flex;flex-direction:column;align-items:center;line-height:1.05
+}
+.agent-live-metrics i{
+  color:#ff4a55;font-size:12px;font-weight:950;font-style:normal
+}
+.agent-live-metrics em{
+  color:#87aabd;font-size:7px;font-style:normal;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%
+}
+.agent-live-metrics span.has-pending{
+  border-color:#8f3340;background:#27151d
+}
+.guided-agent-tab{min-height:112px!important}
+.guided-agent-tab[data-guided-agent="email"],
+.guided-agent-tab[data-guided-agent="whatsapp"]{min-height:136px!important}
+/* VNX LIVE MESSAGE COUNTERS END */
