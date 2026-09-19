@@ -413,6 +413,31 @@
     }
   }
 
+  function whatsappMetricsHtml(m,manual=false){
+    const val=k=>manual?'—':Number(m?.[k]||0);
+    return '<div class="wa-metric-wrap">'
+      +'<div class="email-metric-grid wa-metric-grid">'
+      +'<article><span class="metric-ico green">💬</span><b>'+val('received')+'</b><strong>Recibidos</strong><small>'+(manual?'Solo con WhatsApp para empresa':'Hoy')+'</small></article>'
+      +'<article><span class="metric-ico blue">✓</span><b>'+val('responded')+'</b><strong>Respondidos</strong><small>'+(manual?'Sin lectura automática':'Hoy')+'</small></article>'
+      +'<article><span class="metric-ico amber">◷</span><b>'+val('pending')+'</b><strong>Pendientes</strong><small>'+(manual?'No disponible':'Por autorizar')+'</small></article>'
+      +'<article><span class="metric-ico red">!</span><b>'+val('unanswered')+'</b><strong>Sin responder</strong><small>'+(manual?'No disponible':'Conversaciones pendientes')+'</small></article>'
+      +'</div>'
+      +(manual?'<div class="wa-manual-counter-note"><b>WhatsApp normal:</b> VentaNexIA no puede leer tu bandeja automáticamente. Los contadores reales se activan al conectar WhatsApp para empresa.</div>':'')
+      +'</div>';
+  }
+  async function refreshWhatsAppWorkspaceMetrics(){
+    const root=$m('#whatsappWorkspaceMetrics');if(!root)return;
+    const manual=whatsappManualModeEnabled();
+    if(manual){root.innerHTML=whatsappMetricsHtml({},true);return}
+    root.innerHTML='<div class="wa-metrics-loading">Consultando WhatsApp…</div>';
+    try{
+      const m=await window.vnx.whatsappRuntime({action:'metrics'});
+      root.innerHTML=whatsappMetricsHtml(m,false);
+    }catch{
+      root.innerHTML='<div class="wa-manual-counter-note"><b>WhatsApp para empresa todavía no está conectado.</b> Cuando lo conectes aquí aparecerán los contadores reales.</div>';
+    }
+  }
+
   function renderGuidedWorkspace(chosen){
     if(!chosen)return;
     const layout=$m('.guided-layout'),help=document.querySelector('.guided-help-card'),switcher=document.querySelector('.guided-card-head .mode-switch'),primaryEl=$m('#guidedPrimaryAction'),stepsEl=$m('#guidedSteps');
@@ -422,7 +447,8 @@
     if(title)title.textContent=(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
     if(chosen.key==='email'){renderEmailDashboard(chosen);renderGuidedOtherCards(chatConnections(),chosen);return;}
-    if(host)host.innerHTML='<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
+    if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div id="whatsappWorkspaceMetrics"></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
+    if(chosen.key==='whatsapp')refreshWhatsAppWorkspaceMetrics();
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
     if(primary){primary.textContent=cfg.primary||'✨ Empezar';primary.dataset.agentKey=chosen.key}
     if(steps)steps.innerHTML=(cfg.steps||[]).map((x,i)=>'<div><span>'+(i+1)+'</span><b>'+escM(x)+'</b></div>').join('<i>→</i>');
@@ -451,8 +477,8 @@
       +'<small class="guided-email-safety">En modo autorización nunca se envía nada hasta que pulses “Enviar esta respuesta”. Los cargos externos de Meta corresponden a la cuenta del cliente.</small>';
     out.querySelectorAll('[data-wa-draft]').forEach(card=>{
       const id=card.dataset.waDraft,approve=card.querySelector('[data-wa-approve]'),reject=card.querySelector('[data-wa-reject]'),ta=card.querySelector('[data-wa-text]');
-      if(approve)approve.onclick=async()=>{if(!confirm('¿Enviar esta respuesta por WhatsApp?'))return;approve.disabled=true;try{const rr=await window.vnx.whatsappRuntime({action:'approve',draftId:id,text:ta?.value||''});card.innerHTML='<div class="guided-email-done">'+escM(rr?.message||'Respuesta enviada.')+'</div>';await refreshChatConnections()}catch(e){alert(e.message||e)}finally{approve.disabled=false}};
-      if(reject)reject.onclick=async()=>{if(!confirm('¿Descartar esta respuesta preparada?'))return;reject.disabled=true;try{await window.vnx.whatsappRuntime({action:'reject',draftId:id});card.remove();await refreshChatConnections()}catch(e){alert(e.message||e)}finally{reject.disabled=false}};
+      if(approve)approve.onclick=async()=>{if(!confirm('¿Enviar esta respuesta por WhatsApp?'))return;approve.disabled=true;try{const rr=await window.vnx.whatsappRuntime({action:'approve',draftId:id,text:ta?.value||''});card.innerHTML='<div class="guided-email-done">'+escM(rr?.message||'Respuesta enviada.')+'</div>';await refreshChatConnections();await refreshWhatsAppWorkspaceMetrics()}catch(e){alert(e.message||e)}finally{approve.disabled=false}};
+      if(reject)reject.onclick=async()=>{if(!confirm('¿Descartar esta respuesta preparada?'))return;reject.disabled=true;try{await window.vnx.whatsappRuntime({action:'reject',draftId:id});card.remove();await refreshChatConnections();await refreshWhatsAppWorkspaceMetrics()}catch(e){alert(e.message||e)}finally{reject.disabled=false}};
     });
   }
   function prospectingPublicUrl(lead={}){
