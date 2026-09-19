@@ -6,6 +6,8 @@ const crypto=require('node:crypto');
 const {ImapFlow}=require('imapflow');
 const nodemailer=require('nodemailer');
 const {EDITION,assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
+const {storeFile,readState,writeState,updateState,audit}=require('./state-store.cjs');
+const {gmailCall}=require('./gmail-auth.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -30,32 +32,6 @@ const SKIP_DIRS=new Set([
 
 let mainWindow;
 let discoveryCandidates=new Set();
-const storeFile=()=>path.join(app.getPath('userData'),'secure-state.json');
-
-async function readState(){
-  try{
-    const raw=JSON.parse(await fs.readFile(storeFile(),'utf8'));
-    if(raw.secret&&safeStorage.isEncryptionAvailable()){
-      raw.secret=JSON.parse(safeStorage.decryptString(Buffer.from(raw.secret,'base64')));
-    } else raw.secret={};
-    raw.permissions=raw.permissions||{folders:[]};
-    raw.activity=raw.activity||[];
-    raw.license=raw.license||{};
-    return raw;
-  }catch{return {permissions:{folders:[]},activity:[],license:{},secret:{deviceToken:null}}}
-}
-async function writeState(state){
-  const out={...state,secret:state.secret||{}};
-  if(safeStorage.isEncryptionAvailable()){
-    out.secret=Buffer.from(safeStorage.encryptString(JSON.stringify(state.secret||{}))).toString('base64');
-  }
-  await fs.writeFile(storeFile(),JSON.stringify(out,null,2),'utf8');
-}
-async function audit(type,detail){
-  const s=await readState();
-  s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,200);
-  await writeState(s);
-}
 async function postJson(url,body,timeoutMs=20000){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),timeoutMs);
@@ -313,8 +289,25 @@ ipcMain.handle('discovery:authorize',async(_e,candidate)=>{
 
 function normalizeShopifyShop(value=''){
   let v=String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/$/,'');
+  const admin=v.match(/^admin\.shopify\.com\/store\/([a-z0-9][a-z0-9-]*)/);
+  if(admin)return admin[1]+'.myshopify.com';
   if(v.includes('/'))v=v.split('/')[0];
+  if(/^[a-z0-9][a-z0-9-]*$/.test(v))v+='.myshopify.com';
   return v;
+}
+async function resolveShopifyShop(input=''){
+  const v=normalizeShopifyShop(input);
+  if(/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(v))return v;
+  if(!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(v))throw new Error('Indica el nombre de tu tienda Shopify o su dominio interno, por ejemplo tienda.myshopify.com.');
+  let html='';
+  try{
+    const ac=new AbortController();const timer=setTimeout(()=>ac.abort(),12000);
+    const r=await fetch('https://'+v,{headers:{'User-Agent':'Mozilla/5.0 VentaNexIA'},signal:ac.signal,redirect:'follow'});
+    clearTimeout(timer);html=await r.text();
+  }catch{}
+  const m=html.match(/Shopify\.shop\s*=\s*"([a-z0-9][a-z0-9-]*\.myshopify\.com)"/i)||html.match(/"myshopifyDomain"\s*:\s*"([a-z0-9][a-z0-9-]*\.myshopify\.com)"/i);
+  if(!m)throw new Error('No he encontrado una tienda Shopify en «'+v+'». Escribe su dominio interno (termina en .myshopify.com); lo ves en Shopify > Configuración > Dominios.');
+  return m[1].toLowerCase();
 }
 async function shopifyGraphql(shop,token,query,variables={}){
   const host=normalizeShopifyShop(shop);
@@ -438,16 +431,35 @@ ipcMain.handle('oauth:start',async(_e,payload={})=>{
   const s=await readState();
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   assertModuleIncluded(s.license,module);
-  const result=await postJson(CLOUD+'/api/oauth-start',{provider,module,shop:String(payload.shop||'').trim(),account:String(payload.account||'').trim(),customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null});
+  const shopValue=provider==='shopify'?await resolveShopifyShop(payload.shop):String(payload.shop||'').trim();
+  const result=await postJson(CLOUD+'/api/oauth-start',{provider,module,shop:shopValue,account:String(payload.account||'').trim(),customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null});
   if(!result.authUrl||!result.state)throw new Error('No se pudo iniciar la autorización');
   shell.openExternal(result.authUrl).catch(()=>{});
   audit('oauth.started',module+' · '+provider).catch(()=>{});
   return {state:result.state,provider,module,authUrl:result.authUrl,expiresIn:result.expiresIn||900};
 });
-ipcMain.handle('oauth:status',async(_e,payload={})=>{
-  const s=await readState();
-  const result=await postJson(CLOUD+'/api/oauth-status',{state:String(payload.state||''),deviceId:s.license?.deviceId||null});
-  if(result.status!=='completed')return result;
+const oauthCollected=new Map();
+const oauthBusy=new Map();
+function pruneOauthCollected(){const limit=Date.now()-20*60*1000;for(const [k,v] of oauthCollected)if(v.at<limit)oauthCollected.delete(k)}
+ipcMain.handle('oauth:status',(_e,payload={})=>{
+  const key=String(payload?.state||'');
+  if(oauthBusy.has(key))return oauthBusy.get(key);
+  const run=oauthStatusOnce(payload).finally(()=>oauthBusy.delete(key));
+  oauthBusy.set(key,run);
+  return run;
+});
+async function oauthStatusOnce(payload={}){
+  const s=await readState(),stateKey=String(payload.state||'');
+  pruneOauthCollected();
+  const kept=oauthCollected.get(stateKey);
+  if(kept?.final)return kept.final;
+  let result=kept?.result;
+  if(!result){
+    result=await postJson(CLOUD+'/api/oauth-status',{state:stateKey,deviceId:s.license?.deviceId||null});
+    if(result.status!=='completed')return result;
+    oauthCollected.set(stateKey,{result,final:null,at:Date.now()});
+  }
+  const done=out=>{oauthCollected.set(stateKey,{result,final:out,at:Date.now()});return out};
   const provider=normalizeProviderKey(result.provider),module=normalizeProviderKey(result.module||provider),token=String(result.token?.access_token||'').trim();
   assertModuleIncluded(s.license,module);
   if(!token)throw new Error('El proveedor no devolvió un token de acceso');
@@ -455,18 +467,16 @@ ipcMain.handle('oauth:status',async(_e,payload={})=>{
     const shop=String(result.shop||'').trim();
     const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
     const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
-    const fresh=await readState();fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};
-    fresh.secret.integrations.shopify={shop,token,refreshToken:result.token?.refresh_token||null,mode:'write',connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes};
-    await writeState(fresh);await audit('integration.shopify_connected',(data.shop?.name||shop)+' · OAuth');
-    return {status:'connected',module:'shopify',provider:'shopify',label:data.shop?.name||shop,shop,shopName:data.shop?.name||shop,mode:'write',scopes};
+    await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};fresh.secret.integrations.shopify={shop,token,refreshToken:result.token?.refresh_token||null,mode:'write',connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes};return fresh});
+    await audit('integration.shopify_connected',(data.shop?.name||shop)+' · OAuth');
+    return done({status:'connected',module:'shopify',provider:'shopify',label:data.shop?.name||shop,shop,shopName:data.shop?.name||shop,mode:'write',scopes});
   }
   const verified=await verifyIntegration(provider,{token,account:'',accountId:'',username:''});
-  const fresh=await readState();fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};
-  const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
-  if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;
-  await writeState(fresh);await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
-  return {status:'connected',module,provider,label:verified.label,mode:'write',meta:verified.meta||{}};
-});
+  const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),tokenObtainedAt:Date.now(),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;return fresh});
+  await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
+  return done({status:'connected',module,provider,label:verified.label,mode:'write',meta:verified.meta||{}});
+}
 
 ipcMain.handle('integration:connect',async(_e,payload={})=>{
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
@@ -649,7 +659,12 @@ async function runHealthCheck(){
   for(const [key,x] of Object.entries(ints).slice(0,15)){
     let ok=Boolean(x.token||key==='shopify'),detail=x.connectedAt?'Conectada':'Sin fecha de conexión';
     if(ok&&x.token&&x.provider){
-      try{await verifyIntegration(x.provider,{token:x.token,account:x.account||'',accountId:x.accountId||'',username:x.username||''});detail='Conexión comprobada'}
+      try{
+        const args=tok=>({token:tok,account:x.account||'',accountId:x.accountId||'',username:x.username||''});
+        if(x.provider==='gmail')await gmailCall(x,tok=>verifyIntegration('gmail',args(tok)));
+        else await verifyIntegration(x.provider,args(x.token));
+        detail='Conexión comprobada';
+      }
       catch(e){ok=false;detail='La autorización puede haber caducado'}
     }else if(ok&&key==='shopify'){
       try{await shopifyGraphql(x.shop,x.token,`query VentaNexIAHealth { shop { name } }`);detail='Conexión comprobada'}catch{ok=false;detail='La autorización puede haber caducado'}
