@@ -52,11 +52,29 @@ export default async function handler(req,res){
       const start=new Date();start.setHours(0,0,0,0);
       const iso=encodeURIComponent(start.toISOString());
       const [incoming,outgoing,pendingRows]=await Promise.all([
-        db("vnx_whatsapp_messages?tenant_id=eq."+encodeURIComponent(tenant.id)+"&direction=eq.inbound&created_at=gte."+iso+"&select=id"),
-        db("vnx_whatsapp_messages?tenant_id=eq."+encodeURIComponent(tenant.id)+"&direction=eq.outbound&created_at=gte."+iso+"&select=id"),
+        db("vnx_whatsapp_messages?tenant_id=eq."+encodeURIComponent(tenant.id)+"&direction=eq.inbound&created_at=gte."+iso+"&select=id,from_number,created_at"),
+        db("vnx_whatsapp_messages?tenant_id=eq."+encodeURIComponent(tenant.id)+"&direction=eq.outbound&created_at=gte."+iso+"&select=id,to_number,created_at"),
         db("vnx_whatsapp_drafts?tenant_id=eq."+encodeURIComponent(tenant.id)+"&status=eq.pending&select=id")
       ]);
-      return res.status(200).json({ok:true,connected:true,received:(incoming||[]).length,responded:(outgoing||[]).length,pending:(pendingRows||[]).length,label:"Hoy"});
+      const lastInbound=new Map(),lastOutbound=new Map();
+      for(const m of incoming||[]){
+        const k=String(m.from_number||'');if(!k)continue;
+        const t=Date.parse(m.created_at||0)||0;if(t>(lastInbound.get(k)||0))lastInbound.set(k,t);
+      }
+      for(const m of outgoing||[]){
+        const k=String(m.to_number||'');if(!k)continue;
+        const t=Date.parse(m.created_at||0)||0;if(t>(lastOutbound.get(k)||0))lastOutbound.set(k,t);
+      }
+      let unanswered=0;
+      for(const [number,t] of lastInbound.entries())if(t>(lastOutbound.get(number)||0))unanswered++;
+      return res.status(200).json({
+        ok:true,connected:true,
+        received:(incoming||[]).length,
+        responded:(outgoing||[]).length,
+        pending:(pendingRows||[]).length,
+        unanswered,
+        label:"Hoy"
+      });
     }
     if(action==="pending"){
       const drafts=await db("vnx_whatsapp_drafts?tenant_id=eq."+encodeURIComponent(tenant.id)+"&status=eq.pending&select=id,customer_number,customer_name,inbound_text,proposed_text,requires_approval,created_at&order=created_at.desc&limit=30");
