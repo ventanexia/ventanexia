@@ -290,12 +290,108 @@
     try{const r=await window.vnx.prospectingCatalogStatus();txt.textContent=r?.found?'Catálogo detectado: '+r.name:'No hay un PDF con “catálogo” en las carpetas autorizadas.';}
     catch{txt.textContent='No se ha podido comprobar el catálogo.'}
   }
+  function emailInitials(from=''){
+    const name=String(from||'').replace(/<[^>]+>/g,'').trim();
+    const bits=name.split(/\s+/).filter(Boolean);
+    if(bits.length>=2)return (bits[0][0]+bits[1][0]).toUpperCase();
+    const addr=(String(from).match(/<?([^<>\s]+@[^<>\s]+)>?/)||[])[1]||name;
+    return String(addr).slice(0,2).toUpperCase();
+  }
+  function emailDisplayAddress(from=''){
+    const m=String(from||'').match(/<?([^<>\s]+@[^<>\s]+)>?/);return m?.[1]||String(from||'');
+  }
+  function emailDateLabel(raw=''){
+    const d=new Date(raw);if(Number.isNaN(d.getTime()))return String(raw||'');
+    return d.toLocaleString('es-ES',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).replace(',','');
+  }
+  function emailStatusLabel(m){
+    if(m.status==='unread')return '<span class="email-status unread">Sin leer</span>';
+    if(m.status==='responded')return '<span class="email-status responded">Respondido</span>';
+    return '<span class="email-status pending">Pendiente</span>';
+  }
+  function emailListItem(m,i,selected){
+    return '<button type="button" class="email-list-row '+(selected?'selected':'')+'" data-email-row="'+i+'">'
+      +'<span class="email-avatar">'+escM(emailInitials(m.from))+'</span>'
+      +'<span class="email-row-copy"><b>'+escM(emailDisplayAddress(m.from))+'</b><strong>'+escM(m.subject||'(sin asunto)')+'</strong><small>'+escM(m.snippet||'')+'</small></span>'
+      +'<span class="email-row-side"><time>'+escM(emailDateLabel(m.date))+'</time>'+emailStatusLabel(m)+'</span>'
+      +'</button>';
+  }
+  async function renderEmailDashboard(chosen){
+    const layout=$m('.guided-layout'),host=$m('#guidedFormHost'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),result=$m('#guidedResult'),cat=$m('#guidedCatalogRow'),consent=$m('#guidedConsentRow'),help=document.querySelector('.guided-help-card'),switcher=document.querySelector('.guided-card-head .mode-switch');
+    layout?.classList.add('email-dashboard-mode');
+    if(help)help.style.display='none';if(switcher)switcher.style.display='none';
+    if(primary)primary.style.display='none';if(steps)steps.style.display='none';if(result)result.style.display='none';if(cat)cat.style.display='none';if(consent)consent.style.display='none';
+    if(!host)return;
+    host.innerHTML='<div class="email-dashboard-loading">Consultando Gmail y preparando tu bandeja…</div>';
+    try{
+      const [metrics,inbox]=await Promise.all([window.vnx.emailMetrics(),window.vnx.emailInbox({limit:20})]);
+      const messages=Array.isArray(inbox?.messages)?inbox.messages:[];
+      host.innerHTML='<div class="email-dashboard">'
+        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div>'
+        +'<div class="email-metric-grid">'
+        +'<article><span class="metric-ico blue">✉</span><b>'+Number(metrics?.received||0)+'</b><strong>Recibidos</strong><small>Hoy</small></article>'
+        +'<article><span class="metric-ico green">✓</span><b>'+Number(metrics?.responded||0)+'</b><strong>Respondidos</strong><small>Enviados hoy</small></article>'
+        +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
+        +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>'
+        +'</div>'
+        +(messages.length?'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos ('+messages.length+')</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>':'<div class="email-dashboard-empty">No hay correos disponibles en la cuenta de Gmail conectada.</div>')
+        +'</div>';
+      if(!messages.length)return;
+      let selected=0,filter='all',search='';
+      const list=host.querySelector('[data-email-list]'),detail=host.querySelector('[data-email-detail]');
+      const visibleIndexes=()=>messages.map((m,i)=>({m,i})).filter(({m})=>{
+        const statusOk=filter==='all'||m.status===filter;
+        const q=search.toLowerCase();
+        const searchOk=!q||[m.from,m.subject,m.snippet].join(' ').toLowerCase().includes(q);
+        return statusOk&&searchOk;
+      }).map(x=>x.i);
+      function renderList(){
+        const idxs=visibleIndexes();
+        if(!idxs.includes(selected)&&idxs.length)selected=idxs[0];
+        list.innerHTML=idxs.length?idxs.map(i=>emailListItem(messages[i],i,i===selected)).join(''):'<div class="email-no-results">No hay correos con este filtro.</div>';
+        list.querySelectorAll('[data-email-row]').forEach(btn=>btn.onclick=()=>{selected=Number(btn.dataset.emailRow);renderList();renderDetail();});
+      }
+      function renderDetail(){
+        const m=messages[selected];if(!m){detail.innerHTML='';return}
+        detail.innerHTML='<div class="email-detail-head"><span class="email-avatar large">'+escM(emailInitials(m.from))+'</span><div><b>'+escM(emailDisplayAddress(m.from))+'</b><small>Para: '+escM(m.to||m.account||'')+'</small></div><time>'+escM(emailDateLabel(m.date))+'</time>'+emailStatusLabel(m)+'</div>'
+          +'<h3>'+escM(m.subject||'(sin asunto)')+'</h3>'
+          +'<div class="email-original-body">'+escM(m.body||m.snippet||'').replace(/\n/g,'<br>')+'</div>'
+          +'<div class="email-reply-tabs"><button class="active">✦ Respuesta sugerida por IA</button><button>ⓘ Detalles del correo</button><button>◷ Historial</button></div>'
+          +'<div class="email-suggestion"><div class="email-suggestion-head"><b>✦ Respuesta sugerida</b><button type="button" data-email-copy>Copiar texto</button></div><textarea data-email-reply rows="9">'+escM(m.defaultBody||'')+'</textarea></div>'
+          +'<div class="email-action-bar"><button type="button" class="btn primary" data-email-prepare>✈ Preparar respuesta</button><button type="button" class="btn outline" data-email-draft>▤ Crear borrador</button><button type="button" class="btn outline" data-email-read>✉ Marcar leído</button><button type="button" class="btn outline" data-email-open>↗ Abrir en Gmail</button></div>'
+          +'<div class="email-action-msg" data-email-msg></div>';
+        const ta=detail.querySelector('[data-email-reply]'),msg=detail.querySelector('[data-email-msg]');
+        detail.querySelector('[data-email-copy]').onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);msg.textContent='Texto copiado.'}catch{msg.textContent='No se pudo copiar.'}};
+        detail.querySelector('[data-email-prepare]').onclick=()=>{ta.focus();ta.select();msg.textContent='Revisa o modifica el texto. Después puedes crear el borrador en Gmail.'};
+        detail.querySelector('[data-email-draft]').onclick=async()=>{
+          const btn=detail.querySelector('[data-email-draft]');btn.disabled=true;msg.textContent='Creando borrador en Gmail…';
+          try{const r=await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'draft_reply',body:ta.value});msg.textContent=r?.message||'Borrador creado en Gmail.';await refreshAgentMetrics()}
+          catch(e){msg.textContent=e.message||'No se pudo crear el borrador.'}finally{btn.disabled=false}
+        };
+        detail.querySelector('[data-email-read]').onclick=async()=>{
+          const btn=detail.querySelector('[data-email-read]');btn.disabled=true;
+          try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});m.unread=false;if(m.status==='unread')m.status=m.responded?'responded':'pending';msg.textContent='Correo marcado como leído.';renderList();renderDetail();await refreshAgentMetrics()}
+          catch(e){msg.textContent=e.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
+        };
+        detail.querySelector('[data-email-open]').onclick=()=>{const u='https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id);window.open(u,'_blank','noopener,noreferrer')};
+      }
+      host.querySelectorAll('[data-email-filter]').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.emailFilter;host.querySelectorAll('[data-email-filter]').forEach(x=>x.classList.toggle('active',x===btn));renderList();renderDetail()});
+      const searchEl=host.querySelector('[data-email-search]');searchEl.oninput=()=>{search=searchEl.value.trim();renderList();renderDetail()};
+      renderList();renderDetail();
+    }catch(e){
+      host.innerHTML='<div class="email-dashboard-empty">No he podido cargar la bandeja: '+escM(e.message||e)+'</div>';
+    }
+  }
+
   function renderGuidedWorkspace(chosen){
     if(!chosen)return;
+    const layout=$m('.guided-layout'),help=document.querySelector('.guided-help-card'),switcher=document.querySelector('.guided-card-head .mode-switch'),primaryEl=$m('#guidedPrimaryAction'),stepsEl=$m('#guidedSteps');
+    layout?.classList.remove('email-dashboard-mode');if(help)help.style.display='';if(switcher)switcher.style.display='';if(primaryEl)primaryEl.style.display='';if(stepsEl)stepsEl.style.display='';
     const cfg=guidedConfig(chosen.key),saved=guidedSaved(chosen.key);
     const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
     if(title)title.textContent=(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
+    if(chosen.key==='email'){renderEmailDashboard(chosen);renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(host)host.innerHTML='<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
     if(primary){primary.textContent=cfg.primary||'✨ Empezar';primary.dataset.agentKey=chosen.key}
