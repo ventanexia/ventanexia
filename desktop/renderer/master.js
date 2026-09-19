@@ -307,6 +307,7 @@
   function emailStatusLabel(m){
     if(m.status==='unread')return '<span class="email-status unread">Sin leer</span>';
     if(m.status==='responded')return '<span class="email-status responded">Respondido</span>';
+    if(m.status==='no_reply')return '<span class="email-status no-reply">No requiere respuesta</span>';
     return '<span class="email-status pending">Pendiente</span>';
   }
   function emailListItem(m,i,selected){
@@ -334,7 +335,7 @@
         +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
         +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>'
         +'</div>'
-        +(messages.length?'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos ('+messages.length+')</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>':'<div class="email-dashboard-empty">No hay correos disponibles en la cuenta de Gmail conectada.</div>')
+        +(messages.length?'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos ('+messages.length+')</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>':'<div class="email-dashboard-empty">No hay correos disponibles en la cuenta de Gmail conectada.</div>')
         +'</div>';
       if(!messages.length)return;
       let selected=0,filter='all',search='';
@@ -358,7 +359,7 @@
           +'<div class="email-original-body">'+escM(m.body||m.snippet||'').replace(/\n/g,'<br>')+'</div>'
           +'<div class="email-reply-tabs"><button class="active">✦ Respuesta sugerida por IA</button><button>ⓘ Detalles del correo</button><button>◷ Historial</button></div>'
           +'<div class="email-suggestion"><div class="email-suggestion-head"><b>✦ Respuesta sugerida</b><button type="button" data-email-copy>Copiar texto</button></div><textarea data-email-reply rows="9">'+escM(m.defaultBody||'')+'</textarea></div>'
-          +'<div class="email-action-bar"><button type="button" class="btn primary" data-email-prepare>✈ Preparar respuesta</button><button type="button" class="btn outline" data-email-draft>▤ Crear borrador</button><button type="button" class="btn outline" data-email-read>✉ Marcar leído</button><button type="button" class="btn outline" data-email-open>↗ Abrir en Gmail</button></div>'
+          +'<div class="email-action-bar"><button type="button" class="btn primary" data-email-prepare>✈ Preparar respuesta</button><button type="button" class="btn outline" data-email-draft>▤ Crear borrador</button><button type="button" class="btn outline" data-email-read>✉ Marcar leído</button><button type="button" class="btn outline email-no-reply-btn" data-email-no-reply>✓ No requiere respuesta</button><button type="button" class="btn outline" data-email-open>↗ Abrir en Gmail</button></div>'
           +'<div class="email-action-msg" data-email-msg></div>';
         const ta=detail.querySelector('[data-email-reply]'),msg=detail.querySelector('[data-email-msg]');
         detail.querySelector('[data-email-copy]').onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);msg.textContent='Texto copiado.'}catch{msg.textContent='No se pudo copiar.'}};
@@ -372,6 +373,15 @@
           const btn=detail.querySelector('[data-email-read]');btn.disabled=true;
           try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});m.unread=false;if(m.status==='unread')m.status=m.responded?'responded':'pending';msg.textContent='Correo marcado como leído.';renderList();renderDetail();await refreshAgentMetrics()}
           catch(e){msg.textContent=e.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
+        };
+        detail.querySelector('[data-email-no-reply]').onclick=async()=>{
+          const btn=detail.querySelector('[data-email-no-reply]');btn.disabled=true;msg.textContent='Marcando como no requiere respuesta…';
+          try{
+            const r=await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'no_reply_needed'});
+            m.unread=false;m.noReply=true;m.status='no_reply';
+            msg.textContent=r?.message||'Marcado como no requiere respuesta.';
+            renderList();renderDetail();await refreshAgentMetrics();
+          }catch(e){msg.textContent=e.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
         };
         detail.querySelector('[data-email-open]').onclick=()=>{const u='https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id);window.open(u,'_blank','noopener,noreferrer')};
       }
