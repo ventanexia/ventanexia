@@ -1,4 +1,4 @@
-const AGENT_CATALOG=[
+const EDITION='master';\n\nconst AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
   {key:'prospecting',icon:'🎯',name:'Captación y búsqueda de clientes',entitlement:'buscador',requires:'prospecting'},
   {key:'whatsapp',icon:'💬',name:'WhatsApp Business',entitlement:'whatsapp',requires:'whatsapp'},
@@ -21,7 +21,7 @@ function purchasedFeatures(license={}){
   const p=license?.featurePolicy||{};
   return new Set([...(p.purchased_included||[]),...(p.purchased_extras||[])].map(x=>String(x||'').trim().toLowerCase()).filter(Boolean));
 }
-function isMaster(license={}){return cleanPlan(license?.plan)==='master'}
+function isMaster(license={}){return EDITION==='master'||cleanPlan(license?.plan)==='master'||cleanPlan(license?.edition)==='master'}
 function standardPremiumPlan(license={}){
   return ['scale','empresa','premium'].includes(cleanPlan(license?.plan));
 }
@@ -62,4 +62,4 @@ function assertModuleIncluded(license={},module=''){
   const err=new Error('Esta conexión pertenece a un agente que no está incluido en tu plan actual.');
   err.code='FEATURE_NOT_INCLUDED';err.module=module;err.entitlement=moduleEntitlement(module);throw err;
 }
-module.exports={AGENT_CATALOG,isMaster,isAgentIncluded,assertAgentIncluded,isModuleIncluded,assertModuleIncluded,moduleEntitlement,purchasedFeatures};
+module.exports={EDITION,AGENT_CATALOG,isMaster,isAgentIncluded,assertAgentIncluded,isModuleIncluded,assertModuleIncluded,moduleEntitlement,purchasedFeatures};
