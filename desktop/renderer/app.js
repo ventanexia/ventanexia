@@ -278,6 +278,17 @@ function setupShopifyConnectionUi(){
     if(!s){msg.innerHTML='<b>Falta la tienda.</b> Indica tu dominio interno, por ejemplo tienda.myshopify.com.';return;}
     connect.disabled=true;connect.textContent='Abriendo Shopify…';msg.innerHTML='<b>Sigue los pasos dentro de Shopify.</b> VentaNexIA detectará la conexión cuando termines.';
     try{
+      const masterOwned=Boolean(state.license?.master||state.license?.unlimited)||String(state.license?.edition||'').toLowerCase()==='master'||String(state.license?.plan||'').toLowerCase()==='master';
+      if(masterOwned){
+        msg.innerHTML='<b>Conectando directamente con Shopify…</b> Esta prueba usa la app de tu organización.';
+        const st=await window.vnx.connectOwnedShopify({shop:s});
+        setRealModuleSource('shopify',{integration:'shopify',status:'connected',shop:st.shop,shopName:st.shopName||st.shop,mode:'write',connectedAt:new Date().toISOString()});
+        msg.innerHTML='<b>🟢 Shopify conectado.</b> '+esc(st.shopName||st.shop);
+        if(activeButton)activeButton.textContent='🟢 Shopify · '+esc(st.shopName||st.shop);
+        connect.disabled=false;connect.textContent='Autorizar con Shopify';
+        await refreshChatConnections();
+        return;
+      }
       const started=await window.vnx.startOAuth({module:'shopify',provider:'shopify',shop:s});
       oauthState=started.state;stopPoll();
       pollTimer=setInterval(async()=>{
