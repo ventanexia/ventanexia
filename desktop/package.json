@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.42",
+  "version": "0.6.43",
   "private": true,
-  "description": "VentaNexIA Desktop · Clear Personal WhatsApp Limitations · WhatsApp Live Counters · 0.6.42",
+  "description": "VentaNexIA Desktop · Pedidos desde Email y Portal/ERP web · 0.6.43",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
