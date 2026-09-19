@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.37",
+  "version": "0.6.38",
   "private": true,
-  "description": "VentaNexIA Desktop · Live Connected Accounts Overview · Multi-account Email Inbox · 0.6.37",
+  "description": "VentaNexIA Desktop · Plain Language UI · Live Connections · Multi-account Email · 0.6.38",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
