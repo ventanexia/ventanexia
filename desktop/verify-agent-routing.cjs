@@ -129,14 +129,15 @@ assert.equal(isAgentIncluded(clientLicense,'customer_service','customer'),true);
 assert.equal(isAgentIncluded(clientLicense,'administration','customer'),true);
 assert.equal(isAgentIncluded(clientLicense,'social','customer'),false);
 assert.equal(isAgentIncluded(clientLicense,'crm','customer'),false);
-assert.equal(AGENT_CATALOG.length,12,'El selector debe mostrar exactamente 10 agentes claros');
+assert.equal(AGENT_CATALOG.length,13,'El selector debe mostrar los 13 especialistas actuales');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='email'),true,'Email debe tener su agente especialista');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='whatsapp'),true,'WhatsApp debe tener su agente especialista');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='voice'),false,'Voz debe ser una conexión/capacidad, no un agente');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='agenda'),false,'Agenda debe estar integrada en Administración');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='seo'),false,'SEO debe estar integrado en Marketing y visibilidad');
-assert.match(AGENT_CATALOG.find(a=>a.key==='crm')?.name||'',/Ventas y CRM/);
-assert.match(AGENT_CATALOG.find(a=>a.key==='social')?.name||'',/Marketing y visibilidad/);
+assert.match(AGENT_CATALOG.find(a=>a.key==='crm')?.name||'',/Ventas y clientes/);
+assert.match(AGENT_CATALOG.find(a=>a.key==='social')?.name||'',/Redes y publicidad/);
+assert.equal(AGENT_CATALOG.some(a=>a.key==='orders'),true,'Pedidos debe tener su agente especialista');
 
 
 const master=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
