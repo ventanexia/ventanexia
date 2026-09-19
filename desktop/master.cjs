@@ -345,6 +345,33 @@ async function collectGmailContextMaster(integration,question=''){
   return [{path:'GMAIL '+account,content}];
 }
 
+async function gmailTodayBounds(){
+  const start=new Date();start.setHours(0,0,0,0);
+  const end=new Date(start);end.setDate(end.getDate()+1);
+  return {after:Math.floor(start.getTime()/1000),before:Math.floor(end.getTime()/1000)};
+}
+ipcMain.handle('email:metrics',async()=>{
+  const s=await readState();assertAgentIncluded(s.license,'email');
+  const accounts=emailAccountsForState(s).filter(x=>x.provider==='gmail');
+  if(!accounts.length)return {connected:false,received:0,responded:0,pending:0,accounts:0};
+  const {after,before}=await gmailTodayBounds();
+  let received=0,responded=0,pending=0,okAccounts=0;
+  for(const integration of accounts){
+    try{
+      const base='after:'+after+' before:'+before;
+      const [r,sent,p]=await Promise.all([
+        countGmailMessages(integration,'in:inbox '+base),
+        countGmailMessages(integration,'in:sent '+base),
+        countGmailMessages(integration,'in:inbox is:unread')
+      ]);
+      received+=r;responded+=sent;pending+=p;okAccounts++;
+    }catch(e){
+      await audit('email.metrics_error',(integration.label||integration.meta?.email||'Gmail')+' · '+String(e?.message||e).slice(0,160));
+    }
+  }
+  return {connected:okAccounts>0,received,responded,pending,accounts:okAccounts,label:'Hoy'};
+});
+
 ipcMain.handle('email:action',async(_e,payload={})=>{
   const s=await readState();assertAgentIncluded(s.license,'email');
   const account=String(payload.account||'').trim(),messageId=String(payload.messageId||'').trim(),action=String(payload.action||'').trim();
