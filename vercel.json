@@ -94,6 +94,71 @@
           "value": "no-store, no-cache, must-revalidate"
         }
       ]
+    },
+    {
+      "source": "/admin.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index-compact.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/index-deploy.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/demo.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/demos-ia.html",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -114,6 +179,28 @@
     {
       "path": "/api/trial-sweep",
       "schedule": "0 0 * * *"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/index-compact.html",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/index-deploy.html",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/demo.html",
+      "destination": "/demos-funciones.html",
+      "permanent": true
+    },
+    {
+      "source": "/demos-ia.html",
+      "destination": "/demos-funciones.html",
+      "permanent": true
     }
   ]
 }
