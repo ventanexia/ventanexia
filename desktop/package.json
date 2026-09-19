@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.28",
+  "version": "0.6.29",
   "private": true,
-  "description": "VentaNexIA Desktop SecureCore Master · Guided Agent Workspace · Prospecting Campaigns · 0.6.28",
+  "description": "VentaNexIA Desktop SecureCore Master · Guided Agent Workspace · Prospecting Opportunity Cards · 0.6.29",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
