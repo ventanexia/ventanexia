@@ -24,7 +24,6 @@ const PACKS={
   video_pack:{name:"10 créditos de vídeo",amount:9900,meter:"video_credits",quantity:10},
   image_pack:{name:"100 créditos de imagen",amount:2900,meter:"image_credits",quantity:100},
   voice_pack:{name:"250 minutos de voz",amount:4900,meter:"voice_minutes",quantity:250},
-  whatsapp_pack:{name:"1.000 mensajes automatizados",amount:5900,meter:"whatsapp_messages",quantity:1000},
   lead_pack:{name:"500 créditos de captación",amount:7900,meter:"lead_credits",quantity:500}
 };
 export default async function handler(req,res){
