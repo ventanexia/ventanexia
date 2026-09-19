@@ -14,7 +14,7 @@
   <aside class="side">
     <div class="brand"><div class="mark">VN</div><div><b>VentaNexIA</b><small>Programa para tu empresa</small></div></div>
     <button class="nav active" data-tab="home">⌂ Inicio</button>
-    <button class="nav" data-tab="chat">💬 Habla con tu equipo</button>
+    <button class="nav" data-tab="chat">💬 Dime qué necesitas</button>
     <button class="nav" data-tab="agents">◉ Conexiones</button>
     <button class="nav" data-tab="onboarding">👥 Alta de cliente</button>
     <button class="nav" data-tab="webcommerce">🌐 Web y tienda</button>
@@ -54,7 +54,7 @@
       </div>
 
       <div class="dark-panel" id="homeAgentsPanel" style="margin-top:18px">
-        <div class="panel-head"><div><h3 style="margin:0">Tu equipo de agentes</h3><small id="homeAgentsSummary">Comprobando agentes disponibles…</small></div><div class="row"><button class="btn outline" data-tab-jump="agents">Conectar agentes</button><button class="btn primary" data-tab-jump="chat">Habla con tu equipo</button></div></div>
+        <div class="panel-head"><div><h3 style="margin:0">Tu equipo de agentes</h3><small id="homeAgentsSummary">Comprobando agentes disponibles…</small></div><div class="row"><button class="btn outline" data-tab-jump="agents">Conectar agentes</button><button class="btn primary" data-tab-jump="chat">Dime qué necesitas</button></div></div>
         <div id="homeAgentsList" class="modulegrid" style="margin-top:14px"></div>
       </div>
 
@@ -77,7 +77,7 @@
         <div class="dark-panel quick-panel">
           <div class="panel-head"><h3>Accesos rápidos</h3></div>
           <div class="quick-grid">
-            <button data-tab-jump="chat">💬 Habla con tu equipo</button>
+            <button data-tab-jump="chat">💬 Dime qué necesitas</button>
             <button data-tab-jump="agents">◉ Conectar una cuenta</button>
             <button data-tab-jump="webcommerce">🌐 Abrir web y tienda</button>
             <button data-tab-jump="activity">▥ Ver actividad</button>
@@ -117,11 +117,11 @@
 
     <section class="tab" id="chat">
       <div class="card chatcard">
-        <div class="eyebrow">HABLA CON TU EQUIPO</div>
-        <div class="panel-head"><h2>¿Qué quieres que haga VentaNexIA?</h2><button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button></div>
+        <div class="eyebrow">DIME QUÉ NECESITAS</div>
+        <div class="panel-head"><h2>¿Qué necesitas hacer?</h2><button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button></div>
         <div class="notice" id="chatScopeBar" style="margin-bottom:12px"><label><b>¿Con qué agente quieres trabajar?</b><select id="chatConnectionSelect" style="margin-top:6px"><option value="">Elige un agente…</option></select></label><small id="chatConnectionHint" style="display:block;margin-top:6px">Elige uno de tus agentes conectados y listos para usar.</small><small style="display:block;margin-top:6px;color:#9fb8cc">¿No aparece el agente que necesitas? Debes conectarlo primero en “Conexiones” para poder hacer las gestiones que quieras.</small></div>
         <div id="messages" class="messages"><div class="msg ai">Soy el asistente de VentaNexIA. Puedo consultar y actuar sobre las herramientas que hayas conectado y autorizado, dentro de las funciones disponibles en tu plan.</div></div>
-        <form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Ej.: dime cuántos pedidos han entrado hoy, responde las consultas pendientes y prepara una publicación para Instagram"></textarea><div class="row" style="justify-content:space-between;align-items:center"><button class="btn outline" id="chatClearBtn" type="button">Limpiar conversación</button><button class="btn primary">Enviar</button></div></form>
+        <form id="chatForm"><textarea id="chatInput" rows="4" placeholder="Cuéntame qué necesitas. Ej.: revisa los correos pendientes, dime los pedidos de hoy o prepara una publicación para Instagram"></textarea><div class="row" style="justify-content:space-between;align-items:center"><button class="btn outline" id="chatClearBtn" type="button">Limpiar conversación</button><button class="btn primary">Enviar</button></div></form>
       </div>
     </section>
 
