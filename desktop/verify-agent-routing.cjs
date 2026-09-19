@@ -189,6 +189,8 @@ assert.match(app,/account\.value=''/,'Desconectar Email debe limpiar el correo m
 assert.match(app,/vnxOpenServiceWizard/,'El botón de cuenta Email extra debe abrir el asistente en modo añadir');
 assert.match(app,/addAnother:true/,'Maestro debe abrir el asistente sin reutilizar la cuenta ya conectada');
 assert.match(app,/account\.value=addAnother\?'':/,'Añadir otra cuenta debe dejar vacío el campo del nuevo email');
+assert.match(app,/currentAddAnother/,'El estado añadir-otra-cuenta debe estar disponible dentro del handler de conexión');
+assert.doesNotMatch(app,/activeKey==='email'&&addAnother&&!requestedAccount/,'El handler no puede depender de una variable local fuera de alcance');
 assert.match(renderer,/email-action-btn/,'El chat debe mostrar botones de acción para Gmail');
 assert.match(renderer,/Vas a cambiar de agente/,'Cambiar de agente debe pedir confirmación si hay un trabajo en curso');
 assert.match(renderer,/masterMessages=\[\]/,'Cambiar de agente debe limpiar la conversación actual tras confirmar');
