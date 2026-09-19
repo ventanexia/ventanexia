@@ -1,21 +1,12 @@
-const {app,BrowserWindow,ipcMain,safeStorage}=require('electron');
+const {app,BrowserWindow,ipcMain}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs/promises');
+const {readState}=require('./state-store.cjs');
 
-const storeFile=()=>path.join(app.getPath('userData'),'secure-state.json');
 const norm=v=>String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const partitionFor=id=>`persist:vnx-portal-${String(id||'portal').replace(/[^a-z0-9_-]/gi,'')}`;
 function sameOrigin(a,b){try{return new URL(a).origin===new URL(b).origin}catch{return false}}
-
-async function readState(){
-  try{
-    const raw=JSON.parse(await fs.readFile(storeFile(),'utf8'));
-    if(raw.secret&&safeStorage.isEncryptionAvailable())raw.secret=JSON.parse(safeStorage.decryptString(Buffer.from(raw.secret,'base64')));else raw.secret={};
-    raw.portals=Array.isArray(raw.portals)?raw.portals:[];
-    return raw;
-  }catch{return {portals:[],secret:{}}}
-}
 
 function selectPortal(portals,question=''){
   const q=norm(question);
