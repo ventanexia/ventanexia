@@ -668,3 +668,24 @@ body{
   .email-account-select,.email-search{flex:1;min-width:220px}
 }
 /* VNX EMAIL ACCOUNT SELECTOR END */
+
+
+/* VNX CONNECTION LIVE SUMMARIES START */
+.connection-live-card{display:flex!important;flex-direction:column!important}
+.connection-live-summary{margin:12px 0 10px;border:1px solid #174f70;border-radius:11px;background:#061d31;padding:10px}
+.connection-summary-loading{font-size:11px;color:#7fa7bb}
+.connection-count{font-size:11px;font-weight:850;color:#7de5b7;margin-bottom:8px}
+.connection-account-list{display:grid;gap:7px}
+.connection-account-row{display:grid;grid-template-columns:8px minmax(0,1fr);gap:8px;align-items:start;padding:7px 8px;border-radius:8px;background:#08253d}
+.connection-dot{width:7px;height:7px;border-radius:50%;background:#32d389;margin-top:5px;box-shadow:0 0 8px rgba(50,211,137,.45)}
+.connection-account-row div{min-width:0;display:grid;gap:2px}
+.connection-account-row b{font-size:11px;color:#eef9ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.connection-account-row small{font-size:9px;color:#86aabc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.connection-empty{display:flex;gap:8px;align-items:center;color:#7fa7bb;font-size:10px}
+.connection-empty i{width:7px;height:7px;border-radius:50%;background:#596b77}
+.connection-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:8px}
+.connection-detail-grid span{display:grid;gap:2px;border-top:1px solid #16465f;padding-top:6px;color:#bcd3de;font-size:10px}
+.connection-detail-grid b{font-size:8px;text-transform:uppercase;letter-spacing:.35px;color:#6fa8c0}
+.connection-live-card>.btn{margin-top:auto}
+@media(max-width:850px){.connection-detail-grid{grid-template-columns:1fr}}
+/* VNX CONNECTION LIVE SUMMARIES END */
