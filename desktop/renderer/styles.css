@@ -418,3 +418,50 @@ body{
   .guided-other-grid{grid-template-columns:1fr!important}
 }
 /* VNX 0.6.28 VISUAL REFRESH END */
+
+
+/* VNX PROSPECTING CARDS START */
+.prospect-results{margin-top:4px}
+.prospect-results-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  margin-bottom:14px;padding:2px 2px 0
+}
+.prospect-result-badge{
+  display:inline-flex;border:1px solid #1bc9f4;border-radius:999px;padding:5px 11px;
+  color:#55ddff;font-size:11px;font-weight:900;letter-spacing:.35px
+}
+.prospect-results-head h3{font-size:27px;margin:8px 0 4px;color:#fff;letter-spacing:-.45px}
+.prospect-results-head p{margin:0;color:#a8c8da;font-size:13px}
+.prospect-trust{color:#43e6ad;font-weight:800;font-size:13px;padding-top:8px}
+.prospect-toolbar{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0 16px}
+.prospect-toolbar .btn{min-height:39px}
+.prospect-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.prospect-card{
+  background:linear-gradient(180deg,#07253f 0%,#051f35 100%);
+  border:1px solid #145f8d;border-radius:16px;padding:18px;
+  box-shadow:0 11px 28px rgba(0,0,0,.13)
+}
+.prospect-card.is-hidden{display:none}
+.prospect-card-kicker{color:#35d3ff;font-size:12px;font-weight:900;margin-bottom:8px}
+.prospect-card h4{margin:0 0 14px;color:#fff;font-size:20px;line-height:1.2}
+.prospect-meta{display:grid;gap:7px}
+.prospect-meta>div{display:grid;grid-template-columns:90px 1fr;gap:10px;font-size:13px}
+.prospect-meta span{color:#66bde9}.prospect-meta strong{color:#f5fbff;overflow-wrap:anywhere}
+.prospect-divider{height:1px;background:#174a6a;margin:14px 0}
+.prospect-card p{color:#d7e9f3;font-size:13px;line-height:1.48;margin:0 0 10px}
+.prospect-card p b{color:#fff}.prospect-check{color:#a9c9da!important}
+.prospect-card-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:13px}
+.prospect-card-actions .mini{min-height:36px}
+.prospect-source-state{color:#4de2bd;font-size:12px;font-weight:800}
+.prospect-email-state{
+  display:inline-flex;align-items:center;border:1px solid #2679a6;border-radius:9px;
+  padding:8px 10px;color:#dff7ff;background:#072a43;font-size:12px;font-weight:800
+}
+.prospect-email-state.muted{opacity:.65}
+.prospect-more-wrap{display:flex;justify-content:center;margin-top:16px}
+.prospect-saved-note{
+  margin-top:14px;border:1px solid #165a7f;background:#062640;border-radius:10px;
+  color:#acd1e3;padding:10px 12px;font-size:12px
+}
+@media(max-width:1050px){.prospect-grid{grid-template-columns:1fr}}
+/* VNX PROSPECTING CARDS END */
