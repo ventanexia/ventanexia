@@ -93,11 +93,14 @@ function emailFallback(req){
 
   if(/requieren respuesta|requiere respuesta|pendientes? de responder|tengo que responder|debo responder|necesitan respuesta/.test(q)){
     const replyScore=(m)=>{
-      const t=norm([m.subject,m.snippet,m.status].join(" "));
+      const t=norm([m.from,m.subject,m.snippet,m.status].join(" "));
       let s=0;
-      if(/no leido|unread/.test(t))s+=2;
-      if(/pregunta|consulta|confirma|confirmacion|respuesta|respond|contesta|necesito|podrias|puedes|cuando|plazo|incidencia|problema|reclam|pedido|presupuesto|entrega|envio|devoluc|cancel/.test(t))s+=3;
-      if(/newsletter|boletin|promocion|marketing|noreply|no-reply|notificacion automatica|social/.test(t))s-=4;
+      if(/pregunta|consulta|confirma|confirmacion|respuesta|respond|contesta|necesito|necesitamos|podrias|puedes|cuando|plazo|incidencia|problema|reclam|pedido|presupuesto|entrega|envio|devoluc|cancel|mandes|enviar|envies|catalogo|documentacion|ficha tecnica|tarifa/.test(t))s+=5;
+      if(/cliente|customer|proveedor|supplier|hola|hello|buenos dias|buenas tardes|dear sir|dear madam/.test(t))s+=2;
+      if(/no leido|unread/.test(t))s+=1;
+      if(/codigo de verificacion|verification code|login code|log in code|sign-in|sign in|new sign-in|nuevo inicio de sesion|otp|2fa|one-time|vence en \d+ minutos|expires in \d+ minutes|no compartas|do not share/.test(t))s-=10;
+      if(/newsletter|boletin|promocion|marketing|noreply|no-reply|do not reply|notificacion automatica|notification|mailer@shopify\.com|system@vercel\.com|notifications@vercel\.com|linkedin|instagram|facebook|canva|social|report domain:|dmarc/.test(t))s-=8;
+      if(/pago de una factura fallo|fallo el pago|payment failed|card declined/.test(t))s-=6;
       return s;
     };
     const pending=emails.map(m=>({m,score:replyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score);
