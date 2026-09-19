@@ -1,4 +1,6 @@
-const EDITION='master';\n\nconst AGENT_CATALOG=[
+const EDITION='master';
+
+const AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
   {key:'prospecting',icon:'🎯',name:'Captación y búsqueda de clientes',entitlement:'buscador',requires:'prospecting'},
   {key:'whatsapp',icon:'💬',name:'WhatsApp Business',entitlement:'whatsapp',requires:'whatsapp'},
