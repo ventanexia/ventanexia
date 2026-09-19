@@ -5,6 +5,27 @@
   let masterMessages=[];
   let runtimeConnections=[];
   let runtimeAgents=[];
+  const AGENT_INPUT_EXAMPLES={
+    core_ai:'Ej.: analiza estos datos, resume este documento, ayúdame a preparar una propuesta o dime qué tareas puedo automatizar',
+    prospecting:'Ej.: busca 20 posibles clientes en Barcelona, prepara una lista de empresas objetivo o dime a quién deberíamos contactar hoy',
+    whatsapp:'Ej.: revisa las consultas pendientes de WhatsApp, prepara una respuesta para este cliente o redacta un seguimiento',
+    email:'Ej.: dime los últimos 5 correos, cuáles necesitan respuesta, crea un borrador para este cliente o archiva este mensaje',
+    agenda:'Ej.: qué tengo hoy, prepara mi agenda de mañana, recuérdame llamar a este cliente o organiza mis seguimientos',
+    customer_service:'Ej.: qué consultas de clientes están pendientes, prepara respuestas para estas incidencias o resume los problemas más repetidos',
+    quotes:'Ej.: prepara un presupuesto para este cliente, revisa este presupuesto o calcula una propuesta con estos productos y cantidades',
+    social:'Ej.: prepara una publicación para Instagram, crea el texto de LinkedIn de esta semana o propón 5 ideas de contenido',
+    reports:'Ej.: resume las ventas de esta semana, compara este mes con el anterior o prepara un informe con los datos disponibles',
+    seo:'Ej.: revisa el SEO de esta página, mejora el título y la descripción, busca oportunidades de palabras clave o prepara contenido SEO',
+    administration:'Ej.: organiza estos documentos, revisa tareas administrativas pendientes, resume esta información o prepara los datos para gestión',
+    automation:'Ej.: automatiza esta tarea repetitiva, crea un flujo para avisarme de nuevos pedidos o dime qué procesos podemos automatizar',
+    voice:'Ej.: prepara el guion para atender llamadas, define cómo responder preguntas frecuentes o crea un protocolo para la secretaria virtual',
+    crm:'Ej.: muéstrame los clientes recientes, qué oportunidades tengo abiertas, quién necesita seguimiento o actualiza los datos de este cliente',
+    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana, cuántos productos tenemos, revisa clientes o actualiza precios'
+  };
+  function updateAgentInputExample(chosen){
+    const input=$m('#chatInput');if(!input)return;
+    input.placeholder=chosen?AGENT_INPUT_EXAMPLES[chosen.key]||'Escribe aquí lo que necesitas que haga este agente':'Elige un agente arriba y te mostraré ejemplos de lo que puedes pedirle';
+  }
 
   function statusLabel(p){
     if(p.lastStatus==='connected')return '🟢 Conectado';
@@ -179,9 +200,12 @@
       if(nextValue)localStorage.setItem('vnx_master_chat_agent',nextValue);
       const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
       updateAgentHint(chosen,hint);
+      updateAgentInputExample(chosen);
       if(nextValue&&input)setTimeout(()=>input.focus(),30);
     };
-    updateAgentHint(items.find(x=>chatConnectionValue(x)===sel.value),hint);
+    const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
+    updateAgentHint(selectedAgent,hint);
+    updateAgentInputExample(selectedAgent);
     renderHomeAgents(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
   }
