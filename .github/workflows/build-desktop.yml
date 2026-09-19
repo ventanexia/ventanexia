@@ -21,6 +21,8 @@ jobs:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
+      - name: Verify release target
+        run: echo Building VentaNexIA $env:VNX_BUILD_EDITION
       - uses: actions/setup-node@v4
         with:
           node-version: 22
