@@ -185,6 +185,9 @@ assert.doesNotMatch(app,/Selecciona una conexión…|VentaNexIA consultará este
 assert.match(app,/Maestro: cuentas de email ilimitadas/);
 assert.match(app,/await refreshChatConnections\(\)/,'Desconectar debe refrescar agentes y Centro Maestro inmediatamente');
 assert.match(app,/account\.value=''/,'Desconectar Email debe limpiar el correo mostrado en el formulario');
+assert.match(app,/vnxOpenServiceWizard/,'El botón de cuenta Email extra debe abrir el asistente en modo añadir');
+assert.match(app,/addAnother:true/,'Maestro debe abrir el asistente sin reutilizar la cuenta ya conectada');
+assert.match(app,/account\.value=addAnother\?'':/,'Añadir otra cuenta debe dejar vacío el campo del nuevo email');
 assert.match(renderer,/email-action-btn/,'El chat debe mostrar botones de acción para Gmail');
 assert.match(renderer,/window\.vnx\.emailAction/,'Los botones deben ejecutar la acción elegida por el cliente');
 assert.match(renderer,/confirm\(action==='trash'/,'Mover a papelera debe pedir confirmación');
