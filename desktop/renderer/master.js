@@ -48,12 +48,13 @@
       primary:'💬 Preparar gestión de WhatsApp',
       fields:[
         {key:'mode',label:'MODO DE RESPUESTA',type:'select',options:['Con autorización: enseñarme el texto antes de enviar','Automático: responder según reglas autorizadas (requiere recepción en tiempo real)']},
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Preparar respuesta a un cliente','Solicitar datos que faltan','Responder una consulta frecuente','Preparar seguimiento','Escalar a una persona','Otra gestión']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver mensajes pendientes de autorización','Preparar respuesta a un cliente','Solicitar datos que faltan','Responder una consulta frecuente','Preparar seguimiento','Escalar a una persona','Otra gestión']},
         {key:'customer',label:'CLIENTE / TELÉFONO',type:'text',placeholder:'Ej. Marta o +34 600 000 000'},
         {key:'context',label:'MENSAJE O CONTEXTO',type:'textarea',wide:true,placeholder:'Pega aquí el mensaje recibido o explica qué necesita el cliente',required:true},
-        {key:'instruction',label:'QUÉ DEBE CONSEGUIR LA RESPUESTA',type:'textarea',wide:true,placeholder:'Ej. pedir CIF y dirección de entrega, confirmar horario, resolver una duda'}
+        {key:'instruction',label:'QUÉ DEBE CONSEGUIR LA RESPUESTA',type:'textarea',wide:true,placeholder:'Ej. pedir CIF y dirección de entrega, confirmar horario, resolver una duda'},
+        {key:'billingAck',label:'Entiendo que los posibles cargos de Meta/WhatsApp se pagan desde la cuenta de WhatsApp Business de mi empresa. VentaNexIA no los incluye ni los absorbe.',type:'checkbox',wide:true}
       ],
-      capabilities:['Preparar respuestas claras y profesionales','Solicitar al cliente los datos que falten','Mostrar el texto antes de enviar en modo autorización','Permitir respuesta automática solo con reglas y recepción en tiempo real activas','Escalar casos sensibles o fuera de las reglas a una persona','No comprometer precios, descuentos o condiciones no autorizadas'],
+      capabilities:['Preparar respuestas claras y profesionales','Solicitar al cliente los datos que falten','Mostrar el texto antes de enviar en modo autorización','Responder automáticamente solo cuando el webhook esté activo y las reglas lo permitan','Escalar casos sensibles o fuera de las reglas a una persona','Uso del agente sin límite propio: los posibles cargos de Meta los paga la cuenta del cliente'],
       steps:['Entender','Preparar','Autorizar / responder']
     },
     prospecting:{
@@ -181,12 +182,13 @@
   function guidedFieldHtml(field,value=''){
     const cls=field.wide?' guided-field wide':' guided-field';
     const req=field.required?' <em>obligatorio</em>':'';
+    if(field.type==='checkbox')return '<label class="'+cls.trim()+' guided-check-field"><input data-guided-field="'+escM(field.key)+'" type="checkbox"'+((value===true||value==='true'||field.value===true)?' checked':'')+'><span>'+escM(field.label)+req+'</span></label>';
     if(field.type==='textarea')return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><textarea data-guided-field="'+escM(field.key)+'" rows="3" placeholder="'+escM(field.placeholder||'')+'">'+escM(value||field.value||'')+'</textarea></label>';
     if(field.type==='select')return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><select data-guided-field="'+escM(field.key)+'">'+(field.options||[]).map(o=>'<option value="'+escM(o)+'"'+(value===o?' selected':'')+'>'+escM(o)+'</option>').join('')+'</select></label>';
     return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><input data-guided-field="'+escM(field.key)+'" type="'+escM(field.type||'text')+'" value="'+escM(value||field.value||'')+'" placeholder="'+escM(field.placeholder||'')+'"></label>';
   }
   function guidedRead(key){
-    const data={};$$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.value.trim());guidedSave(key,data);return data;
+    const data={};$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.type==='checkbox'?el.checked:el.value.trim());guidedSave(key,data);return data;
   }
   function guidedPrompt(key,data){
     if(key==='email'){
@@ -283,6 +285,25 @@
       refreshGuidedCatalog();
     }
     renderGuidedOtherCards(chatConnections(),chosen);
+  }
+  function renderWhatsAppPending(out,drafts=[]){
+    if(!drafts.length){
+      out.innerHTML='<div class="guided-result-head"><b>WhatsApp</b></div><div class="guided-result-copy">No hay mensajes pendientes de autorización.</div>';
+      return;
+    }
+    out.innerHTML='<div class="guided-result-head"><b>'+drafts.length+' respuesta'+(drafts.length===1?'':'s')+' pendiente'+(drafts.length===1?'':'s')+'</b></div>'
+      +'<div class="wa-pending-list">'+drafts.map(d=>'<article class="wa-pending-card" data-wa-draft="'+escM(d.id)+'">'
+        +'<div class="wa-pending-head"><b>'+escM(d.customer_name||d.customer_number||'Cliente')+'</b><small>'+escM(d.customer_number||'')+'</small></div>'
+        +'<div class="wa-inbound"><span>Mensaje recibido</span><p>'+escM(d.inbound_text||'')+'</p></div>'
+        +'<label><span>Respuesta preparada</span><textarea rows="4" data-wa-text>'+escM(d.proposed_text||'')+'</textarea></label>'
+        +'<div class="wa-pending-actions"><button type="button" class="btn primary" data-wa-approve>Enviar esta respuesta</button><button type="button" class="btn outline" data-wa-reject>Descartar</button></div>'
+        +'</article>').join('')+'</div>'
+      +'<small class="guided-email-safety">En modo autorización nunca se envía nada hasta que pulses “Enviar esta respuesta”. Los cargos externos de Meta corresponden a la cuenta del cliente.</small>';
+    out.querySelectorAll('[data-wa-draft]').forEach(card=>{
+      const id=card.dataset.waDraft,approve=card.querySelector('[data-wa-approve]'),reject=card.querySelector('[data-wa-reject]'),ta=card.querySelector('[data-wa-text]');
+      if(approve)approve.onclick=async()=>{if(!confirm('¿Enviar esta respuesta por WhatsApp?'))return;approve.disabled=true;try{const rr=await window.vnx.whatsappRuntime({action:'approve',draftId:id,text:ta?.value||''});card.innerHTML='<div class="guided-email-done">'+escM(rr?.message||'Respuesta enviada.')+'</div>'}catch(e){alert(e.message||e)}finally{approve.disabled=false}};
+      if(reject)reject.onclick=async()=>{if(!confirm('¿Descartar esta respuesta preparada?'))return;reject.disabled=true;try{await window.vnx.whatsappRuntime({action:'reject',draftId:id});card.remove()}catch(e){alert(e.message||e)}finally{reject.disabled=false}};
+    });
   }
   function prospectingPublicUrl(lead={}){
     const candidates=[lead.sourceUrl,lead.source_url,lead.source,lead.website,lead.url].filter(Boolean);
@@ -403,6 +424,16 @@
     btn.disabled=true;const old=btn.textContent;btn.textContent='Trabajando…';out.style.display='block';out.innerHTML='<div class="guided-loading">VentaNexIA está trabajando con tus datos…</div>';
     try{
       let r;
+      if(scope.key==='whatsapp'){
+        const automatic=String(data.mode||'').startsWith('Automático');
+        if(automatic&&!data.billingAck)throw new Error('Confirma primero que los posibles cargos de Meta corresponden a la cuenta de WhatsApp Business del cliente.');
+        await window.vnx.whatsappRuntime({action:'set_mode',mode:automatic?'automatic':'approval',billingAcknowledged:Boolean(data.billingAck)});
+        if(String(data.task||'').toLowerCase().includes('pendientes')){
+          r=await window.vnx.whatsappRuntime({action:'pending'});
+          renderWhatsAppPending(out,r?.drafts||[]);
+          return;
+        }
+      }
       if(scope.key==='prospecting'){
         const profile=['mi empresa: '+data.company,'vendemos: '+data.offer,data.web?'web: '+data.web:'',data.signature?'firma: '+data.signature:''].filter(Boolean).join('; ');
         await window.vnx.sendChat([{role:'user',content:profile}],scope);
