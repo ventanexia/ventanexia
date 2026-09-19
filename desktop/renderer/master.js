@@ -418,9 +418,17 @@
           catch(err){msg.textContent=err.message||'No se pudo crear el borrador.'}finally{btn.disabled=false}
         };
         detail.querySelector('[data-email-read]').onclick=async()=>{
-          const btn=detail.querySelector('[data-email-read]');btn.disabled=true;
-          try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});m.unread=false;if(m.status==='unread')m.status=m.responded?'responded':'pending';msg.textContent='Correo marcado como leído.';renderList();renderDetail();await refreshAgentMetrics()}
-          catch(err){msg.textContent=err.message||'No se pudo actualizar el correo.'}finally{btn.disabled=false}
+          const btn=detail.querySelector('[data-email-read]');btn.disabled=true;msg.textContent='Marcando como leído en Gmail…';
+          try{
+            const result=await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});
+            if(!result?.ok)throw new Error(result?.message||'Gmail no confirmó la acción.');
+            m.unread=false;if(m.status==='unread')m.status=m.responded?'responded':'pending';
+            await refreshAccountData();
+            await refreshAgentMetrics();
+          }catch(err){
+            msg.textContent=err.message||'No se pudo actualizar el correo.';
+            btn.disabled=false;
+          }
         };
         detail.querySelector('[data-email-no-reply]').onclick=async()=>{
           const btn=detail.querySelector('[data-email-no-reply]');btn.disabled=true;msg.textContent='Marcando como no requiere respuesta…';
