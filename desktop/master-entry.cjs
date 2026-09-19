@@ -1,4 +1,6 @@
 const {app,ipcMain}=require('electron');
+const {readState}=require('./state-store.cjs');
+const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 
@@ -51,6 +53,17 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
     // El agente Web & Ecommerce debe usar la fuente Shopify real cuando está conectada.
     if(type==='agent'&&String(scope?.key||'')==='web_ecommerce'&&scope?.source?.type==='shopify'){
       return portalChat(event,{...(payload||{}),scope:{...scope.source,name:scope.source.name||scope.name||'Shopify'}});
+    }
+
+    // CRM, Redes y WhatsApp usan su conexión real cuando existe.
+    if(type==='agent'&&['crm','social','whatsapp'].includes(String(scope?.key||''))){
+      const key=String(scope.key);
+      try{
+        const s=await readState();
+        if(isAgentIncluded(s.license,key)&&s.secret?.integrations?.[key]?.token){
+          return portalChat(event,{...(payload||{}),scope:{type:'integration',key,name:scope.name||key,agentKey:key}});
+        }
+      }catch(e){console.error('agent_route_error',String(e?.message||e).slice(0,160))}
     }
 
     // El resto de agentes pasan por master.cjs.
