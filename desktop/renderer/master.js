@@ -188,7 +188,7 @@
     return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><input data-guided-field="'+escM(field.key)+'" type="'+escM(field.type||'text')+'" value="'+escM(value||field.value||'')+'" placeholder="'+escM(field.placeholder||'')+'"></label>';
   }
   function guidedRead(key){
-    const data={};$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.type==='checkbox'?el.checked:el.value.trim());guidedSave(key,data);return data;
+    const data={};$$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.type==='checkbox'?el.checked:el.value.trim());guidedSave(key,data);return data;
   }
   function guidedPrompt(key,data){
     if(key==='email'){
