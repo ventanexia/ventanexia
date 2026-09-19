@@ -250,7 +250,8 @@ function emailActionLabels(){
     {key:'star',label:'⭐ Destacar'},
     {key:'unstar',label:'☆ Quitar destacado'},
     {key:'important',label:'❗ Marcar importante'},
-    {key:'not_important',label:'➖ Quitar importante'}
+    {key:'not_important',label:'➖ Quitar importante'},
+    {key:'no_reply_needed',label:'✓ No requiere respuesta'}
   ];
 }
 function wantsEmailActions(question=''){
@@ -372,7 +373,19 @@ async function gmailThreadHasSent(integration,threadId){
     return (t.messages||[]).some(m=>(m.labelIds||[]).includes('SENT'));
   }catch{return false}
 }
-async function gmailInboxRows(integration,{maxResults=20,q='in:inbox'}={}){
+async function gmailNoReplyLabelId(integration,{create=false}={}){
+  const labels=await gmailCall(integration,tok=>gmailApi(tok,'labels'));
+  const found=(labels.labels||[]).find(x=>String(x.name||'').toLowerCase()==='ventanexia/no requiere respuesta');
+  if(found?.id)return found.id;
+  if(!create)return '';
+  const created=await gmailCall(integration,tok=>gmailWrite(tok,'labels',{body:{
+    name:'VentaNexIA/No requiere respuesta',
+    labelListVisibility:'labelShow',
+    messageListVisibility:'show'
+  }}));
+  return created?.id||'';
+}
+async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLabelId=''}={}){
   const params=new URLSearchParams({maxResults:String(maxResults),q});
   const list=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
   const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,maxResults);
@@ -383,13 +396,14 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox'}={}){
     const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
     const responded=await gmailThreadHasSent(integration,m.threadId||'');
     const unread=(m.labelIds||[]).includes('UNREAD');
+    const noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
     const body=gmailMessageText(m.payload)||String(m.snippet||'').replace(/\s+/g,' ').trim();
     return {
       account,id:m.id||id,threadId:m.threadId||'',from:headers.from||'',to:headers.to||'',
       subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
       snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
-      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,
-      status:unread?'unread':(responded?'responded':'pending'),
+      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,
+      status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
       defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')})
     };
   }));
@@ -409,14 +423,15 @@ ipcMain.handle('email:metrics',async()=>{
   for(const integration of accounts){
     try{
       const base='after:'+after+' before:'+before;
+      const noReplyLabelId=await gmailNoReplyLabelId(integration,{create:false});
       const [todayRows,sentCount,unreadCount]=await Promise.all([
-        gmailInboxRows(integration,{maxResults:100,q:'in:inbox '+base}),
+        gmailInboxRows(integration,{maxResults:100,q:'in:inbox '+base,noReplyLabelId}),
         countGmailMessages(integration,'in:sent '+base),
         countGmailMessages(integration,'in:inbox is:unread')
       ]);
       received+=todayRows.length;
       responded+=sentCount;
-      pending+=todayRows.filter(x=>!x.responded).length;
+      pending+=todayRows.filter(x=>!x.responded&&!x.noReply).length;
       unread+=unreadCount;
       okAccounts++;
     }catch(e){
@@ -433,7 +448,7 @@ ipcMain.handle('email:inbox',async(_e,payload={})=>{
   if(!accounts.length)return {connected:false,messages:[],accounts:[]};
   const rows=[];
   for(const integration of accounts){
-    try{rows.push(...await gmailInboxRows(integration,{maxResults:Math.max(5,Math.min(30,Number(payload.limit||20))),q:'in:inbox'}))}
+    try{const noReplyLabelId=await gmailNoReplyLabelId(integration,{create:false});rows.push(...await gmailInboxRows(integration,{maxResults:Math.max(5,Math.min(30,Number(payload.limit||20))),q:'in:inbox',noReplyLabelId}))}
     catch(e){await audit('email.inbox_error',(integration.label||integration.meta?.email||'Gmail')+' · '+String(e?.message||e).slice(0,160))}
   }
   rows.sort((a,b)=>(b.internalDate||0)-(a.internalDate||0));
@@ -457,6 +472,11 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
   else if(action==='unstar')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['STARRED']}});
   else if(action==='important')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['IMPORTANT']}});
   else if(action==='not_important')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['IMPORTANT']}});
+  else if(action==='no_reply_needed'){
+    const labelId=await gmailNoReplyLabelId(integration,{create:true});
+    if(!labelId)throw new Error('No se pudo crear la etiqueta de control en Gmail.');
+    await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:[labelId],removeLabelIds:['UNREAD']}});
+  }
   else if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
     const to=emailAddress(payload.from),subject=/^re:/i.test(String(payload.subject||''))?String(payload.subject):'Re: '+String(payload.subject||'(sin asunto)');
     const body=String(payload.body||'').trim();if(!to||!body)throw new Error('Falta el destinatario o el texto de la respuesta.');
@@ -468,7 +488,7 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
     if(action==='draft_reply')await gmailWriteAuth('drafts',{body:{message}});
     else await gmailWriteAuth('messages/send',{body:message});
   }else throw new Error('Acción de correo no reconocida.');
-  const labels={trash:'movido a la papelera',archive:'archivado',mark_read:'marcado como leído',mark_unread:'marcado como no leído',star:'destacado',unstar:'sin destacar',important:'marcado como importante',not_important:'marcado como no importante',draft_reply:'borrador creado',send_reply:'respuesta enviada',send_reply_cc:'respuesta enviada con copia'};
+  const labels={trash:'movido a la papelera',archive:'archivado',mark_read:'marcado como leído',mark_unread:'marcado como no leído',star:'destacado',unstar:'sin destacar',important:'marcado como importante',not_important:'marcado como no importante',no_reply_needed:'marcado como no requiere respuesta',draft_reply:'borrador creado',send_reply:'respuesta enviada',send_reply_cc:'respuesta enviada con copia'};
   await audit('email.action',(labels[action]||action)+' · '+String(payload.subject||'').slice(0,120));
   return {ok:true,action,message:'Correo '+(labels[action]||'actualizado')+'.'};
 });
