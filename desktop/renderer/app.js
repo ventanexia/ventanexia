@@ -104,7 +104,7 @@ function setupServiceConnectionWizard(){
     crm:[['hubspot','HubSpot']]
   };
   const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',crm:'CRM'};
-  let activeKey=null,activeButton=null,oauthState=null,pollTimer=null;
+  let activeKey=null,activeButton=null,oauthState=null,pollTimer=null,currentAddAnother=false;
   const genericBox=$('#genericEmailFields'),genericUser=$('#genericEmailUser'),genericPass=$('#genericEmailPassword'),imapHost=$('#genericImapHost'),imapPort=$('#genericImapPort'),smtpHost=$('#genericSmtpHost'),smtpPort=$('#genericSmtpPort');
   function updateEmailProviderFields(){
     const p=provider.value;
@@ -119,7 +119,7 @@ function setupServiceConnectionWizard(){
   if(provider)provider.onchange=updateEmailProviderFields;
   if(account)account.addEventListener('input',()=>{if(genericUser&&genericBox?.style.display!=='none'&&!genericUser.value)genericUser.value=account.value.trim()});
   function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
-  cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null};
+  cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null;currentAddAnother=false};
   prepare.onclick=async()=>{
     if(!activeKey)return;
     prepare.disabled=true;prepare.textContent='Abriendo la página para conectar…';
@@ -146,7 +146,7 @@ function setupServiceConnectionWizard(){
         return;
       }
       const requestedAccount=account?.value?.trim()||'';
-      if(activeKey==='email'&&addAnother&&!requestedAccount){prepare.disabled=false;prepare.textContent='Conectar ahora';notice.innerHTML='<b>Escribe la nueva cuenta de email que quieres añadir.</b>';return;}
+      if(activeKey==='email'&&currentAddAnother&&!requestedAccount){prepare.disabled=false;prepare.textContent='Conectar ahora';notice.innerHTML='<b>Escribe la nueva cuenta de email que quieres añadir.</b>';return;}
       const started=await window.vnx.startOAuth({module:activeKey,provider:provider.value,account:requestedAccount});
       oauthState=started.state;
       if(started.authUrl){
@@ -195,7 +195,8 @@ function setupServiceConnectionWizard(){
   };
   return async(key,button,options={})=>{
     activeKey=key;activeButton=button;oauthState=null;stopPoll();
-    const addAnother=Boolean(options?.addAnother&&key==='email');
+    currentAddAnother=Boolean(options?.addAnother&&key==='email');
+    const addAnother=currentAddAnother;
     title.textContent='Autorizar '+labels[key];
     text.textContent='Elige la cuenta que quieres conectar. Se abrirá su página oficial para que inicies sesión y aceptes el acceso.';
     provider.innerHTML=(providers[key]||[]).map(([v,n])=>'<option value="'+esc(v)+'">'+esc(n)+'</option>').join('');
