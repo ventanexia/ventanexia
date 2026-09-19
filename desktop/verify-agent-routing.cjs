@@ -81,6 +81,46 @@ assert.match(multiReply,/Hay 2/i,'Debe sumar correos que requieren respuesta de 
 assert.match(multiReply,/ventas\.ecojafer@gmail\.com/);
 assert.match(multiReply,/info@segundaempresa\.com/);
 
+const replyClassificationContext=[{
+  path:'GMAIL ventas.ecojafer@gmail.com',
+  content:[
+    'FUENTE: Gmail autorizado por el usuario.',
+    'CUENTA: ventas.ecojafer@gmail.com',
+    'TOTAL_COINCIDENCIAS: 4',
+    '',
+    'Correo 1',
+    'De: Shopify <mailer@shopify.com>',
+    'Asunto: Código de verificación de Shopify',
+    'Fecha: hoy',
+    'Estado: NO LEÍDO · IMPORTANTE',
+    'Vista previa: Usa este código por única vez para continuar: 418696. Este código vence en 10 minutos. No compartas.',
+    '',
+    'Correo 2',
+    'De: Vercel <notifications@vercel.com>',
+    'Asunto: New sign-in detected on your Vercel account',
+    'Fecha: hoy',
+    'Estado: NO LEÍDO · IMPORTANTE',
+    'Vista previa: Your account was recently signed-in from a new location.',
+    '',
+    'Correo 3',
+    'De: eco jafer <ecojafer@gmail.com>',
+    'Asunto: mobiliario sanitario',
+    'Fecha: hoy',
+    'Estado: IMPORTANTE',
+    'Vista previa: necesito que me mandes el catalogo',
+    '',
+    'Correo 4',
+    'De: OpenAI <noreply@email.openai.com>',
+    'Asunto: Product update',
+    'Fecha: hoy',
+    'Estado: NO LEÍDO',
+    'Vista previa: Newsletter informativa.'
+  ].join('\n')
+}];
+const needsReply=emailAgentDirectReply('que correos requieren respuesta',replyClassificationContext);
+assert.match(needsReply,/mobiliario sanitario/i,'La petición humana de catálogo debe requerir respuesta');
+assert.doesNotMatch(needsReply,/Código de verificación|New sign-in detected|Product update/i,'OTP, seguridad y newsletters no deben aparecer como correos que requieren respuesta');
+
 const masterLicense={plan:'master',featurePolicy:{}};
 assert.equal(isMaster(masterLicense),true);
 for(const agent of AGENT_CATALOG)assert.equal(isAgentIncluded(masterLicense,agent.key),true,'Maestro debe incluir '+agent.key);
