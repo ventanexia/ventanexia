@@ -37,7 +37,7 @@ function renderLicense(){
   $('#licenseDevice').textContent=l.deviceId?String(l.deviceId).slice(0,12):'—';
   $('#licenseDevices').textContent=l.limit?`${l.activeCount||0} / ${l.limit}`:'0 / 0';
   $('#licensePlan').textContent=l.plan||'—';
-  const isMasterPlan=String(l.plan||'').toLowerCase()==='master';
+  const isMasterPlan=Boolean(l.master||l.unlimited)||String(l.edition||'').toLowerCase()==='master'||String(l.plan||'').toLowerCase()==='master';
   const emailPolicy=$('#emailAccountPolicyText'),extraEmail=$('#buyExtraEmail');
   if(emailPolicy)emailPolicy.textContent=isMasterPlan?'Versión Maestro: conecta todas las cuentas de email que necesites, sin límite de cuentas de VentaNexIA.': 'Lee y organiza correos, prepara respuestas y hace seguimiento de conversaciones. La primera cuenta está incluida con el agente Email.';
   if(extraEmail)extraEmail.textContent=isMasterPlan?'+ Añadir otra cuenta · Maestro ilimitado':'+ Añadir otra cuenta · 39 €/mes';
@@ -208,7 +208,7 @@ function setupServiceConnectionWizard(){
       account.placeholder=key==='email'?'Ej.: ventas@empresa.com':key==='social'?'Ej.: mobiliario.sanitario':'Ej.: nombre de la cuenta';
       if(addAnother)setTimeout(()=>account.focus(),50);
     }
-    const masterUnlimited=key==='email'&&String(state.license?.plan||'').toLowerCase()==='master';
+    const masterUnlimited=key==='email'&&(Boolean(state.license?.master||state.license?.unlimited)||String(state.license?.edition||'').toLowerCase()==='master'||String(state.license?.plan||'').toLowerCase()==='master');
     notice.innerHTML=key==='email'
       ?(masterUnlimited
         ?'<b>♛ Maestro: cuentas de email ilimitadas.</b> Puedes añadir tantas cuentas como necesites. Una nueva conexión no sustituye las anteriores.'
@@ -376,7 +376,7 @@ async function init(){
   await safeUi('fuentes del chat',()=>refreshChatConnections());
   await safeUi('permisos del plan',async()=>enforcePurchasedFeatures());
   if(sys) safeUi('actualizaciones',()=>checkForUpdates(sys.version));
-  if(String(state.license?.plan||'').toLowerCase()==='master')safeUi('activaciones pendientes',()=>refreshProvisioningTasks());
+  if((Boolean(state.license?.master||state.license?.unlimited)||String(state.license?.edition||'').toLowerCase()==='master'||String(state.license?.plan||'').toLowerCase()==='master'))safeUi('activaciones pendientes',()=>refreshProvisioningTasks());
 }
 
 $('#chooseFolder').onclick=async()=>{await window.vnx.chooseFolder();await refresh()};
@@ -525,7 +525,7 @@ refreshVideoQuota();
 const buyStoragePack=$('#buyStoragePack');if(buyStoragePack)buyStoragePack.onclick=async()=>{await window.vnx.openExternal('https://www.ventanexia.es/planes.html?addon=storage_pack');};
 
 const extraEmailBtn=$('#buyExtraEmail');if(extraEmailBtn)extraEmailBtn.onclick=async()=>{
-  if(String(state.license?.plan||'').toLowerCase()==='master'){
+  if((Boolean(state.license?.master||state.license?.unlimited)||String(state.license?.edition||'').toLowerCase()==='master'||String(state.license?.plan||'').toLowerCase()==='master')){
     const connectBtn=document.querySelector('[data-real-module="email"]');
     if(typeof window.vnxOpenServiceWizard==='function'){await window.vnxOpenServiceWizard('email',connectBtn,{addAnother:true});return;}
     if(connectBtn)connectBtn.click();return;
