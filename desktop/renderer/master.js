@@ -212,7 +212,7 @@
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
       return `<div class="msg ${m.role==='user'?'user':'ai'}"><div>${escM(m.content).replace(/\n/g,'<br>')}</div>${imgs?`<div>${imgs}</div>`:''}${actions}</div>`;
     }).join('');
-    $m('#messages')&&$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
+    $m('#messages')&&Array.from(document.querySelectorAll('.email-action-btn')).forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
       const meta=msg.emailActions,action=btn.dataset.action;
       const destructive=action==='trash'||action==='send_reply'||action==='send_reply_cc';
