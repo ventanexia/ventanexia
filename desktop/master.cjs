@@ -1,9 +1,11 @@
-const {app,BrowserWindow,ipcMain,safeStorage,shell,Menu,session}=require('electron');
+const {app,BrowserWindow,ipcMain,shell,Menu,session}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
 const {normalizeChatScope,parseGmailContext,emailAgentDirectReply}=require('./agent-email.cjs');
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster}=require('./agent-policy.cjs');
+const {readState,writeState,updateState,audit}=require('./state-store.cjs');
+const {gmailCall}=require('./gmail-auth.cjs');
 
 require('./main.cjs');
 
@@ -15,30 +17,6 @@ const MAX_FILE_CHARS=20000;
 const PORTAL_PAGE_CHARS=20000;
 const PORTAL_MAX_PAGES=4;
 
-const storeFile=()=>path.join(app.getPath('userData'),'secure-state.json');
-
-async function readState(){
-  try{
-    const raw=JSON.parse(await fs.readFile(storeFile(),'utf8'));
-    if(raw.secret&&safeStorage.isEncryptionAvailable()) raw.secret=JSON.parse(safeStorage.decryptString(Buffer.from(raw.secret,'base64')));
-    else raw.secret={};
-    raw.permissions=raw.permissions||{folders:[]};
-    raw.activity=raw.activity||[];
-    raw.license=raw.license||{};
-    raw.portals=Array.isArray(raw.portals)?raw.portals:[];
-    return raw;
-  }catch{return {permissions:{folders:[]},activity:[],license:{},portals:[],secret:{}}}
-}
-async function writeState(state){
-  const out={...state,secret:state.secret||{}};
-  if(safeStorage.isEncryptionAvailable()) out.secret=Buffer.from(safeStorage.encryptString(JSON.stringify(state.secret||{}))).toString('base64');
-  await fs.writeFile(storeFile(),JSON.stringify(out,null,2),'utf8');
-}
-async function audit(type,detail){
-  const s=await readState();
-  s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,200);
-  await writeState(s);
-}
 function clean(v,n=500){return String(v||'').trim().slice(0,n)}
 function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function portalId(url){return crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,16)}
@@ -234,7 +212,7 @@ ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean
 async function gmailApi(token,pathAndQuery){
   const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{headers:{Authorization:'Bearer '+token}});
   const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={}}
-  if(!r.ok)throw new Error(j?.error?.message||('Gmail respondió '+r.status));
+  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
   return j;
 }
 async function gmailWrite(token,pathAndQuery,{method='POST',body=null,raw=false}={}){
@@ -242,9 +220,10 @@ async function gmailWrite(token,pathAndQuery,{method='POST',body=null,raw=false}
   if(body!==null)headers['Content-Type']='application/json';
   const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{method,headers,body:body===null?undefined:JSON.stringify(body)});
   const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={raw:txt}}
-  if(!r.ok)throw new Error(j?.error?.message||('Gmail respondió '+r.status));
+  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
   return j;
 }
+function mimeHeader(v=''){const t=String(v||'').replace(/[\r\n]+/g,' ');return /^[\x20-\x7e]*$/.test(t)?t:'=?UTF-8?B?'+Buffer.from(t,'utf8').toString('base64')+'?='}
 function b64url(s=''){return Buffer.from(String(s),'utf8').toString('base64').replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function emailAddress(v=''){
   const s=String(v||'').trim(),m=s.match(/<([^>]+)>/);
@@ -315,29 +294,28 @@ function gmailQueryForQuestion(question=''){
   if(/pedido|pedidos|order|orders/.test(q))parts.push('{pedido pedidos order orders compra presupuesto entrega envio expedicion}');
   return parts.join(' ');
 }
-async function countGmailMessages(token,q){
+async function countGmailMessages(integration,q){
   let count=0,pageToken='';
   do{
     const params=new URLSearchParams({maxResults:'500',q});
     if(pageToken)params.set('pageToken',pageToken);
-    const j=await gmailApi(token,'messages?'+params.toString());
+    const j=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
     count+=(j.messages||[]).length;pageToken=j.nextPageToken||'';
     if(count>5000)break;
   }while(pageToken);
   return count;
 }
 async function collectGmailContextMaster(integration,question=''){
-  const token=String(integration?.token||'').trim();
-  if(!token)throw new Error('La conexión de Gmail no tiene un acceso válido. Vuelve a conectarla.');
+  if(!String(integration?.token||'').trim()&&!integration?.refreshToken)throw new Error('La conexión de Gmail no tiene un acceso válido. Vuelve a conectarla.');
   const q=gmailQueryForQuestion(question);
-  const count=await countGmailMessages(token,q);
+  const count=await countGmailMessages(integration,q);
   const params=new URLSearchParams({maxResults:'20',q});
-  const list=await gmailApi(token,'messages?'+params.toString());
+  const list=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
   const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,20);
   const rows=await Promise.all(ids.map(async id=>{
     const p=new URLSearchParams({format:'metadata'});
     for(const h of ['From','To','Subject','Date'])p.append('metadataHeaders',h);
-    const m=await gmailApi(token,'messages/'+encodeURIComponent(id)+'?'+p.toString());
+    const m=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+encodeURIComponent(id)+'?'+p.toString()));
     const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
     return {id:m.id||id,threadId:m.threadId||'',from:headers.from||'',to:headers.to||'',subject:headers.subject||'(sin asunto)',date:headers.date||'',snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),unread:(m.labelIds||[]).includes('UNREAD'),important:(m.labelIds||[]).includes('IMPORTANT')};
   }));
@@ -370,26 +348,27 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
   if(!messageId||!action)throw new Error('Falta el correo o la acción.');
   const integration=emailAccountsForState(s).find(x=>x.provider==='gmail'&&(!account||(x.meta?.email||x.label||x.account||'')===account));
   if(!integration)throw new Error('No encuentro la cuenta de Gmail de este correo.');
-  const token=String(integration.token||'').trim();if(!token)throw new Error('La conexión de Gmail ya no tiene acceso válido.');
+  if(!String(integration.token||'').trim()&&!integration.refreshToken)throw new Error('La conexión de Gmail ya no tiene acceso válido.');
+  const gmailWriteAuth=(pathAndQuery,opts)=>gmailCall(integration,tok=>gmailWrite(tok,pathAndQuery,opts));
   const safeId=encodeURIComponent(messageId);
-  if(action==='trash')await gmailWrite(token,'messages/'+safeId+'/trash');
-  else if(action==='archive')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['INBOX']}});
-  else if(action==='mark_read')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
-  else if(action==='mark_unread')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{addLabelIds:['UNREAD']}});
-  else if(action==='star')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{addLabelIds:['STARRED']}});
-  else if(action==='unstar')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['STARRED']}});
-  else if(action==='important')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{addLabelIds:['IMPORTANT']}});
-  else if(action==='not_important')await gmailWrite(token,'messages/'+safeId+'/modify',{body:{removeLabelIds:['IMPORTANT']}});
+  if(action==='trash')await gmailWriteAuth('messages/'+safeId+'/trash');
+  else if(action==='archive')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['INBOX']}});
+  else if(action==='mark_read')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['UNREAD']}});
+  else if(action==='mark_unread')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['UNREAD']}});
+  else if(action==='star')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['STARRED']}});
+  else if(action==='unstar')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['STARRED']}});
+  else if(action==='important')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{addLabelIds:['IMPORTANT']}});
+  else if(action==='not_important')await gmailWriteAuth('messages/'+safeId+'/modify',{body:{removeLabelIds:['IMPORTANT']}});
   else if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
     const to=emailAddress(payload.from),subject=/^re:/i.test(String(payload.subject||''))?String(payload.subject):'Re: '+String(payload.subject||'(sin asunto)');
     const body=String(payload.body||'').trim();if(!to||!body)throw new Error('Falta el destinatario o el texto de la respuesta.');
     const cc=action==='send_reply_cc'?String(payload.cc||'').trim():'';
     if(action==='send_reply_cc'&&!cc)throw new Error('Indica a quién quieres poner en copia.');
-    const headers=['To: '+to,cc?'Cc: '+cc:'','Subject: '+subject,'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8'].filter(Boolean);
+    const headers=['To: '+to,cc?'Cc: '+cc:'','Subject: '+mimeHeader(subject),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8'].filter(Boolean);
     const raw=b64url(headers.join('\r\n')+'\r\n\r\n'+body);
     const message={raw};if(payload.threadId)message.threadId=String(payload.threadId);
-    if(action==='draft_reply')await gmailWrite(token,'drafts',{body:{message}});
-    else await gmailWrite(token,'messages/send',{body:message});
+    if(action==='draft_reply')await gmailWriteAuth('drafts',{body:{message}});
+    else await gmailWriteAuth('messages/send',{body:message});
   }else throw new Error('Acción de correo no reconocida.');
   const labels={trash:'movido a la papelera',archive:'archivado',mark_read:'marcado como leído',mark_unread:'marcado como no leído',star:'destacado',unstar:'sin destacar',important:'marcado como importante',not_important:'marcado como no importante',draft_reply:'borrador creado',send_reply:'respuesta enviada',send_reply_cc:'respuesta enviada con copia'};
   await audit('email.action',(labels[action]||action)+' · '+String(payload.subject||'').slice(0,120));
