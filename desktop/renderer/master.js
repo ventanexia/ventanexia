@@ -115,17 +115,30 @@
       steps:['Datos','Propuesta','Revisión']
     },
     orders:{
-      subtitle:'Recoge pedidos del correo o de páginas privadas y los prepara para tu programa de gestión.',
+      subtitle:'Recoge pedidos del correo o de páginas privadas, da de alta clientes nuevos cuando sea necesario y los prepara para tu programa de gestión.',
       primary:'📦 Revisar pedidos',
       fields:[
         {key:'source',label:'¿DE DÓNDE LLEGAN?',type:'select',options:['Email','Página privada / ERP web','Email y página privada']},
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Preparar pedidos para introducir','Revisar pedidos con errores','Comprobar cliente y referencias','Preparar alta en el sistema','Otra gestión']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Preparar pedidos para introducir','Revisar pedidos con errores','Comprobar cliente y referencias','Dar de alta un cliente nuevo','Preparar alta en el sistema','Otra gestión']},
         {key:'system',label:'PROGRAMA DONDE SE INTRODUCEN',type:'text',wide:true,placeholder:'Ej. Dynamics, Business Central, SAP, Sage, Odoo, Holded...'},
         {key:'mode',label:'FORMA DE TRABAJO',type:'select',options:['Solo preparar','Pedirme permiso antes de crear','Automático solo si todo coincide']},
+        {key:'newCustomer',label:'SI EL CLIENTE NO EXISTE',type:'select',options:['Pedirme permiso antes de solicitar datos','Solicitar automáticamente los datos que falten por email','No hacer el alta automáticamente']},
+        {key:'requiredCustomerData',label:'DATOS NECESARIOS PARA DAR DE ALTA AL CLIENTE',type:'textarea',wide:true,placeholder:'Ej. razón social, CIF/NIF, dirección fiscal, dirección de entrega, persona de contacto, teléfono y email'},
         {key:'rules',label:'REGLAS / COMPROBACIONES',type:'textarea',wide:true,placeholder:'Ej. comprobar cliente, referencia, cantidades, dirección y no crear nada si falta algún dato'}
       ],
-      capabilities:['Detectar pedidos recibidos por email','Leer pedidos disponibles en páginas privadas autorizadas','Extraer cliente, referencias, cantidades y dirección','Comprobar datos antes de crear un pedido','Preparar el envío al programa de gestión','No inventar clientes, referencias ni cantidades'],
-      steps:['Recibir','Comprobar','Introducir']
+      capabilities:[
+        'Detectar pedidos recibidos por email',
+        'Leer pedidos disponibles en páginas privadas autorizadas',
+        'Extraer cliente, referencias, cantidades y dirección',
+        'Comprobar si el cliente ya existe en el programa de gestión',
+        'Detectar exactamente qué datos faltan para dar de alta a un cliente nuevo',
+        'Solicitar al cliente por email únicamente los datos que falten',
+        'Reconocer la respuesta del cliente y completar el alta',
+        'Continuar con el mismo pedido después del alta',
+        'Preparar el envío al programa de gestión',
+        'No inventar clientes, referencias, cantidades ni datos fiscales'
+      ],
+      steps:['Recibir','Comprobar cliente','Pedir datos si faltan','Dar de alta','Introducir pedido']
     },
     social:{
       subtitle:'Crea campañas, contenido y mejoras de visibilidad para tu negocio.',
@@ -237,7 +250,7 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. No inventes datos y marca cualquier duda antes de crear nada',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Revisa y prepara estos pedidos para introducirlos en el sistema de gestión. Si el cliente no existe, comprueba qué datos necesita el sistema para el alta. Si faltan datos y está elegido el modo automático, prepara la solicitud por email solo con los datos que falten y deja el pedido pendiente de alta. Cuando llegue la respuesta, relaciona esa respuesta con el pedido original, completa el alta del cliente y después continúa con la creación del pedido. Nunca inventes datos fiscales, clientes, referencias, cantidades ni direcciones. Si la conexión del programa no permite crear realmente el cliente o el pedido, indícalo claramente y no afirmes que se ha creado.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
@@ -278,7 +291,7 @@
       crm:'seguimiento y cierre',
       customer_service:'responder dudas e incidencias',
       quotes:'crear presupuestos y ofertas',
-      orders:'recibir y pasar pedidos al sistema',
+      orders:'recibir pedidos, dar de alta clientes y pasarlos al sistema',
       social:'redes y campañas',
       web_ecommerce:'pedidos, productos y tienda',
       administration:'tareas, agenda y gestión',
