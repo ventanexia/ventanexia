@@ -57,9 +57,10 @@ export default async function handler(req,res){
     return res.status(200).json({
       ok:true,
       shop,
-      access_token:j.access_token,
-      expires_in:Number(j.expires_in||86399),
-      scope:String(j.scope||"")
+      accessToken:j.access_token,
+      expiresIn:Number(j.expires_in||86399),
+      scope:String(j.scope||""),
+      tokenReceived:true
     });
   }catch(e){
     const code=String(e?.message||"");
