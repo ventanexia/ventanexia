@@ -11,14 +11,14 @@
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
     whatsapp:'Ej.: prepara una respuesta para este cliente y déjamela lista para autorizar antes de enviarla',
     prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
-    crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes del CRM conectado',
+    crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes conectados',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
-    social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora el SEO de la página del producto',
-    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
+    social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora el visibilidad en Google de la página del producto',
+    web_tienda online:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
     administration:'Ej.: organiza mis tareas de esta semana, prepara seguimientos y ordena estos documentos',
     reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
-    automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos automatizar'
+    automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos hacer automáticamente'
   };
   const GUIDED_AGENT_FORMS={
     core_ai:{
@@ -48,7 +48,7 @@
       subtitle:'Atiende conversaciones de WhatsApp Business con el nivel de control que elijas.',
       primary:'💬 Preparar gestión de WhatsApp',
       fields:[
-        {key:'mode',label:'MODO DE RESPUESTA',type:'select',options:['Con autorización: enseñarme el texto antes de enviar','Automático: responder según reglas autorizadas (requiere recepción en tiempo real)']},
+        {key:'mode',label:'MODO DE RESPUESTA',type:'select',options:['Con autorización: enseñarme el texto antes de enviar','Automático: responder solo siguiendo las reglas que hayas aprobado']},
         {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver mensajes pendientes de autorización','Preparar respuesta a un cliente','Solicitar datos que faltan','Responder una consulta frecuente','Preparar seguimiento','Escalar a una persona','Otra gestión']},
         {key:'customer',label:'CLIENTE / TELÉFONO',type:'text',placeholder:'Ej. Marta o +34 600 000 000'},
         {key:'context',label:'MENSAJE O CONTEXTO',type:'textarea',wide:true,placeholder:'Pega aquí el mensaje recibido o explica qué necesita el cliente',required:true},
@@ -77,7 +77,7 @@
       steps:['Buscar','Preparar emails','Enviar','Seguimiento']
     },
     crm:{
-      subtitle:'Organiza oportunidades comerciales y decide a quién hacer seguimiento.',
+      subtitle:'Organiza tus posibles ventas y te dice a qué clientes debes seguir.',
       primary:'✨ Preparar plan comercial',
       fields:[
         {key:'goal',label:'¿QUÉ QUIERES CONSEGUIR?',type:'text',wide:true,placeholder:'Ej. priorizar oportunidades, recuperar clientes o preparar seguimientos',required:true},
@@ -85,7 +85,7 @@
         {key:'stage',label:'ETAPA',type:'text',placeholder:'Ej. oportunidad abierta, propuesta enviada'},
         {key:'context',label:'DATOS O CONTEXTO',type:'textarea',wide:true,placeholder:'Añade nombres, importes, notas o criterios importantes'}
       ],
-      capabilities:['Priorizar oportunidades','Preparar seguimientos comerciales','Usar el CRM conectado cuando exista','Proponer próximos pasos sin inventar datos'],
+      capabilities:['Priorizar oportunidades','Preparar seguimientos comerciales','Usar los datos de ventas y clientes conectados cuando existan','Proponer próximos pasos sin inventar datos'],
       steps:['Analizar','Priorizar','Seguimiento']
     },
     customer_service:{
@@ -117,16 +117,16 @@
       subtitle:'Crea campañas, contenido y mejoras de visibilidad para tu negocio.',
       primary:'✨ Crear campaña',
       fields:[
-        {key:'channel',label:'CANAL',type:'select',options:['Instagram','Facebook','LinkedIn','X','Web / SEO','Multicanal']},
+        {key:'channel',label:'CANAL',type:'select',options:['Instagram','Facebook','LinkedIn','X','Web / visibilidad en Google','Multicanal']},
         {key:'goal',label:'OBJETIVO',type:'text',placeholder:'Ej. conseguir leads, vender un producto, ganar visibilidad',required:true},
         {key:'product',label:'PRODUCTO / SERVICIO',type:'text',placeholder:'Qué quieres promocionar'},
         {key:'audience',label:'PÚBLICO',type:'text',placeholder:'Ej. clínicas, fisioterapeutas, responsables de compras'},
         {key:'style',label:'ESTILO Y CONDICIONES',type:'textarea',wide:true,placeholder:'Ej. profesional, cercano, sin emojis, CTA final'}
       ],
-      capabilities:['Crear publicaciones y campañas','Preparar calendarios de contenido','Mejorar títulos, descripciones y SEO','Adaptar mensajes a cada red','Usar datos reales de redes conectadas cuando existan'],
+      capabilities:['Crear publicaciones y campañas','Preparar calendarios de contenido','Mejorar títulos, descripciones y visibilidad en Google','Adaptar mensajes a cada red','Usar datos reales de redes conectadas cuando existan'],
       steps:['Objetivo','Contenido','Publicar']
     },
-    web_ecommerce:{
+    web_tienda online:{
       subtitle:'Consulta y trabaja con tu web o tienda conectada.',
       primary:'✨ Ejecutar consulta',
       fields:[
@@ -163,15 +163,15 @@
       steps:['Datos','Análisis','Conclusiones']
     },
     automation:{
-      subtitle:'Convierte tareas repetitivas en flujos claros y controlados.',
-      primary:'✨ Diseñar automatización',
+      subtitle:'Haz automáticamente tareas repetitivas siguiendo las reglas que tú decidas.',
+      primary:'✨ Crear tarea automática',
       fields:[
         {key:'trigger',label:'¿CUÁNDO DEBE EMPEZAR?',type:'text',wide:true,placeholder:'Ej. cuando entra un pedido, llega un email o cambia un estado',required:true},
         {key:'condition',label:'CONDICIONES',type:'textarea',wide:true,placeholder:'Ej. solo pedidos superiores a 500 €'},
         {key:'action',label:'¿QUÉ DEBE HACER?',type:'textarea',wide:true,placeholder:'Ej. avisarme, crear una tarea, preparar un email',required:true},
-        {key:'tools',label:'HERRAMIENTAS IMPLICADAS',type:'text',wide:true,placeholder:'Ej. Shopify, Gmail, CRM'}
+        {key:'tools',label:'HERRAMIENTAS IMPLICADAS',type:'text',wide:true,placeholder:'Ej. Shopify, Gmail, Ventas y clientes'}
       ],
-      capabilities:['Diseñar flujos paso a paso','Detectar tareas repetitivas','Definir disparadores y condiciones','Separar lo que se puede automatizar de lo que requiere aprobación'],
+      capabilities:['Preparar tareas paso a paso','Detectar tareas repetitivas','Elegir cuándo debe empezar y qué condiciones debe cumplir','Decidir qué puede hacer solo y qué debe pedirte permiso'],
       steps:['Disparador','Condiciones','Acciones']
     }
   };
@@ -220,12 +220,12 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y CRM con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web & Ecommerce',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una automatización segura y clara con estos datos'};
+    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_tienda online:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
     const matches=[];
-    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],social:['social'],web_tienda online:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
@@ -257,12 +257,12 @@
       core_ai:'ideas, textos y tareas',
       email:'leer, responder y borradores',
       whatsapp:'responder clientes y pedir datos',
-      prospecting:'buscar empresas y oportunidades',
+      prospecting:'buscar posibles clientes',
       crm:'seguimiento y cierre',
       customer_service:'responder dudas e incidencias',
       quotes:'crear presupuestos y ofertas',
       social:'redes y campañas',
-      web_ecommerce:'pedidos, productos y tienda',
+      web_tienda online:'pedidos, productos y tienda',
       administration:'tareas, agenda y gestión',
       reports:'datos y resultados',
       automation:'ahorrar tiempo y repetir tareas'
@@ -457,7 +457,7 @@
     return String(candidates.find(v=>/^https?:\/\//i.test(String(v)))||'');
   }
   function prospectingVerification(lead={}){
-    const bits=['Empresa localizada en una fuente pública'];
+    const bits=['Empresa localizada en una información pública'];
     if(lead.email)bits.push('email corporativo publicado');
     if(lead.phone)bits.push('teléfono público localizado');
     if(lead.website)bits.push('web pública localizada');
@@ -487,7 +487,7 @@
       +'<p><b>Por qué puede encajar:</b> '+escM(prospectingWhyFit(lead,criteria))+'</p>'
       +'<p class="prospect-check"><b>Comprobación:</b> '+escM(prospectingVerification(lead))+'</p>'
       +'<div class="prospect-card-actions">'
-      +(source?'<button type="button" class="mini prospect-open-source" data-url="'+escM(source)+'">Comprobar fuente pública ↗</button>':'<span class="prospect-source-state">● Fuente pública comprobada</span>')
+      +(source?'<button type="button" class="mini prospect-open-source" data-url="'+escM(source)+'">Comprobar información pública ↗</button>':'<span class="prospect-source-state">● Fuente pública comprobada</span>')
       +'<button type="button" class="mini prospect-copy" data-index="'+index+'">Copiar datos</button>'
       +(email?'<span class="prospect-email-state">✉ Email corporativo localizado</span>':'<span class="prospect-email-state muted">✉ Sin email público localizado</span>')
       +'</div>'
@@ -513,7 +513,7 @@
       +'</div>'
       +'<div class="prospect-grid">'+cards+'</div>'
       +(leads.length>6?'<div class="prospect-more-wrap"><button type="button" class="btn outline" data-prospect-more>Ver '+(leads.length-6)+' oportunidades más</button></div>':'')
-      +'<div class="prospect-saved-note">✓ Estas oportunidades quedan guardadas en Captación para poder preparar emails y hacer seguimiento.</div>'
+      +'<div class="prospect-saved-note">✓ Estas oportunidades quedan guardadas en Buscar clientes para poder preparar emails y hacer seguimiento.</div>'
       +'</div>';
 
     out.querySelectorAll('.prospect-open-source').forEach(btn=>btn.onclick=()=>{
@@ -676,7 +676,7 @@
   async function renderMasterPortals(){
     const root=$m('#portalList');if(!root)return;
     try{masterPortals=await window.vnx.listPortals()}catch{masterPortals=[]}
-    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay portales configurados.</div>';
+    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
     $$m('.master-portal-connect').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Abriendo…';
       try{await window.vnx.connectPortal(b.dataset.id);$m('#portalMsg').textContent='Se ha abierto una ventana segura de VentaNexIA. Inicia sesión ahí una sola vez; la sesión quedará guardada localmente en este ordenador.';}
@@ -727,13 +727,13 @@
       const shopifyAdmin=/^https:\/\/admin\.shopify\.com\//.test(url)||(/\.myshopify\.com\//.test(url)&&(/\/admin(?:\/|$)/.test(url)||/\/settings(?:\/|$)/.test(url)));
       if(!shopifyAdmin&&['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});
     }
-    const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Captación',crm:'CRM',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
+    const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Buscar clientes',crm:'Ventas y clientes',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
     for(const x of runtimeConnections||[]){
       const moduleKey=x.module||x.key;
       if(!moduleKey)continue;
       if(moduleKey==='shopify')out.push({type:'shopify',key:'shopify',connectionKey:x.key||'integration:shopify',name:'Shopify · '+(x.label||'Tienda'),shop:x.shop||x.label||null});
       else if(['email','whatsapp','social','crm'].includes(moduleKey))out.push({type:'integration',key:moduleKey,connectionKey:x.key||('integration:'+moduleKey),accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,name:(labels[moduleKey]||moduleKey)+' · '+(x.label||'Conectado')});
-      else if(x.type==='folder')out.push({type:'folder',key:x.key||moduleKey,connectionKey:x.key||moduleKey,name:'Datos locales · '+(x.label||'Carpeta'),folder:x.path||x.folder||x.label});
+      else if(x.type==='folder')out.push({type:'folder',key:x.key||moduleKey,connectionKey:x.key||moduleKey,name:'Archivos y programas · '+(x.label||'Carpeta'),folder:x.path||x.folder||x.label});
     }
     const seen=new Set();
     return out.filter(x=>{
@@ -747,7 +747,7 @@
   function chatConnections(){
     const out=[];
     for(const agent of runtimeAgents||[]){
-      if(agent.key==='web_ecommerce'&&agent.included){
+      if(agent.key==='web_tienda online'&&agent.included){
         const sh=(runtimeConnections||[]).find(x=>(x.module||x.key)==='shopify');
         if(sh){
           out.push({...agent,connected:true,ready:true,source:{type:'shopify',key:'shopify',name:'Shopify · '+(sh.label||'Tienda'),shop:sh.shop||sh.label||null}});
@@ -774,15 +774,15 @@
       core_ai:'Análisis, redacción y apoyo general con el motor IA.',
       email:'Lee Gmail, detecta correos pendientes, prepara respuestas y crea borradores para autorizar.',
       whatsapp:'Atiende WhatsApp Business, prepara respuestas y permite elegir entre autorización previa o automatización controlada.',
-      prospecting:'Busca empresas reales y prepara la prospección comercial.',
-      crm:'Ventas, oportunidades, seguimiento y CRM.',
+      prospecting:'Busca posibles clientes y prepara el siguiente paso comercial.',
+      crm:'Clientes, ventas y seguimientos.',
       customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
-      quotes:'Presupuestos y propuestas comerciales con datos reales.',
-      social:'Redes sociales, contenido, campañas y SEO.',
-      web_ecommerce:'Pedidos, clientes, productos, stock y contenido web.',
-      administration:'Documentos, tareas, agenda y seguimiento interno.',
-      reports:'Informes, comparativas, tendencias y conclusiones.',
-      automation:'Diseño de flujos y automatización de procesos.'
+      quotes:'Presupuestos y ofertas comerciales con datos reales.',
+      social:'Publicaciones, campañas y visibilidad en Google.',
+      web_tienda online:'Pedidos, clientes, productos y contenido de tu web o tienda.',
+      administration:'Documentos, tareas, agenda y organización del día a día.',
+      reports:'Explica tus datos y resultados de forma sencilla.',
+      automation:'Hace tareas repetitivas por ti siguiendo reglas claras.'
     };
     root.innerHTML=items.map(a=>{
       const status=!a.included?'🔒 No incluido':a.ready?'🟢 Listo para usar':'🟠 Necesita una conexión';
