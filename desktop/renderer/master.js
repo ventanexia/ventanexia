@@ -858,6 +858,7 @@
       crm:'Clientes, ventas y seguimientos.',
       customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
       quotes:'Presupuestos y ofertas comerciales con datos reales.',
+      orders:'Recibe pedidos, comprueba cliente y stock, coordina Compras y prepara su entrada en el sistema.',
       social:'Publicaciones, campañas y visibilidad en Google.',
       web_ecommerce:'Pedidos, clientes, productos y contenido de tu web o tienda.',
       administration:'Documentos, tareas, agenda y organización del día a día.',
