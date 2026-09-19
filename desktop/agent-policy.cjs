@@ -2,20 +2,15 @@ const {EDITION}=require('./edition.generated.cjs');
 
 const AGENT_CATALOG=[
   {key:'core_ai',icon:'🧠',name:'Asistente IA',entitlement:null,requires:null},
-  {key:'prospecting',icon:'🎯',name:'Captación y búsqueda de clientes',entitlement:'buscador',requires:null},
-  {key:'whatsapp',icon:'💬',name:'WhatsApp Business',entitlement:'whatsapp',requires:'whatsapp'},
-  {key:'email',icon:'📧',name:'Email',entitlement:'email',requires:'email'},
-  {key:'agenda',icon:'📅',name:'Agenda y seguimiento',entitlement:'agenda',requires:null},
+  {key:'prospecting',icon:'🎯',name:'Captación y prospección',entitlement:'buscador',requires:null},
+  {key:'crm',icon:'🤝',name:'Ventas y CRM',entitlement:'crm',requires:null},
   {key:'customer_service',icon:'🎧',name:'Atención al cliente',entitlement:'atencion',requires:null},
-  {key:'quotes',icon:'🧾',name:'Presupuestos',entitlement:'presupuestos',requires:null},
-  {key:'social',icon:'📣',name:'Redes sociales',entitlement:'redes',requires:'social'},
-  {key:'reports',icon:'📊',name:'Informes',entitlement:'informes',requires:null},
-  {key:'seo',icon:'🔍',name:'SEO y visibilidad',entitlement:'seo',requires:null},
-  {key:'administration',icon:'🗂️',name:'Administración',entitlement:'administracion',requires:null},
-  {key:'automation',icon:'⚙️',name:'Automatizaciones',entitlement:'automatizacion',requires:null},
-  {key:'voice',icon:'☎️',name:'Secretaria con voz',entitlement:'voz',requires:null},
-  {key:'crm',icon:'👥',name:'CRM y clientes',entitlement:'crm',requires:'crm'},
-  {key:'web_ecommerce',icon:'🌐',name:'Web & Ecommerce',entitlement:'web_ecommerce',requires:'web'}
+  {key:'quotes',icon:'🧾',name:'Presupuestos y propuestas',entitlement:'presupuestos',requires:null},
+  {key:'social',icon:'📣',name:'Marketing y visibilidad',entitlement:'redes',requires:null},
+  {key:'web_ecommerce',icon:'🌐',name:'Web & Ecommerce',entitlement:'web_ecommerce',requires:'web'},
+  {key:'administration',icon:'🗂️',name:'Administración y agenda',entitlement:'administracion',requires:null},
+  {key:'reports',icon:'📊',name:'Informes y análisis',entitlement:'informes',requires:null},
+  {key:'automation',icon:'⚙️',name:'Automatizaciones',entitlement:'automatizacion',requires:null}
 ];
 
 function cleanPlan(plan=''){return String(plan||'').trim().toLowerCase()}
