@@ -652,3 +652,19 @@ body{
   border-bottom-color:#38cfaa;
 }
 /* VNX EMAIL NO-REPLY STATUS END */
+
+
+/* VNX EMAIL ACCOUNT SELECTOR START */
+.email-toolbar-controls{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.email-account-select{display:flex;flex-direction:column;gap:5px;min-width:230px}
+.email-account-select>span{font-size:9px;text-transform:uppercase;letter-spacing:.35px;color:#78b8d3;font-weight:900}
+.email-account-select select{
+  min-height:38px;border:1px solid #1a638a;border-radius:10px;background:#06213a;color:#e8f7ff;
+  padding:0 10px;font-size:11px;outline:none
+}
+.email-account-select select:focus{border-color:#29caff;box-shadow:0 0 0 2px rgba(41,202,255,.12)}
+@media(max-width:900px){
+  .email-toolbar-controls{width:100%;justify-content:stretch}
+  .email-account-select,.email-search{flex:1;min-width:220px}
+}
+/* VNX EMAIL ACCOUNT SELECTOR END */
