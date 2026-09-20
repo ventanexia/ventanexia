@@ -1144,9 +1144,12 @@
   function setupReadableView(){
     const detached=new URLSearchParams(location.search).get('detached')==='workbench';
     if(detached){
-      document.body.classList.add('vnx-detached-workbench','vnx-focus-chat');
+      document.body.classList.add('vnx-detached-workbench','vnx-carla-window','vnx-focus-chat');
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       $m('#chat')?.classList.add('active');
+      localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
+      localStorage.setItem('vnx_workspace_mode','free');
+      setTimeout(()=>setWorkspaceMode('free'),0);
     }
     const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
     setUiZoom(detached?Math.max(1.1,stored):stored);
