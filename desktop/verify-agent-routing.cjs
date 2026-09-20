@@ -215,7 +215,8 @@ assert.match(app,/el\.readOnly=false/,'Los campos de texto visibles no deben que
 assert.match(app,/el\.style\.pointerEvents='auto'/,'Los campos editables deben aceptar clics');
 assert.match(app,/if\(name==='chat'\)/,'Al entrar en chat debe recuperar el foco del cuadro de texto');
 assert.match(master,/Number\.isInteger\(scope\?\.accountIndex\)\?\[allIntegrations\[scope\.accountIndex\]\]/,'El backend debe limitar el Agente Email a la cuenta elegida');
-assert.match(html,/TRABAJAR CON VENTANEXIA/,'La zona de trabajo debe usar la nueva cabecera simplificada');
+assert.match(html,/TU EQUIPO IA/,'La zona de trabajo debe usar la cabecera del nuevo workbench');
+assert.match(html,/Dime qué necesitas/,'La zona de trabajo debe mantener el acceso principal Dime qué necesitas');
 assert.doesNotMatch(html,/HABLA CON TU EQUIPO/,'No debe quedar el nombre anterior en la cabecera del chat');
 assert.match(renderer,/window\.vnx\.emailAction/,'Los botones deben ejecutar la acción elegida por el cliente');
 assert.match(renderer,/confirm\(action==='trash'/,'Mover a papelera debe pedir confirmación');
