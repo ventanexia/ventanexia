@@ -82,6 +82,7 @@ function readDocx(buffer){
   return xmlText(x.replace(/<\/w:p>/g,'\n').replace(/<w:tab\/>/g,' ').replace(/<\/w:tc>/g,' | ').replace(/<[^>]+>/g,'')).replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
 }
 async function readPdf(buffer){
+  // pdfjs-dist 3.x (versión con build CommonJS). Se reconstruyen las líneas por coordenadas para no mezclar columnas.
   const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');
   const data=new Uint8Array(Buffer.from(buffer));
   const doc=await pdfjs.getDocument({data,useSystemFonts:true,isEvalSupported:false,disableFontFace:true,verbosity:0}).promise;
@@ -110,6 +111,7 @@ function kindOf(name='',mime=''){
 }
 function isReadable(name,mime){return ['pdf','xlsx','csv','text','html','docx'].includes(kindOf(name,mime))}
 
+// Devuelve {name,kind,text,rows?,issue?}. Nunca lanza: un adjunto ilegible se convierte en un aviso.
 async function extractText({name,mime,buffer}){
   const kind=kindOf(name,mime);const base={name:String(name||'adjunto'),kind};
   try{
@@ -134,10 +136,13 @@ async function extractText({name,mime,buffer}){
     if(kind==='csv'){const rows=parseCsv(decodeText(buffer));return {...base,text:rows.map(r=>r.join(' | ')).join('\n').slice(0,MAX_CHARS),rows}}
     if(kind==='text')return {...base,text:decodeText(buffer).slice(0,MAX_CHARS)};
     if(kind==='html')return {...base,text:stripHtml(decodeText(buffer)).slice(0,MAX_CHARS)};
+    if(kind==='xls')return {...base,text:'',issue:'formato .xls antiguo no soportado: guárdalo como .xlsx'};
+    if(kind==='image')return {...base,text:'',issue:'imagen: no se lee sin OCR'};
     return {...base,text:'',issue:'formato no soportado'};
   }catch(e){return {...base,text:'',issue:'no se pudo leer ('+String(e?.message||e).slice(0,80)+')'}}
 }
 
+// Lee un archivo de tabla del disco (clientes, catálogo…) como filas.
 async function readTableBuffer(name,buffer){
   const k=kindOf(name);
   if(k==='xlsx'){const s=readXlsx(buffer);return s[0]?.rows||[]}
