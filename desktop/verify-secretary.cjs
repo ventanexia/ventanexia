@@ -6,6 +6,9 @@ const renderer=read('renderer/master.js');
 const entry=read('master-entry.cjs');
 const master=read('master.cjs');
 const preload=read('preload.cjs');
+const calendar=read('calendar.cjs');
+const appUi=read('renderer/app.js');
+const indexHtml=read('renderer/index.html');
 
 const checks=[
   ['renderer morning brief',renderer.includes('maybeRunMorningBrief')],
@@ -17,11 +20,16 @@ const checks=[
   ['native secretary notify',entry.includes("secretary:notify")],
   ['agenda truth guard',entry.includes('Agenda no conectada')&&entry.includes('No inventes reuniones')],
   ['email triage scores',master.includes('scoreMailAttention')&&master.includes('needsReplyScore')],
-  ['preload notify bridge',preload.includes('secretaryNotify')]
+  ['preload notify bridge',preload.includes('secretaryNotify')],
+  ['calendar reader bundled',calendar.includes('google_calendar')&&calendar.includes('microsoft_calendar')],
+  ['calendar IPC bridge',preload.includes('agendaToday')&&preload.includes('agendaUpcoming')],
+  ['calendar connection wizard',appUi.includes("agenda:[['google_calendar'")&&appUi.includes('microsoft_calendar')],
+  ['calendar connection card',indexHtml.includes('data-connection-card="agenda"')],
+  ['meeting preparation watcher',renderer.includes('prepareUpcomingMeeting')&&renderer.includes('pollSecretaryCalendar')]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 if(failed.length){
   console.error('Executive Secretary verification failed:',failed.map(x=>x[0]).join(', '));
   process.exit(1);
 }
-console.log('VentaNexIA Executive Secretary verification OK · daily brief, priorities, smart email alerts and truthful agenda guard enabled.');
+console.log('VentaNexIA Executive Secretary verification OK · daily brief, priorities, smart email alerts, real calendar and meeting preparation enabled.');
