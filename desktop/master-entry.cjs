@@ -112,4 +112,6 @@ app.on('browser-window-created',(_event,win)=>{
     }
   });
 });
-\n\nif(orders)app.whenReady().then(()=>orders.startScheduler()).catch(e=>console.error('orders_scheduler_error',String(e?.message||e).slice(0,180)));\n
+
+
+if(orders)app.whenReady().then(()=>orders.startScheduler()).catch(e=>console.error('orders_scheduler_error',String(e?.message||e).slice(0,180)));
