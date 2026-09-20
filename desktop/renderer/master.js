@@ -1060,7 +1060,7 @@
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
     $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
-    $m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')$m('#vnxApprovalsList')?.scrollIntoView({behavior:'smooth',block:'center'});else if(k==='solved')runExecutiveSecretary('close');else runExecutiveSecretary('pending')});
+    $$m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')$m('#vnxApprovalsList')?.scrollIntoView({behavior:'smooth',block:'center'});else if(k==='solved')runExecutiveSecretary('close');else runExecutiveSecretary('pending')});
     if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
     if(toggle){toggle.checked=localStorage.getItem('vnx_translation_enabled')==='on';toggle.onchange=()=>localStorage.setItem('vnx_translation_enabled',toggle.checked?'on':'off')}
     $m('#vnxTranslateNowBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
