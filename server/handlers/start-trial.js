@@ -112,7 +112,7 @@ export default async function handler(req,res){
       activationCode=createActivationCode();
       const rows=await db("vnx_tenants",{method:"POST",body:JSON.stringify([{
         name:sol.company,status:"trial",autonomy_level:"prepare",customer_code:customerCode,desktop_activation_hash:activationHash(activationCode),
-        settings:{solution_request_id:sol.id,blueprint:sol.blueprint,owner_email:sol.email,trial_mode:true,trial_plan:"demo_full",recommended_plan:recommendedPlanKey,trial_terms:{version:trialTermsVersion,accepted_at:acceptedAt,license_nominative:true,non_transferable:true,confidentiality_accepted:true,no_competitive_copy:true,no_card_required:true,no_automatic_charge:true},trial_restrictions:["no_external_writes","no_bulk_outbound","no_financial_commitments"]}
+        settings:{solution_request_id:sol.id,blueprint:sol.blueprint,owner_email:sol.email,trial_mode:true,trial_plan:"demo_full",recommended_plan:recommendedPlanKey,trial_terms:{version:trialTermsVersion,accepted_at:acceptedAt,license_nominative:true,non_transferable:true,confidentiality_accepted:true,no_competitive_copy:true,no_card_required:true,no_automatic_charge:true},trial_restrictions:["approval_required","no_bulk_outbound","no_financial_commitments","variable_cost_locked"]}
       }])});
       tenant=rows?.[0];
       if(!tenant?.id) throw new Error("TENANT_CREATE_FAILED");
