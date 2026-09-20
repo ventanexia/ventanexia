@@ -73,6 +73,7 @@ function orderWebLevel(license={}){
   return 'basic';
 }
 function orderMonthlyLimit(license={}){
+  if(isMaster(license))return Number.MAX_SAFE_INTEGER;
   const explicit=Number(license?.featurePolicy?.order_monthly_limit||0);
   if(explicit>0)return explicit;
   const p=cleanPlan(license?.plan);
