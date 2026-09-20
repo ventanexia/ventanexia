@@ -6,6 +6,7 @@
   let handoffAgentChange=false;
   let runtimeConnections=[];
   let runtimeAgents=[];
+  let runtimeExternalAgents=[];
   let agentMetrics={};
   const AGENT_INPUT_EXAMPLES={
     core_ai:'Ej.: prepárame el día · ¿qué tengo pendiente? · dime por dónde empiezo · ¿qué puedes adelantar por mí?',
@@ -979,8 +980,76 @@
       try{await window.vnx.secretaryNotify({title:'VentaNexIA · Emails traducidos',body:'He preparado la traducción de '+foreign.length+' correo'+(foreign.length===1?'':'s')+' al '+lang+'.'})}catch{}
     }catch{}
   }
+  function setWorkbenchExpanded(on){
+    document.body.classList.toggle('vnx-focus-chat',Boolean(on));
+    const btn=$m('#vnxExpandWorkbench');if(btn)btn.textContent=on?'✕ Salir de pantalla completa':'⛶ Expandir';
+    localStorage.setItem('vnx_workbench_expanded',on?'on':'off');
+  }
+  async function refreshWorkbenchCounters(){
+    let activity=[];try{activity=(await window.vnx.getState())?.activity||[]}catch{}
+    const approval=masterMessages.filter(m=>m.emailActions||m.handoff).length+secretaryNewMails.filter(m=>Number(m.replyScore||0)>0).length;
+    const review=activity.filter(a=>/error|failed|review|revis/i.test(String(a.type||'')+' '+String(a.detail||''))).slice(0,50).length;
+    const solved=activity.filter(a=>/sent|completed|delivered|created|resolved|success|enviado|complet/i.test(String(a.type||'')+' '+String(a.detail||''))).slice(0,200).length;
+    const pending=Math.max(0,secretaryNewMails.length+approval);
+    const set=(id,n)=>{const e=$m(id);if(e)e.textContent=String(n)};
+    set('#vnxCountPending',pending);set('#vnxCountReview',review);set('#vnxCountApproval',approval);set('#vnxCountSolved',solved);
+  }
+  function looksLikeWriteAction(text=''){return /\b(envia|manda|archiva|borra|elimina|publica|crea|modifica|actualiza|responde|contesta|entrega|registra)\b/i.test(String(text))}
+  async function sendSeparatedBySources(text,scope,payload){
+    if(looksLikeWriteAction(text))throw new Error('Para realizar una acción elige una conexión concreta. Así evitamos actuar en la cuenta equivocada.');
+    const blocks=[];
+    for(const src of (scope.sources||[])){
+      const direct=sourceScope(src);if(!direct)continue;
+      const specialist=String(scope.name||'VentaNexIA').replace(/^\S+\s/,'');
+      const q='Actúa como '+specialist+'. Consulta SOLO esta conexión: '+src.label+'. '+text+'\nNo mezcles datos de otras conexiones.';
+      try{const r=await window.vnx.sendChat([{role:'user',content:q}],direct);blocks.push('## '+src.label+'\n\n'+(r.reply||'Sin información disponible.'))}
+      catch(e){blocks.push('## '+src.label+'\n\nNo he podido consultar esta conexión: '+(e.message||e))}
+    }
+    return {reply:blocks.join('\n\n---\n\n')||'No hay conexiones compatibles para esta consulta.'};
+  }
+  async function refreshOwnAgentsCard(){
+    const root=$m('#ownAgentsSummary');if(!root)return;
+    let agents=[],lic=null;try{agents=await window.vnx.externalAgentList()||[];lic=(await window.vnx.getState())?.license||null}catch{}
+    const limit=lic?.master?'∞':Number(lic?.ownAgentLimit||lic?.featurePolicy?.own_agent_limit||0);
+    root.innerHTML='<small><b>'+agents.length+'</b> agente'+(agents.length===1?'':'s')+' propio'+(agents.length===1?'':'s')+' conectado'+(agents.length===1?'':'s')+' · límite contratado: '+limit+'.</small>';
+  }
+  async function openOwnAgentManager(){
+    let agents=[];try{agents=await window.vnx.externalAgentList()||[]}catch{}
+    const overlay=document.createElement('div');overlay.className='vnx-own-agent-overlay';
+    overlay.innerHTML='<div class="vnx-own-agent-modal"><div class="panel-head"><div><h3>🤖 Mis agentes propios</h3><p>Conecta un agente externo de forma segura. Solo consultar o preparar trabajo; no recibe acceso automático a tus otras conexiones.</p></div><button class="mini" data-own-close>✕</button></div>'
+      +'<div class="vnx-own-agent-grid"><label>Nombre<input id="ownAgentName" placeholder="Ej. Control de calidad"></label><label>Tipo<select id="ownAgentProtocol"><option value="api">API / agente HTTPS</option><option value="webhook">Webhook HTTPS</option><option value="mcp">MCP remoto</option></select></label><label class="wide">Dirección HTTPS<input id="ownAgentUrl" placeholder="https://..."></label><label class="wide">Clave / token (si lo necesita)<input id="ownAgentToken" type="password" autocomplete="off" placeholder="Se guarda cifrada"></label><label>Permiso<select id="ownAgentPermissions"><option value="read">Solo consultar</option><option value="prepare" selected>Consultar y preparar trabajo</option></select></label><label id="ownAgentToolWrap" style="display:none">Herramienta MCP<select id="ownAgentTool"><option value="">Primero pulsa Probar conexión</option></select></label></div>'
+      +'<div class="row" style="margin-top:12px"><button class="btn outline" id="ownAgentTest" type="button">Probar conexión</button><button class="btn primary" id="ownAgentSave" type="button">Conectar agente</button><span id="ownAgentMsg" style="font-size:11px;color:#9fc1d3"></span></div>'
+      +'<div class="vnx-own-agent-list" id="ownAgentList">'+(agents.length?agents.map(a=>'<div class="vnx-own-agent-item"><div><b>'+escM(a.name)+'</b><small>'+escM(a.protocol.toUpperCase())+' · '+escM(a.url)+'</small></div><button class="mini own-agent-remove" data-id="'+escM(a.id)+'">Quitar</button></div>').join(''):'<div class="vnx-empty-mini">Todavía no tienes agentes propios conectados.</div>')+'</div></div>';
+    document.body.appendChild(overlay);
+    const close=()=>overlay.remove();overlay.querySelector('[data-own-close]').onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};
+    const protocol=overlay.querySelector('#ownAgentProtocol'),toolWrap=overlay.querySelector('#ownAgentToolWrap'),toolSel=overlay.querySelector('#ownAgentTool'),msg=overlay.querySelector('#ownAgentMsg');
+    protocol.onchange=()=>{toolWrap.style.display=protocol.value==='mcp'?'grid':'none'};
+    const payload=()=>({name:overlay.querySelector('#ownAgentName').value.trim(),protocol:protocol.value,url:overlay.querySelector('#ownAgentUrl').value.trim(),token:overlay.querySelector('#ownAgentToken').value.trim(),permissions:overlay.querySelector('#ownAgentPermissions').value,tool:toolSel.value});
+    overlay.querySelector('#ownAgentTest').onclick=async()=>{
+      msg.textContent='Probando…';
+      try{const r=await window.vnx.externalAgentTest(payload());if(protocol.value==='mcp'){toolWrap.style.display='grid';toolSel.innerHTML='<option value="">Elige una herramienta…</option>'+(r.tools||[]).map(t=>'<option value="'+escM(t.name)+'">'+escM(t.name)+'</option>').join('')}msg.textContent='✓ Conexión correcta'}
+      catch(e){msg.textContent='No se pudo conectar: '+(e.message||e)}
+    };
+    overlay.querySelector('#ownAgentSave').onclick=async()=>{
+      msg.textContent='Guardando…';
+      try{await window.vnx.externalAgentSave(payload());msg.textContent='✓ Agente conectado';await refreshRuntimeConnections();await refreshChatConnections();await refreshOwnAgentsCard();setTimeout(close,500)}
+      catch(e){msg.textContent=e.message||String(e)}
+    };
+    overlay.querySelectorAll('.own-agent-remove').forEach(b=>b.onclick=async()=>{if(!confirm('¿Quitar este agente propio de VentaNexIA?'))return;await window.vnx.externalAgentRemove(b.dataset.id);close();await refreshRuntimeConnections();await refreshChatConnections();await refreshOwnAgentsCard();openOwnAgentManager()});
+  }
+  async function refreshConnectionCapacityNotice(){
+    try{
+      const x=await window.vnx.connectionCapacity();const root=$m('#ownAgentsSummary');
+      if(root&&x.limit!=null)root.insertAdjacentHTML('beforeend','<br><small>Conexiones del plan: '+x.used+' de '+x.limit+' · extra: 42 €/mes por conexión.</small>');
+    }catch{}
+  }
+
   function setupWorkbench(){
     const lang=$m('#vnxTranslationLanguage'),toggle=$m('#vnxTranslationEnabled');
+    $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
+    if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
+    $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
+    $m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')$m('#vnxApprovalsList')?.scrollIntoView({behavior:'smooth',block:'center'});else if(k==='solved')runExecutiveSecretary('close');else runExecutiveSecretary('pending')});
     if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
     if(toggle){toggle.checked=localStorage.getItem('vnx_translation_enabled')==='on';toggle.onchange=()=>localStorage.setItem('vnx_translation_enabled',toggle.checked?'on':'off')}
     $m('#vnxTranslateNowBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
@@ -994,7 +1063,7 @@
     $$m('[data-vnx-connect]').forEach(b=>b.onclick=()=>openConnectionsTab(b.dataset.vnxConnect));
     const h=new Date().getHours(),g=$m('#vnxDailyGreeting');
     if(g)g.textContent=(h<13?'Buenos días':h<20?'Buenas tardes':'Buenas noches');
-    refreshWorkbenchAgenda();refreshWorkbenchApprovals();refreshWorkbenchConnections();
+    refreshWorkbenchAgenda();refreshWorkbenchApprovals();refreshWorkbenchConnections();refreshWorkbenchCounters();refreshOwnAgentsCard().then(refreshConnectionCapacityNotice);
   }
 
   function setupGuidedUi(){
@@ -1085,6 +1154,7 @@
   async function refreshRuntimeConnections(){
     try{runtimeConnections=await window.vnx.listConnections()||[]}catch{runtimeConnections=[]}
     try{runtimeAgents=await window.vnx.agentCatalog()||[]}catch{runtimeAgents=[]}
+    try{runtimeExternalAgents=await window.vnx.externalAgentList()||[]}catch{runtimeExternalAgents=[]}
     return runtimeConnections;
   }
   function connectedDataSources(){
@@ -1111,24 +1181,63 @@
   function agentDisplayName(x){
     return (x.icon||'🤖')+' '+(x.name||x.key||'');
   }
+  function connectionModule(x){return String(x?.module||x?.key||'').toLowerCase()}
+  function sourcesForAgent(agent){
+    if(!agent)return[];
+    const key=String(agent.key||'');
+    if(agent.external)return[];
+    const all=(runtimeConnections||[]).map(x=>({...x,module:connectionModule(x)}));
+    let wanted=[];
+    if(key==='email')wanted=all.filter(x=>x.module==='email');
+    else if(key==='web_ecommerce')wanted=all.filter(x=>['shopify','wordpress','web_ecommerce'].includes(x.module));
+    else if(['crm','whatsapp','social'].includes(key))wanted=all.filter(x=>x.module===key);
+    else if(key==='customer_service')wanted=all.filter(x=>['email','whatsapp'].includes(x.module));
+    else if(key==='orders')wanted=all.filter(x=>['email','shopify'].includes(x.module));
+    else if(key==='administration')wanted=all.filter(x=>['agenda','email'].includes(x.module));
+    else if(key==='core_ai')wanted=all.filter(x=>['email','whatsapp','social','crm','shopify','agenda'].includes(x.module));
+    return wanted.map((x,i)=>({
+      id:x.key||('source:'+i),module:x.module,label:x.label||x.account||x.shop||x.module,
+      accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,provider:x.provider||'',raw:x
+    }));
+  }
   function chatConnections(){
     const out=[];
     for(const agent of runtimeAgents||[]){
       if(agent.key==='web_ecommerce'&&agent.included){
         const sh=(runtimeConnections||[]).find(x=>(x.module||x.key)==='shopify');
-        if(sh){
-          out.push({...agent,connected:true,ready:true,source:{type:'shopify',key:'shopify',name:'Shopify · '+(sh.label||'Tienda'),shop:sh.shop||sh.label||null}});
-          continue;
-        }
+        if(sh){out.push({...agent,connected:true,ready:true,source:{type:'shopify',key:'shopify',name:'Shopify · '+(sh.label||'Tienda'),shop:sh.shop||sh.label||null}});continue}
       }
       out.push(agent);
     }
+    for(const x of runtimeExternalAgents||[])out.push({key:'external:'+x.id,external:true,externalId:x.id,icon:'🤖',name:x.name,entitlement:null,requires:null,included:true,connected:true,ready:true,protocol:x.protocol});
     return out;
   }
   function chatConnectionValue(x){
     if(!x?.key)return '';
+    if(x.external)return 'external:'+x.externalId;
     if(x.key==='email'&&Number.isInteger(x.accountIndex))return 'agent:email:'+x.accountIndex;
     return 'agent:'+x.key;
+  }
+  function sourceScope(source){
+    if(!source)return null;
+    const x=source.raw||source,module=String(source.module||x.module||x.key||'');
+    if(module==='email')return {type:'integration',key:'email',name:'Email · '+source.label,accountIndex:source.accountIndex,connectionKey:x.key||null};
+    if(module==='shopify')return {type:'shopify',key:'shopify',name:'Shopify · '+source.label,shop:x.shop||x.label||null};
+    if(['crm','whatsapp','social'].includes(module))return {type:'integration',key:module,name:source.label,connectionKey:x.key||null};
+    if(module==='agenda')return {type:'agent',key:'administration',name:'Administración y agenda',included:true,connected:true,ready:true};
+    return null;
+  }
+  function refreshAgentSourceSelector(agent){
+    const wrap=$m('#chatSourceWrap'),sel=$m('#chatSourceSelect'),hint=$m('#chatSourceHint');if(!wrap||!sel)return;
+    const sources=sourcesForAgent(agent);
+    if(sources.length<=1){wrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
+    wrap.style.display='grid';if(hint)hint.style.display='block';
+    const prev=sel.dataset.agent===agent.key?sel.value:'';
+    sel.innerHTML='<option value="">Elige una conexión…</option><option value="__all__">Todas, separadas</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
+    sel.dataset.agent=agent.key;
+    if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;
+    else sel.value='';
+    if(hint)hint.textContent='Tienes '+sources.length+' conexiones para este empleado. Elige una o “Todas, separadas”.';
   }
   function agentStatusText(x){
     if(!x?.included)return '🔒 No incluido en tu plan';
@@ -1213,6 +1322,7 @@
       renderGuidedWorkspace(chosen);
       updateWorkbenchAgent(chosen);
       refreshWorkbenchConnections();
+      refreshAgentSourceSelector(chosen);
       if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>input.focus(),30);
     };
     const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
@@ -1223,6 +1333,8 @@
     renderGuidedWorkspace(selectedAgent);
     updateWorkbenchAgent(selectedAgent);
     refreshWorkbenchConnections();
+    refreshAgentSourceSelector(selectedAgent);
+    const sourceSelect=$m('#chatSourceSelect');if(sourceSelect)sourceSelect.onchange=()=>{const hint2=$m('#chatSourceHint');if(hint2&&sourceSelect.value)hint2.textContent=sourceSelect.value==='__all__'?'Mostraré cada conexión en un bloque separado. Para enviar o modificar algo, deberás elegir una sola conexión.':'Usaré únicamente esta conexión.'};
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -1231,7 +1343,15 @@
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
     const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
-    return {type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
+    if(item.external)return {type:'external_agent',id:item.externalId,key:item.key,name:agentDisplayName(item),included:true,connected:true,ready:true};
+    const sources=sourcesForAgent(item),sourceSel=$m('#chatSourceSelect'),choice=sourceSel&&sourceSel.dataset.agent===item.key?sourceSel.value:'';
+    const base={type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
+    if(sources.length>1){
+      if(!choice)return {...base,needsSourceChoice:true,sources};
+      if(choice==='__all__')return {...base,separateSources:true,sources};
+      const src=sources[Number(choice)];if(src){base.selectedSource=src;if(item.key==='email')base.accountIndex=src.accountIndex;if(item.key==='web_ecommerce'&&src.module==='shopify')base.source={type:'shopify',key:'shopify',name:'Shopify · '+src.label,shop:src.raw?.shop||src.label}}
+    }
+    return base;
   }
 
   function masterCenterItems(){
@@ -1383,7 +1503,7 @@
       renderMasterMessages();
     });
     root.scrollTop=root.scrollHeight;
-    refreshWorkbenchApprovals();
+    refreshWorkbenchApprovals();refreshWorkbenchCounters();
   }
   function redactSensitiveChatText(text,scope){
     if(scope?.key!=='orders')return text;
@@ -1568,6 +1688,7 @@
       if(!scope){
         masterMessages.push({role:'assistant',content:'Elige arriba el agente de VentaNexIA con el que quieres trabajar.'});renderMasterMessages();return;
       }
+      if(scope.needsSourceChoice){masterMessages.push({role:'assistant',content:'Tienes varias conexiones para este empleado. Elige arriba cuál quieres consultar o selecciona “Todas, separadas”.'});renderMasterMessages();return;}
       if(scope.included===false){
         masterMessages.push({role:'assistant',content:'Este agente aparece en tu equipo, pero no está incluido en tu plan actual. Para usarlo debes contratarlo o cambiar de plan.'});renderMasterMessages();return;
       }
@@ -1579,7 +1700,7 @@
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
         const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?text:content}));
-        const r=await window.vnx.sendChat(payload,scope);
+        const r=scope.separateSources?await sendSeparatedBySources(text,scope,payload):await window.vnx.sendChat(payload,scope);
         let reply=r.reply||'Sin respuesta';
         if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
           try{
