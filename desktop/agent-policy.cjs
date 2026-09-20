@@ -52,6 +52,26 @@ function employeeSlotLimit(license={}){
   if(['scale','empresa','premium'].includes(p))return 8;
   return 0;
 }
+function orderChannelLimit(license={}){
+  if(isMaster(license))return Number.MAX_SAFE_INTEGER;
+  const explicit=Number(license?.featurePolicy?.order_channel_limit||0);
+  if(explicit>0)return explicit;
+  const p=cleanPlan(license?.plan);
+  if(['start','inicio'].includes(p))return 1;
+  if(['core','crecimiento'].includes(p))return 3;
+  if(['scale','empresa','premium'].includes(p))return 6;
+  return 0;
+}
+function orderWebLevel(license={}){
+  if(isMaster(license))return 'auto';
+  const explicit=String(license?.featurePolicy?.order_web_level||'').toLowerCase();
+  if(['basic','pro','auto'].includes(explicit))return explicit;
+  const p=cleanPlan(license?.plan);
+  if(['scale','empresa','premium'].includes(p))return 'auto';
+  if(['core','crecimiento'].includes(p))return 'pro';
+  if(['start','inicio'].includes(p))return 'basic';
+  return 'basic';
+}
 function orderMonthlyLimit(license={}){
   const explicit=Number(license?.featurePolicy?.order_monthly_limit||0);
   if(explicit>0)return explicit;
@@ -99,4 +119,4 @@ function assertModuleIncluded(license={},module=''){
   const err=new Error('Esta conexión pertenece a un agente que no está incluido en tu plan actual.');
   err.code='FEATURE_NOT_INCLUDED';err.module=module;err.entitlement=moduleEntitlement(module);throw err;
 }
-module.exports={EDITION,AGENT_CATALOG,isMaster,isAgentIncluded,assertAgentIncluded,isModuleIncluded,assertModuleIncluded,moduleEntitlement,purchasedFeatures,orderMonthlyLimit,connectionLimit,ownAgentLimit,employeeSlotLimit};
+module.exports={EDITION,AGENT_CATALOG,isMaster,isAgentIncluded,assertAgentIncluded,isModuleIncluded,assertModuleIncluded,moduleEntitlement,purchasedFeatures,orderMonthlyLimit,orderChannelLimit,orderWebLevel,connectionLimit,ownAgentLimit,employeeSlotLimit};
