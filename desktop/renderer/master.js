@@ -1177,10 +1177,10 @@
         renderMasterMessages();
       }
     });
-    $m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
+    $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
-    $m('.handoff-accept-btn').forEach(btn=>btn.onclick=async()=>{
+    $$m('.handoff-accept-btn').forEach(btn=>btn.onclick=async()=>{
       const wrap=btn.closest('[data-master-index]');
       const msgIndex=Number(wrap?.dataset?.masterIndex);
       const msg=Number.isInteger(msgIndex)?masterMessages[msgIndex]:null;
