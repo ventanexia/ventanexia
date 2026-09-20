@@ -19,7 +19,11 @@ export function pkce(){
   const challenge=crypto.createHash("sha256").update(verifier).digest("base64url");
   return {verifier,challenge};
 }
-export function callbackUrl(provider){return `https://www.ventanexia.es/api/oauth-callback?provider=${encodeURIComponent(provider)}`}
+export function callbackUrl(provider){
+  const p=String(provider||"").trim();
+  const callbackProvider=p==="google_calendar"?"gmail":p==="microsoft_calendar"?"microsoft_365":p;
+  return `https://www.ventanexia.es/api/oauth-callback?provider=${encodeURIComponent(callbackProvider)}`;
+}
 export function connector(provider,extra={}){
   const p=String(provider||"").trim();
   if(p==="gmail")return {clientId:process.env.GOOGLE_OAUTH_CLIENT_ID,clientSecret:process.env.GOOGLE_OAUTH_CLIENT_SECRET,auth:"https://accounts.google.com/o/oauth2/v2/auth",token:"https://oauth2.googleapis.com/token",scope:"openid email https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send",extra:{access_type:"offline",prompt:"consent"}};
