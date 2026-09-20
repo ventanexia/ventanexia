@@ -1,6 +1,7 @@
 // Centro Maestro · «Control del negocio»: ingresos, próximas cuotas, impagos, pruebas, contratos y uso por cliente de un vistazo.
 // Usa el mismo dato del servidor que el resto del Centro Maestro (window.vnx.masterDashboard).
 (()=>{
+  if(new URLSearchParams(location.search).has('detached'))return;
   if(window.__vnxMasterControl)return;window.__vnxMasterControl=true;
   const $=(s,r=document)=>r.querySelector(s);
   const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
