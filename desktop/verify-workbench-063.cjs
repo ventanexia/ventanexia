@@ -13,7 +13,7 @@ const checks=[
   ['guided/free switch preserved',html.includes('id="guidedModeBtn"')&&html.includes('id="freeModeBtn"')],
   ['agent ribbon preserved',html.includes('id="guidedAgentTabs"')],
   ['Secretary quick actions',html.includes('data-secretary-day')&&html.includes('data-secretary-pending')&&html.includes('data-secretary-work')],
-  ['email translation UI',html.includes('id="vnxTranslationEnabled"')&&html.includes('id="vnxTranslationLanguage"')&&html.includes('id="vnxTranslateNowBtn"')],
+  ['email translation UI',html.includes('id="vnxTranslateEmailsBtn"')&&html.includes('id="vnxTranslationLanguage"')],
   ['real agenda rail',html.includes('id="vnxAgendaList"')&&js.includes('refreshWorkbenchAgenda')],
   ['real connections rail',html.includes('data-vnx-connect="email"')&&js.includes('refreshWorkbenchConnections')],
   ['approval rail',html.includes('id="vnxApprovalsList"')&&js.includes('refreshWorkbenchApprovals')],
