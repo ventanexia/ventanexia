@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('vnx',{
   getAutoSupport:()=>ipcRenderer.invoke('support:auto-mode-status'),
   listConnections:()=>ipcRenderer.invoke('connection:list'),
   connectionCapacity:()=>ipcRenderer.invoke('connection:capacity'),
+  orderChannelCapacity:()=>ipcRenderer.invoke('orders:channel-capacity'),
   externalAgentList:()=>ipcRenderer.invoke('external-agent:list'),
   externalAgentTest:(payload)=>ipcRenderer.invoke('external-agent:test',payload),
   externalAgentSave:(payload)=>ipcRenderer.invoke('external-agent:save',payload),
