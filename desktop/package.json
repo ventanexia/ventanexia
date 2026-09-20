@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.65",
+  "version": "0.6.66",
   "private": true,
-  "description": "VentaNexIA Desktop · Mi trabajo, revisión/decisión de emails y Pedidos multicanal con niveles por plan · 0.6.65",
+  "description": "VentaNexIA Desktop · Asistente IA ampliado, estados siempre visibles y traducción de emails integrada · 0.6.66",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
