@@ -143,9 +143,18 @@ La demo no debe afirmar que ha ejecutado acciones reales si no existen integraci
 
 El agente **Pedidos** forma parte de los tres planes mensuales y no consume una de las funciones estándar elegibles.
 
-- VNX Inicio: 299 €/mes + IVA, 1 plaza de empleado IA y hasta 100 pedidos procesados al mes.
-- VNX Empresa: 799 €/mes + IVA, 3 plazas de empleados IA y hasta 500 pedidos procesados al mes.
-- VNX Premium: 1.499 €/mes + IVA, 8 plazas de empleados IA y hasta 2.000 pedidos procesados al mes.
+- VNX Inicio: 299 €/mes + IVA, 1 plaza de empleado IA, 1 canal de pedidos online y hasta 100 pedidos procesados al mes. Nivel web Básico: aviso, lectura y preparación para revisar.
+- VNX Empresa: 799 €/mes + IVA, 3 plazas de empleados IA, 3 canales de pedidos online y hasta 500 pedidos procesados al mes. Pedidos Web Pro incluido: comprobación de cliente, referencias, datos y stock y preparación para aprobar.
+- VNX Premium: 1.499 €/mes + IVA, 8 plazas de empleados IA, 6 canales de pedidos online y hasta 2.000 pedidos procesados al mes. Pedidos Web Automático incluido: los pedidos web completamente válidos pueden procesarse automáticamente según las reglas configuradas; las excepciones van a revisión.
+
+Todos los planes pueden recibir pedidos desde una web/tienda compatible sin contratar el módulo Web & Ecommerce completo. Actualmente el motor dispone de entrada directa de pedidos desde Shopify y WooCommerce; otros canales se incorporan únicamente cuando exista un conector compatible y validado.
+
+Ampliaciones de Pedidos web:
+- Canal de pedidos online adicional compatible: 29 €/mes + IVA.
+- Pedidos Web Pro para un plan que no lo incluya: 79 €/mes + IVA.
+- Pedidos Web Automático para un plan que no lo incluya: 149 €/mes + IVA.
+
+El módulo Web & Ecommerce de 550 €/mes corresponde a gestión completa de tienda, catálogo, contenido y operaciones web; no es requisito para recibir pedidos online.
 
 Las funciones disponibles y las plazas de empleados IA son conceptos distintos: una empresa puede tener varias capacidades disponibles, pero solo puede mantener activos simultáneamente tantos empleados/agentes como plazas tenga contratadas.
 
