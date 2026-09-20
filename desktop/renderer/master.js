@@ -1272,6 +1272,7 @@
   }
   let secretaryNewMails=[];
   let secretaryMailTimer=null;
+  let secretaryCalendarTimer=null;
   function secretaryDateKey(){
     const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
   }
@@ -1376,6 +1377,50 @@
     pollSecretaryEmail({initial:true});
     secretaryMailTimer=setInterval(()=>pollSecretaryEmail(),5*60*1000);
   }
+  function meetingMinutes(event){
+    const t=Date.parse(event?.start||'');return Number.isFinite(t)?Math.round((t-Date.now())/60000):null;
+  }
+  async function prepareUpcomingMeeting(event){
+    const scope=secretaryCoreScope();if(!scope||scope.included===false)return;
+    const mins=meetingMinutes(event),people=(event.attendees||[]).map(x=>x.name||x.email).filter(Boolean).slice(0,12);
+    const prompt=[
+      'Actúa como mi Secretaria Ejecutiva y prepárame una reunión real que está en mi agenda.',
+      'Reunión: '+(event.title||'(sin título)')+'.',
+      'Empieza: '+(event.start||'')+'.'+(mins!=null?' Faltan aproximadamente '+mins+' minutos.':''),
+      event.location?'Lugar: '+event.location+'.':'',
+      people.length?'Asistentes: '+people.join(', ')+'.':'',
+      'Haz una revisión general y cruza las fuentes conectadas: correo, pedidos, ventas y clientes, tienda y demás datos reales que puedan estar relacionados con el título, organizador o asistentes de esta reunión.',
+      'Dame: 1) qué debería saber antes de entrar, 2) asuntos pendientes con estas personas/empresa, 3) correos o pedidos relacionados, 4) preguntas que conviene hacer, 5) siguiente acción después de la reunión.',
+      'No inventes relaciones ni datos. Si no encuentras contexto adicional, dilo claramente.'
+    ].filter(Boolean).join('\n');
+    try{
+      const r=await window.vnx.sendChat([{role:'user',content:prompt}],scope);
+      masterMessages.push({role:'assistant',content:'## 📅 Reunión próxima: '+(event.title||'(sin título)')+'\n\n'+(r.reply||'No he encontrado información adicional para preparar esta reunión.'),images:r.images||[],handoff:r.handoff||null});
+      renderMasterMessages();
+    }catch{}
+  }
+  async function pollSecretaryCalendar({initial=false}={}){
+    if(!secretaryAlertsEnabled()||!window.vnx?.agendaUpcoming)return;
+    try{
+      const r=await window.vnx.agendaUpcoming(120);
+      if(!r?.connected)return;
+      const events=(r.events||[]).filter(e=>!e.allDay);
+      for(const event of events){
+        const mins=meetingMinutes(event);
+        if(mins==null||mins<10||mins>35)continue;
+        const key='vnx_secretary_meeting_'+secretaryDateKey()+'_'+String(event.id||event.start||event.title).slice(0,120);
+        if(localStorage.getItem(key)==='done')continue;
+        localStorage.setItem(key,'done');
+        try{await window.vnx.secretaryNotify({title:'VentaNexIA · Reunión en '+mins+' min',body:(event.title||'Tienes una reunión')+'. Estoy preparando lo importante para que entres con todo revisado.'})}catch{}
+        await prepareUpcomingMeeting(event);
+      }
+    }catch{}
+  }
+  function startSecretaryCalendarWatch(){
+    if(secretaryCalendarTimer)clearInterval(secretaryCalendarTimer);
+    pollSecretaryCalendar({initial:true});
+    secretaryCalendarTimer=setInterval(()=>pollSecretaryCalendar(),5*60*1000);
+  }
   async function maybeRunMorningBrief(){
     if(localStorage.getItem('vnx_secretary_auto_brief')==='off')return;
     const key='vnx_secretary_brief_'+secretaryDateKey();
@@ -1445,6 +1490,7 @@
     await refreshChatConnections();
     setupExecutiveSecretary();
     startSecretaryEmailWatch();
+    startSecretaryCalendarWatch();
     await maybeRunMorningBrief();
     setInterval(()=>{if($m('#portalList')&&document.visibilityState==='visible')renderMasterPortals()},12000);
   }
