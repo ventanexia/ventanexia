@@ -1471,6 +1471,58 @@
     if(item.type==='integration')return {type:'integration',key:item.key,name:item.name,accountIndex:item.accountIndex,connectionKey:item.connectionKey};
     return null;
   }
+  let masterBusinessData=null;
+  function moneyLabel(x){
+    if(!x)return '—';
+    const n=Number(x.amount||0);
+    return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(x.currency||'EUR');
+  }
+  function dateLabel(v){
+    if(!v)return '—';
+    const d=typeof v==='number'?new Date(v*1000):new Date(v);
+    return Number.isNaN(d.getTime())?String(v):d.toLocaleString('es-ES');
+  }
+  function renderMasterBusiness(kind){
+    const root=$m('#masterBusinessResult');if(!root)return;
+    const d=masterBusinessData||{};
+    if(kind==='customers'){
+      const rows=d.customers||[];
+      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>'+escM(x.name||x.email||x.id)+'</b><span>'+escM(x.email||'Sin email')+'</span><small>Alta: '+escM(dateLabel(x.created))+'</small></div><small>'+escM(x.id||'')+'</small></div>').join(''):'<div class="empty">No hay clientes en Stripe.</div>';
+      return;
+    }
+    if(kind==='contracts'){
+      const rows=d.contracts||[];
+      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>'+escM(x.company||x.email||x.contract_id||'Contrato')+'</b><span>'+escM((x.plan_name||x.plan||'Plan')+' · '+(x.status||'aceptado'))+'</span><small>'+escM(x.email||'')+' · Aceptado: '+escM(dateLabel(x.accepted_at))+'</small></div><strong>'+escM(String(x.total_monthly??'—'))+' €/mes</strong></div>').join(''):'<div class="empty">No hay contratos aceptados registrados.</div>';
+      return;
+    }
+    if(kind==='invoices'){
+      const rows=d.invoices||[];
+      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>Factura '+escM(x.number||x.id)+'</b><span>'+escM(x.paid?'Pagada':(x.status||'Pendiente'))+' · '+escM(dateLabel(x.created))+'</span><small>Importe: '+escM(moneyLabel(x.amount_due))+'</small></div>'+(x.invoice_pdf?'<button class="mini" data-master-open-url="'+escM(x.invoice_pdf)+'">PDF</button>':x.hosted_invoice_url?'<button class="mini" data-master-open-url="'+escM(x.hosted_invoice_url)+'">Abrir</button>':'')+'</div>').join(''):'<div class="empty">No hay facturas en Stripe.</div>';
+      root.querySelectorAll('[data-master-open-url]').forEach(b=>b.onclick=()=>window.vnx.openExternal(b.dataset.masterOpenUrl));
+      return;
+    }
+    const rows=d.subscriptions||[];
+    root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>'+escM(x.id)+'</b><span>Estado: '+escM(x.status||'—')+'</span><small>'+escM(x.cancel_at_period_end?'Cancelación al final del periodo':'Suscripción activa según estado de Stripe')+'</small></div></div>').join(''):'<div class="empty">No hay suscripciones registradas.</div>';
+  }
+  async function refreshMasterBusiness(){
+    const root=$m('#masterBusinessResult');if(!root||!window.vnx?.masterDashboard)return;
+    root.innerHTML='<div class="empty">Cargando clientes, contratos, facturas y suscripciones…</div>';
+    try{
+      masterBusinessData=await window.vnx.masterDashboard();
+      const set=(id,n)=>{const e=$m(id);if(e)e.textContent=String(n||0)};
+      set('#masterCustomersCount',(masterBusinessData.customers||[]).length);
+      set('#masterContractsCount',(masterBusinessData.contracts||[]).length);
+      set('#masterInvoicesCount',(masterBusinessData.invoices||[]).length);
+      set('#masterSubscriptionsCount',(masterBusinessData.subscriptions||[]).length);
+      renderMasterBusiness('contracts');
+    }catch(e){root.innerHTML='<div class="empty">No he podido cargar el panel maestro: '+escM(e.message||String(e))+'</div>'}
+  }
+  function setupMasterBusiness(){
+    const refresh=$m('#refreshMasterBillingBtn');if(refresh)refresh.onclick=refreshMasterBusiness;
+    $$m('[data-master-business]').forEach(b=>b.onclick=()=>renderMasterBusiness(b.dataset.masterBusiness));
+    refreshMasterBusiness();
+  }
+
   function setupMasterCenter(){
     const root=$m('#masterDataResult'),title=$m('#masterResultTitle'),clear=$m('#masterResultClear');if(!root)return;
     const prompts={
@@ -1821,6 +1873,7 @@
     setupGuidedUi();
     setupWorkbench();
     setupMasterCenter();
+    setupMasterBusiness();
     await renderMasterPortals();
     await refreshChatConnections();
     setupExecutiveSecretary();
