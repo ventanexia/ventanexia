@@ -141,34 +141,38 @@ La demo no debe afirmar que ha ejecutado acciones reales si no existen integraci
 
 ## Modelo comercial vigente
 
-VentaNexIA vende capacidad de trabajo, no plazas de asistentes. Todos los asistentes estándar están disponibles en los tres planes y Carla coordina el especialista adecuado para cada tarea.
+VentaNexIA incluye todos los asistentes estándar en los tres planes de pago. Carla coordina el especialista adecuado para cada tarea. Los planes se diferencian por usuarios, dispositivos, conexiones, canales y volumen de pedidos, además de los límites de funciones que tengan contador técnico activo.
 
-- VNX Inicio: 99 €/mes + IVA durante lanzamiento (precio normal 129 €), 1.500 trabajos/mes, 1 usuario, 1 correo, 1 tienda online, 1 dispositivo y hasta 3 conexiones.
-- VNX Negocio: 249 €/mes + IVA durante lanzamiento (precio normal 299 €), 5.000 trabajos/mes, 3 usuarios, 3 correos, 2 tiendas online, hasta 3 dispositivos y 8 conexiones.
-- VNX Empresa: 499 €/mes + IVA durante lanzamiento (precio normal 599 €), 12.000 trabajos/mes, 8 usuarios, 6 correos, 4 tiendas online, hasta 5 dispositivos y 15 conexiones.
+- VNX Inicio: 99 €/mes + IVA, 1 usuario, 1 dispositivo, hasta 3 conexiones, 1 canal de pedidos online y hasta 100 pedidos/mes.
+- VNX Negocio: 249 €/mes + IVA, 3 usuarios, hasta 3 dispositivos, 8 conexiones, 2 canales de pedidos online y hasta 500 pedidos/mes.
+- VNX Empresa: 499 €/mes + IVA, 8 usuarios, hasta 5 dispositivos, 15 conexiones, 4 canales de pedidos online y hasta 2.000 pedidos/mes.
 
-El precio de lanzamiento se mantiene conforme a las condiciones aceptadas mientras la suscripción correspondiente permanezca activa y al corriente de pago. La oferta puede cerrarse a nuevas altas cuando VentaNexIA finalice la fase de lanzamiento.
+No se publica una cifra genérica de «trabajos al mes» mientras no exista un contador global que mida de forma coherente todas las tareas. Cuando una función tenga un contador técnico activo, su límite puede mostrarse y aplicarse específicamente.
 
 ### Ampliaciones
 
-La capacidad adicional se vende separada de los asistentes:
-- 2.000 trabajos adicionales: 49 €/mes + IVA.
+Las ampliaciones públicas actuales deben limitarse a conceptos realmente operativos y medibles:
+
 - Conexión o cuenta adicional compatible: 49 €/mes + IVA.
 - 10 GB adicionales: 39 €/mes + IVA.
-- 10 créditos de vídeo: 99 € + IVA, pago único.
-- 250 minutos de voz: 49 € + IVA, pago único.
-- 1.000 mensajes WhatsApp adicionales: 59 € + IVA, pago único, más cargos propios de Meta/proveedor cuando correspondan.
+- Canal adicional de pedidos online compatible: 29 €/mes + IVA.
+- WhatsApp u otros servicios de terceros: únicamente cuando exista una integración operativa y se indiquen claramente los cargos de Meta/proveedor o del servicio correspondiente.
 
-No se debe vender uso ilimitado de servicios de coste variable. Cuando una empresa alcance su capacidad, debe ampliarla, cambiar de plan o contratar una propuesta específica.
+Vídeo, voz, imágenes u otras bolsas de coste variable no deben mostrarse como incluidas ni venderse públicamente hasta verificar el flujo completo de extremo a extremo.
 
 ### Pedidos y canales
 
 Pedidos forma parte del equipo estándar. El volumen y los canales dependen del plan:
+
 - Inicio: 1 canal, hasta 100 pedidos/mes.
 - Negocio: 2 canales, hasta 500 pedidos/mes.
 - Empresa: 4 canales, hasta 2.000 pedidos/mes.
 
-Un canal de pedidos adicional compatible puede mantenerse como ampliación de 29 €/mes + IVA mientras el sistema siga soportando ese concepto. El módulo Web & Ecommerce completo no es requisito para recibir pedidos online.
+Un canal de pedidos adicional compatible puede mantenerse como ampliación de 29 €/mes + IVA mientras el sistema siga soportando ese concepto.
+
+### Demo de 15 días
+
+Mientras la versión comercial descargable no esté publicada, la web debe mostrar «Próximamente descargable» y no iniciar públicamente el plazo de 15 días desde el carrito. Cuando se abra la descarga, la demo será sin tarjeta y los consumos de coste externo permanecerán bloqueados o dependerán de la cuenta propia del cliente.
 
 ### Permanencia y portabilidad
 
