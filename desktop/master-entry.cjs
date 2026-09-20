@@ -2,7 +2,7 @@ const {app,ipcMain}=require('electron');
 const {readState}=require('./state-store.cjs');
 const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
-const path=require('node:path');
+const path=require('node:path');\nlet orders=null;\ntry{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
 
 // --- Enrutado único del chat -------------------------------------------------
 // master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
@@ -49,6 +49,14 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
   originalHandle('chat:send',async(event,payload)=>{
     const scope=scopeOf(payload);
     const type=scopeTypeOf(payload);
+
+    // Pedidos usa su motor local especializado: correo completo, adjuntos, validación y entrega real.
+    if(type==='agent'&&String(scope?.key||'')==='orders'&&orders){
+      const messages=Array.isArray(payload?.messages)?payload.messages:[];
+      const last=[...messages].reverse().find(m=>m?.role==='user');
+      const text=String(last?.content||'').trim();
+      return {reply:await orders.handleChat(text),source:'desktop-orders',route:'agent:orders'};
+    }
 
     // El agente Web & Ecommerce debe usar la fuente Shopify real cuando está conectada.
     if(type==='agent'&&String(scope?.key||'')==='web_ecommerce'&&scope?.source?.type==='shopify'){
@@ -104,3 +112,4 @@ app.on('browser-window-created',(_event,win)=>{
     }
   });
 });
+\n\nif(orders)app.whenReady().then(()=>orders.startScheduler()).catch(e=>console.error('orders_scheduler_error',String(e?.message||e).slice(0,180)));\n
