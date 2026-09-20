@@ -977,20 +977,7 @@
       masterMessages.push({role:'assistant',content:r.reply||'No he podido revisar los correos.',emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
     }catch(e){masterMessages.push({role:'assistant',content:'No he podido revisar el correo: '+(e.message||e)});renderMasterMessages()}
   }
-  async function autoTranslateFreshEmails(fresh=[]){
-    if(localStorage.getItem('vnx_translation_enabled')!=='on')return;
-    const foreign=fresh.filter(likelyForeignMail).slice(0,5);if(!foreign.length)return;
-    const agent=(runtimeAgents||[]).find(x=>x.key==='email');if(!agent?.ready)return;
-    const lang=workbenchLanguage();
-    const rows=foreign.map((m,i)=>(i+1)+'. De: '+(m.from||'')+' | Asunto: '+(m.subject||'')+' | Texto: '+(m.snippet||'')).join('\n');
-    try{
-      const scope={type:'agent',key:'email',name:agentDisplayName(agent),included:agent.included,connected:agent.connected,ready:agent.ready,source:agent.source||null};
-      const r=await window.vnx.sendChat([{role:'user',content:'Traduce estos correos recibidos al '+lang+'. No envíes nada. Conserva nombres, importes, referencias y fechas.\n\n'+rows}],scope);
-      masterMessages.push({role:'assistant',content:'## 🌐 Traducción automática de correo\n\n'+(r.reply||'')});
-      renderMasterMessages();
-      try{await window.vnx.secretaryNotify({title:'VentaNexIA · Emails traducidos',body:'He preparado la traducción de '+foreign.length+' correo'+(foreign.length===1?'':'s')+' al '+lang+'.'})}catch{}
-    }catch{}
-  }
+  async function autoTranslateFreshEmails(){ return; }
   function setWorkbenchExpanded(on){
     document.body.classList.toggle('vnx-focus-chat',Boolean(on));
     const btn=$m('#vnxExpandWorkbench');if(btn)btn.textContent=on?'✕ Salir de pantalla completa':'⛶ Expandir';
@@ -1132,14 +1119,12 @@
   }
 
   function setupWorkbench(){
-    const lang=$m('#vnxTranslationLanguage'),toggle=$m('#vnxTranslationEnabled');
+    const lang=$m('#vnxTranslationLanguage');
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
     $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
     $$m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')openWorkQueue('decision');else if(k==='solved')openWorkQueue('resolved');else openWorkQueue('review')});
     if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
-    if(toggle){toggle.checked=localStorage.getItem('vnx_translation_enabled')==='on';toggle.onchange=()=>localStorage.setItem('vnx_translation_enabled',toggle.checked?'on':'off')}
-    $m('#vnxTranslateNowBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
     $m('#vnxTranslateEmailsBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
     $m('#vnxEmailSummaryBtn')?.addEventListener('click',()=>runEmailWorkbench('summary'));
     $m('#vnxMyWorkBtn')?.addEventListener('click',()=>openWorkQueue('review'));
