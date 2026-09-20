@@ -4,7 +4,7 @@ const path=require('node:path');
 const crypto=require('node:crypto');
 
 const DEFAULTS={
-  mode:'ask',autoScan:true,scanDays:14,maxPerScan:115,maxExtractionsPerDay:60,
+  mode:'ask',autoScan:true,scanDays:14,maxPerScan:15,maxExtractionsPerDay:60,
   newCustomer:'ask',requiredCustomerData:['name','taxId','address','deliveryAddress','email','phone'],
   minConfidence:0.85,accounts:null,destination:null,customers:null,catalog:null,signature:'',
   webOrders:true,keywords:'pedido|pedidos|order|orders|compra|purchase|albar[aá]n|solicitud|reposici[oó]n|orden de compra|\\bpo[- ]?\\d'
