@@ -17,5 +17,5 @@ export default async function handler(req,res){
   };
   const launchReady=Object.values(checks).every(Boolean);
   res.setHeader("Cache-Control","no-store");
-  return res.status(200).json({service:"VentaNexIA",serverVersion:"0.6.62",ok:true,launchReady,checks,model:aiModel(),timestamp:new Date().toISOString()});
+  return res.status(200).json({service:"VentaNexIA",serverVersion:"0.6.64",ok:true,launchReady,checks,model:aiModel(),timestamp:new Date().toISOString()});
 }
