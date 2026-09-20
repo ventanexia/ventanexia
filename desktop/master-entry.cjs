@@ -46,6 +46,27 @@ function scopeTypeOf(payload){
   return scope&&typeof scope==='object'?String(scope.type||''):'';
 }
 
+function normText(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+function centralActionHandoff(question=''){
+  const q=normText(question);
+  const action=/\b(responde|contesta|envia|manda|crea|haz|prepara|archiva|marca|elimina|borra|publica|programa|introduce|registra|entrega|pide|solicita|modifica|cambia|actualiza|llama|contacta|gestiona|tramita)\b/.test(q);
+  if(!action)return null;
+  const defs=[
+    {key:'email',name:'Email y bandeja',icon:'✉️',re:/correo|correos|email|emails|gmail|bandeja|borrador|archiv|remitente|asunto/},
+    {key:'orders',name:'Pedidos',icon:'📦',re:/pedido|pedidos|orden de compra|stock|compras|entrega|referencia|sku/},
+    {key:'whatsapp',name:'WhatsApp',icon:'💬',re:/whatsapp|mensaje|mensajes|chat con cliente/},
+    {key:'crm',name:'Ventas y clientes',icon:'🤝',re:/cliente|clientes|venta|ventas|oportunidad|seguimiento|pipeline|contacto comercial/},
+    {key:'social',name:'Redes y publicidad',icon:'📣',re:/instagram|facebook|linkedin|redes|publicacion|post|campana|anuncio/},
+    {key:'web_ecommerce',name:'Web y tienda',icon:'🌐',re:/shopify|tienda|web|producto|productos|precio|contenido web/},
+    {key:'quotes',name:'Presupuestos y ofertas',icon:'🧾',re:/presupuesto|oferta|propuesta comercial/},
+    {key:'customer_service',name:'Atención al cliente',icon:'🎧',re:/reclamacion|incidencia|atencion al cliente|queja/},
+    {key:'administration',name:'Administración y agenda',icon:'🗂️',re:/agenda|tarea|documento|administracion|factura interna/},
+    {key:'reports',name:'Informes y resultados',icon:'📊',re:/informe|reporte|resultados|comparativa/}
+  ];
+  const hit=defs.find(x=>x.re.test(q));
+  return hit?{...hit,task:String(question||'').trim().slice(0,1200)}:null;
+}
+
 if(typeof agentChat==='function'&&typeof portalChat==='function'){
   ipcMain.removeHandler('chat:send');
 
@@ -116,7 +137,18 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
         }
       }
 
-      return agentChat(event,{...(payload||{}),hubContext});
+      const response=await agentChat(event,{...(payload||{}),hubContext});
+      const handoff=centralActionHandoff(question);
+      if(handoff&&isAgentIncluded(s.license,handoff.key)){
+        response.handoff={
+          agentKey:handoff.key,
+          agentName:handoff.name,
+          icon:handoff.icon,
+          task:handoff.task,
+          prompt:'¿Quieres que te conecte con tu empleado de '+handoff.name+' para que realice esta tarea?'
+        };
+      }
+      return response;
     }
 
     // Pedidos usa su motor local especializado: correo completo, adjuntos, validación y entrega real.
