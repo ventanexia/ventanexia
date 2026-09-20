@@ -135,10 +135,19 @@
             <h2>Dime qué necesitas</h2>
             <p>Consulta, resume, traduce, prepara y deriva tareas al empleado adecuado desde un único lugar.</p>
           </div>
-          <div class="vnx-head-actions"><button id="vnxExpandWorkbench" class="btn outline vnx-expand-btn" type="button">⛶ Expandir</button><div class="mode-switch vnx-top-mode">
-            <button id="guidedModeBtn" type="button" class="active">✨ Modo guiado<small>Te acompaño paso a paso</small></button>
-            <button id="freeModeBtn" type="button">⚡ Modo libre<small>Tú decides</small></button>
-          </div></div>
+          <div class="vnx-head-actions">
+            <div class="vnx-view-controls" aria-label="Tamaño de la interfaz">
+              <button id="vnxZoom100" class="mini" type="button" title="Tamaño normal">100%</button>
+              <button id="vnxZoom110" class="mini active" type="button" title="Vista cómoda">110%</button>
+              <button id="vnxZoom125" class="mini" type="button" title="Texto grande">125%</button>
+            </div>
+            <button id="vnxPopoutWorkbench" class="btn outline" type="button">↗ Abrir en ventana</button>
+            <button id="vnxExpandWorkbench" class="btn outline vnx-expand-btn" type="button">⛶ Expandir</button>
+            <div class="mode-switch vnx-top-mode">
+              <button id="guidedModeBtn" type="button" class="active">✨ Modo guiado<small>Te acompaño paso a paso</small></button>
+              <button id="freeModeBtn" type="button">⚡ Modo libre<small>Tú decides</small></button>
+            </div>
+          </div>
         </div>
 
         <div id="guidedAgentTabs" class="guided-agent-tabs vnx-agent-ribbon"></div>
