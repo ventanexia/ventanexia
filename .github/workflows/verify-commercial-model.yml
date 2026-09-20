@@ -92,5 +92,8 @@ jobs:
           must(startTrial.includes('createCustomerCode')&&startTrial.includes('createActivationCode')&&startTrial.includes('trialTermsAccepted'),'Trial registration/licence automation missing');
           must(builder.includes('trialTermsAck')&&builder.includes('trialNoChargeAck'),'Trial acceptance checkboxes missing');
           must(terms.includes('no cedible')&&terms.includes('no transferible')&&terms.includes('15 días gratis'),'Trial terms missing licence restrictions');
+          must(terms.includes('secretos empresariales')&&terms.includes('Prohibición de copia')&&terms.includes('interoperabilidad'),'Trial anti-copy/confidentiality clauses missing');
+          must(contract.includes('16 bis. Confidencialidad')&&contract.includes('ipAck'),'Paid contract anti-copy/confidentiality acceptance missing');
+          must(accept.includes('ipConfidentialityAccepted')&&accept.includes('2026-09-20-v10'),'Server must enforce IP/confidentiality acceptance');
           console.log('VentaNexIA commercial model verification OK: launch prices, full standard team, capacity model, contract term and checkout synchronized.');
           NODE
