@@ -1,13 +1,13 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.55",
+  "version": "0.6.56",
   "private": true,
-  "description": "VentaNexIA Desktop · Resultados visuales con Markdown y tablas formateadas · 0.6.55",
+  "description": "VentaNexIA Desktop · Pedidos reales con correo, adjuntos, validación y entrega segura · 0.6.56",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-cloud-agent-isolation.cjs && node --check state-store.cjs && node --check gmail-auth.cjs && node --check shopify-auth.cjs && node --check agent-email.cjs && node --check agent-policy.cjs && node --check prospecting.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
-    "dist:mac": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-cloud-agent-isolation.cjs && node --check agent-email.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg",
+    "dist:win": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-cloud-agent-isolation.cjs && node --check state-store.cjs && node --check gmail-auth.cjs && node --check shopify-auth.cjs && node --check agent-email.cjs && node --check agent-policy.cjs && node --check prospecting.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
+    "dist:mac": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-cloud-agent-isolation.cjs && node --check agent-email.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg",
     "verify:ui": "node verify-ui.cjs"
   },
   "devDependencies": {
@@ -36,6 +36,9 @@
       "portal-adaptive.cjs",
       "portal-pagination-fix.cjs",
       "export.cjs",
+      "order-files.cjs",
+      "orders-core.cjs",
+      "orders.cjs",
       "main.cjs",
       "preload.cjs",
       "renderer/**/*",
@@ -60,6 +63,9 @@
   },
   "dependencies": {
     "imapflow": "^1.0.195",
-    "nodemailer": "^7.0.6"
+    "nodemailer": "^7.0.6",
+    "fflate": "^0.8.2",
+    "mailparser": "^3.7.4",
+    "pdfjs-dist": "3.11.174"
   }
-}
+}\n
