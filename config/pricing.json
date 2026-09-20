@@ -1,7 +1,7 @@
 {
   "currency": "EUR",
   "vat_note": "Precios sin IVA. Los impuestos se aplicarán según corresponda.",
-  "trial_days": 3,
+  "trial_days": 15,
   "launch_offer": {
     "active": true,
     "label": "Precio de lanzamiento",
