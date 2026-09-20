@@ -33,9 +33,9 @@ function connectionLimit(license={}){
   const explicit=Number(license?.featurePolicy?.connection_limit||0);
   if(explicit>0)return explicit;
   const p=cleanPlan(license?.plan);
-  if(['start','inicio'].includes(p))return 2;
-  if(['core','crecimiento'].includes(p))return 5;
-  if(['scale','empresa','premium'].includes(p))return 10;
+  if(['start','inicio'].includes(p))return 3;
+  if(['core','crecimiento'].includes(p))return 8;
+  if(['scale','empresa','premium'].includes(p))return 15;
   return 0;
 }
 function ownAgentLimit(license={}){
@@ -48,7 +48,7 @@ function employeeSlotLimit(license={}){
   if(explicit>0)return explicit;
   const p=cleanPlan(license?.plan);
   if(['start','inicio'].includes(p))return 1;
-  if(['core','crecimiento'].includes(p))return 3;
+  if(['core','crecimiento'].includes(p))return 2;
   if(['scale','empresa','premium'].includes(p))return 8;
   return 0;
 }
@@ -58,8 +58,8 @@ function orderChannelLimit(license={}){
   if(explicit>0)return explicit;
   const p=cleanPlan(license?.plan);
   if(['start','inicio'].includes(p))return 1;
-  if(['core','crecimiento'].includes(p))return 3;
-  if(['scale','empresa','premium'].includes(p))return 6;
+  if(['core','crecimiento'].includes(p))return 2;
+  if(['scale','empresa','premium'].includes(p))return 4;
   return 0;
 }
 function orderWebLevel(license={}){
