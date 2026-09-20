@@ -406,9 +406,12 @@ async function orderChannelStatus(){
   const s=await readState(),u=orderChannelUsageFromState(s);
   return {...u,level:policy.orderWebLevel?policy.orderWebLevel(s.license):'basic',extraMonthlyEur:29};
 }
+async function webOrderLevel(){
+  const s=await readState();return policy.orderWebLevel?policy.orderWebLevel(s.license):'basic';
+}
 function get(){
   if(instance)return instance;
-  instance=createOrders({dir:path.join(app.getPath('userData'),'orders'),mail,extract,files:{extract:files.extractText},webOrders:allWebOrders,erp:erpApi,stockLookup,monthlyLimit,confirm,notify,audit,loadList,fetch:(...a)=>fetch(...a),pickFolder,pickFile,
+  instance=createOrders({dir:path.join(app.getPath('userData'),'orders'),mail,extract,files:{extract:files.extractText},webOrders:allWebOrders,erp:erpApi,stockLookup,monthlyLimit,webOrderLevel,confirm,notify,audit,loadList,fetch:(...a)=>fetch(...a),pickFolder,pickFile,
     deliverers:{shopify_draft:shopifyDraft,erp:erpDeliver,factusol:factusolDeliver}});
   return instance;
 }
