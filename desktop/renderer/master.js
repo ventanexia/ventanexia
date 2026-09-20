@@ -241,6 +241,17 @@
         'No envíes ni afirmes que se ha enviado nada sin una acción real de WhatsApp disponible.'
       ].filter(Boolean).join('\n');
     }
+    if(key==='orders'){
+      const task=String(data.task||'').trim(),extra=String(data.rules||'').trim();
+      if(task==='Ver pedidos nuevos')return 'Revisa los pedidos';
+      if(task==='Ver pedidos pendientes')return 'Ver pedidos pendientes';
+      if(task==='Ver pedidos listos para introducir')return 'Ver pedidos listos';
+      if(task==='Pedir al cliente los datos que faltan')return 'Pide los datos que faltan'+(extra?' del '+extra:'');
+      if(task==='Introducir los pedidos listos')return 'Introduce los pedidos listos';
+      if(task==='Ver estado y configuración')return 'Estado pedidos';
+      if(task==='Configurar o dar otra orden')return extra||'Ayuda';
+      return extra||'Revisa los pedidos';
+    }
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
@@ -249,7 +260,7 @@
   }
   function guidedConnectedLabels(key){
     const matches=[];
-    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],orders:['email','portal'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
+    const wants={email:['email'],whatsapp:['whatsapp'],prospecting:['email'],crm:['crm','email'],customer_service:['email','whatsapp'],orders:['email','shopify'],social:['social'],web_ecommerce:['shopify','wordpress','github_vercel'],administration:['email'],reports:['shopify','crm'],automation:['shopify','email','crm','whatsapp']}[key]||[];
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
