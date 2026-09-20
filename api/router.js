@@ -41,7 +41,7 @@ import portalRequestLink from "../server/handlers/portal-request-link.js";
 import portalState from "../server/handlers/portal-state.js";
 import proposalEvent from "../server/handlers/proposal-event.js";
 import releasePublish from "../server/handlers/release-publish.js";
-import prospectSearch from "../server/handlers/prospect-search.js";
+import prospectSearch from "../server/handlers/prospect-search.js";\nimport ordersExtract from "../server/handlers/orders-extract.js";
 import qualify from "../server/handlers/qualify.js";
 import socialPlan from "../server/handlers/social-plan.js";
 import socialPublish from "../server/handlers/social-publish.js";
@@ -106,7 +106,7 @@ const handlers = {
   "portal-state": portalState,
   "proposal-event": proposalEvent,
   "release-publish": releasePublish,
-  "prospect-search": prospectSearch,
+  "prospect-search": prospectSearch,\n  "orders-extract": ordersExtract,
   "qualify": qualify,
   "social-plan": socialPlan,
   "social-publish": socialPublish,
