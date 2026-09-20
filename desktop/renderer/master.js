@@ -7,7 +7,7 @@
   let runtimeAgents=[];
   let agentMetrics={};
   const AGENT_INPUT_EXAMPLES={
-    core_ai:'Ej.: analiza estos datos, resume este documento, prepara una propuesta o ayúdame a resolver este problema',
+    core_ai:'Ej.: ¿qué tengo pendiente hoy? · resume pedidos, correos y ventas · dime qué clientes necesitan atención',
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
     whatsapp:'Ej.: prepara una respuesta para este cliente y déjamela lista para autorizar antes de enviarla',
     prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
@@ -23,14 +23,14 @@
   };
   const GUIDED_AGENT_FORMS={
     core_ai:{
-      subtitle:'Analiza, redacta y resuelve tareas de negocio con ayuda de IA.',
+      subtitle:'Tu centro de mando: pregunta aquí por cualquier dato de tus agentes y conexiones sin tener que entrar uno por uno.',
       primary:'✨ Pedir ayuda a VentaNexIA',
       fields:[
         {key:'goal',label:'¿QUÉ NECESITAS?',type:'textarea',wide:true,placeholder:'Ej. analiza este problema, prepara una propuesta o resume esta información',required:true},
         {key:'context',label:'CONTEXTO',type:'textarea',wide:true,placeholder:'Añade los datos importantes que deba tener en cuenta'},
         {key:'result',label:'¿CÓMO QUIERES EL RESULTADO?',type:'text',wide:true,placeholder:'Ej. breve y ejecutivo, paso a paso, tabla, propuesta comercial'}
       ],
-      capabilities:['Analizar información','Redactar documentos y propuestas','Resumir y organizar ideas','Ayudarte a tomar decisiones con los datos disponibles'],
+      capabilities:['Consultar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Cruzar datos de varios agentes en una misma respuesta','Decirte qué tienes pendiente y qué necesita atención','Indicar de qué fuente sale cada dato y qué conexión no está disponible','Las acciones reales siguen pasando por el agente especialista y su autorización'],
       steps:['Pedir','Revisar','Ajustar']
     },
     email:{
@@ -255,7 +255,7 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Ayúdame con esta tarea',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Gestiona Pedidos con el motor real. Puedes revisar pedidos, ver pendientes, pedir los datos que faltan, introducir los pedidos listos o configurar destino, clientes, catálogo y modo. No afirmes que se comprueba stock, se consulta a Compras, se teclean pedidos en páginas privadas ni se usan conectores ERP directos: esas funciones aún no están implementadas.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Actúa como centro de mando de VentaNexIA. Responde usando todas las fuentes conectadas que recibas, cruza la información cuando sea útil, indica el origen de los datos y no ejecutes acciones desde este panel.',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Gestiona Pedidos con el motor real. Puedes revisar pedidos, ver pendientes, pedir los datos que faltan, introducir los pedidos listos o configurar destino, clientes, catálogo y modo. No afirmes que se comprueba stock, se consulta a Compras, se teclean pedidos en páginas privadas ni se usan conectores ERP directos: esas funciones aún no están implementadas.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
