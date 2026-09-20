@@ -1,11 +1,14 @@
 # VentaNexIA — Trial and entitlements
 
 ## Commercial lifecycle
-BLUEPRINT -> TRIAL (72h) -> PAID/ACTIVE or SUSPENDED.
+BLUEPRINT -> TRIAL (15 días, sin tarjeta) -> CONTRACT + PAYMENT -> PAID/ACTIVE o SUSPENDED.
 
 ## Trial
-- Duration: exactly 3 x 24 hours from activation.
+- Duration: exactly 15 x 24 hours from activation.
 - No card required to start.
+- No paid contract is accepted at trial start.
+- The customer can stop using the trial at any time without charge.
+- At expiry, access is blocked until the customer explicitly chooses to continue, accepts the paid contract and adds a payment method.
 - The tenant is personalized from the prospect blueprint.
 - Trial is deliberately constrained:
   - no bulk outbound;
@@ -20,7 +23,7 @@ At `trial_ends_at`, access becomes invalid by calculation even if a sweep job ha
 Data/configuration are retained; deletion is not used as a payment enforcement mechanism.
 
 ## Paid activation
-Checkout contains the tenant/solution identity in metadata.
+The paid contract starts only after the trial when the customer explicitly chooses to continue. Checkout contains the tenant/solution identity in metadata.
 `checkout.session.completed` / `invoice.paid` activates the entitlement and re-enables agents.
 
 ## Non-payment
