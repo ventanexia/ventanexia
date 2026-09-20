@@ -1133,7 +1133,39 @@
     }catch{}
   }
 
+  function setUiZoom(factor){
+    const safe=[1,1.1,1.25].includes(Number(factor))?Number(factor):1.1;
+    localStorage.setItem('vnx_ui_zoom',String(safe));
+    window.vnx?.setUiZoom?.(safe).catch(()=>{});
+    [['#vnxZoom100',1],['#vnxZoom110',1.1],['#vnxZoom125',1.25]].forEach(([id,v])=>{
+      const el=$m(id);if(el)el.classList.toggle('active',v===safe);
+    });
+  }
+  function setupReadableView(){
+    const detached=new URLSearchParams(location.search).get('detached')==='workbench';
+    if(detached){
+      document.body.classList.add('vnx-detached-workbench','vnx-focus-chat');
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      $m('#chat')?.classList.add('active');
+    }
+    const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
+    setUiZoom(detached?Math.max(1.1,stored):stored);
+    $m('#vnxZoom100')?.addEventListener('click',()=>setUiZoom(1));
+    $m('#vnxZoom110')?.addEventListener('click',()=>setUiZoom(1.1));
+    $m('#vnxZoom125')?.addEventListener('click',()=>setUiZoom(1.25));
+    const pop=$m('#vnxPopoutWorkbench');
+    if(pop){
+      if(detached)pop.style.display='none';
+      else pop.addEventListener('click',async()=>{
+        pop.disabled=true;const old=pop.textContent;pop.textContent='Abriendo…';
+        try{await window.vnx.openWorkbenchWindow()}catch(e){alert(e.message||e)}
+        finally{pop.disabled=false;pop.textContent=old}
+      });
+    }
+  }
+
   function setupWorkbench(){
+    setupReadableView();
     const lang=$m('#vnxTranslationLanguage');
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
