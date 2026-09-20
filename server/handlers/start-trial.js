@@ -21,9 +21,12 @@ Hasta: ${end}
 Condiciones de prueba aceptadas: ${termsVersion||"2026-09-20-v2"}
 
 Durante estos 15 días:
+- Puedes probar la demo completa de VentaNexIA.
 - No necesitas introducir tarjeta.
 - No se realizará ningún cobro automático.
 - No estás aceptando todavía el contrato de pago.
+- Las funciones que pueden generar un coste externo para VentaNexIA (por ejemplo vídeo o voz) permanecen bloqueadas durante la prueba salvo que exista una cortesía expresamente indicada.
+- WhatsApp puede requerir la cuenta y facturación propia del cliente con Meta.
 - Puedes dejar de usar la prueba cuando quieras sin coste.
 
 Cuando termine la prueba, VentaNexIA quedará pausado. Si te gusta y quieres seguir, te mostraremos una pantalla para continuar. Solo entonces revisarás y aceptarás el contrato, añadirás tu tarjeta y empezará la suscripción.
@@ -97,7 +100,8 @@ export default async function handler(req,res){
     }
 
     const recommendation=recommendPlan(sol.blueprint||{});
-    const planKey=recommendation.key;
+    const recommendedPlanKey=recommendation.key;
+    const planKey="scale"; // La prueba usa la capacidad máxima del software; el plan recomendado se conserva para después.
     const acceptedAt=new Date().toISOString();
     const selectedAgents=trialAgents(sol.blueprint||{},planKey);
     const existing=await db(`vnx_tenants?settings->>solution_request_id=eq.${encodeURIComponent(solutionId)}&select=*`);
@@ -108,7 +112,7 @@ export default async function handler(req,res){
       activationCode=createActivationCode();
       const rows=await db("vnx_tenants",{method:"POST",body:JSON.stringify([{
         name:sol.company,status:"trial",autonomy_level:"prepare",customer_code:customerCode,desktop_activation_hash:activationHash(activationCode),
-        settings:{solution_request_id:sol.id,blueprint:sol.blueprint,owner_email:sol.email,trial_mode:true,recommended_plan:planKey,trial_terms:{version:trialTermsVersion,accepted_at:acceptedAt,license_nominative:true,non_transferable:true,confidentiality_accepted:true,no_competitive_copy:true,no_card_required:true,no_automatic_charge:true},trial_restrictions:["no_external_writes","no_bulk_outbound","no_financial_commitments"]}
+        settings:{solution_request_id:sol.id,blueprint:sol.blueprint,owner_email:sol.email,trial_mode:true,trial_plan:"demo_full",recommended_plan:recommendedPlanKey,trial_terms:{version:trialTermsVersion,accepted_at:acceptedAt,license_nominative:true,non_transferable:true,confidentiality_accepted:true,no_competitive_copy:true,no_card_required:true,no_automatic_charge:true},trial_restrictions:["no_external_writes","no_bulk_outbound","no_financial_commitments"]}
       }])});
       tenant=rows?.[0];
       if(!tenant?.id) throw new Error("TENANT_CREATE_FAILED");
@@ -130,8 +134,8 @@ export default async function handler(req,res){
     await recordTrialAttempt({solutionRequestId:solutionId,tenantId:tenant.id,signals,decision:"allow",reason:"OK"});
     await db(`vnx_solution_requests?id=eq.${encodeURIComponent(solutionId)}`,{method:"PATCH",body:JSON.stringify({status:"trial_ready",updated_at:new Date().toISOString()})});
     const downloadUrl=await latestDownloadUrl();
-    await sendTrialWelcome({email:sol.email,company:sol.company,planName:recommendation.name,trialEndsAt:ent.trial_ends_at,customerId:tenant.customer_code,activationCode,downloadUrl,termsVersion:trialTermsVersion}).catch(()=>false);
-    return res.status(200).json({ok:true,tenantId:tenant.id,customerId:tenant.customer_code,activationCode,downloadUrl,state:"trial",trialDays:TRIAL_DAYS,trialEndsAt:ent.trial_ends_at,plan:planKey,planName:recommendation.name,agents:selectedAgents,portalUrl:"/portal.html",trialTermsVersion,limitations:["Sin cambios sensibles en sistemas externos","Sin campañas masivas","Sin compromisos económicos o contractuales"],upgradeRequired:false});
+    await sendTrialWelcome({email:sol.email,company:sol.company,planName:"Demo completa",trialEndsAt:ent.trial_ends_at,customerId:tenant.customer_code,activationCode,downloadUrl,termsVersion:trialTermsVersion}).catch(()=>false);
+    return res.status(200).json({ok:true,tenantId:tenant.id,customerId:tenant.customer_code,activationCode,downloadUrl,state:"trial",trialDays:TRIAL_DAYS,trialEndsAt:ent.trial_ends_at,plan:planKey,planName:"Demo completa",recommendedPlan:{key:recommendedPlanKey,name:recommendation.name,monthly:recommendation.monthly},agents:selectedAgents,portalUrl:"/portal.html",trialTermsVersion,limitations:["Sin cambios sensibles en sistemas externos","Sin campañas masivas","Sin compromisos económicos o contractuales","Servicios con coste externo bloqueados o sujetos a la cuenta del propio cliente"],upgradeRequired:false});
   }catch(e){
     console.error("start_trial_error",String(e?.message||e).slice(0,500));
     return res.status(500).json({error:"No se pudo iniciar la demo"});
