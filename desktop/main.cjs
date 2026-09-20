@@ -34,6 +34,7 @@ const SKIP_DIRS=new Set([
 ]);
 
 let mainWindow;
+let workbenchWindow;
 let discoveryCandidates=new Set();
 async function postJson(url,body,timeoutMs=20000){
   const controller=new AbortController();
@@ -128,6 +129,44 @@ function createWindow(){
   mainWindow.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//i.test(url)||/^ms-quick-assist:/i.test(url)){shell.openExternal(url);return {action:'deny'}}return {action:'deny'}});
   mainWindow.webContents.on('will-navigate',(e,url)=>{if(!url.startsWith('file://'))e.preventDefault()});
 }
+
+
+ipcMain.handle('ui:set-zoom',async(event,factor=1)=>{
+  const win=BrowserWindow.fromWebContents(event.sender);
+  if(!win)return {ok:false};
+  const safe=Math.max(0.9,Math.min(1.35,Number(factor)||1));
+  win.webContents.setZoomFactor(safe);
+  return {ok:true,factor:safe};
+});
+ipcMain.handle('ui:get-zoom',async(event)=>{
+  const win=BrowserWindow.fromWebContents(event.sender);
+  return {factor:win?.webContents?.getZoomFactor?.()||1};
+});
+ipcMain.handle('ui:open-workbench-window',async()=>{
+  if(workbenchWindow&&!workbenchWindow.isDestroyed()){
+    workbenchWindow.show();workbenchWindow.focus();
+    return {ok:true,existing:true};
+  }
+  workbenchWindow=new BrowserWindow({
+    width:1450,height:930,minWidth:1050,minHeight:720,
+    title:'VentaNexIA · Carla',
+    backgroundColor:'#031523',
+    autoHideMenuBar:true,
+    webPreferences:{
+      preload:path.join(__dirname,'preload.cjs'),
+      contextIsolation:true,nodeIntegration:false,sandbox:true,
+      backgroundThrottling:false,
+      devTools:true
+    }
+  });
+  workbenchWindow.removeMenu();
+  await workbenchWindow.loadFile(path.join(__dirname,'renderer','index.html'),{query:{detached:'workbench'}});
+  workbenchWindow.webContents.setZoomFactor(1.12);
+  workbenchWindow.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//i.test(url)||/^ms-quick-assist:/i.test(url)){shell.openExternal(url);return {action:'deny'}}return {action:'deny'}});
+  workbenchWindow.webContents.on('will-navigate',(e,url)=>{if(!url.startsWith('file://'))e.preventDefault()});
+  workbenchWindow.on('closed',()=>{workbenchWindow=null});
+  return {ok:true,existing:false};
+});
 
 function authorizedRootFor(target,folders=[]){
   const resolvedTarget=path.resolve(String(target||''));
