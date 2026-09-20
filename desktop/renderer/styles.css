@@ -1061,3 +1061,33 @@ body{
   .vnx-detached-workbench .vnx-workbench-grid{grid-template-columns:1fr}
   .vnx-detached-workbench .vnx-workbench-rail{display:none}
 }
+
+
+/* 0.6.73 — dedicated Carla dialog window */
+.vnx-carla-window .vnx-workbench-head,
+.vnx-carla-window .vnx-agent-ribbon,
+.vnx-carla-window #vnxSecretaryWelcome,
+.vnx-carla-window .vnx-status-strip,
+.vnx-carla-window .vnx-workbench-rail{display:none!important}
+.vnx-carla-window .vnx-workbench{height:100vh!important;padding:14px!important;gap:0!important;background:#031523}
+.vnx-carla-window .vnx-workbench-grid{display:block!important;height:100%;min-height:0}
+.vnx-carla-window .vnx-workbench-main{height:100%;display:block!important;overflow:hidden}
+.vnx-carla-window .vnx-primary-work{height:100%;display:flex;flex-direction:column;padding:0!important;border:1px solid #21638a;border-radius:16px;overflow:hidden;background:#061c31}
+.vnx-carla-window .guided-card-head{flex:0 0 auto;padding:16px 18px 12px;border-bottom:1px solid #184a68;background:#08243c}
+.vnx-carla-window #guidedAgentTitle{font-size:22px!important}
+.vnx-carla-window #guidedAgentSubtitle{font-size:12px!important;max-width:760px}
+.vnx-carla-window #chatSourceGlobal{flex:0 0 auto;padding:10px 18px 0}
+.vnx-carla-window #freeModePanel{display:flex!important;flex-direction:column;flex:1;min-height:0;padding:0 18px 16px}
+.vnx-carla-window #guidedModePanel{display:none!important}
+.vnx-carla-window #chatScopeBar{display:none!important}
+.vnx-carla-window #messages{flex:1!important;height:auto!important;min-height:0!important;margin:10px 0!important;border-radius:12px;font-size:14px!important;line-height:1.6!important;padding:18px!important}
+.vnx-carla-window #chatForm{flex:0 0 auto;margin-top:0!important;padding-top:8px;border-top:1px solid #174968}
+.vnx-carla-window #chatInput{min-height:92px!important;max-height:180px!important;font-size:14px!important;line-height:1.5!important}
+.vnx-carla-window .vnx-composer-actions .btn{font-size:13px!important}
+.vnx-carla-window #chatNewConversation{white-space:nowrap}
+@media(max-width:760px){
+  .vnx-carla-window .vnx-workbench{padding:8px!important}
+  .vnx-carla-window .guided-card-head{padding:12px;gap:8px}
+  .vnx-carla-window #guidedAgentTitle{font-size:18px!important}
+  .vnx-carla-window #freeModePanel{padding:0 10px 10px}
+}
