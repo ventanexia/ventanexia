@@ -16,6 +16,8 @@ jobs:
     runs-on: windows-latest
     env:
       VNX_BUILD_EDITION: master
+      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
     defaults:
       run:
         working-directory: desktop
