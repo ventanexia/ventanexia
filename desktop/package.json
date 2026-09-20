@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.67",
+  "version": "0.6.68",
   "private": true,
-  "description": "VentaNexIA Desktop · Carla y Mi trabajo como centro completo de revisión · 0.6.67",
+  "description": "VentaNexIA Desktop · MASTER ilimitado, Carla, Mi trabajo y Centro Maestro comercial · 0.6.68",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
