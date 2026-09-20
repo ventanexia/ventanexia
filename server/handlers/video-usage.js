@@ -22,6 +22,7 @@ export default async function handler(req,res){
     if(!customerId||!activationCode||!deviceKey)return res.status(400).json({error:"Faltan datos de licencia"});
     const device=await rpc("vnx_device_status_public",{p_customer_code:customerId,p_activation_code:activationCode,p_device_key:deviceKey});
     if(!device?.ok)return res.status(401).json({error:device?.message||"Licencia no válida",code:device?.code||"LICENSE_INVALID"});
+    if(action==="consume"&&device?.featurePolicy?.variable_cost_locked)return res.status(403).json({ok:false,code:"TRIAL_COST_LOCKED",error:"La generación de vídeo no consume créditos durante la demo gratuita. Se activa al contratar créditos de vídeo."});
     if(action==="consume"){
       if(!durationSeconds)return res.status(400).json({error:"Indica la duración del vídeo"});
       const out=await rpc("vnx_consume_video_quota",{p_customer_code:customerId,p_device_id:device.deviceId||null,p_duration_seconds:durationSeconds});
