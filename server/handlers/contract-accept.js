@@ -2,9 +2,9 @@ import crypto from "node:crypto";
 import {signContract} from "../../lib/contract-token.js";
 
 const PLANS={
-  inicio:{name:"VNX Inicio",price:99,listPrice:99,featureSlots:999,employeeSlots:1,extraSeat:0,orderChannels:1,orderLevel:"basic",workUnits:1500},
-  crecimiento:{name:"VNX Negocio",price:249,listPrice:249,featureSlots:999,employeeSlots:3,extraSeat:0,orderChannels:2,orderLevel:"pro",workUnits:5000},
-  empresa:{name:"VNX Empresa",price:499,listPrice:499,featureSlots:999,employeeSlots:8,extraSeat:0,orderChannels:4,orderLevel:"auto",workUnits:12000}
+  inicio:{name:"VNX Inicio",price:99,listPrice:99,featureSlots:999,employeeSlots:1,extraSeat:0,orderChannels:1,orderLevel:"basic"},
+  crecimiento:{name:"VNX Negocio",price:249,listPrice:249,featureSlots:999,employeeSlots:3,extraSeat:0,orderChannels:2,orderLevel:"pro"},
+  empresa:{name:"VNX Empresa",price:499,listPrice:499,featureSlots:999,employeeSlots:8,extraSeat:0,orderChannels:4,orderLevel:"auto"}
 };
 const EXTRA_PRICES={conexion:49,email_account:49,storage_pack:39};
 const EXTRA_NAMES={buscador:"Buscar clientes",whatsapp:"WhatsApp",email:"Correo",agenda:"Agenda y seguimiento",atencion:"Atención al cliente",presupuestos:"Presupuestos",redes:"Redes sociales",informes:"Informes",seo:"Visibilidad",administracion:"Administración",automatizacion:"Automatizaciones",voz:"Voz",conexion:"Conexión o cuenta adicional",email_account:"Conexión o cuenta adicional",storage_pack:"10 GB de espacio adicional"};
@@ -43,7 +43,7 @@ export default async function handler(req,res){
   const ownAgentFee=0,extraConnectionPrice=49,extraOrderChannelPrice=29;
   extras=extras.filter(k=>k!=="conexion");
   const total=p.price+extras.reduce((s,k)=>s+EXTRA_PRICES[k],0)+(extraEmployees*p.extraSeat)+(ownAgents*ownAgentFee)+(extraConnections*extraConnectionPrice)+(extraOrderChannels*extraOrderChannelPrice),acceptedAt=new Date().toISOString();
-  const payload={contractId:`VNX-${acceptedAt.slice(0,10).replaceAll("-","")}-${crypto.randomUUID().slice(0,8).toUpperCase()}`,version:CONTRACT_VERSION,dpaVersion:DPA_VERSION,subprocessorVersion:SUBPROCESSOR_VERSION,acceptedAt,signer,company,taxid,email,phone,plan,planName:p.name,included,extras,total,employeeSlots:p.employeeSlots,allStandardAgents:true,listPrice:p.listPrice,workUnits:p.workUnits,extraEmployees,extraEmployeePrice:p.extraSeat,ownAgents,ownAgentFee,extraConnections,extraConnectionPrice,orderChannelsIncluded:p.orderChannels,orderLevel:p.orderLevel,extraOrderChannels,extraOrderChannelPrice,minMonths:12,noticeDays:30,authorityConfirmed:true,dataAnnexAccepted:true,termAcknowledged:true,recurringChargeAccepted:true,ipConfidentialityAccepted:true,paymentSchedule:paymentSchedule(acceptedAt,total)};
+  const payload={contractId:`VNX-${acceptedAt.slice(0,10).replaceAll("-","")}-${crypto.randomUUID().slice(0,8).toUpperCase()}`,version:CONTRACT_VERSION,dpaVersion:DPA_VERSION,subprocessorVersion:SUBPROCESSOR_VERSION,acceptedAt,signer,company,taxid,email,phone,plan,planName:p.name,included,extras,total,employeeSlots:p.employeeSlots,allStandardAgents:true,listPrice:p.listPrice,extraEmployees,extraEmployeePrice:p.extraSeat,ownAgents,ownAgentFee,extraConnections,extraConnectionPrice,orderChannelsIncluded:p.orderChannels,orderLevel:p.orderLevel,extraOrderChannels,extraOrderChannelPrice,minMonths:12,noticeDays:30,authorityConfirmed:true,dataAnnexAccepted:true,termAcknowledged:true,recurringChargeAccepted:true,ipConfidentialityAccepted:true,paymentSchedule:paymentSchedule(acceptedAt,total)};
   let token;try{token=signContract(payload)}catch{return res.status(503).json({error:"Firma contractual no configurada"})}
   let evidenceEmailSent=false,contractPersisted=false;try{evidenceEmailSent=await sendEvidenceEmail(payload)}catch{}try{contractPersisted=await persistContract(payload)}catch{}
   return res.status(200).json({ok:true,token,contract:payload,evidenceEmailSent,contractPersisted,contractDocument:contractHtml(payload)});
