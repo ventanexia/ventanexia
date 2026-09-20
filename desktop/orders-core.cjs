@@ -141,7 +141,7 @@ function createOrders(deps){
   async function monthUsage(){const s=await store.load(),limit=await monthlyLimit();const used=Object.values(s.orders).filter(o=>String(o.createdAt||'').startsWith(month())).length;return {used,limit,reached:limit!=null&&used>=limit}}
   function sourceText(full,atts){return [full.subject,full.from,full.text,...atts.map(a=>a.text)].filter(Boolean).join('\n')}
   async function readMail(acc,item){const full=await mail.fetchFull(acc,item.id),atts=[],tables=[];for(const a of full.attachments||[]){const r=await files.extract(a);atts.push(r);if(r.rows?.length)tables.push(...(r.sheets?.flatMap(s=>s.rows)||[r.rows]))}return {full,atts,tables,sourceText:sourceText(full,atts)}}
-  function statusFor(ex,v,cross,sourceKind){if(!ex.isOrder)return 'descartado';if(!cross.ok||v.issues.length)return 'revisar';if(v.customer.status==='nuevo'&&v.missing.length)return 'falta_datos';if(sourceKind==='pdf'||sourceKind==='text')return 'revisar';return 'listo'}
+  function statusFor(ex,v,cross,sourceKind){if(!ex.isOrder)return 'descartado';if(v.customer.status==='nuevo'&&v.missing.length)return 'falta_datos';if(!cross.ok||v.issues.some(x=>x.code!=='new_customer_missing'))return 'revisar';if(sourceKind==='pdf'||sourceKind==='text')return 'revisar';return 'listo'}
   async function ingest({key,account,kind='email',full,atts=[],tables=[],preExtracted=null,sourceKind='text'}){
     const mu=await monthUsage();if(mu.reached)return null;
     const exists=(await store.load()).seen[key];if(exists)return null;
