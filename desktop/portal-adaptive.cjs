@@ -286,4 +286,17 @@ ipcMain.handle('chat:send',async(_e,payload)=>{
   j.images=images.slice(0,8);j.portalStatus=results.map(r=>({name:r.name,status:r.status}));await audit('ai.chat','Consulta dirigida a '+(scope?.name||'todas las conexiones')+': '+portalFiles.length+' fuente(s), '+local.length+' archivo(s)');return j;
 });
 
-module.exports={calibratePortal};
+async function queryReadOnlyScope(scope,question,state=null){
+  const s=state||await readState(),type=String(scope?.type||'');
+  if(type==='shopify')return queryShopifyAdmin(scope,String(question||''),s);
+  if(type==='integration')return queryIntegrationData(scope,String(question||''),s);
+  if(type==='portal'){
+    const p=await getPortal(clean(scope?.id,80));
+    if(!p)return {status:'not_connected',name:scope?.name||'Portal',category:categoryForQuestion(question)};
+    return queryPortal(p,String(question||''));
+  }
+  if(type==='url')return queryPublicWebsite(scope,String(question||''));
+  return {status:'unsupported',name:scope?.name||type||'Conexión',category:categoryForQuestion(question)};
+}
+
+module.exports={calibratePortal,queryReadOnlyScope,queryPortal,queryShopifyAdmin,queryIntegrationData};
