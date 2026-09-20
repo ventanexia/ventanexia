@@ -116,22 +116,42 @@
       steps:['Datos','Propuesta','Revisión']
     },
     orders:{
-      subtitle:'Detecta pedidos en tu correo y en tu tienda online, comprueba cliente y referencias con tus listas, pide por email solo los datos que falten y entrega los pedidos listos al destino que configures.',
+      subtitle:'Detecta pedidos por email y en tu tienda online (Shopify o WooCommerce), comprueba cliente y referencias, revisa el stock, consulta a Compras y avisa al cliente. Entrega los pedidos al programa que uses.',
       primary:'📦 Revisar pedidos',
       fields:[
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Ver pedidos pendientes','Ver pedidos listos para introducir','Pedir al cliente los datos que faltan','Introducir los pedidos listos','Ver estado y configuración','Configurar o dar otra orden']},
-        {key:'rules',label:'ORDEN O CONFIGURACIÓN (opcional)',type:'textarea',wide:true,placeholder:'Ej. destino: archivo en C:\\Pedidos · clientes: C:\\datos\\clientes.xlsx · catálogo: C:\\datos\\articulos.csv · modo: pedir permiso · pedido 3'}
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver pedidos nuevos','Ver pedidos pendientes','Ver pedidos listos para introducir','Comprobar stock','Consultar a Compras los pedidos sin stock','Avisar a los clientes pendientes','Pedir al cliente los datos que faltan','Introducir los pedidos listos','Ver estado y configuración','Conectar mi programa de gestión o mi tienda','Guardar la configuración de stock y Compras','Otra orden (escríbela abajo)']},
+        {key:'program',label:'MI PROGRAMA DE GESTIÓN O TIENDA',type:'select',options:['Sin cambios','Holded','Odoo','Dolibarr','Factusol','Tienda WooCommerce']},
+        {key:'programUrl',label:'DIRECCIÓN WEB (Odoo, Dolibarr, WooCommerce) O CARPETA (Factusol)',type:'text',wide:true,placeholder:'Ej. https://miempresa.odoo.com · C:\\Importar-Factusol'},
+        {key:'programKey',label:'CLAVE DE API (no se guarda en el formulario)',type:'password',placeholder:'La que te da tu programa'},
+        {key:'programSecret',label:'SECRETO (solo WooCommerce)',type:'password',placeholder:'cs_…'},
+        {key:'programExtra',label:'DATOS EXTRA (opcional)',type:'text',wide:true,placeholder:'Odoo: base mibase usuario yo@empresa.com · Factusol: serie 1 desde 900000 almacén GEN'},
+        {key:'stockSource',label:'DE DÓNDE SALE EL STOCK',type:'select',options:['Sin cambios','Columna de stock de mi catálogo','Inventario de Shopify','No comprobar stock']},
+        {key:'stockAvailable',label:'SI HAY STOCK',type:'select',options:['Sin cambios','Avisar al cliente automáticamente','Preparar el aviso y pedirme permiso','No avisar al cliente']},
+        {key:'leadTime',label:'PLAZO A INDICAR CUANDO HAY STOCK',type:'text',placeholder:'Ej. 3 días laborables'},
+        {key:'purchasingEmail',label:'EMAIL DE COMPRAS',type:'text',wide:true,placeholder:'Ej. compras@empresa.com'},
+        {key:'noStock',label:'SI NO HAY STOCK',type:'select',options:['Sin cambios','Consultar automáticamente a Compras','Preparar la consulta y pedirme permiso','Dejar el pedido pendiente']},
+        {key:'afterPurchasing',label:'CUANDO COMPRAS RESPONDA',type:'select',options:['Sin cambios','Crear el pedido e informar al cliente automáticamente','Crear el pedido y pedirme permiso antes de informar','Solo actualizar el pedido']},
+        {key:'refPrefix',label:'FORMATO DEL NÚMERO INTERNO',type:'text',placeholder:'Ej. VNX-PED'},
+        {key:'customerMessage',label:'MENSAJE AL CLIENTE (opcional)',type:'textarea',wide:true,placeholder:'Ej. Hola, su pedido {pedido} estará disponible en {plazo}. {firma}'},
+        {key:'rules',label:'ORDEN O CONFIGURACIÓN (opcional)',type:'textarea',wide:true,placeholder:'Ej. destino: archivo en C:\\Pedidos · clientes: C:\\datos\\clientes.xlsx · catálogo: C:\\datos\\articulos.csv · modo: pedir permiso'}
       ],
       capabilities:[
-        'Detectar pedidos por Gmail, correo IMAP y Shopify',
-        'Leer el correo completo y adjuntos PDF con texto, Excel, Word y CSV',
-        'Comprobar cliente y referencias contra tus listas',
-        'Comparar la lectura automática con las líneas de Excel o CSV',
-        'Pedir al cliente únicamente los datos que falten y seguir con el mismo pedido',
-        'Entregar una sola vez por CSV, XML, JSON, webhook/API https o borrador de Shopify',
-        'Modo automático solo para clientes y referencias verificados; PDF y texto requieren revisión',
-        'Próximamente: comprobar stock, consultar a Compras y avisar al cliente del plazo',
-        'Todavía no disponible: conectores directos específicos de ERP, OCR de escaneados y teclear pedidos en páginas privadas'
+        'Detectar pedidos recibidos por email (Gmail o cualquier correo IMAP) y por tu tienda (Shopify o WooCommerce)',
+        'Leer el correo completo y sus adjuntos PDF, Excel, Word o CSV',
+        'Asignar un número interno único a cada pedido desde que se detecta',
+        'Extraer cliente, referencias, cantidades y direcciones sin inventar nada: lo que no aparece en el correo se descarta',
+        'Conectar Holded, Odoo o Dolibarr pegando una clave: comprueba clientes, referencias y stock con tus datos y crea el pedido directamente',
+        'Factusol: prepara los archivos oficiales de importación de pedidos (PCL, LPC y CLI)',
+        'Cualquier otro programa: archivo a tu medida (CSV, XML, JSON) o webhook (Make, Zapier…)',
+        'Comprobar el cliente y las referencias contra tus listas (Excel o CSV exportado de tu programa)',
+        'Pedir al cliente por email solo los datos que falten y seguir con el mismo pedido',
+        'Comprobar el stock (columna de tu catálogo, Shopify o la API de tu programa) antes de confirmar',
+        'Si hay stock, avisar al cliente con el plazo que tú configures',
+        'Si no hay stock, consultar a Compras con el número de pedido en el asunto y en el cuerpo',
+        'Relacionar la respuesta de Compras solo con el pedido cuyo número coincide y avisar al cliente del plazo',
+        'Entregar los pedidos como archivo para importar (CSV, XML, JSON), por webhook/API o como borrador de Shopify, conservando el número interno',
+        'Modo automático solo cuando todo coincide y la lectura está verificada',
+        'Aún no: conectores directos con cada ERP, PDFs escaneados y teclear pedidos en páginas privadas'
       ],
       steps:['Detectar','Leer','Validar','Revisar / completar','Entregar']
     },
@@ -211,7 +231,7 @@
     return '<label class="'+cls.trim()+'"><span>'+escM(field.label)+req+'</span><input data-guided-field="'+escM(field.key)+'" type="'+escM(field.type||'text')+'" value="'+escM(value||field.value||'')+'" placeholder="'+escM(field.placeholder||'')+'"></label>';
   }
   function guidedRead(key){
-    const data={};$$m('[data-guided-field]').forEach(el=>data[el.dataset.guidedField]=el.type==='checkbox'?el.checked:el.value.trim());guidedSave(key,data);return data;
+    const data={},toSave={};$$m('[data-guided-field]').forEach(el=>{const v=el.type==='checkbox'?el.checked:el.value.trim();data[el.dataset.guidedField]=v;if(el.type!=='password')toSave[el.dataset.guidedField]=v});guidedSave(key,toSave);return data;   // las claves no se guardan en el navegador
   }
   function whatsappManualModeEnabled(){
     try{const x=JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')?.whatsapp;return x?.provider==='whatsapp_personal'&&x?.status==='manual_ready'}catch{return false}
@@ -243,15 +263,36 @@
       ].filter(Boolean).join('\n');
     }
     if(key==='orders'){
-      const task=String(data.task||'').trim(),extra=String(data.rules||'').trim();
-      if(task==='Ver pedidos nuevos')return 'Revisa los pedidos';
-      if(task==='Ver pedidos pendientes')return 'Ver pedidos pendientes';
-      if(task==='Ver pedidos listos para introducir')return 'Ver pedidos listos';
-      if(task==='Pedir al cliente los datos que faltan')return 'Pide los datos que faltan'+(extra?' del '+extra:'');
-      if(task==='Introducir los pedidos listos')return 'Introduce los pedidos listos';
-      if(task==='Ver estado y configuración')return 'Estado pedidos';
-      if(task==='Configurar o dar otra orden')return extra||'Ayuda';
-      return extra||'Revisa los pedidos';
+      const own=String(data.rules||'').trim();
+      const task=String(data.task||'').toLowerCase();
+      if(task.includes('conectar')){
+        const t=k=>String(data[k]||'').trim();
+        const id=[['Holded','holded'],['Odoo','odoo'],['Dolibarr','dolibarr'],['Factusol','factusol'],['Tienda WooCommerce','woocommerce']].find(([k])=>String(data.program||'').startsWith(k));
+        if(!id)return 'programas';
+        if(id[1]==='woocommerce')return 'tienda: woocommerce '+t('programUrl')+' clave '+t('programKey')+' secreto '+t('programSecret');
+        if(id[1]==='factusol')return 'programa: factusol'+(t('programUrl')?' carpeta '+t('programUrl'):'')+' '+t('programExtra');
+        return ('programa: '+id[1]+' '+t('programUrl')+(t('programKey')?' clave '+t('programKey'):'')+' '+t('programExtra')).replace(/\s+/g,' ').trim();
+      }
+      if(task.includes('guardar')){
+        const t=k=>String(data[k]||'').trim();
+        const pick=(v,map)=>{for(const [k,c] of map)if(String(v||'').startsWith(k))return c;return ''};
+        const L=[
+          pick(data.stockSource,[['Columna','stock: catálogo'],['Inventario','stock: shopify'],['No comprobar','stock: desactivar']]),
+          pick(data.stockAvailable,[['Avisar','aviso de stock: automático'],['Preparar','aviso de stock: pedir permiso'],['No avisar','aviso de stock: no']]),
+          t('leadTime')?'plazo: '+t('leadTime'):'',
+          t('purchasingEmail')?'compras: '+t('purchasingEmail'):'',
+          pick(data.noStock,[['Consultar','sin stock: consultar automáticamente'],['Preparar','sin stock: pedir permiso'],['Dejar','sin stock: dejar pendiente']]),
+          pick(data.afterPurchasing,[['Crear el pedido e','respuesta de compras: crear e informar automáticamente'],['Crear el pedido y','respuesta de compras: crear y pedir permiso'],['Solo','respuesta de compras: solo actualizar']]),
+          t('refPrefix')?'referencia interna: '+t('refPrefix'):'',
+          t('customerMessage')?'mensaje al cliente: '+t('customerMessage').replace(/\s*\n+\s*/g,' '):'',
+          ...(own?own.split(/\n+/):[])
+        ].filter(Boolean);
+        return L.length?L.join('\n'):'Estado de los pedidos';
+      }
+      if(own)return own;   // una orden escrita a mano («destino: …», «modo: automático», «pedido 3»…)
+      const map=[['pedidos nuevos','Revisa los pedidos'],['pendientes','Muestra los pedidos pendientes'],['listos','Muestra los pedidos listos'],['comprobar stock','Comprueba el stock'],['consultar a compras','Consulta a Compras'],['avisar a los clientes','Avisa a los clientes'],['pedir al cliente','Pide los datos que faltan'],['introducir','Introduce los pedidos listos'],['estado','Estado de los pedidos']];
+      const hit=map.find(([k])=>task.includes(k));
+      return hit?hit[1]:'Ayuda';
     }
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
@@ -957,320 +998,3 @@
     }
     return out;
   }
-  function chatConnectionValue(x){
-    if(!x?.key)return '';
-    if(x.key==='email'&&Number.isInteger(x.accountIndex))return 'agent:email:'+x.accountIndex;
-    return 'agent:'+x.key;
-  }
-  function agentStatusText(x){
-    if(!x?.included)return '🔒 No incluido en tu plan';
-    if(!x?.connected)return '🟠 Incluido · falta conectar';
-    return '🟢 Listo para usar';
-  }
-  function renderConnectionAgentCards(items){
-    const root=$m('#allAgentConnections');if(!root)return;
-    const descriptions={
-      core_ai:'Análisis, redacción y apoyo general con el motor IA.',
-      email:'Lee Gmail, detecta correos pendientes, prepara respuestas y crea borradores para autorizar.',
-      whatsapp:'Atiende WhatsApp Business, prepara respuestas y permite elegir entre autorización previa o automatización controlada.',
-      prospecting:'Busca posibles clientes y prepara el siguiente paso comercial.',
-      crm:'Clientes, ventas y seguimientos.',
-      customer_service:'Atención al cliente usando Email, WhatsApp o voz cuando estén conectados.',
-      quotes:'Presupuestos y ofertas comerciales con datos reales.',
-      orders:'Recibe pedidos, comprueba cliente y stock, coordina Compras y prepara su entrada en el sistema.',
-      social:'Publicaciones, campañas y visibilidad en Google.',
-      web_ecommerce:'Pedidos, clientes, productos y contenido de tu web o tienda.',
-      administration:'Documentos, tareas, agenda y organización del día a día.',
-      reports:'Explica tus datos y resultados de forma sencilla.',
-      automation:'Hace tareas repetitivas por ti siguiendo reglas claras.'
-    };
-    root.innerHTML=items.map(a=>{
-      const status=!a.included?'🔒 No incluido':a.ready?'🟢 Listo para usar':'🟠 Necesita una conexión';
-      const source=a.source?.name?'<small class="agent-source">Usará: '+escM(a.source.name)+'</small>':'';
-      return '<article class="agent-overview-card"><div class="agent-overview-icon">'+escM(a.icon||'🤖')+'</div><div><b>'+escM(a.name)+'</b><span>'+escM(descriptions[a.key]||'Agente de VentaNexIA.')+'</span>'+source+'<small class="agent-state">'+escM(status)+'</small></div></article>';
-    }).join('');
-  }
-  function renderHomeAgents(items){
-    const root=$m('#homeAgentsList'),summary=$m('#homeAgentsSummary');if(!root)return;
-    const ready=items.filter(x=>x.ready),pending=items.filter(x=>x.included&&!x.connected),locked=items.filter(x=>!x.included);
-    if(summary)summary.textContent=ready.length+' listo'+(ready.length===1?'':'s')+' para usar · '+pending.length+' pendiente'+(pending.length===1?'':'s')+' de conectar'+(locked.length?' · '+locked.length+' no incluido'+(locked.length===1?'':'s')+' en el plan':'');
-    root.innerHTML=items.map(x=>{
-      const status=agentStatusText(x);
-      const detail=!x.included
-        ?'<small>Disponible contratando este agente o cambiando de plan.</small>'
-        :!x.connected
-          ?'<small>Conéctalo en “Conexiones” para poder usarlo con datos reales.</small>'
-          :'<small>Preparado para trabajar.</small>';
-      return '<article class="modulecard"><b>'+escM(agentDisplayName(x))+'</b><span><strong>'+status+'</strong><br>'+detail+'</span></article>';
-    }).join('');
-  }
-  function updateAgentHint(chosen,hint){
-    if(!hint)return;
-    if(!chosen){hint.textContent='Elige el especialista que mejor encaja con lo que quieres conseguir.';return}
-    if(!chosen.included){hint.textContent='🔒 '+agentDisplayName(chosen)+' no está incluido en este plan. Puedes verlo, pero no conectarlo ni utilizarlo hasta contratarlo.';return}
-    if(!chosen.connected){hint.textContent='🟠 '+agentDisplayName(chosen)+' está incluido, pero necesita una conexión. Ve a “Conexiones” para activarlo.';return}
-    hint.textContent='🟢 '+agentDisplayName(chosen)+' está listo para usar.';
-  }
-  async function refreshChatConnections(){
-    const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
-    await refreshRuntimeConnections();
-    await refreshAgentMetrics();
-    const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
-    sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(agentDisplayName(x)+' — '+agentStatusText(x))+'</option>').join('');
-    const values=[...sel.options].map(o=>o.value);
-    if(previous&&values.includes(previous))sel.value=previous;
-    else if(saved&&values.includes(saved))sel.value=saved;
-    else if(items.some(x=>x.key==='email'&&x.ready))sel.value=chatConnectionValue(items.find(x=>x.key==='email'&&x.ready));
-    else if(items.some(x=>x.ready))sel.value=chatConnectionValue(items.find(x=>x.ready));
-    else sel.value='';
-    if(sel.value)localStorage.setItem('vnx_master_chat_agent',sel.value);
-    let activeAgentValue=sel.value;
-    sel.onchange=()=>{
-      const nextValue=sel.value;
-      const input=ensureChatInputEditable();
-      const hasCurrentWork=masterMessages.length>0||Boolean(input?.value?.trim());
-      if(nextValue!==activeAgentValue&&hasCurrentWork&&!handoffAgentChange){
-        const ok=confirm('Vas a cambiar de agente. ¿Quieres cerrar el trabajo actual y eliminar esta conversación para empezar uno nuevo?');
-        if(!ok){sel.value=activeAgentValue;return;}
-        masterMessages=[];
-        if(input)input.value='';
-        renderMasterMessages();
-      }
-      handoffAgentChange=false;
-      activeAgentValue=nextValue;
-      if(nextValue)localStorage.setItem('vnx_master_chat_agent',nextValue);
-      const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
-      updateAgentHint(chosen,hint);
-      updateAgentInputExample(chosen);
-      renderGuidedAgentTabs(items,chosen);
-      renderGuidedWorkspace(chosen);
-      if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>input.focus(),30);
-    };
-    const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
-    ensureChatInputEditable();
-    updateAgentHint(selectedAgent,hint);
-    updateAgentInputExample(selectedAgent);
-    renderGuidedAgentTabs(items,selectedAgent);
-    renderGuidedWorkspace(selectedAgent);
-    renderHomeAgents(items);
-    renderConnectionAgentCards(items);
-    if($m('#masterSourceSelect'))renderMasterCenterSources();
-  }
-  window.vnxRefreshAgentUi=refreshChatConnections;
-  function selectedChatScope(){
-    const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
-    const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
-    return {type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
-  }
-
-  function masterCenterItems(){
-    return connectedDataSources();
-  }
-  function renderMasterCenterSources(){
-    const sel=$m('#masterSourceSelect'),hint=$m('#masterSourceHint');if(!sel)return;
-    const items=masterCenterItems(),previous=sel.value;
-    sel.innerHTML='<option value="">Elige una cuenta o programa…</option>'+items.map((x,i)=>'<option value="'+i+'">'+escM(x.name)+'</option>').join('');
-    if(previous!==''&&Number(previous)<items.length)sel.value=previous;
-    if(hint){
-      hint.textContent=items.length?'Elige una sola fuente. Así nunca mezclamos datos de empresas distintas.':'Todavía no hay ninguna cuenta o programa conectado.';
-    }
-  }
-  function masterCenterScope(){
-    const sel=$m('#masterSourceSelect'),items=masterCenterItems();if(!sel||sel.value==='')return null;
-    const item=items[Number(sel.value)];if(!item)return null;
-    if(item.type==='portal')return {type:'portal',id:item.id,name:item.name};
-    if(item.type==='url')return {type:'url',key:item.key,name:item.name,url:item.url};
-    if(item.type==='folder')return {type:'folder',key:item.key,name:item.name,folder:item.folder};
-    if(item.type==='shopify')return {type:'shopify',key:item.key,name:item.name,shop:item.shop};
-    if(item.type==='integration')return {type:'integration',key:item.key,name:item.name,accountIndex:item.accountIndex,connectionKey:item.connectionKey};
-    return null;
-  }
-  function setupMasterCenter(){
-    const root=$m('#masterDataResult'),title=$m('#masterResultTitle'),clear=$m('#masterResultClear');if(!root)return;
-    const prompts={
-      clientes:'Muéstrame los clientes que puedes ver en esta conexión. Incluye nombre, empresa, email y teléfono cuando estén disponibles. No inventes datos.',
-      facturas:'Muéstrame las facturas que puedes ver en esta conexión. Incluye número, fecha, cliente, importe y estado cuando estén disponibles. No inventes datos.',
-      pedidos:'Muéstrame los pedidos que puedes ver en esta conexión. Incluye número, fecha, cliente, importe y estado cuando estén disponibles. No inventes datos.',
-      datos:'Resume y muestra la información empresarial disponible en esta conexión: clientes, pedidos, facturas, productos, ventas y otros datos que realmente puedas consultar. No inventes nada.'
-    };
-    const titles={clientes:'Clientes',facturas:'Facturas',pedidos:'Pedidos',datos:'Todos los datos'};
-    $$m('[data-master-query]').forEach(btn=>btn.onclick=async()=>{
-      const key=btn.dataset.masterQuery,scope=masterCenterScope();
-      if(!scope){
-        root.innerHTML='<div class="empty">Primero elige arriba la cuenta o programa que quieres consultar.</div>';return;
-      }
-      const old=btn.innerHTML;btn.disabled=true;btn.innerHTML='<b>Mirándolo…</b>';
-      title.textContent=titles[key]+' · '+scope.name;
-      root.innerHTML='<div class="empty">Consultando datos reales de '+escM(scope.name)+'…</div>';
-      try{
-        const r=await window.vnx.sendChat([{role:'user',content:prompts[key]}],scope);
-        const reply=escM(r.reply||'No hay datos disponibles.').replace(/\n/g,'<br>');
-        const imgs=(r.images||[]).slice(0,8).map(img=>'<img src="'+escM(img.src)+'" alt="'+escM(img.alt||'Imagen')+'" style="max-width:180px;max-height:140px;object-fit:contain;border-radius:9px;margin:8px 8px 0 0;border:1px solid #1b507a;background:#fff">').join('');
-        root.innerHTML='<div class="msg ai" style="max-width:100%">'+reply+(imgs?'<div>'+imgs+'</div>':'')+'</div>';
-      }catch(e){
-        root.innerHTML='<div class="empty">No he podido mostrar estos datos: '+escM(e.message||String(e))+'</div>';
-      }finally{btn.disabled=false;btn.innerHTML=old}
-    });
-    if(clear)clear.onclick=()=>{title.textContent='Información de tu empresa';root.innerHTML='<div class="empty">Elige una cuenta arriba y después pulsa Clientes, Facturas, Pedidos o Todos los datos.</div>'};
-    renderMasterCenterSources();
-  }
-
-  function openReplyEditor({meta,action}){
-    return new Promise(resolve=>{
-      const okLabel=action==='draft_reply'?'Crear borrador':action==='send_reply_cc'?'Enviar con copia':'Enviar respuesta';
-      const subj=/^re:/i.test(meta.subject||'')?(meta.subject||''):'Re: '+(meta.subject||'');
-      const overlay=document.createElement('div');
-      overlay.id='vnxReplyOverlay';
-      overlay.style.cssText='position:fixed;inset:0;background:rgba(2,11,19,.82);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
-      overlay.innerHTML='<div style="width:min(720px,96vw);max-height:92vh;overflow:auto;background:#061c31;border:1px solid #2eb7ef;border-radius:16px;padding:20px;color:#fff">'
-        +'<h3 style="margin:0 0 6px">'+escM(okLabel)+'</h3>'
-        +'<div style="opacity:.8;font-size:13px;margin-bottom:12px">Para: '+escM(meta.from||'')+'<br>Asunto: '+escM(subj)+'</div>'
-        +(action==='send_reply_cc'?'<label style="display:block;font-size:12px;margin-bottom:10px">Copia (CC)<input id="vnxReplyCc" type="email" style="width:100%;margin-top:4px;padding:10px;border-radius:8px;border:1px solid #286b93;background:#031522;color:#fff"></label>':'')
-        +'<label style="display:block;font-size:12px">Texto de la respuesta<textarea id="vnxReplyBody" rows="10" style="width:100%;margin-top:4px;padding:10px;border-radius:8px;border:1px solid #286b93;background:#031522;color:#fff;font:inherit"></textarea></label>'
-        +(meta.attachment?'<div style="margin-top:10px;font-size:13px">📎 Se adjuntará: <b>'+escM(meta.attachment.name)+'</b></div>':'')
-        +'<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px"><button type="button" id="vnxReplyCancel" class="mini">Cancelar</button><button type="button" id="vnxReplyOk" class="mini" style="background:#1d7dff;border-color:#1d7dff">'+escM(okLabel)+'</button></div></div>';
-      document.body.appendChild(overlay);
-      const ta=overlay.querySelector('#vnxReplyBody');ta.value=meta.defaultBody||'';ta.focus();
-      const close=v=>{overlay.remove();resolve(v)};
-      overlay.querySelector('#vnxReplyCancel').onclick=()=>close(null);
-      overlay.onclick=e=>{if(e.target===overlay)close(null)};
-      overlay.querySelector('#vnxReplyOk').onclick=()=>{
-        const body=ta.value.trim();if(!body){ta.focus();return}
-        let cc='';const ccEl=overlay.querySelector('#vnxReplyCc');
-        if(ccEl){cc=ccEl.value.trim();if(!cc){ccEl.focus();return}}
-        close({body,cc});
-      };
-    });
-  }
-
-  function renderMasterMessages(){
-    const root=$m('#messages');if(!root)return;
-    const intro='<div class="msg ai">Estoy listo para ayudarte. Elige arriba el agente de VentaNexIA con el que quieres trabajar. El agente utilizará únicamente las conexiones que tengas autorizadas.</div>';
-    root.innerHTML=intro+masterMessages.map((m,msgIndex)=>{
-      if(m.handoffInternal)return '';
-      const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
-      const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
-      const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
-      const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${handoff}</div>`;
-    }).join('');
-    $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
-      const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
-      const meta=msg.emailActions,action=btn.dataset.action;
-      const destructive=action==='trash'||action==='send_reply'||action==='send_reply_cc';
-      let body='',cc='';
-      if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
-        const edited=await openReplyEditor({meta,action});
-        if(!edited)return;
-        body=edited.body;cc=edited.cc||'';
-      }
-      if(destructive&&!confirm(action==='trash'?'¿Mover este correo a la papelera?':'¿Enviar esta respuesta ahora?'))return;
-      const label=meta.options.find(x=>x.key===action)?.label||action;
-      btn.disabled=true;btn.textContent='Procesando…';
-      try{
-        const out=await window.vnx.emailAction({account:meta.account,messageId:meta.messageId,threadId:meta.threadId,subject:meta.subject,from:meta.from,action,body,cc});
-        masterMessages.push({role:'assistant',content:(out?.message||'Acción completada.')+'\n\nAcción: '+label});
-        msg.emailActions=null;
-        renderMasterMessages();
-      }catch(e){
-        masterMessages.push({role:'assistant',content:'No he podido completar la acción: '+(e.message||e)});
-        renderMasterMessages();
-      }
-    });
-    $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
-      const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
-    });
-    $$m('.handoff-accept-btn').forEach(btn=>btn.onclick=async()=>{
-      const wrap=btn.closest('[data-master-index]');
-      const msgIndex=Number(wrap?.dataset?.masterIndex);
-      const msg=Number.isInteger(msgIndex)?masterMessages[msgIndex]:null;
-      const h=msg?.handoff;if(!h)return;
-      const agent=(runtimeAgents||[]).find(x=>x.key===h.agentKey);
-      if(!agent?.included){
-        masterMessages.push({role:'assistant',content:'Ese empleado no está incluido en tu plan actual.'});renderMasterMessages();return;
-      }
-      if(!agent?.connected&&agent?.requires){
-        masterMessages.push({role:'assistant',content:'Ese empleado necesita conectar primero su herramienta o fuente de datos. Ve a Conexiones y actívala.'});renderMasterMessages();return;
-      }
-      const ok=selectAgentKey(h.agentKey,{preserve:true});
-      if(!ok){
-        masterMessages.push({role:'assistant',content:'No he podido abrir el empleado '+(h.agentName||'correspondiente')+'.'});renderMasterMessages();return;
-      }
-      const context=masterMessages.slice(Math.max(0,msgIndex-3),msgIndex+1).map(x=>(x.role==='user'?'Usuario: ':'Asistente: ')+String(x.content||'')).join('\n\n');
-      const task='Tarea recibida del Asistente IA. Continúa desde este punto sin pedir al usuario que repita la información.\n\nTAREA:\n'+String(h.task||'')+'\n\nCONTEXTO PREVIO:\n'+context+'\n\nRealiza únicamente las acciones permitidas por este agente y pide confirmación cuando corresponda.';
-      masterMessages.push({role:'assistant',content:'Te conecto con tu empleado de '+(h.agentName||'VentaNexIA')+' y le paso todo el contexto de esta consulta.'});
-      masterMessages.push({role:'user',content:task,handoffInternal:true});
-      renderMasterMessages();
-      try{
-        const scope=selectedChatScope();
-        const payload=masterMessages.filter(x=>!x.handoffInternal||x===masterMessages[masterMessages.length-1]).map(({role,content})=>({role,content}));
-        const r=await window.vnx.sendChat(payload,scope);
-        masterMessages.push({role:'assistant',content:r.reply||'Sin respuesta',images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});
-      }catch(e){
-        masterMessages.push({role:'assistant',content:'No he podido pasar la tarea al empleado: '+(e.message||e)});
-      }
-      renderMasterMessages();
-    });
-    root.scrollTop=root.scrollHeight;
-  }
-  function setupMasterChat(){
-    const form=$m('#chatForm');if(!form)return;
-    const chatInput=ensureChatInputEditable();
-    if(chatInput){
-      ['pointerdown','mousedown','click'].forEach(ev=>chatInput.addEventListener(ev,()=>{ensureChatInputEditable();setTimeout(()=>chatInput.focus(),0)},true));
-      chatInput.addEventListener('focus',ensureChatInputEditable,true);
-    }
-    const clearConversation=()=>{
-      masterMessages=[];
-      const input=ensureChatInputEditable();if(input)input.value='';
-      renderMasterMessages();
-      if(input)input.focus();
-    };
-    const clearBtn=$m('#chatClearBtn');if(clearBtn)clearBtn.onclick=clearConversation;
-    const newBtn=$m('#chatNewConversation');if(newBtn)newBtn.onclick=clearConversation;
-    renderMasterMessages();
-    form.onsubmit=async e=>{
-      e.preventDefault();const input=ensureChatInputEditable(),text=input?.value.trim();if(!text)return;
-      const connections=chatConnections(),scope=selectedChatScope();
-      if(!scope){
-        masterMessages.push({role:'assistant',content:'Elige arriba el agente de VentaNexIA con el que quieres trabajar.'});renderMasterMessages();return;
-      }
-      if(scope.included===false){
-        masterMessages.push({role:'assistant',content:'Este agente aparece en tu equipo, pero no está incluido en tu plan actual. Para usarlo debes contratarlo o cambiar de plan.'});renderMasterMessages();return;
-      }
-      if(scope.connected===false){
-        masterMessages.push({role:'assistant',content:'Este agente está incluido, pero todavía necesita conectar su herramienta o fuente de datos. Ve a “Conexiones”, actívala y vuelve aquí.'});renderMasterMessages();return;
-      }
-      masterMessages.push({role:'user',content:text});input.value='';renderMasterMessages();
-      const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
-      try{
-        const payload=masterMessages.map(({role,content})=>({role,content}));
-        const r=await window.vnx.sendChat(payload,scope);
-        let reply=r.reply||'Sin respuesta';
-        if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
-          try{
-            const verified=await window.vnx.verifiedProductCount(text,scope&&scope.type==='portal'?{portalId:scope.id}:null);
-            if(verified.status==='verified')reply=`${verified.name} tiene ${verified.count} productos según el portal conectado. Total verificado${verified.pagesScanned>1?` recorriendo ${verified.pagesScanned} páginas`:''}.`;
-            else if(verified.status==='uncertain')reply=`He encontrado ${verified.visible||verified.rowsSeen||0} productos visibles, pero no puedo confirmar todavía que sea el total completo del catálogo. No voy a presentar ese número como total hasta verificar toda la paginación.`;
-          }catch{}
-        }
-        const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
-        if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
-      }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
-      finally{btn.disabled=false;btn.textContent='Enviar'}
-    };
-  }
-
-  async function start(){
-    await migrateLegacyPortals();
-    setupMasterPortalUi();
-    setupMasterChat();
-    setupGuidedUi();
-    setupMasterCenter();
-    await renderMasterPortals();
-    await refreshChatConnections();
-    setInterval(()=>{if($m('#portalList')&&document.visibilityState==='visible')renderMasterPortals()},12000);
-  }
-  setTimeout(start,350);
-})();
