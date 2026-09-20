@@ -934,7 +934,7 @@
     root.querySelectorAll('[data-vnx-approval]').forEach(b=>b.onclick=()=>{setWorkspaceMode('free');$m('#messages')?.scrollIntoView({block:'nearest'})});
   }
   async function refreshWorkbenchConnections(){
-    const buttons=$m('[data-vnx-connect]');if(!buttons.length)return;
+    const buttons=$$m('[data-vnx-connect]');if(!buttons.length)return;
     let conns=[];try{conns=await window.vnx.listConnections()||[]}catch{}
     let shop=null;try{shop=await window.vnx.shopifyStatus()}catch{}
     const readyAgent=k=>(runtimeAgents||[]).find(a=>a.key===k);
@@ -991,7 +991,7 @@
     $m('#vnxOpenConnectionsBtn')?.addEventListener('click',()=>openConnectionsTab());
     $m('#vnxManageConnectionsBtn')?.addEventListener('click',()=>openConnectionsTab());
     $m('#vnxReviewApprovalsBtn')?.addEventListener('click',()=>{setWorkspaceMode('free');runExecutiveSecretary('pending')});
-    $m('[data-vnx-connect]').forEach(b=>b.onclick=()=>openConnectionsTab(b.dataset.vnxConnect));
+    $$m('[data-vnx-connect]').forEach(b=>b.onclick=()=>openConnectionsTab(b.dataset.vnxConnect));
     const h=new Date().getHours(),g=$m('#vnxDailyGreeting');
     if(g)g.textContent=(h<13?'Buenos días':h<20?'Buenas tardes':'Buenas noches');
     refreshWorkbenchAgenda();refreshWorkbenchApprovals();refreshWorkbenchConnections();
