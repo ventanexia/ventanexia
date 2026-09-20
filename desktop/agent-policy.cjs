@@ -88,7 +88,7 @@ function isAgentIncluded(license={},agentKey,edition=EDITION){
   if(agentKey==='orders'&&paidPlan(license))return true;
   const purchased=purchasedFeatures(license);
   if(purchased.has(a.entitlement))return true;
-  if(standardPremiumPlan(license)&&!['crm','web_ecommerce'].includes(a.entitlement))return true;
+  if(paidPlan(license))return true;
   return false;
 }
 function assertAgentIncluded(license={},agentKey){
@@ -114,7 +114,7 @@ function isModuleIncluded(license={},module='',edition=EDITION){
   if(ent==='pedidos'&&paidPlan(license))return true;
   const purchased=purchasedFeatures(license);
   if(purchased.has(ent))return true;
-  if(standardPremiumPlan(license)&&!['crm','web_ecommerce'].includes(ent))return true;
+  if(paidPlan(license))return true;
   return false;
 }
 function assertModuleIncluded(license={},module=''){
