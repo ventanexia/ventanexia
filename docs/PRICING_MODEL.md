@@ -32,4 +32,4 @@ AI text is routed to the lowest-cost model appropriate to the task. High-variabl
 
 ## Trial
 
-3-day personalized trial. Trial entitlement remains server-controlled. Payment activates the paid entitlement; failed or canceled subscriptions can suspend it.
+15-day personalized trial with no card required. The paid contract and payment method are requested only if the customer explicitly chooses to continue after the trial. Trial entitlement remains server-controlled. Payment activates the paid entitlement; failed or canceled subscriptions can suspend it.

@@ -11,6 +11,12 @@ on:
       - 'server/handlers/contract-accept.js'
       - 'server/handlers/create-checkout.js'
       - 'docs/paid-plan-operating-model.md'
+      - 'server/handlers/start-trial.js'
+      - 'server/handlers/trial-sweep.js'
+      - 'server/handlers/portal-state.js'
+      - 'assets/portal.js'
+      - 'assets/builder.js'
+      - 'lib/entitlement.js'
       - '.github/workflows/verify-commercial-model.yml'
   workflow_dispatch:
 
@@ -26,6 +32,12 @@ jobs:
         run: |
           node --check server/handlers/contract-accept.js
           node --check server/handlers/create-checkout.js
+          node --check server/handlers/start-trial.js
+          node --check server/handlers/trial-sweep.js
+          node --check server/handlers/portal-state.js
+          node --check assets/portal.js
+          node --check assets/builder.js
+          node --check lib/entitlement.js
       - name: Verify commercial model and inline scripts
         run: |
           node <<'NODE'
@@ -39,6 +51,9 @@ jobs:
           const accept=read('server/handlers/contract-accept.js');
           const pay=read('server/handlers/create-checkout.js');
           const docs=read('docs/paid-plan-operating-model.md');
+          const trial=read('lib/entitlement.js');
+          const sweep=read('server/handlers/trial-sweep.js');
+          const portal=read('assets/portal.js');
           function must(ok,msg){if(!ok)throw new Error(msg)}
           function checkInlineScripts(html,name){
             for(const m of html.matchAll(/<script(?![^>]*type=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/gi)){
@@ -66,5 +81,9 @@ jobs:
           must(pay.includes('2.000 trabajos adicionales al mes')&&pay.includes('Conexión o cuenta adicional'),'Stripe checkout add-ons mismatch');
           must(checkout.includes('Todos los asistentes estándar incluidos')&&checkout.includes('Capacidad:'),'Final checkout summary missing capacity model');
           must(docs.includes('99 €/mes')&&docs.includes('249 €/mes')&&docs.includes('499 €/mes'),'Operating docs pricing stale');
+          must(trial.includes('TRIAL_DAYS=15'),'Trial duration must be 15 days');
+          must(plans.includes('15 DÍAS GRATIS')&&plans.includes('sin tarjeta'),'Plans must explain no-card trial');
+          must(sweep.includes('trial_expiring_reminder')&&sweep.includes('trial_expired_email'),'Trial lifecycle emails missing');
+          must(portal.includes('trialExpiredBanner')&&portal.includes('15 días'),'Expired trial continuation UI missing');
           console.log('VentaNexIA commercial model verification OK: launch prices, full standard team, capacity model, contract term and checkout synchronized.');
           NODE

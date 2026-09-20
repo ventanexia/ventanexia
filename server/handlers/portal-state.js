@@ -31,6 +31,8 @@ export default async function handler(req,res){
         state:ent.state,plan:ent.plan_key,trialEndsAt:ent.trial_ends_at,
         remaining:remain(ent.trial_ends_at),suspendReason:ent.suspend_reason,
         canReactivate:["suspended","cancelled"].includes(ent.state)&&Boolean(ent.stripe_customer_id),
+        canSubscribe:ent.state==="suspended"&&ent.suspend_reason==="TRIAL_EXPIRED",
+        subscribeUrl:ent.state==="suspended"&&ent.suspend_reason==="TRIAL_EXPIRED"?`/planes.html?continue=trial&plan=${encodeURIComponent(({start:"inicio",core:"crecimiento",scale:"empresa"})[ent.plan_key]||"crecimiento")}`:null,
         readOnly:["suspended","cancelled"].includes(ent.state)
       }:null,
       summary:{activeAgents,totalAgents:(agents||[]).length,connectedIntegrations:connected,totalIntegrations:(connections||[]).length,pendingApprovals:(approvals||[]).length},
