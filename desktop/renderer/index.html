@@ -166,6 +166,11 @@
                 <button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button>
               </div>
 
+              <div class="vnx-global-source" id="chatSourceGlobal">
+                <label id="chatSourceWrap" style="display:none"><span class="agent-picker-label">¿De qué conexión quieres la información?</span><select id="chatSourceSelect"><option value="">Elige una conexión…</option></select></label>
+                <small id="chatSourceHint" style="display:none">Si tienes varias conexiones, elige una o “Todas, separadas”.</small>
+              </div>
+
               <div id="guidedModePanel">
                 <div class="vnx-guided-intro"><b>Cuestionario guiado</b><span>Te hago solo las preguntas necesarias para preparar bien la tarea.</span></div>
                 <div id="guidedFormHost"></div>
@@ -183,11 +188,9 @@
               </div>
 
               <div id="freeModePanel" style="display:none">
-                <div class="agent-picker vnx-agent-source-picker" id="chatScopeBar">
+                <div class="agent-picker" id="chatScopeBar">
                   <label><span class="agent-picker-label">Especialista</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label>
-                  <label id="chatSourceWrap" style="display:none"><span class="agent-picker-label">Conexión</span><select id="chatSourceSelect"><option value="">Elige una conexión…</option></select></label>
                   <small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small>
-                  <small id="chatSourceHint" style="display:none">Si tienes varias conexiones, elige una o “Todas, separadas”.</small>
                 </div>
                 <div id="messages" class="messages vnx-message-canvas"><div class="msg ai">Elige un especialista arriba y dime qué necesitas. Usaré únicamente las herramientas y datos que tengas autorizados.</div></div>
                 <form id="chatForm" class="vnx-composer">
