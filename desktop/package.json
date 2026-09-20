@@ -1,16 +1,17 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.59",
+  "version": "0.6.60",
   "private": true,
-  "description": "VentaNexIA Desktop · Asistente IA centro de consulta con derivación automática a empleados especializados · Pedidos y conectores de gestión · 0.6.59",
+  "description": "VentaNexIA Desktop · Secretaria Ejecutiva IA con resumen diario, prioridades, avisos inteligentes y trabajo preparado · 0.6.60",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-cloud-agent-isolation.cjs && node --check state-store.cjs && node --check gmail-auth.cjs && node --check shopify-auth.cjs && node --check agent-email.cjs && node --check agent-policy.cjs && node --check prospecting.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
-    "dist:mac": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-cloud-agent-isolation.cjs && node --check agent-email.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg",
+    "dist:win": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-secretary.cjs && node verify-cloud-agent-isolation.cjs && node --check state-store.cjs && node --check gmail-auth.cjs && node --check shopify-auth.cjs && node --check agent-email.cjs && node --check agent-policy.cjs && node --check prospecting.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --win nsis",
+    "dist:mac": "node build-edition.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-secretary.cjs && node verify-cloud-agent-isolation.cjs && node --check agent-email.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && electron-builder --mac dmg",
     "verify:ui": "node verify-ui.cjs",
     "verify:orders": "node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs",
-    "verify:assistant-hub": "node verify-central-assistant.cjs"
+    "verify:assistant-hub": "node verify-central-assistant.cjs",
+    "verify:secretary": "node verify-secretary.cjs"
   },
   "devDependencies": {
     "electron": "^38.1.2",
@@ -47,7 +48,8 @@
       "renderer/**/*",
       "config/**/*",
       "verify-ui.cjs",
-      "verify-central-assistant.cjs"
+      "verify-central-assistant.cjs",
+      "verify-secretary.cjs"
     ],
     "win": {
       "target": [
