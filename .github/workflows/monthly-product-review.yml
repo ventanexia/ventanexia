@@ -1,0 +1,47 @@
+name: VentaNexIA Monthly Product Review
+
+on:
+  schedule:
+    - cron: '30 7 1-7 * 1'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create monthly review issue if none is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          month="$(date -u +'%Y-%m')"
+          title="📋 Revisión mensual VentaNexIA · $month"
+          existing="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "$title in:title" --json number --jq 'length')"
+          if [ "$existing" != "0" ]; then
+            echo "Monthly review already open."
+            exit 0
+          fi
+          cat > /tmp/review.md <<'EOF'
+          ## Revisión mensual de producto
+
+          Revisar la versión actual de VentaNexIA con datos y código reales, no con suposiciones.
+
+          - [ ] Secretaria Ejecutiva: utilidad del resumen diario, pendientes, reuniones y avisos.
+          - [ ] Pedidos: errores, tiempos, stock, Compras, conectores y casos que terminan en revisión manual.
+          - [ ] Integraciones: APIs nuevas, cambios de permisos, conectores que pueden pasar de beta a validados.
+          - [ ] Seguridad: asesores Supabase, secretos, permisos, OAuth, dependencias y superficie pública.
+          - [ ] Resultados: acciones registradas, tiempo estimado ahorrado y funciones más utilizadas.
+          - [ ] Costes: IA, vídeo, servicios externos, infraestructura y margen por plan.
+          - [ ] Planes y precios: Inicio / Empresa / Premium / A medida; revisar conversión sin cambiar precios automáticamente.
+          - [ ] Web PC y móvil: mensajes sencillos, funciones reales, capturas actuales, rendimiento y errores.
+          - [ ] UX: tareas que todavía obligan al cliente a saber nombres técnicos o buscar un agente concreto.
+          - [ ] Nuevas capacidades IA/MCP: valorar solo mejoras con beneficio real y prueba antes de publicarlas.
+
+          ### Regla
+          No modificar producción ni prometer una integración nueva solo porque haya cambiado una API. Primero verificar, probar y documentar el beneficio.
+          EOF
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/review.md --label "enhancement" || gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/review.md
