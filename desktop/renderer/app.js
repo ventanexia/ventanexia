@@ -448,9 +448,10 @@ function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conecta
 async function renderConnectionCapacity(){
   const text=$('#connectionCapacityText'),btn=$('#connectionCapacityPlansBtn');if(!text)return;
   try{
-    const x=await window.vnx.connectionCapacity();
-    if(x.limit==null)text.textContent='Edición Maestro · conexiones sin límite.';
-    else text.textContent=x.used+' de '+x.limit+' conexiones utilizadas · '+x.available+' disponibles · cada conexión adicional compatible cuesta '+(x.extraMonthlyEur||42)+' €/mes.';
+    const [x,o]=await Promise.all([window.vnx.connectionCapacity(),window.vnx.orderChannelCapacity?.().catch(()=>null)]);
+    const general=x.limit==null?'Conexiones generales sin límite':x.used+' de '+x.limit+' conexiones generales utilizadas';
+    const orders=!o?'':(o.limit==null?' · Canales de pedidos sin límite':' · Pedidos online: '+o.used+' de '+o.limit+' canales · nivel '+({basic:'Básico',pro:'Pro',auto:'Automático'}[o.level]||o.level)+' · canal extra '+(o.extraMonthlyEur||29)+' €/mes');
+    text.textContent=general+orders+'.';
   }catch{ text.textContent='No se ha podido comprobar ahora el límite de conexiones.'; }
   if(btn&&!btn.dataset.bound){btn.dataset.bound='1';btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html#mi-equipo');}
 }
