@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.77",
+  "version": "0.6.78",
   "private": true,
-  "description": "VentaNexIA Desktop · web comercial alineada, prueba pendiente de descarga y límites de uso corregidos · 0.6.77",
+  "description": "VentaNexIA Desktop · PDF y Excel profesionales, una línea por dato y reportes de Carla estructurados · 0.6.78",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
