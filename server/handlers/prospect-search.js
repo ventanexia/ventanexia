@@ -1,6 +1,6 @@
 import {db} from "../../lib/entitlement.js";
 import {requestSignals,recordTrialAttempt} from "../../lib/trial-abuse.js";
-import {authenticateDesktop,checkScopeAllowed,consumeMeter} from "../../lib/desktop-license.js";
+import {authenticateDesktop,checkScopeAllowed,consumeMeter,meterStatus} from "../../lib/desktop-license.js";
 import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
 
 function clean(value,max=220){return String(value||"").trim().replace(/\s+/g," ").slice(0,max)}
@@ -131,13 +131,19 @@ export default async function handler(req,res){
     if(!request)return res.status(400).json({error:"Indica qué tipo de clientes quieres buscar.",code:"PROSPECT_REQUEST_REQUIRED"});
     const input=await interpretDesktopRequest(request);
     try{
+      const quota=await meterStatus(auth.license,"lead_search");
+      const requested=Math.max(1,Number(input.count||1));
+      if(!quota.infrastructure&&quota.remaining!=null&&Number(quota.remaining)<requested)return res.status(429).json({error:"No quedan suficientes búsquedas de clientes disponibles este mes para esta solicitud.",code:"USAGE_LIMIT_REACHED",meter:"lead_search",usage:quota});
+      const quotaWarning=!quota.unlimited&&quota.monthlyLimit>0&&quota.usedThisMonth/Math.max(1,quota.monthlyLimit)>=0.8?{level:quota.usedThisMonth>=quota.monthlyLimit?"limit":"warning",message:quota.usedThisMonth>=quota.monthlyLimit?"Límite mensual alcanzado.":"Has utilizado al menos el 80 % de las búsquedas de clientes de este mes.",used:quota.usedThisMonth,limit:quota.monthlyLimit}:null;
       const result=await findProspects(input);
-      await consumeMeter(auth.license,"lead_search",result.leads.length,{zone:input.zone,clientType:input.clientType});
+      const meter=await consumeMeter(auth.license,"lead_search",Math.max(1,result.leads.length),{zone:input.zone,clientType:input.clientType});
+      if(meter.meterError)console.warn(JSON.stringify({event:"prospect_meter_error",policy:"fail_open_low_cost",error:meter.meterError}));
       return res.status(200).json({
         query:result.interpreted,
         leads:result.leads,
         sourceMode:result.provider,
         requestedCount:input.count,
+        usageWarning:quotaWarning,
         verificationMessage:"Empresas localizadas en fuentes públicas. Los teléfonos, webs y direcciones solo se muestran cuando la fuente los publica."
       });
     }catch(error){
