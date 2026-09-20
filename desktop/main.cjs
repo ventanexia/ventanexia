@@ -5,11 +5,12 @@ const os=require('node:os');
 const crypto=require('node:crypto');
 const {ImapFlow}=require('imapflow');
 const nodemailer=require('nodemailer');
-const {EDITION,assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
+const {EDITION,assertModuleIncluded,isMaster,connectionLimit,ownAgentLimit,employeeSlotLimit}=require('./agent-policy.cjs');
 const {storeFile,readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
 const {shopifyCall,requestOwnedToken}=require('./shopify-auth.cjs');
 const calendar=require('./calendar.cjs');
+const externalAgents=require('./external-agent.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -57,6 +58,19 @@ function fingerprintHash(){
   const raw=[os.hostname(),os.platform(),os.arch(),os.homedir()].join('|');
   return crypto.createHash('sha256').update(raw).digest('hex');
 }
+function externalConnectionCount(s){
+  const emails=emailAccountsFromState(s).length;
+  const ints=Object.entries(s.secret?.integrations||{}).filter(([k,v])=>k!=='email'&&v).length;
+  const portals=(Array.isArray(s.portals)?s.portals:[]).filter(p=>p&&p.url).length;
+  return emails+ints+portals;
+}
+function assertConnectionCapacity(s,{adding=1}={}){
+  if(isMaster(s.license))return true;
+  const limit=connectionLimit(s.license),used=externalConnectionCount(s);
+  if(used+adding<=limit)return true;
+  const err=new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 42 €/mes o cambia de plan.');
+  err.code='CONNECTION_LIMIT';err.used=used;err.limit=limit;throw err;
+}
 function publicLicenseState(s){
   const l=s.license||{},master=isMaster(l);
   return {
@@ -72,6 +86,9 @@ function publicLicenseState(s){
     available:Number(l.available||0),
     extraDeviceMonthlyEur:Number(l.extraDeviceMonthlyEur||49),
     featurePolicy:l.featurePolicy||{},
+    connectionLimit:master?null:connectionLimit(l),
+    employeeSlotLimit:master?null:employeeSlotLimit(l),
+    ownAgentLimit:master?null:ownAgentLimit(l),
     lastCheckedAt:l.lastCheckedAt||null
   };
 }
@@ -422,6 +439,7 @@ function addMasterEmailAccount(s,entry){
   s.secret.integrations.email=s.secret.emailAccounts[0]||entry;
 }
 ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
+  const preState=await readState();assertConnectionCapacity(preState);
   const policyState=await readState();assertModuleIncluded(policyState.license,'email');
   const email=String(payload.email||'').trim();
   const username=String(payload.username||email).trim();
@@ -512,6 +530,7 @@ async function oauthStatusOnce(payload={}){
 }
 
 ipcMain.handle('integration:connect',async(_e,payload={})=>{
+  const preState=await readState();const preKey=normalizeProviderKey(payload.module||payload.provider||'');if(preKey&&preKey!=='email'&&!preState.secret?.integrations?.[preKey])assertConnectionCapacity(preState);
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   const s=await readState();assertModuleIncluded(s.license,module);
   const verified=await verifyIntegration(provider,payload);s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
@@ -558,6 +577,7 @@ ipcMain.handle('whatsapp:runtime',async(_e,payload={})=>{
 });
 
 ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
+  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertConnectionCapacity(preState);
   const s=await readState();
   if(!isMaster(s.license))throw new Error('La conexión directa de tienda propia requiere la edición Maestro');
   assertModuleIncluded(s.license,'shopify');
@@ -573,6 +593,7 @@ ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
 });
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
+  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertConnectionCapacity(preState);
   const policyState=await readState();assertModuleIncluded(policyState.license,'shopify');
   const shop=await resolveShopifyShop(payload.shop);
   const token=String(payload.token||'').trim();
@@ -798,6 +819,16 @@ ipcMain.handle('support:auto-mode',async(_e,enabled)=>{
 ipcMain.handle('support:auto-mode-status',async()=>{const s=await readState();return {enabled:Boolean(s.support?.autoMode)};});
 ipcMain.handle('support:quick-assist',async()=>{await audit('support.requested','Asistencia rápida abierta por el cliente');await shell.openExternal('ms-quick-assist:');return true});
 ipcMain.handle('support:stop',async()=>{await audit('support.stopped','Cliente pulsó detener asistencia');return true});
+
+ipcMain.handle('external-agent:list',async()=>externalAgents.list());
+ipcMain.handle('external-agent:test',async(_e,payload={})=>externalAgents.test(payload));
+ipcMain.handle('external-agent:save',async(_e,payload={})=>externalAgents.save(payload));
+ipcMain.handle('external-agent:remove',async(_e,id)=>externalAgents.remove(String(id||'')));
+
+ipcMain.handle('connection:capacity',async()=>{
+  const s=await readState(),used=externalConnectionCount(s),limit=connectionLimit(s.license);
+  return {used,limit:isMaster(s.license)?null:limit,available:isMaster(s.license)?null:Math.max(0,limit-used),extraMonthlyEur:42};
+});
 
 ipcMain.handle('connection:list',async()=>{
   const s=await readState(),out=[];
