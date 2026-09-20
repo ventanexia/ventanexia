@@ -157,7 +157,9 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
       const messages=Array.isArray(payload?.messages)?payload.messages:[];
       const last=[...messages].reverse().find(m=>m?.role==='user');
       const text=String(last?.content||'').trim();
-      return orders.handleChat(text);
+      const done=await orders.handleChat(text);
+      if(done)return done;                 // órdenes que Pedidos entiende (revisa, introduce, programa: …)
+      return agentChat(event,payload);     // el resto (preguntas libres) va al asistente con el rol de Pedidos
     }
 
     // El agente Web & Ecommerce debe usar la fuente Shopify real cuando está conectada.
