@@ -466,6 +466,11 @@ ipcMain.handle('oauth:start',async(_e,payload={})=>{
   const s=await readState();
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   assertModuleIncluded(s.license,module);
+  if(module==='email'){
+    const requested=String(payload.account||'').trim().toLowerCase();
+    const exists=emailAccountsFromState(s).some(x=>String(x.meta?.email||x.label||x.account||'').trim().toLowerCase()===requested&&requested);
+    if(!exists)assertConnectionCapacity(s);
+  }else if(!s.secret?.integrations?.[module])assertConnectionCapacity(s);
   const shopValue=provider==='shopify'?await resolveShopifyShop(payload.shop):String(payload.shop||'').trim();
   const result=await postJson(CLOUD+'/api/oauth-start',{provider,module,shop:shopValue,account:String(payload.account||'').trim(),customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null});
   if(!result.authUrl||!result.state)throw new Error('No se pudo iniciar la autorización');
@@ -530,7 +535,12 @@ async function oauthStatusOnce(payload={}){
 }
 
 ipcMain.handle('integration:connect',async(_e,payload={})=>{
-  const preState=await readState();const preKey=normalizeProviderKey(payload.module||payload.provider||'');if(preKey&&preKey!=='email'&&!preState.secret?.integrations?.[preKey])assertConnectionCapacity(preState);
+  const preState=await readState();const preKey=normalizeProviderKey(payload.module||payload.provider||'');
+  if(preKey==='email'){
+    const requested=String(payload.account||payload.username||'').trim().toLowerCase();
+    const exists=emailAccountsFromState(preState).some(x=>String(x.meta?.email||x.label||x.account||x.username||'').trim().toLowerCase()===requested&&requested);
+    if(!exists)assertConnectionCapacity(preState);
+  }else if(preKey&&!preState.secret?.integrations?.[preKey])assertConnectionCapacity(preState);
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   const s=await readState();assertModuleIncluded(s.license,module);
   const verified=await verifyIntegration(provider,payload);s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
