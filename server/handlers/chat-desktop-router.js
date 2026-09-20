@@ -267,9 +267,13 @@ async function desktopGate(req){
 async function chargeEmailAi(license,res){
   if(authMode()!=="enforce"||!license)return true;
   const m=await consumeMeter(license,"email_ai_actions",1,{scope:"agent:email"});
-  if(m.meterError)console.error(JSON.stringify({event:"chat_meter_error",error:m.meterError}));
+  if(m.meterError){
+    console.error(JSON.stringify({event:"chat_meter_error",error:m.meterError}));
+    res.status(503).json({error:"No se ha podido comprobar ahora mismo el uso disponible. Inténtalo de nuevo en unos minutos.",code:"USAGE_METER_UNAVAILABLE",meter:"email_ai_actions"});
+    return false;
+  }
   if(m.ok)return true;
-  res.status(429).json({error:"Has agotado las acciones de email con IA incluidas este mes. Puedes esperar a la renovación o ampliar tu plan.",code:"USAGE_LIMIT_REACHED",meter:"email_ai_actions"});
+  res.status(429).json({error:"Has alcanzado el límite de acciones de email con IA disponible para este periodo.",code:"USAGE_LIMIT_REACHED",meter:"email_ai_actions"});
   return false;
 }
 
