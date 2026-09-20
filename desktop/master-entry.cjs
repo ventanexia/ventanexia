@@ -7,6 +7,8 @@ let orders=null;
 try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
 let calendar=null;
 try{calendar=require('./calendar.cjs')}catch(e){console.error('calendar_load_error',String(e?.message||e).slice(0,200))}
+let externalAgents=null;
+try{externalAgents=require('./external-agent.cjs')}catch(e){console.error('external_agent_load_error',String(e?.message||e).slice(0,200))}
 
 // --- Enrutado único del chat -------------------------------------------------
 // master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
@@ -76,6 +78,11 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
   originalHandle('chat:send',async(event,payload)=>{
     const scope=scopeOf(payload);
     const type=scopeTypeOf(payload);
+
+    if(type==='external_agent'&&externalAgents){
+      const messages=Array.isArray(payload?.messages)?payload.messages:[];
+      return externalAgents.chat(String(scope?.id||scope?.key||''),messages);
+    }
 
     // El Asistente IA es el centro de mando: consulta en SOLO LECTURA las fuentes
     // de los agentes incluidos y entrega todo el contexto al asistente general.
