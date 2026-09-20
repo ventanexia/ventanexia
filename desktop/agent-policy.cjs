@@ -48,7 +48,7 @@ function employeeSlotLimit(license={}){
   if(explicit>0)return explicit;
   const p=cleanPlan(license?.plan);
   if(['start','inicio'].includes(p))return 1;
-  if(['core','crecimiento'].includes(p))return 2;
+  if(['core','crecimiento'].includes(p))return 3;
   if(['scale','empresa','premium'].includes(p))return 8;
   return 0;
 }
