@@ -6,6 +6,9 @@ on:
     paths:
       - 'index.html'
       - 'planes.html'
+      - 'descargar.html'
+      - 'constructor.html'
+      - 'vercel.json'
       - 'contrato-servicio.html'
       - 'checkout.html'
       - 'server/handlers/contract-accept.js'
@@ -66,22 +69,26 @@ jobs:
           checkInlineScripts(contract,'contract-inline.js');
           checkInlineScripts(checkout,'checkout-inline.js');
 
-          must(plans.includes("price:99")&&plans.includes("price:249")&&plans.includes("price:499"),'Launch plan prices mismatch');
-          must(plans.includes("listPrice:129")&&plans.includes("listPrice:299")&&plans.includes("listPrice:599"),'Normal plan prices mismatch');
-          must(plans.includes("workUnits:1500")&&plans.includes("workUnits:5000")&&plans.includes("workUnits:12000"),'Monthly work capacities mismatch');
+          must(plans.includes("price:99")&&plans.includes("price:249")&&plans.includes("price:499"),'Plan prices mismatch');
+          must(plans.includes("listPrice:99")&&plans.includes("listPrice:249")&&plans.includes("listPrice:499"),'Public reference prices must match current launch prices');
+          must(!plans.includes("workUnits:1500")&&!plans.includes("workUnits:5000")&&!plans.includes("workUnits:12000"),'Obsolete global work capacities still exposed');
           must(plans.includes("Todos los asistentes estándar incluidos")&&plans.includes("Carla coordina"),'All-assistants commercial promise missing');
-          must(plans.includes("capacity_pack")&&plans.includes("price:49"),'Capacity pack missing');
-          must(plans.includes("voice_pack")&&plans.includes("whatsapp_pack")&&plans.includes("video_pack"),'Variable-cost packs missing');
-          must(home.includes('99 €')&&home.includes('249 €')&&home.includes('499 €'),'Home launch pricing stale');
+          must(plans.includes("email_account")&&plans.includes("storage_pack")&&plans.includes("whatsapp_pack"),'Current public add-ons missing');
+          must(!plans.includes("capacity_pack")&&!plans.includes("video_pack")&&!plans.includes("voice_pack"),'Unverified public add-ons must stay hidden');
+          must(plans.includes("/descargar.html?plan=")&&plans.includes("trial=15"),'Trial cart must lead to download-status page');
+          must(home.includes('99 €')&&home.includes('249 €')&&home.includes('499 €'),'Home pricing stale');
           must(home.includes('VNX Negocio')&&home.includes('Todos los asistentes estándar incluidos'),'Home positioning stale');
-          must(contract.includes("termAck")&&contract.includes("capacidad")&&contract.includes("49 €/mes"),'Customer contract capacity/term model missing');
-          must(accept.includes('price:99')&&accept.includes('price:249')&&accept.includes('price:499'),'Contract server launch prices mismatch');
-          must(accept.includes('workUnits:1500')&&accept.includes('workUnits:5000')&&accept.includes('workUnits:12000'),'Contract server work capacities mismatch');
+          must(home.includes('VentaNexIA Desktop estará disponible próximamente'),'Home must state download availability truthfully');
+          must(contract.includes("termAck")&&contract.includes("límites medidos")&&contract.includes("49 €/mes"),'Customer contract limits/term model missing');
+          must(!contract.includes("workUnits={inicio:1500")&&!contract.includes("trabajos/mes · Conexiones"),'Customer contract still exposes obsolete global work units');
+          must(accept.includes('price:99')&&accept.includes('price:249')&&accept.includes('price:499'),'Contract server prices mismatch');
+          must(!accept.includes('workUnits:1500')&&!accept.includes('workUnits:5000')&&!accept.includes('workUnits:12000'),'Signed contract still contains obsolete work-unit promises');
           must(accept.includes('b.termAcknowledged!==true'),'Contract term acknowledgement not enforced');
           must(pay.includes('expectedAmount:9900')&&pay.includes('expectedAmount:24900')&&pay.includes('expectedAmount:49900'),'Stripe checkout expected prices mismatch');
-          must(pay.includes('2.000 trabajos adicionales al mes')&&pay.includes('Conexión o cuenta adicional'),'Stripe checkout add-ons mismatch');
-          must(checkout.includes('Todos los asistentes estándar incluidos')&&checkout.includes('Capacidad:'),'Final checkout summary missing capacity model');
+          must(pay.includes('Conexión o cuenta adicional')&&!pay.includes('2.000 trabajos adicionales al mes'),'Stripe checkout recurring add-ons mismatch');
+          must(checkout.includes('Todos los asistentes estándar incluidos')&&!checkout.includes('trabajos/mes'),'Final checkout summary must use measurable limits only');
           must(docs.includes('99 €/mes')&&docs.includes('249 €/mes')&&docs.includes('499 €/mes'),'Operating docs pricing stale');
+          must(docs.includes('No se publica una cifra genérica de «trabajos al mes»'),'Operating docs must explain removal of global work-unit promise');
           must(trial.includes('TRIAL_DAYS=15'),'Trial duration must be 15 days');
           must(plans.includes('15 DÍAS GRATIS')&&plans.includes('sin tarjeta'),'Plans must explain no-card trial');
           must(sweep.includes('trial_expiring_reminder')&&sweep.includes('trial_expired_email'),'Trial lifecycle emails missing');
@@ -89,11 +96,15 @@ jobs:
           const startTrial=read('server/handlers/start-trial.js');
           const builder=read('assets/builder.js');
           const terms=read('condiciones-prueba.html');
+          const download=read('descargar.html');
+          const constructor=read('constructor.html');
           must(startTrial.includes('createCustomerCode')&&startTrial.includes('createActivationCode')&&startTrial.includes('trialTermsAccepted'),'Trial registration/licence automation missing');
-          must(builder.includes('trialTermsAck')&&builder.includes('trialNoChargeAck'),'Trial acceptance checkboxes missing');
+          must(builder.includes('/descargar.html?trial=15'),'Public builder must not activate trial before commercial download');
+          must(download.includes('Próximamente descargable')&&download.includes('no empieza ningún plazo de 15 días'),'Download status page must clearly pause public trial');
+          must(constructor.includes('vnxLegacyTrialRedirect')&&constructor.includes('/descargar.html?trial=15'),'Legacy trial URLs must redirect safely');
           must(terms.includes('no cedible')&&terms.includes('no transferible')&&terms.includes('15 días gratis'),'Trial terms missing licence restrictions');
           must(terms.includes('secretos empresariales')&&terms.includes('Prohibición de copia')&&terms.includes('interoperabilidad'),'Trial anti-copy/confidentiality clauses missing');
           must(contract.includes('16 bis. Confidencialidad')&&contract.includes('ipAck'),'Paid contract anti-copy/confidentiality acceptance missing');
-          must(accept.includes('ipConfidentialityAccepted')&&accept.includes('2026-09-20-v10'),'Server must enforce IP/confidentiality acceptance');
-          console.log('VentaNexIA commercial model verification OK: launch prices, full standard team, capacity model, contract term and checkout synchronized.');
+          must(accept.includes('ipConfidentialityAccepted')&&accept.includes('2026-09-20-v11'),'Server must enforce current IP/confidentiality acceptance');
+          console.log('VentaNexIA commercial model verification OK: current prices, measurable limits, paused public trial and contracts synchronized.');
           NODE
