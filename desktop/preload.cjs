@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('vnx',{
   connectIntegration:(payload)=>ipcRenderer.invoke('integration:connect',payload),
   integrationStatus:(module)=>ipcRenderer.invoke('integration:status',module),
   disconnectIntegration:(module)=>ipcRenderer.invoke('integration:disconnect',module),
+  agendaToday:()=>ipcRenderer.invoke('agenda:today'),
+  agendaUpcoming:(minutes=180)=>ipcRenderer.invoke('agenda:upcoming',minutes),
   startOAuth:(payload)=>ipcRenderer.invoke('oauth:start',payload),
   connectGenericEmail:(payload)=>ipcRenderer.invoke('email:connect-generic',payload),
   pollOAuth:(payload)=>ipcRenderer.invoke('oauth:status',payload),
