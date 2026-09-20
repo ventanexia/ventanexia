@@ -25,7 +25,7 @@ async function stripeCheckout(dealId,email,solutionRequestId){
   if(!monthly) throw new Error("STRIPE_PRICE_NOT_CONFIGURED");
   const priceResponse=await fetch(`https://api.stripe.com/v1/prices/${encodeURIComponent(monthly)}`,{headers:{"Authorization":`Bearer ${key}`}});
   const configuredPrice=await priceResponse.json();
-  if(!priceResponse.ok||configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==90000||configuredPrice.recurring?.interval!=="month"){
+  if(!priceResponse.ok||configuredPrice.currency!=="eur"||configuredPrice.unit_amount!==24900||configuredPrice.recurring?.interval!=="month"){
     throw new Error("STRIPE_PRICE_MISMATCH");
   }
   const p=new URLSearchParams();
