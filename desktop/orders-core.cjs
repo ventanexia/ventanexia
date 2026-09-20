@@ -247,8 +247,7 @@ async function deliverToFile(order,dest,{fs=fsp}={}){
   if(!dest.dir)throw new Error('Falta la carpeta de destino');
   await fs.mkdir(dest.dir,{recursive:true});
   const ref=alnum(order.internalRef||order.extracted.orderRef||('P'+order.seq)).slice(0,30)||('P'+order.seq);
-  const f=buildFile(order,dest);const name='pedido_'+ref+'_'+order.id.slice(-6)+'.'+f.ext;
-  const p=path.join(dest.dir,name);
+  const f=buildFile(order,dest);const name='pedido_'+ref+'_'+order.id.slice(-6)+'.'+f.ext;  const p=path.join(dest.dir,name);
   try{await fs.access(p);return {ok:true,type:'file',path:p,duplicate:true}}catch{}   // idempotente: no se reescribe
   await fs.writeFile(p,f.content,'utf8');
   let custPath=null;
@@ -497,8 +496,7 @@ function createOrders(deps){
     return [icon(o.status)+' Pedido #'+o.seq+' · '+(o.internalRef||'')+' · '+STATUS_TEXT[o.status],
       (o.source.kind==='web'?'Tienda online ('+(o.source.store||'web')+'): '+o.source.subject+' ('+o.source.account+')':'Correo: «'+cut(o.source.subject,80)+'» de '+(o.source.from||'')+' ('+o.source.account+')'),
       'Cliente: '+(c.name||'—')+(c.taxId?' · '+c.taxId:'')+(c.email?' · '+c.email:'')+(c.phone?' · '+c.phone:'')+'\n   '+cust,
-      'Entrega: '+(c.deliveryAddress||c.address||'—'),
-      'Líneas:',
+      'Entrega: '+(c.deliveryAddress||c.address||'—'),      'Líneas:',
       ...ex.lines.map((l,i)=>'  '+(i+1)+'. '+(l.ref||'sin ref.')+' — '+(l.description||'')+' × '+(Number.isFinite(l.qty)?l.qty:'?')+(l.price!=null?' · '+l.price+' €':'')+'  '+({ok:'✔ catálogo',desconocida:'✖ no está en el catálogo',dudosa:'⚠ referencia dudosa',ambigua:'⚠ ambigua',sin_catalogo:''}[v.lines?.[i]?.status]||'')+(v.lines?.[i]?.candidates?.length?' (¿'+v.lines[i].candidates.map(x=>x.ref).join(' / ')+'?)':'')),
       ...(o.stock?['Stock ('+o.stock.source+'): '+(o.stock.lines.length?o.stock.lines.map(l=>l.ref+' '+(l.state==='ok'?'✔ hay '+(l.available+(l.reserved||0))+(l.reserved?' ('+l.reserved+' reservadas)':''):l.state==='corto'?'✖ hay '+(l.available??0)+' de '+l.needed+(l.reserved?' ('+l.reserved+' reservadas por otros pedidos)':''):'? sin dato')).join(' · '):'sin referencias')]:[]),
       ...(pr?['Compras: consulta enviada a '+pr.to+(pres?' · respondieron: '+({yes:'pueden servirlo',partial:'pueden servirlo en parte',no:'NO pueden servirlo'}[pres.canSupply]||'sin claridad')+(pres.leadTime?' · plazo '+pres.leadTime:'')+(pres.date?' · '+pres.date:''):pr.unclear?' · respuesta sin interpretar: revísala':' · esperando respuesta')]:[]),
@@ -747,8 +745,7 @@ function createOrders(deps){
     const waiting=Object.values(s.orders).filter(o=>o.status==='esperando_compras'&&o.purchasing);
     if(!waiting.length)return out;
     const accs=await mail.accounts();
-    for(const o of waiting){
-      const acc=accs.find(a=>a.address===o.purchasing.account);if(!acc)continue;
+    for(const o of waiting){      const acc=accs.find(a=>a.address===o.purchasing.account);if(!acc)continue;
       let replies=[];try{replies=await mail.listReplies(acc,{threadId:o.purchasing.threadId,fromEmail:o.purchasing.to,afterMs:o.purchasing.sentAt,subjectHint:o.internalRef})}catch{continue}
       const key=alnum(o.internalRef);
       const mine=replies.filter(r=>r&&r.id&&r.id!==o.purchasing.lastReplyId&&String(r.fromEmail||'').toLowerCase()!==acc.address.toLowerCase());
