@@ -319,6 +319,10 @@ export default async function handler(req,res){
       return baseChat(withRole(isolatedReq),res);
     }
 
+    // Carla / Secretaria Ejecutiva debe recibir el contexto completo y llegar a la IA.
+    // No debe caer en atajos de Email o portal por contener palabras como "correo" o "respuesta".
+    if(scope==="agent:core_ai")return baseChat(withRole(req),res);
+
     // Sin agente especializado, solo se aplican fallbacks que correspondan a la fuente.
     const emailDirect=emailFallback(req);
     if(emailDirect)return res.status(200).json({reply:emailDirect,source:"desktop-email-direct",route:scope||null});
