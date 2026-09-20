@@ -9,7 +9,7 @@ function id(){return crypto.randomUUID()}
 function secureUrl(v){
   let u;try{u=new URL(String(v||'').trim())}catch{throw new Error('La dirección del agente no es válida')}
   if(u.protocol!=='https:')throw new Error('Por seguridad, la dirección del agente debe empezar por https://');
-  return u.toString().replace(//$/,'');
+  return u.toString().replace(/\/$/,'');
 }
 function listFromState(s){
   const raw=Array.isArray(s.secret?.externalAgents)?s.secret.externalAgents:[];
@@ -20,8 +20,7 @@ function authHeaders(x){return x.token?{Authorization:'Bearer '+x.token}:{}}
 async function readJsonResponse(r){
   const text=await r.text();
   if((r.headers.get('content-type')||'').includes('text/event-stream')){
-    const data=text.split(/?
-/).filter(l=>l.startsWith('data:')).map(l=>l.slice(5).trim()).filter(Boolean).filter(l=>l!=='[DONE]');
+    const data=text.split(/\r?\n/).filter(l=>l.startsWith('data:')).map(l=>l.slice(5).trim()).filter(Boolean).filter(l=>l!=='[DONE]');
     for(let i=data.length-1;i>=0;i--){try{return JSON.parse(data[i])}catch{}}
     return {raw:text};
   }
