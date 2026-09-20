@@ -985,3 +985,32 @@ body{
 .vnx-work-empty{border:1px dashed #2a5573;border-radius:12px;padding:28px;text-align:center;color:#87a6ba}
 .vnx-secretary-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1c4d6c}.vnx-secretary-actions button{border:1px solid #28668c;background:#0a3152;color:#e5f6ff;border-radius:8px;padding:7px 9px;font-size:9px;font-weight:800;cursor:pointer}
 @media(max-width:760px){.vnx-work-overlay{padding:6px}.vnx-work-modal{height:98vh}.vnx-work-columns{grid-template-columns:1fr}.vnx-work-head{align-items:flex-start}.vnx-work-tabs{overflow-x:auto;flex-wrap:nowrap}}
+
+
+/* 0.6.66 — compact translation control and always-visible work status */
+.vnx-workbench-main{overflow:hidden}
+.vnx-status-strip{flex:0 0 auto;position:relative;z-index:3}
+.vnx-primary-work{flex:1 1 0;min-height:0}
+.vnx-translate-inline{display:inline-flex;align-items:stretch;min-width:0}
+.vnx-translate-inline button{border-radius:9px 0 0 9px!important;border-right:0!important}
+.vnx-translate-inline select{
+  width:auto!important;
+  min-width:92px;
+  max-width:125px;
+  margin:0!important;
+  padding:7px 24px 7px 8px!important;
+  border:1px solid #2b638b!important;
+  border-left:1px solid #214f72!important;
+  border-radius:0 9px 9px 0!important;
+  background:#082c49!important;
+  color:#e8f5ff!important;
+  font-size:10px!important;
+  font-weight:800;
+  cursor:pointer
+}
+.vnx-translate-inline select:focus{border-color:#36c8ff!important;box-shadow:none!important}
+@media(max-width:650px){
+  .vnx-translate-inline{flex:1 1 100%}
+  .vnx-translate-inline button{flex:1}
+  .vnx-translate-inline select{max-width:none;min-width:118px}
+}
