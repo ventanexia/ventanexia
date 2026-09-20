@@ -3,15 +3,16 @@
 //  - correo: Gmail (API oficial, con renovación automática) y cualquier correo IMAP/SMTP (Yahoo, iCloud, hosting, empresa…)
 //  - IA: /api/orders-extract del servidor de VentaNexIA (solo EXTRAE datos; las decisiones las toma orders-core)
 //  - destino: archivo, webhook (en el núcleo) y borradores de pedido en Shopify (aquí)
-const {app,dialog,Notification,BrowserWindow}=require('electron');
+const {app,dialog,Notification,BrowserWindow,safeStorage}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
-const {readState,audit}=require('./state-store.cjs');
+const {readState,writeState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
 const {shopifyCall}=require('./shopify-auth.cjs');
 const files=require('./order-files.cjs');
 const {createOrders}=require('./orders-core.cjs');
 const policy=require('./agent-policy.cjs');
+const connectors=require('./erp.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const GMAIL='https://gmail.googleapis.com/gmail/v1/users/me/';
@@ -195,16 +196,16 @@ async function shopifyCustomers(){
   return rows;
 }
 async function shopifyCatalog(){
-  const rows=[['Referencia','Descripción','Precio']];let after=null;
+  const rows=[['Referencia','Descripción','Precio','Stock']];let after=null;
   for(let i=0;i<6;i++){
-    const d=await shopGql('query($after:String){productVariants(first:250,after:$after){pageInfo{hasNextPage endCursor}nodes{sku displayName price}}}',{after});
-    for(const v of d.productVariants.nodes)if(v.sku)rows.push([v.sku,v.displayName||'',v.price||'']);
+    const d=await shopGql('query($after:String){productVariants(first:250,after:$after){pageInfo{hasNextPage endCursor}nodes{sku displayName price inventoryQuantity}}}',{after});
+    for(const v of d.productVariants.nodes)if(v.sku)rows.push([v.sku,v.displayName||'',v.price||'',v.inventoryQuantity==null?'':v.inventoryQuantity]);
     if(!d.productVariants.pageInfo.hasNextPage)break;after=d.productVariants.pageInfo.endCursor;
   }
   return rows;
 }
 async function shopifyDraft(order){
-  if(order.source?.kind==='shopify')throw new Error('Este pedido ya está en Shopify: no hace falta crear un borrador');
+  if(order.source?.kind==='web'&&order.source.store==='shopify')throw new Error('Este pedido ya está en Shopify: no hace falta crear un borrador');
   const ex=order.extracted;const items=[];
   for(const l of ex.lines){
     let variantId=null;
@@ -224,13 +225,142 @@ async function shopifyWebOrders({sinceMs}){
   const day=new Date(sinceMs).toISOString().slice(0,10);
   const addr=a=>a?[a.company,a.name,a.address1,[a.zip,a.city].filter(Boolean).join(' ')].filter(Boolean).join(', '):null;
   const d=await shopGql('query($q:String!){orders(first:50,query:$q,sortKey:CREATED_AT,reverse:true){nodes{id name createdAt email phone note currentTotalPriceSet{shopMoney{amount currencyCode}} customer{displayName} shippingAddress{company name address1 zip city phone} billingAddress{company name address1 zip city} lineItems(first:100){nodes{sku title quantity originalUnitPriceSet{shopMoney{amount}}}}}}}',{q:'created_at:>='+day});
-  return (d.orders?.nodes||[]).map(o=>({id:o.id,account:cfg.shop,name:o.name,createdAt:o.createdAt,email:o.email||'',phone:o.phone||o.shippingAddress?.phone||'',note:o.note||'',customerName:o.customer?.displayName||o.shippingAddress?.name||'',company:o.billingAddress?.company||o.shippingAddress?.company||'',
+  return (d.orders?.nodes||[]).map(o=>({store:'shopify',id:o.id,account:cfg.shop,name:o.name,createdAt:o.createdAt,email:o.email||'',phone:o.phone||o.shippingAddress?.phone||'',note:o.note||'',customerName:o.customer?.displayName||o.shippingAddress?.name||'',company:o.billingAddress?.company||o.shippingAddress?.company||'',
     shippingAddress:addr(o.shippingAddress),billingAddress:addr(o.billingAddress),currency:o.currentTotalPriceSet?.shopMoney?.currencyCode||'EUR',total:Number(o.currentTotalPriceSet?.shopMoney?.amount)||null,
     lines:(o.lineItems?.nodes||[]).map(l=>({sku:l.sku||'',title:l.title||'',qty:l.quantity,price:Number(l.originalUnitPriceSet?.shopMoney?.amount)||null}))}));
 }
 
+// Stock desde Shopify o desde la API del programa del cliente. Devuelve {REFERENCIA: unidades}.
+async function stockLookup({refs,cfg}){
+  const out={};
+  if(cfg?.source==='shopify'){
+    for(let i=0;i<refs.length;i+=20){
+      const q=refs.slice(i,i+20).map(r=>'sku:'+JSON.stringify(String(r))).join(' OR ');
+      const d=await shopGql('query($q:String!){productVariants(first:100,query:$q){nodes{sku inventoryQuantity}}}',{q});
+      for(const v of d.productVariants.nodes)if(v.sku&&v.inventoryQuantity!=null)out[v.sku]=v.inventoryQuantity;
+    }
+    return out;
+  }
+  if(cfg?.source==='erp'){
+    const rows=await erpRows('catalog');const m={};
+    for(const r of rows.slice(1)){const v=Number(r[3]);if(r[0]&&r[3]!==''&&Number.isFinite(v))m[r[0]]=v}
+    return m;
+  }
+  if(cfg?.source==='webhook'){
+    if(!/^https:\/\//i.test(cfg.url||''))throw new Error('El servicio de stock debe empezar por https://');
+    const ac=new AbortController();const t=setTimeout(()=>ac.abort(),20000);
+    try{
+      const r=await fetch(cfg.url,{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json',...(cfg.token?{Authorization:'Bearer '+cfg.token}:{})},body:JSON.stringify({referencias:refs,refs})});
+      if(!r.ok)throw new Error('El servicio de stock respondió '+r.status);
+      const j=await r.json().catch(()=>null);
+      const src=Array.isArray(j)?j:Array.isArray(j?.stock)?j.stock:null;
+      if(src){for(const x of src){const k=x.ref||x.referencia||x.sku,v=Number(x.stock??x.unidades??x.disponible);if(k&&Number.isFinite(v))out[k]=v}}
+      else{const m=j?.stock&&typeof j.stock==='object'?j.stock:j||{};for(const [k,v] of Object.entries(m)){const n=Number(v);if(Number.isFinite(n))out[k]=n}}
+      return out;
+    }finally{clearTimeout(t)}
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------- programa de gestión y tiendas del cliente
+// Las claves se guardan cifradas en el estado seguro de la app (state.secret.ordersErp), nunca en orders.json.
+const erpCache={customers:{at:0,rows:null},catalog:{at:0,rows:null}};
+const TTL={customers:10*60e3,catalog:2*60e3};
+async function erpSecret(){const s=await readState();return {s,cfg:s.secret?.ordersErp||{}}}
+async function saveErpSecret(mut){if(!safeStorage?.isEncryptionAvailable?.())throw new Error('Este equipo no tiene disponible el cifrado seguro del sistema. No guardaré claves de programas sin cifrar.');const s=await readState();s.secret=s.secret||{};s.secret.ordersErp=s.secret.ordersErp||{};mut(s.secret.ordersErp);await writeState(s)}
+async function erpAdapter(){
+  const {cfg}=await erpSecret();const p=cfg.program;if(!p||!connectors.PROGRAMS[p.id]?.make)return null;
+  return {id:p.id,cfg:p.cfg,adapter:connectors.PROGRAMS[p.id].make(p.cfg,{fetch:(...a)=>fetch(...a)})};
+}
+async function erpRows(kind){
+  const x=erpCache[kind];if(x.rows&&Date.now()-x.at<TTL[kind])return x.rows;
+  const a=await erpAdapter();if(!a)return null;
+  const rows=await a.adapter[kind]();erpCache[kind]={at:Date.now(),rows};return rows;
+}
+const dash='\n\nOtros programas (Sage 50/200, a3, Business Central, SAP Business One…): de momento se conectan con un archivo a tu medida («destino: archivo en C:\\Pedidos», CSV/XML/JSON con las columnas que pida tu programa) o con «destino: webhook https://…», que sirve con Make, Zapier o las plataformas de integración que ya tengan conector para tu programa.';
+function programList(){
+  const L=Object.values(connectors.PROGRAMS).map(p=>'• '+p.name+' — '+(p.kind==='api'?'conexión directa pegando una clave':'archivos de importación oficiales'));
+  const W=Object.values(connectors.STORES).map(p=>'• '+p.name+' — pedidos de tu tienda web');
+  return 'Programas que puedo conectar (escribe «programa: nombre» y te digo cómo, en 3 pasos):\n'+L.join('\n')+'\n\nTiendas online (pedidos web): Shopify (ya conectada desde Conexiones)\n'+W.join('\n')+dash;
+}
+const erpApi={
+  async list(){return programList()},
+  async connect(text){
+    const a=connectors.parseArgs(text);
+    if(!a.id||a.id==='ayuda'||a.id==='lista')return {ok:false,message:programList()};
+    const P=connectors.PROGRAMS[a.id];
+    if(!P)return {ok:false,message:'Todavía no tengo conector para «'+a.id+'».\n\n'+programList()};
+    if(P.kind==='files'){
+      if(!a.dir)return {ok:false,message:P.name+'\n'+P.how};
+      const cfg={dir:a.dir,serie:a.serie||1,start:a.start??900000,almacen:a.almacen||'GEN'};
+      try{await fs.mkdir(cfg.dir,{recursive:true});await fs.writeFile(path.join(cfg.dir,'LEEME-IMPORTAR.txt'),connectors.FACTUSOL_LEEME(cfg.dir),'utf8')}
+      catch(e){return {ok:false,message:'No puedo usar esa carpeta: '+String(e?.message||e).slice(0,100)}}
+      await saveErpSecret(o=>{o.program={id:'factusol',cfg}});erpCache.customers={at:0,rows:null};erpCache.catalog={at:0,rows:null};
+      return {ok:true,settings:{erp:{id:'factusol',label:P.name,kind:'files'},destination:{type:'factusol',...cfg}},
+        message:'✅ Factusol preparado. Los pedidos listos se añadirán a PCL.xlsx y LPC.xlsx (y CLI.xlsx si hay clientes nuevos) en '+cfg.dir+'\nSerie '+cfg.serie+' · números de documento desde '+cfg.start+' · almacén '+cfg.almacen+'.\n\nPara comprobar clientes y stock indícame tus Excel exportados: «clientes: C:\\…\\clientes.xlsx» y «catálogo: C:\\…\\articulos.xlsx».\nCuando entregue pedidos, sigue LEEME-IMPORTAR.txt de esa carpeta (Utilidades > Importaciones > Ficheros .XLSX/.XLS) y después escribe «importados».'};
+    }
+    const need={holded:['key'],odoo:['url','key'],dolibarr:['url','key']}[P.id]||[];
+    if(need.some(k=>!a[k]))return {ok:false,message:P.name+': me falta '+need.filter(k=>!a[k]).map(k=>({key:'la clave',url:'la dirección web'}[k])).join(' y ')+'.\n\n'+P.how};
+    const cfg={...(a.url?{url:a.url}:{}),key:a.key,...(a.db?{db:a.db}:{}),...(a.user?{user:a.user}:{}),...(a.confirm?{confirm:true}:{})};
+    const adapter=P.make(cfg,{fetch:(...x)=>fetch(...x)});
+    let cust,cat;
+    try{await adapter.test();cust=await adapter.customers();cat=await adapter.catalog()}
+    catch(e){return {ok:false,message:'No he podido conectar con '+P.name+': '+String(e?.message||e).slice(0,220)+'\n\n'+P.how}}
+    await saveErpSecret(o=>{o.program={id:P.id,cfg}});erpCache.customers={at:Date.now(),rows:cust};erpCache.catalog={at:Date.now(),rows:cat};
+    const nStock=cat.slice(1).filter(r=>r[3]!=='').length;
+    return {ok:true,settings:{erp:{id:P.id,label:P.name,kind:'api'},customers:{type:'erp'},catalog:{type:'erp'},stock:{source:'erp'},destination:{type:'erp',id:P.id}},
+      message:'✅ Conectado con '+P.name+'. He leído '+(cust.length-1)+' clientes y '+(cat.length-1)+' artículos ('+nStock+' con stock).\n'+
+        'Desde ahora compruebo clientes, referencias y stock con tus datos de '+P.name+' y los pedidos listos se crean directamente allí'+(P.id==='odoo'?(cfg.confirm?' (como pedido confirmado)':' (como presupuesto; añade «confirmar» al conectar si quieres que se confirmen solos)'):'')+'.\nTu clave se ha guardado cifrada en este ordenador. Si quieres, borra este mensaje del chat.'};
+  },
+  async connectStore(text){
+    const a=connectors.parseArgs(text);const S=connectors.STORES[a.id];
+    if(!S)return {ok:false,message:'Tiendas que puedo conectar:\n'+Object.values(connectors.STORES).map(x=>'• '+x.name+'\n'+x.how).join('\n\n')+'\n\nShopify se conecta desde Conexiones.'};
+    if(!a.url||!a.key||!a.secret)return {ok:false,message:S.name+': me falta '+[!a.url&&'la dirección web',!a.key&&'la clave',!a.secret&&'el secreto'].filter(Boolean).join(', ')+'.\n\n'+S.how};
+    const cfg={url:a.url,key:a.key,secret:a.secret};
+    try{await S.make(cfg,{fetch:(...x)=>fetch(...x)}).test()}catch(e){return {ok:false,message:'No he podido conectar con '+S.name+': '+String(e?.message||e).slice(0,200)+'\n\n'+S.how}}
+    await saveErpSecret(o=>{o.stores=o.stores||{};o.stores[S.id]=cfg});
+    return {ok:true,message:'✅ Conectada tu tienda '+S.name+' ('+new URL(cfg.url).host+'). Leeré sus pedidos «en proceso» o «en espera» igual que los del correo. Tu clave se ha guardado cifrada.'};
+  },
+  async disconnect(){await saveErpSecret(o=>{delete o.program;delete o.stores});erpCache.customers={at:0,rows:null};erpCache.catalog={at:0,rows:null};return 'He desconectado tu programa y tus tiendas y he borrado sus claves de este ordenador.'},
+  async closeBatch(){
+    const {cfg}=await erpSecret();const d=cfg.program?.cfg?.dir;if(!d)return 'No hay ningún lote de importación abierto.';
+    const names=['PCL.xlsx','LPC.xlsx','CLI.xlsx','LEEME-IMPORTAR.txt'];const t=new Date();const p2=n=>String(n).padStart(2,'0');
+    const dest=path.join(d,'importados','lote-'+t.getFullYear()+p2(t.getMonth()+1)+p2(t.getDate())+'-'+p2(t.getHours())+p2(t.getMinutes()));
+    let moved=0;await fs.mkdir(dest,{recursive:true});
+    for(const n of names){try{await fs.rename(path.join(d,n),path.join(dest,n));moved++}catch{}}
+    if(moved){try{await fs.writeFile(path.join(d,'LEEME-IMPORTAR.txt'),connectors.FACTUSOL_LEEME(d),'utf8')}catch{}}
+    return moved?'Lote cerrado: he guardado '+moved+' archivo(s) en '+dest+'. Los próximos pedidos empezarán un lote nuevo.':'No había archivos pendientes de importar.';
+  }
+};
+async function erpDeliver(order,d,ctx){
+  const a=await erpAdapter();if(!a)throw new Error('El programa ya no está conectado: escribe «programa: …» para volver a conectarlo');
+  return a.adapter.createOrder(order,{lineMatch:ctx.lineMatch,leadTime:ctx.leadTime});
+}
+async function factusolDeliver(order,d,ctx){
+  const r=connectors.buildFactusol(ctx.batch,{serie:d.serie||1,start:d.start??900000,almacen:d.almacen||'GEN',customers:ctx.customers||[],lineMatch:(o,i)=>o.verification?.lines?.[i]?.match||null});
+  const mine=r.errors.find(e=>e.startsWith(order.internalRef));if(mine)throw new Error(mine);
+  await fs.mkdir(d.dir,{recursive:true});
+  await fs.writeFile(path.join(d.dir,'PCL.xlsx'),connectors.writeXlsx(r.PCL));
+  await fs.writeFile(path.join(d.dir,'LPC.xlsx'),connectors.writeXlsx(r.LPC));
+  if(r.CLI)await fs.writeFile(path.join(d.dir,'CLI.xlsx'),connectors.writeXlsx(r.CLI));
+  try{await fs.access(path.join(d.dir,'LEEME-IMPORTAR.txt'))}catch{await fs.writeFile(path.join(d.dir,'LEEME-IMPORTAR.txt'),connectors.FACTUSOL_LEEME(d.dir),'utf8')}
+  return {ok:true,type:'factusol',path:d.dir,docNumber:r.docs[order.id],erpNumber:'Serie '+(d.serie||1)+' · nº '+r.docs[order.id]};
+}
+// Pedidos web de todas las tiendas conectadas (Shopify + WooCommerce).
+async function allWebOrders(o){
+  const out=[],errs=[];
+  try{out.push(...await shopifyWebOrders(o))}catch(e){errs.push('Shopify: '+String(e?.message||e))}
+  const {cfg}=await erpSecret();
+  for(const [id,x] of Object.entries(cfg.stores||{})){
+    try{out.push(...await connectors.STORES[id].make(x,{fetch:(...a)=>fetch(...a)}).orders(o))}catch(e){errs.push(connectors.STORES[id].name+': '+String(e?.message||e))}
+  }
+  if(!out.length&&errs.length)throw new Error(errs.join(' · '));
+  return out;
+}
+
 async function loadList(kind,src){
   if(!src)return null;
+  if(src.type==='erp')return erpRows(kind==='customers'?'customers':'catalog');
   if(src.type==='file'){const b=await fs.readFile(src.path);return files.readTableBuffer(path.basename(src.path),b)}
   if(src.type==='shopify')return kind==='customers'?shopifyCustomers():shopifyCatalog();
   return null;
@@ -249,8 +379,8 @@ async function monthlyLimit(){
 }
 function get(){
   if(instance)return instance;
-  instance=createOrders({dir:path.join(app.getPath('userData'),'orders'),mail,extract,files:{extract:files.extractText},webOrders:shopifyWebOrders,monthlyLimit,confirm,notify,audit,loadList,fetch:(...a)=>fetch(...a),pickFolder,pickFile,
-    deliverers:{shopify_draft:shopifyDraft}});
+  instance=createOrders({dir:path.join(app.getPath('userData'),'orders'),mail,extract,files:{extract:files.extractText},webOrders:allWebOrders,erp:erpApi,stockLookup,monthlyLimit,confirm,notify,audit,loadList,fetch:(...a)=>fetch(...a),pickFolder,pickFile,
+    deliverers:{shopify_draft:shopifyDraft,erp:erpDeliver,factusol:factusolDeliver}});
   return instance;
 }
 async function handleChat(text){return get().handleChat(text)}
@@ -260,4 +390,4 @@ function startScheduler(){
   const first=setTimeout(tick,2*60*1000);first.unref?.();
   timer=setInterval(tick,15*60*1000);timer.unref?.();
 }
-module.exports={handleChat,startScheduler,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders}};
+module.exports={handleChat,startScheduler,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
