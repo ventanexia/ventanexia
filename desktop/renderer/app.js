@@ -445,6 +445,15 @@ function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conecta
     +items.map(x=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(x.label||'Conectado')+'</b><small>'+esc(connectionProviderLabel(x.provider||x.module))+'</small></div></div>').join('')
     +'</div>';
 }
+async function renderConnectionCapacity(){
+  const text=$('#connectionCapacityText'),btn=$('#connectionCapacityPlansBtn');if(!text)return;
+  try{
+    const x=await window.vnx.connectionCapacity();
+    if(x.limit==null)text.textContent='Edición Maestro · conexiones sin límite.';
+    else text.textContent=x.used+' de '+x.limit+' conexiones utilizadas · '+x.available+' disponibles · cada conexión adicional compatible cuesta '+(x.extraMonthlyEur||42)+' €/mes.';
+  }catch{ text.textContent='No se ha podido comprobar ahora el límite de conexiones.'; }
+  if(btn&&!btn.dataset.bound){btn.dataset.bound='1';btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html#mi-equipo');}
+}
 async function renderConnectionSummaries(){
   let connections=[];try{connections=await window.vnx.listConnections()||[]}catch{}
   const byModule=module=>connections.filter(x=>(x.module||'')===module);
