@@ -996,14 +996,90 @@
     const btn=$m('#vnxExpandWorkbench');if(btn)btn.textContent=on?'✕ Salir de pantalla completa':'⛶ Expandir';
     localStorage.setItem('vnx_workbench_expanded',on?'on':'off');
   }
-  async function refreshWorkbenchCounters(){
-    let activity=[];try{activity=(await window.vnx.getState())?.activity||[]}catch{}
-    const approval=masterMessages.filter(m=>m.emailActions||m.handoff).length+secretaryNewMails.filter(m=>Number(m.replyScore||0)>0).length;
-    const review=activity.filter(a=>/error|failed|review|revis/i.test(String(a.type||'')+' '+String(a.detail||''))).slice(0,50).length;
-    const solved=activity.filter(a=>/sent|completed|delivered|created|resolved|success|enviado|complet/i.test(String(a.type||'')+' '+String(a.detail||''))).slice(0,200).length;
-    const pending=Math.max(0,secretaryNewMails.length+approval);
-    const set=(id,n)=>{const e=$m(id);if(e)e.textContent=String(n)};
-    set('#vnxCountPending',pending);set('#vnxCountReview',review);set('#vnxCountApproval',approval);set('#vnxCountSolved',solved);
+  let workQueueCache={at:0,rows:[]};
+  function emailNeedsDecision(m={}){
+    const s=(' '+String(m.subject||'')+' '+String(m.snippet||'')+' '+String(m.body||'')+' ').toLowerCase();
+    return Number(m.attentionScore||0)>=6||/\b(descuent|precio especial|rebaja|devoluci[oó]n|reembolso|cancel|reclamaci[oó]n|queja|contrato|legal|abogad|impago|pago pendiente|condiciones de pago|vencimiento|compensaci[oó]n|penalizaci[oó]n|excepci[oó]n|entrega urgente|plazo excepcional)\b/.test(s);
+  }
+  function automaticEmailIds(){try{return new Set(JSON.parse(localStorage.getItem('vnx_auto_replied_ids')||'[]'))}catch{return new Set()}}
+  function emailWorkBucket(m={}){
+    const auto=automaticEmailIds();
+    if(auto.has(m.id))return 'automatic';
+    if(m.responded||m.noReply)return 'resolved';
+    if(emailNeedsDecision(m))return 'decision';
+    if(Number(m.replyScore||0)>0)return 'review';
+    return 'pending';
+  }
+  async function loadWorkQueueData(force=false){
+    if(!force&&Date.now()-workQueueCache.at<45000)return workQueueCache.rows;
+    const r=await window.vnx.emailInbox({limit:30});
+    const rows=Array.isArray(r?.messages)?r.messages:[];
+    workQueueCache={at:Date.now(),rows};return rows;
+  }
+  function workCounts(rows=[]){
+    const out={automatic:0,review:0,decision:0,resolved:0,pending:0};
+    rows.forEach(m=>{const k=emailWorkBucket(m);out[k]=(out[k]||0)+1});return out;
+  }
+  function accountIndexForMail(m){
+    const list=(runtimeConnections||[]).filter(x=>(x.module||x.key)==='email');
+    return list.findIndex(x=>String(x.label||x.account||'').trim().toLowerCase()===String(m.account||'').trim().toLowerCase());
+  }
+  async function aiReplyForWorkItem(m,decision=''){
+    const idx=accountIndexForMail(m),scope={type:'agent',key:'email',name:'Email',included:true,connected:true,ready:true,accountIndex:idx>=0?idx:null};
+    const prompt='Prepara SOLO el texto final de respuesta para este correo. No envíes nada. Mantén nombres, cifras, fechas y referencias. '+(decision?'Decisión del usuario: '+decision+'. ':'')+'De: '+(m.from||'')+'\nAsunto: '+(m.subject||'')+'\nCorreo:\n'+String(m.body||m.snippet||'').slice(0,9000);
+    const r=await window.vnx.sendChat([{role:'user',content:prompt}],scope);
+    return String(r?.reply||m.defaultBody||'').trim();
+  }
+  function groupWorkByAccount(rows=[]){
+    const map=new Map();for(const m of rows){const k=m.account||'Cuenta de correo';if(!map.has(k))map.set(k,[]);map.get(k).push(m)}return [...map.entries()];
+  }
+  function workItemHtml(m,tab,index){
+    const original=String(m.body||m.snippet||'').slice(0,1200);
+    const suggested=tab==='resolved'?(m.sentBody||'La conversación aparece como respondida, pero no hay texto de respuesta disponible.'):(m.defaultBody||'');
+    const decision=tab==='decision'?'<div class="vnx-work-decision"><input data-work-decision placeholder="Indica tu decisión. Ej.: ofrece 10 % y entrega en 7 días"><button class="btn outline" data-work-apply-decision>Preparar con mi decisión</button></div>':'';
+    const buttons=tab==='resolved'
+      ?'<button data-work-open>Ver en Gmail</button>'
+      :'<button class="primary" data-work-send>Enviar</button><button data-work-edit>Modificar</button><button data-work-ai>Mejorar con IA</button><button data-work-draft>Guardar borrador</button><button data-work-no-reply>No requiere respuesta</button>';
+    return '<article class="vnx-work-item" data-work-index="'+index+'"><div class="vnx-work-item-head"><div><b>'+escM(m.subject||'(sin asunto)')+'</b><small>'+escM(m.from||'')+' · '+escM(m.date||'')+'</small></div><span class="vnx-work-chip">'+escM(m.account||'Email')+'</span></div><div class="vnx-work-columns"><div class="vnx-work-pane"><h4>Correo original · resumen</h4><p>'+escM(original||'Sin contenido').replace(/\n/g,'<br>')+'</p></div><div class="vnx-work-pane"><h4>'+(tab==='resolved'?'Última respuesta enviada':'Respuesta preparada')+'</h4>'+(tab==='resolved'?'<p data-work-sent>'+escM(suggested).replace(/\n/g,'<br>')+'</p>':'<textarea data-work-reply>'+escM(suggested)+'</textarea>')+decision+'</div></div><div class="vnx-work-actions">'+buttons+'</div><div data-work-msg style="font-size:9px;color:#88b4ca;margin-top:7px"></div></article>';
+  }
+  async function renderWorkQueue(overlay,tab='review',force=false){
+    const body=overlay.querySelector('[data-work-body]'),tabs=[...overlay.querySelectorAll('[data-work-tab]')];body.innerHTML='<div class="vnx-work-empty">Revisando tus cuentas de correo…</div>';
+    try{
+      const rows=await loadWorkQueueData(force),counts=workCounts(rows),auto=automaticEmailIds();
+      tabs.forEach(b=>{const k=b.dataset.workTab;b.classList.toggle('active',k===tab);const n=b.querySelector('b');if(n)n.textContent=String(counts[k]||0)});
+      let selected=rows.filter(m=>emailWorkBucket(m)===tab);
+      if(tab==='automatic')selected=rows.filter(m=>auto.has(m.id));
+      const groups=groupWorkByAccount(selected);
+      body.innerHTML=groups.length?groups.map(([account,items])=>'<section><h3 style="font-size:12px;margin:4px 0 8px;color:#65dcff">'+escM(account)+'</h3>'+items.map((m,i)=>workItemHtml(m,tab,rows.indexOf(m))).join('')+'</section>').join(''):'<div class="vnx-work-empty">'+(tab==='automatic'?'No hay respuestas automáticas registradas. Solo aparecerán aquí acciones automáticas confirmadas por VentaNexIA.':'No hay elementos en esta sección.')+'</div>';
+      body.querySelectorAll('[data-work-index]').forEach(card=>{
+        const m=rows[Number(card.dataset.workIndex)],msg=card.querySelector('[data-work-msg]'),ta=card.querySelector('[data-work-reply]');
+        card.querySelector('[data-work-edit]')?.addEventListener('click',()=>{ta?.focus();msg.textContent='Puedes modificar la respuesta antes de enviarla.'});
+        card.querySelector('[data-work-ai]')?.addEventListener('click',async()=>{msg.textContent='Preparando una respuesta mejor…';try{ta.value=await aiReplyForWorkItem(m);msg.textContent='Respuesta actualizada. Revísala antes de enviar.'}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-apply-decision]')?.addEventListener('click',async()=>{const input=card.querySelector('[data-work-decision]'),decision=String(input?.value||'').trim();if(!decision){msg.textContent='Indica primero qué decisión quieres tomar.';return}msg.textContent='Aplicando tu decisión…';try{ta.value=await aiReplyForWorkItem(m,decision);msg.textContent='Respuesta preparada con tu decisión. Puedes modificarla o enviarla.'}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-draft]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;msg.textContent='Guardando borrador…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'draft_reply',body:ta.value});msg.textContent='Borrador creado en Gmail.'}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-send]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;if(!confirm('¿Enviar esta respuesta ahora desde '+(m.account||'esta cuenta')+'?'))return;msg.textContent='Enviando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'send_reply',body:ta.value});workQueueCache.at=0;msg.textContent='Respuesta enviada.';setTimeout(()=>renderWorkQueue(overlay,tab,true),500)}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-no-reply]')?.addEventListener('click',async()=>{msg.textContent='Actualizando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'no_reply_needed'});workQueueCache.at=0;setTimeout(()=>renderWorkQueue(overlay,tab,true),300)}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-open]')?.addEventListener('click',()=>window.open('https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id),'_blank','noopener,noreferrer'));
+      });
+      await refreshWorkbenchCounters(true);
+    }catch(e){body.innerHTML='<div class="vnx-work-empty">No he podido cargar Mi trabajo: '+escM(e.message||String(e))+'</div>'}
+  }
+  async function openWorkQueue(initialTab='review'){
+    const overlay=document.createElement('div');overlay.className='vnx-work-overlay';
+    overlay.innerHTML='<div class="vnx-work-modal"><div class="vnx-work-head"><div><h3>📥 Mi trabajo</h3><p>Respuestas, decisiones y tareas de correo reunidas en un solo sitio. Cada cuenta se muestra por separado.</p></div><button class="mini" data-work-close>✕</button></div><div class="vnx-work-tabs"><button data-work-tab="automatic">Automáticos <b>0</b></button><button data-work-tab="review">Para revisar <b>0</b></button><button data-work-tab="decision">Necesito tu decisión <b>0</b></button><button data-work-tab="resolved">Resueltos <b>0</b></button></div><div class="vnx-work-body" data-work-body></div></div>';
+    document.body.appendChild(overlay);const close=()=>overlay.remove();overlay.querySelector('[data-work-close]').onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};
+    overlay.querySelectorAll('[data-work-tab]').forEach(b=>b.onclick=()=>renderWorkQueue(overlay,b.dataset.workTab));
+    await renderWorkQueue(overlay,initialTab,true);
+  }
+
+  async function refreshWorkbenchCounters(force=false){
+    let counts={review:0,decision:0,resolved:0,pending:0};
+    try{counts=workCounts(await loadWorkQueueData(force))}catch{}
+    const set=(id,n)=>{const e=$m(id);if(e)e.textContent=String(n||0)};
+    set('#vnxCountPending',(counts.review||0)+(counts.decision||0)+(counts.pending||0));
+    set('#vnxCountReview',counts.review||0);
+    set('#vnxCountApproval',counts.decision||0);
+    set('#vnxCountSolved',counts.resolved||0);
   }
   function looksLikeWriteAction(text=''){return /\b(envia|manda|archiva|borra|elimina|publica|crea|modifica|actualiza|responde|contesta|entrega|registra)\b/i.test(String(text))}
   async function sendSeparatedBySources(text,scope,payload){
@@ -1060,12 +1136,13 @@
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
     $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
-    $$m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')$m('#vnxApprovalsList')?.scrollIntoView({behavior:'smooth',block:'center'});else if(k==='solved')runExecutiveSecretary('close');else runExecutiveSecretary('pending')});
+    $m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')openWorkQueue('decision');else if(k==='solved')openWorkQueue('resolved');else openWorkQueue('review')});
     if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
     if(toggle){toggle.checked=localStorage.getItem('vnx_translation_enabled')==='on';toggle.onchange=()=>localStorage.setItem('vnx_translation_enabled',toggle.checked?'on':'off')}
     $m('#vnxTranslateNowBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
     $m('#vnxTranslateEmailsBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
     $m('#vnxEmailSummaryBtn')?.addEventListener('click',()=>runEmailWorkbench('summary'));
+    $m('#vnxMyWorkBtn')?.addEventListener('click',()=>openWorkQueue('review'));
     $m('#vnxAgendaTodayBtn')?.addEventListener('click',async()=>{await refreshWorkbenchAgenda();runExecutiveSecretary('pending')});
     $m('#vnxAgendaRefreshBtn')?.addEventListener('click',refreshWorkbenchAgenda);
     $m('#vnxOpenConnectionsBtn')?.addEventListener('click',()=>openConnectionsTab());
@@ -1458,9 +1535,10 @@
       if(m.handoffInternal)return '';
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
+      const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${handoff}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${secretaryActions}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -1485,7 +1563,8 @@
         renderMasterMessages();
       }
     });
-    $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
+    $m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
+    $m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
     $$m('.handoff-accept-btn').forEach(btn=>btn.onclick=async()=>{
@@ -1566,7 +1645,7 @@
     }
     try{
       const r=await window.vnx.sendChat([{role:'user',content:secretaryPrompt(kind)}],scope);
-      masterMessages.push({role:'assistant',content:r.reply||'No he podido preparar el resumen.',images:r.images||[],handoff:r.handoff||null});
+      masterMessages.push({role:'assistant',content:r.reply||'No he podido preparar el resumen.',images:r.images||[],handoff:r.handoff||null,secretaryActions:true});
       if(kind==='alerts')secretaryNewMails=[];
     }catch(e){
       masterMessages.push({role:'assistant',content:'No he podido completar la revisión: '+(e.message||e)});
