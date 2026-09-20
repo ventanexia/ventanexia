@@ -38,12 +38,14 @@
       subtitle:'Lee, organiza y prepara respuestas de tu correo conectado.',
       primary:'✉️ Revisar correo',
       fields:[
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver los últimos correos','Ver los correos de hoy','Ver cuáles necesitan respuesta','Preparar una respuesta','Pedir datos que faltan','Crear borrador en Gmail','Archivar o marcar un correo','Otra gestión']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Ver los últimos correos','Ver los correos de hoy','Ver cuáles necesitan respuesta','Traducir correos recibidos','Preparar una respuesta','Pedir datos que faltan','Crear borrador en Gmail','Archivar o marcar un correo','Otra gestión']},
+        {key:'translation',label:'SI EL CORREO ESTÁ EN OTRO IDIOMA',type:'select',options:['Traducirlo automáticamente al idioma elegido','Mostrar original y traducción','No traducir']},
+        {key:'language',label:'IDIOMA EN EL QUE QUIERO LEERLO',type:'select',options:['Español','Català','English','Français','Deutsch','Italiano','Português']},
         {key:'target',label:'¿DE QUÉ CORREO?',type:'text',wide:true,placeholder:'Opcional. Ej. correo de Marta, asunto pedido 301, primer correo'},
         {key:'instruction',label:'¿QUÉ QUIERES QUE RESPONDA O PIDA?',type:'textarea',wide:true,placeholder:'Ej. agradecer el mensaje y pedir dirección de entrega y CIF'},
         {key:'result',label:'CÓMO QUIERES DEJARLO',type:'select',options:['Preparado para revisar','Crear borrador en Gmail','Mostrarme primero la respuesta']}
       ],
-      capabilities:['Leer los correos de Gmail conectado','Mostrar los correos de hoy y los más recientes','Detectar cuáles necesitan respuesta','Preparar respuestas y solicitudes de datos','Crear borradores directamente en Gmail','Enviar solo cuando confirmes la acción','Archivar, marcar leído o destacar correos'],
+      capabilities:['Leer los correos de Gmail conectado','Mostrar los correos de hoy y los más recientes','Detectar cuáles necesitan respuesta','Traducir los correos recibidos al idioma que el cliente elija','Preparar respuestas y solicitudes de datos','Crear borradores directamente en Gmail','Enviar solo cuando confirmes la acción','Archivar, marcar leído o destacar correos'],
       steps:['Revisar','Preparar','Autorizar']
     },
     whatsapp:{
@@ -881,6 +883,120 @@
     localStorage.setItem('vnx_workspace_mode',isGuided?'guided':'free');
     if(!isGuided)setTimeout(()=>ensureChatInputEditable()?.focus(),30);
   }
+  function workbenchLanguage(){return localStorage.getItem('vnx_translation_language')||'Español'}
+  function likelyForeignMail(m={}){
+    const s=(' '+String(m.subject||'')+' '+String(m.snippet||'')+' ').toLowerCase();
+    const spanish=/\b(hola|gracias|pedido|factura|cliente|buenos|buenas|por favor|adjunto|saludos)\b/.test(s);
+    const foreign=/\b(hello|hi|thanks|thank you|order|invoice|please|regards|bonjour|merci|commande|facture|bitte|danke|bestellung|rechnung|ciao|grazie|ordine|fattura|obrigado|pedido|fatura)\b/.test(s);
+    return foreign&&!spanish;
+  }
+  function openConnectionsTab(module){
+    document.querySelector('[data-tab="agents"]')?.click();
+    if(!module)return;
+    setTimeout(()=>{
+      if(module==='orders'){document.querySelector('[data-tab="chat"]')?.click();selectAgentKey('orders');return}
+      if(module==='shopify'){document.querySelector('[data-real-module="shopify"]')?.click();return}
+      if(typeof window.vnxOpenServiceWizard==='function'&&['email','whatsapp','crm','agenda','social'].includes(module)){window.vnxOpenServiceWizard(module,null);return}
+      document.querySelector('[data-real-module="'+module+'"]')?.click();
+    },120);
+  }
+  function updateWorkbenchAgent(chosen){
+    const name=$m('#vnxRailAgentName');
+    if(name)name.textContent=chosen?.name||'Secretaria Ejecutiva';
+  }
+  async function refreshWorkbenchAgenda(){
+    const root=$m('#vnxAgendaList');if(!root||!window.vnx?.agendaToday)return;
+    root.innerHTML='<div class="vnx-empty-mini">Comprobando agenda…</div>';
+    try{
+      const r=await window.vnx.agendaToday();
+      const events=Array.isArray(r?.events)?r.events:[];
+      if(!r?.connected){root.innerHTML='<div class="vnx-empty-mini">Agenda no conectada. Pulsa Gestionar para conectar Google o Microsoft Calendar.</div>';return}
+      if(!events.length){root.innerHTML='<div class="vnx-empty-mini">No tienes reuniones en la agenda de hoy.</div>';return}
+      root.innerHTML=events.slice(0,8).map(e=>{
+        const d=e.allDay?null:new Date(e.start);
+        const time=e.allDay?'Todo el día':(Number.isNaN(d?.getTime?.())?'':d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
+        return '<div class="vnx-agenda-item"><span class="vnx-agenda-time">'+escM(time)+'</span><div><b>'+escM(e.title||'(sin título)')+'</b><small>'+escM(e.location||e.organizer||'Agenda')+'</small></div></div>';
+      }).join('');
+    }catch(e){root.innerHTML='<div class="vnx-empty-mini">No he podido leer la agenda: '+escM(String(e?.message||e).slice(0,90))+'</div>'}
+  }
+  function refreshWorkbenchApprovals(){
+    const root=$m('#vnxApprovalsList'),count=$m('#vnxApprovalsCount'),badge=$m('#vnxPendingBadge');if(!root)return;
+    const pending=[];
+    masterMessages.forEach((m,i)=>{
+      if(m?.emailActions)pending.push({title:'Correo preparado para revisar',detail:m.emailActions.subject||m.emailActions.from||'Email',index:i});
+      if(m?.handoff)pending.push({title:'Tarea preparada para '+(m.handoff.agentName||'otro empleado'),detail:m.handoff.task||'',index:i});
+    });
+    for(const m of secretaryNewMails.filter(x=>Number(x.replyScore||0)>0))pending.push({title:'Correo que parece necesitar respuesta',detail:(m.subject||'(sin asunto)')+' · '+(m.from||''),emailId:m.id});
+    const unique=pending.filter((x,i,a)=>a.findIndex(y=>y.title===x.title&&y.detail===x.detail)===i).slice(0,6);
+    if(count)count.textContent=String(unique.length);
+    if(badge){badge.textContent=String(unique.length);badge.style.display=unique.length?'inline-grid':'none'}
+    root.innerHTML=unique.length?unique.map(x=>'<button type="button" class="vnx-approval-item" data-vnx-approval><span>●</span><div><b>'+escM(x.title)+'</b><small>'+escM(String(x.detail||'').slice(0,100))+'</small></div></button>').join(''):'<div class="vnx-empty-mini">No hay aprobaciones pendientes conocidas.</div>';
+    root.querySelectorAll('[data-vnx-approval]').forEach(b=>b.onclick=()=>{setWorkspaceMode('free');$m('#messages')?.scrollIntoView({block:'nearest'})});
+  }
+  async function refreshWorkbenchConnections(){
+    const buttons=$m('[data-vnx-connect]');if(!buttons.length)return;
+    let conns=[];try{conns=await window.vnx.listConnections()||[]}catch{}
+    let shop=null;try{shop=await window.vnx.shopifyStatus()}catch{}
+    const readyAgent=k=>(runtimeAgents||[]).find(a=>a.key===k);
+    for(const b of buttons){
+      const key=b.dataset.vnxConnect,small=b.querySelector('small');let ok=false;
+      if(key==='shopify')ok=shop?.status==='connected';
+      else if(key==='email')ok=conns.some(x=>x.module==='email');
+      else if(key==='whatsapp')ok=conns.some(x=>x.module==='whatsapp')||Boolean(getRealSourcesForChat()?.whatsapp);
+      else if(key==='agenda')ok=conns.some(x=>x.module==='agenda');
+      else if(key==='crm')ok=conns.some(x=>x.module==='crm');
+      else if(key==='orders')ok=Boolean(readyAgent('orders')?.included);
+      b.classList.toggle('is-connected',ok);b.classList.toggle('needs-connection',!ok);
+      if(small)small.textContent=ok?'Conectado':'Falta conectar';
+    }
+  }
+  async function runEmailWorkbench(kind='summary'){
+    const agent=(runtimeAgents||[]).find(x=>x.key==='email');
+    if(!agent?.included){masterMessages.push({role:'assistant',content:'Email no está incluido en tu plan actual.'});setWorkspaceMode('free');renderMasterMessages();return}
+    if(!agent?.connected&&!agent?.ready){openConnectionsTab('email');return}
+    selectAgentKey('email',{preserve:true});setWorkspaceMode('free');
+    const lang=workbenchLanguage();
+    const prompt=kind==='translate'
+      ?'Revisa los correos recientes. Detecta cuáles están en un idioma distinto y tradúcelos al '+lang+'. Muestra primero remitente y asunto, después la traducción completa o suficiente para entender y responder. No envíes nada ni modifiques correos.'
+      :'Revisa mis correos recientes y dame un resumen breve: cuáles requieren respuesta, cuáles son informativos y qué debería atender primero. No envíes nada.';
+    masterMessages.push({role:'user',content:kind==='translate'?'🌐 Traducir correos recientes a '+lang:'✉️ Resumen de emails'});renderMasterMessages();
+    try{
+      const r=await window.vnx.sendChat([{role:'user',content:prompt}],selectedChatScope());
+      masterMessages.push({role:'assistant',content:r.reply||'No he podido revisar los correos.',emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
+    }catch(e){masterMessages.push({role:'assistant',content:'No he podido revisar el correo: '+(e.message||e)});renderMasterMessages()}
+  }
+  async function autoTranslateFreshEmails(fresh=[]){
+    if(localStorage.getItem('vnx_translation_enabled')!=='on')return;
+    const foreign=fresh.filter(likelyForeignMail).slice(0,5);if(!foreign.length)return;
+    const agent=(runtimeAgents||[]).find(x=>x.key==='email');if(!agent?.ready)return;
+    const lang=workbenchLanguage();
+    const rows=foreign.map((m,i)=>(i+1)+'. De: '+(m.from||'')+' | Asunto: '+(m.subject||'')+' | Texto: '+(m.snippet||'')).join('\n');
+    try{
+      const scope={type:'agent',key:'email',name:agentDisplayName(agent),included:agent.included,connected:agent.connected,ready:agent.ready,source:agent.source||null};
+      const r=await window.vnx.sendChat([{role:'user',content:'Traduce estos correos recibidos al '+lang+'. No envíes nada. Conserva nombres, importes, referencias y fechas.\n\n'+rows}],scope);
+      masterMessages.push({role:'assistant',content:'## 🌐 Traducción automática de correo\n\n'+(r.reply||'')});
+      renderMasterMessages();
+      try{await window.vnx.secretaryNotify({title:'VentaNexIA · Emails traducidos',body:'He preparado la traducción de '+foreign.length+' correo'+(foreign.length===1?'':'s')+' al '+lang+'.'})}catch{}
+    }catch{}
+  }
+  function setupWorkbench(){
+    const lang=$m('#vnxTranslationLanguage'),toggle=$m('#vnxTranslationEnabled');
+    if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
+    if(toggle){toggle.checked=localStorage.getItem('vnx_translation_enabled')==='on';toggle.onchange=()=>localStorage.setItem('vnx_translation_enabled',toggle.checked?'on':'off')}
+    $m('#vnxTranslateNowBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
+    $m('#vnxTranslateEmailsBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
+    $m('#vnxEmailSummaryBtn')?.addEventListener('click',()=>runEmailWorkbench('summary'));
+    $m('#vnxAgendaTodayBtn')?.addEventListener('click',async()=>{await refreshWorkbenchAgenda();runExecutiveSecretary('pending')});
+    $m('#vnxAgendaRefreshBtn')?.addEventListener('click',refreshWorkbenchAgenda);
+    $m('#vnxOpenConnectionsBtn')?.addEventListener('click',()=>openConnectionsTab());
+    $m('#vnxManageConnectionsBtn')?.addEventListener('click',()=>openConnectionsTab());
+    $m('#vnxReviewApprovalsBtn')?.addEventListener('click',()=>{setWorkspaceMode('free');runExecutiveSecretary('pending')});
+    $m('[data-vnx-connect]').forEach(b=>b.onclick=()=>openConnectionsTab(b.dataset.vnxConnect));
+    const h=new Date().getHours(),g=$m('#vnxDailyGreeting');
+    if(g)g.textContent=(h<13?'Buenos días':h<20?'Buenas tardes':'Buenas noches');
+    refreshWorkbenchAgenda();refreshWorkbenchApprovals();refreshWorkbenchConnections();
+  }
+
   function setupGuidedUi(){
     const g=$m('#guidedModeBtn'),f=$m('#freeModeBtn'),primary=$m('#guidedPrimaryAction');
     if(g)g.onclick=()=>setWorkspaceMode('guided');
@@ -1095,6 +1211,8 @@
       updateAgentInputExample(chosen);
       renderGuidedAgentTabs(items,chosen);
       renderGuidedWorkspace(chosen);
+      updateWorkbenchAgent(chosen);
+      refreshWorkbenchConnections();
       if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>input.focus(),30);
     };
     const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
@@ -1103,6 +1221,8 @@
     updateAgentInputExample(selectedAgent);
     renderGuidedAgentTabs(items,selectedAgent);
     renderGuidedWorkspace(selectedAgent);
+    updateWorkbenchAgent(selectedAgent);
+    refreshWorkbenchConnections();
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -1263,6 +1383,7 @@
       renderMasterMessages();
     });
     root.scrollTop=root.scrollHeight;
+    refreshWorkbenchApprovals();
   }
   function redactSensitiveChatText(text,scope){
     if(scope?.key!=='orders')return text;
@@ -1367,6 +1488,8 @@
       secretaryNewMails.push(...relevant.filter(x=>!secretaryNewMails.some(y=>y.id===x.id)));
       secretaryNewMails=secretaryNewMails.slice(-12);
       updateSecretaryBar();
+      refreshWorkbenchApprovals();
+      autoTranslateFreshEmails(fresh);
       const first=relevant[0],kind=Number(first.replyScore||0)>0?'parece necesitar respuesta':'conviene revisarlo';
       const body=relevant.length===1?'Ha llegado «'+(first.subject||'(sin asunto)')+'». '+kind+'.':'Han llegado '+relevant.length+' correos que conviene revisar. Puedo resumirlos y prepararte las respuestas.';
       try{await window.vnx.secretaryNotify({title:'VentaNexIA · Secretaria Ejecutiva',body})}catch{}
@@ -1485,6 +1608,7 @@
     setupMasterPortalUi();
     setupMasterChat();
     setupGuidedUi();
+    setupWorkbench();
     setupMasterCenter();
     await renderMasterPortals();
     await refreshChatConnections();
