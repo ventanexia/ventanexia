@@ -21,12 +21,13 @@ ipcMain.handle=function(channel,listener){
 
 let agentChat=null;
 let portalChat=null;
+let portalAdaptive=null;
 
 try{
   require('./master.cjs');
   agentChat=registered.get('chat:send')||null;
 
-  require('./portal-adaptive.cjs');
+  portalAdaptive=require('./portal-adaptive.cjs');
   portalChat=registered.get('chat:send')||null;
 
   require('./portal-pagination-fix.cjs');
@@ -51,6 +52,72 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
   originalHandle('chat:send',async(event,payload)=>{
     const scope=scopeOf(payload);
     const type=scopeTypeOf(payload);
+
+    // El Asistente IA es el centro de mando: consulta en SOLO LECTURA las fuentes
+    // de los agentes incluidos y entrega todo el contexto al asistente general.
+    if(type==='agent'&&String(scope?.key||'')==='core_ai'){
+      const s=await readState();
+      const messages=Array.isArray(payload?.messages)?payload.messages:[];
+      const last=[...messages].reverse().find(m=>m?.role==='user');
+      const question=String(last?.content||'').trim();
+      const q=question.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      const broad=/resumen|general|todo|todos|pendiente|hoy|empresa|situacion|estado|prioridad|que tengo|como va/.test(q);
+      const hubContext=[];
+      const add=(path,data)=>hubContext.push({path,content:typeof data==='string'?data:JSON.stringify(data,null,2)});
+      const safeResult=r=>r&&typeof r==='object'?{
+        status:r.status,name:r.name,category:r.category,total:r.total,headers:r.headers,
+        rows:Array.isArray(r.rows)?r.rows.slice(0,50):[],text:String(r.text||'').slice(0,12000),
+        source:r.source,mode:r.mode||'read'
+      }:r;
+
+      // Pedidos: solo fotografía del estado local. No escanea, no envía y no entrega.
+      if(orders&&isAgentIncluded(s.license,'orders')&&(broad||/pedido|orden|stock|compra|entrega/.test(q))){
+        try{
+          const st=await orders._get().store.load();
+          const all=Object.values(st.orders||{}).sort((a,b)=>(b.seq||0)-(a.seq||0));
+          const counts={};
+          for(const o of all)counts[o.status]=(counts[o.status]||0)+1;
+          add('AGENTE Pedidos · estado de solo lectura',{
+            total:all.length,counts,destination:st.settings?.destination?.type||null,mode:st.settings?.mode||null,
+            recent:all.slice(0,30).map(o=>({
+              internalNumber:o.internalNumber||o.vnxNumber||('VNX-PED-'+String(o.seq||0).padStart(5,'0')),
+              seq:o.seq,status:o.status,customer:o.extracted?.customer?.name||o.source?.fromEmail||'',
+              customerOrder:o.extracted?.orderRef||'',source:o.source?.kind||'',
+              lines:(o.extracted?.lines||[]).slice(0,20).map(l=>({ref:l.ref||'',description:l.description||'',qty:l.qty??null}))
+            }))
+          });
+        }catch(e){add('ESTADO Pedidos no disponible',String(e?.message||e).slice(0,180))}
+      }
+
+      const query=portalAdaptive?.queryReadOnlyScope;
+      if(typeof query==='function'){
+        // Shopify / Web & Ecommerce.
+        if(isAgentIncluded(s.license,'web_ecommerce')&&s.secret?.integrations?.shopify&&(broad||/shopify|tienda|web|producto|stock|precio|cliente|venta|factur|pedido/.test(q))){
+          try{add('CONEXION Shopify · solo lectura',safeResult(await query({type:'shopify',name:'Shopify'},question,s)))}
+          catch(e){add('ESTADO Shopify no disponible',String(e?.message||e).slice(0,180))}
+        }
+
+        // Ventas y clientes (CRM real conectado).
+        if(isAgentIncluded(s.license,'crm')&&s.secret?.integrations?.crm&&(broad||/cliente|venta|oportunidad|crm|seguimiento|pipeline|contacto/.test(q))){
+          try{add('CONEXION Ventas y clientes · solo lectura',safeResult(await query({type:'integration',key:'crm',name:'Ventas y clientes'},question,s)))}
+          catch(e){add('ESTADO Ventas y clientes no disponible',String(e?.message||e).slice(0,180))}
+        }
+
+        // Redes conectadas.
+        if(isAgentIncluded(s.license,'social')&&s.secret?.integrations?.social&&(broad||/red|instagram|facebook|linkedin|publicacion|marketing|campana/.test(q))){
+          try{add('CONEXION Redes y publicidad · solo lectura',safeResult(await query({type:'integration',key:'social',name:'Redes y publicidad'},question,s)))}
+          catch(e){add('ESTADO Redes no disponible',String(e?.message||e).slice(0,180))}
+        }
+
+        // WhatsApp: solo estado/datos que la API conectada permita leer.
+        if(isAgentIncluded(s.license,'whatsapp')&&s.secret?.integrations?.whatsapp&&(broad||/whatsapp|mensaje|conversacion|cliente/.test(q))){
+          try{add('CONEXION WhatsApp · solo lectura',safeResult(await query({type:'integration',key:'whatsapp',name:'WhatsApp'},question,s)))}
+          catch(e){add('ESTADO WhatsApp no disponible',String(e?.message||e).slice(0,180))}
+        }
+      }
+
+      return agentChat(event,{...(payload||{}),hubContext});
+    }
 
     // Pedidos usa su motor local especializado: correo completo, adjuntos, validación y entrega real.
     if(type==='agent'&&String(scope?.key||'')==='orders'&&orders){
