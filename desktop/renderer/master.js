@@ -1807,7 +1807,7 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai'});renderMasterMessages();
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
