@@ -1,23 +1,35 @@
 # VentaNexIA pricing model
 
 ## Public tiers
-| Plan | Monthly | Setup | Standard agents | Integrations |
-|---|---:|---:|---:|---:|
-| Start | €490 | €790 | 3 | 2 |
-| Core | €990 | €1,490 | 6 | 5 |
-| Scale | €1,990 | €2,990 | 12 | 10 |
-| Enterprise | from €3,990 | custom | custom | custom |
 
-All prices are before VAT.
+| Plan | Launch price | Normal price | Standard assistants | Monthly work capacity |
+|---|---:|---:|---|---:|
+| VNX Inicio | €99/month | €129/month | All included | 1,500 works |
+| VNX Negocio | €249/month | €299/month | All included | 5,000 works |
+| VNX Empresa | €499/month | €599/month | All included | 12,000 works |
+| VNX A medida | Quote | Quote | All / custom | Custom |
 
-## Add-on
-Standard extra agent: €150/month.
+Prices exclude VAT.
 
-## Recommendation logic
-VNX Architect recommends the tier based on detected active agents, integrations and complexity. It can move a prospect to a higher tier if the blueprint requires more orchestration even when agent count is low.
+The launch price is intended for the initial customer cohort while the subscription remains active and current, subject to the accepted contract.
+
+## Commercial rule
+
+VentaNexIA does not charge by number of standard AI assistants. Carla coordinates the standard team and the plan is determined by work capacity, users, connections, devices and variable-cost usage.
+
+## Add-ons
+
+- 2,000 additional works: €49/month.
+- Additional compatible connection/account: €49/month.
+- 10 GB additional storage: €39/month.
+- 10 video credits: €99 one-time.
+- 250 additional voice minutes: €49 one-time.
+- 1,000 additional WhatsApp messages: €59 one-time, plus third-party provider charges where applicable.
 
 ## Economics
-Agent count is a customer-facing proxy for scope, not the only cost driver. External APIs, enrichment, messaging, ad spend, storage, AI inference and other variable third-party costs must remain subject to fair use or pass-through/overage terms.
+
+AI text is routed to the lowest-cost model appropriate to the task. High-variable-cost services such as WhatsApp, voice, video and third-party APIs remain subject to included allowances, prepaid packs, fair use and/or pass-through costs.
 
 ## Trial
-3-day personalized trial. Trial is server-side entitlement controlled and deliberately restricted. No payment -> automatic suspension. Payment -> activation/reactivation.
+
+3-day personalized trial. Trial entitlement remains server-controlled. Payment activates the paid entitlement; failed or canceled subscriptions can suspend it.
