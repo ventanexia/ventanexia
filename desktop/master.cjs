@@ -2,7 +2,7 @@ const {app,BrowserWindow,ipcMain,shell,Menu,session}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
-const {normalizeChatScope,parseGmailContext,emailAgentDirectReply}=require('./agent-email.cjs');
+const {normalizeChatScope,parseGmailContext,emailAgentDirectReply,scoreMailAttention,needsReplyScore}=require('./agent-email.cjs');
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster}=require('./agent-policy.cjs');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
@@ -404,7 +404,9 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLab
       snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
       unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,
       status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
-      defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')})
+      defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')}),
+      attentionScore:scoreMailAttention({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''}),
+      replyScore:needsReplyScore({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''})
     };
   }));
 }
