@@ -55,7 +55,7 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
       const messages=Array.isArray(payload?.messages)?payload.messages:[];
       const last=[...messages].reverse().find(m=>m?.role==='user');
       const text=String(last?.content||'').trim();
-      return {reply:await orders.handleChat(text),source:'desktop-orders',route:'agent:orders'};
+      return orders.handleChat(text);
     }
 
     // El agente Web & Ecommerce debe usar la fuente Shopify real cuando está conectada.
