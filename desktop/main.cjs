@@ -5,7 +5,7 @@ const os=require('node:os');
 const crypto=require('node:crypto');
 const {ImapFlow}=require('imapflow');
 const nodemailer=require('nodemailer');
-const {EDITION,assertModuleIncluded,isMaster,connectionLimit,ownAgentLimit,employeeSlotLimit}=require('./agent-policy.cjs');
+const {EDITION,assertModuleIncluded,isMaster,connectionLimit,ownAgentLimit,employeeSlotLimit,orderChannelLimit,orderWebLevel}=require('./agent-policy.cjs');
 const {storeFile,readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
 const {shopifyCall,requestOwnedToken}=require('./shopify-auth.cjs');
@@ -60,7 +60,7 @@ function fingerprintHash(){
 }
 function externalConnectionCount(s){
   const emails=emailAccountsFromState(s).length;
-  const ints=Object.entries(s.secret?.integrations||{}).filter(([k,v])=>k!=='email'&&v).length;
+  const ints=Object.entries(s.secret?.integrations||{}).filter(([k,v])=>!['email','shopify'].includes(k)&&v).length;
   const portals=(Array.isArray(s.portals)?s.portals:[]).filter(p=>p&&p.url).length;
   return emails+ints+portals;
 }
@@ -70,6 +70,23 @@ function assertConnectionCapacity(s,{adding=1}={}){
   if(used+adding<=limit)return true;
   const err=new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 42 €/mes o cambia de plan.');
   err.code='CONNECTION_LIMIT';err.used=used;err.limit=limit;throw err;
+}
+function orderChannelUsageFromState(s){
+  const items=[];
+  if(s.secret?.integrations?.shopify?.shop)items.push({type:'shopify',label:'Shopify · '+s.secret.integrations.shopify.shop});
+  for(const [key,x] of Object.entries(s.secret?.ordersErp?.stores||{})){
+    const type=String(x?.id||String(key).split(':')[0]||'tienda');
+    let host='';try{host=new URL(String(x?.url||'')).host}catch{}
+    items.push({type,label:(type==='woocommerce'?'WooCommerce':type)+(host?' · '+host:'')});
+  }
+  return {used:items.length,items};
+}
+function assertOrderChannelCapacity(s,{adding=1}={}){
+  if(isMaster(s.license))return true;
+  const limit=orderChannelLimit(s.license),used=orderChannelUsageFromState(s).used;
+  if(used+adding<=limit)return true;
+  const err=new Error('Has usado '+used+' de '+limit+' canales de pedidos incluidos. Añade otro canal por 29 €/mes o cambia de plan.');
+  err.code='ORDER_CHANNEL_LIMIT';err.used=used;err.limit=limit;throw err;
 }
 function publicLicenseState(s){
   const l=s.license||{},master=isMaster(l);
@@ -89,6 +106,8 @@ function publicLicenseState(s){
     connectionLimit:master?null:connectionLimit(l),
     employeeSlotLimit:master?null:employeeSlotLimit(l),
     ownAgentLimit:master?null:ownAgentLimit(l),
+    orderChannelLimit:master?null:orderChannelLimit(l),
+    orderWebLevel:orderWebLevel(l),
     lastCheckedAt:l.lastCheckedAt||null
   };
 }
@@ -540,6 +559,8 @@ ipcMain.handle('integration:connect',async(_e,payload={})=>{
     const requested=String(payload.account||payload.username||'').trim().toLowerCase();
     const exists=emailAccountsFromState(preState).some(x=>String(x.meta?.email||x.label||x.account||x.username||'').trim().toLowerCase()===requested&&requested);
     if(!exists)assertConnectionCapacity(preState);
+  }else if(preKey==='shopify'){
+    if(!preState.secret?.integrations?.shopify)assertOrderChannelCapacity(preState);
   }else if(preKey&&!preState.secret?.integrations?.[preKey])assertConnectionCapacity(preState);
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   const s=await readState();assertModuleIncluded(s.license,module);
@@ -587,7 +608,7 @@ ipcMain.handle('whatsapp:runtime',async(_e,payload={})=>{
 });
 
 ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
-  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertConnectionCapacity(preState);
+  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertOrderChannelCapacity(preState);
   const s=await readState();
   if(!isMaster(s.license))throw new Error('La conexión directa de tienda propia requiere la edición Maestro');
   assertModuleIncluded(s.license,'shopify');
@@ -603,7 +624,7 @@ ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
 });
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
-  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertConnectionCapacity(preState);
+  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertOrderChannelCapacity(preState);
   const policyState=await readState();assertModuleIncluded(policyState.license,'shopify');
   const shop=await resolveShopifyShop(payload.shop);
   const token=String(payload.token||'').trim();
@@ -838,6 +859,10 @@ ipcMain.handle('external-agent:remove',async(_e,id)=>externalAgents.remove(Strin
 ipcMain.handle('connection:capacity',async()=>{
   const s=await readState(),used=externalConnectionCount(s),limit=connectionLimit(s.license);
   return {used,limit:isMaster(s.license)?null:limit,available:isMaster(s.license)?null:Math.max(0,limit-used),extraMonthlyEur:42};
+});
+ipcMain.handle('orders:channel-capacity',async()=>{
+  const s=await readState(),u=orderChannelUsageFromState(s),limit=orderChannelLimit(s.license);
+  return {used:u.used,items:u.items,limit:isMaster(s.license)?null:limit,available:isMaster(s.license)?null:Math.max(0,limit-u.used),level:orderWebLevel(s.license),extraMonthlyEur:29};
 });
 
 ipcMain.handle('connection:list',async()=>{
