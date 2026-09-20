@@ -659,6 +659,12 @@ ipcMain.handle('provisioning:complete',async(_e,taskId)=>{
   const s=await readState();
   return postJson(CLOUD+'/api/provisioning-admin',{action:'complete',taskId,customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()});
 });
+ipcMain.handle('master:dashboard',async()=>{
+  const s=await readState();
+  if(!isMaster(s.license))throw new Error('Solo disponible en la edición maestra');
+  if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia maestra');
+  return postJson(CLOUD+'/api/master-dashboard',{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey:await ensureDeviceKey()},30000);
+});
 ipcMain.handle('usage:buy-pack',async(_e,packKey)=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero tu licencia');
