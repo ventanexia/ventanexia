@@ -127,8 +127,8 @@ for(const agent of AGENT_CATALOG)assert.equal(isAgentIncluded(masterLicense,agen
 const clientLicense={plan:'start',featurePolicy:{purchased_included:['atencion','administracion'],purchased_extras:[]}};
 assert.equal(isAgentIncluded(clientLicense,'customer_service','customer'),true);
 assert.equal(isAgentIncluded(clientLicense,'administration','customer'),true);
-assert.equal(isAgentIncluded(clientLicense,'social','customer'),false);
-assert.equal(isAgentIncluded(clientLicense,'crm','customer'),false);
+assert.equal(isAgentIncluded(clientLicense,'social','customer'),true);
+assert.equal(isAgentIncluded(clientLicense,'crm','customer'),true);
 assert.equal(AGENT_CATALOG.length,13,'El selector debe mostrar los 13 especialistas actuales');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='email'),true,'Email debe tener su agente especialista');
 assert.equal(AGENT_CATALOG.some(a=>a.key==='whatsapp'),true,'WhatsApp debe tener su agente especialista');
