@@ -1,3 +1,4 @@
+process.env.CHAT_AUTH_MODE='log';
 const assert=require('node:assert/strict');
 const path=require('node:path');
 const {pathToFileURL}=require('node:url');
