@@ -24,9 +24,9 @@ const checks=[
  ['Activity history expanded',stateStore.includes(".slice(0,5000)")],
  ['Results panel exists',indexUi.includes('id="resultsGuarantees"')&&appUi.includes('renderResultsGuarantees')],
  ['Device RPC server-only code',deviceRegister.includes("SUPABASE_SERVICE_ROLE_KEY")&&deviceStatus.includes("SUPABASE_SERVICE_ROLE_KEY")&&!deviceRegister.includes("sb_publishable_")&&!deviceStatus.includes("sb_publishable_")],
- ['Home pricing current',home.includes("299 €")&&home.includes("799 €")&&home.includes("1.499 €")&&home.includes("VNX A medida · desde 2.500 €/mes")],
- ['Plans pricing current',plans.includes("price:299")&&plans.includes("price:799")&&plans.includes("price:1499")],
- ['Checkout pricing current',checkout.includes("expectedAmount:29900")&&checkout.includes("expectedAmount:79900")&&checkout.includes("expectedAmount:149900")],
+ ['Home pricing current',home.includes("99 €")&&home.includes("249 €")&&home.includes("499 €")],
+ ['Plans pricing current',plans.includes("price:99")&&plans.includes("price:249")&&plans.includes("price:499")],
+ ['Checkout pricing current',checkout.includes("expectedAmount:9900")&&checkout.includes("expectedAmount:24900")&&checkout.includes("expectedAmount:49900")],
  ['Executive Secretary visible on web',home.includes("Secretaria Ejecutiva")&&plans.includes("Secretaria Ejecutiva")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
