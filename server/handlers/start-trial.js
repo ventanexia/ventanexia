@@ -18,7 +18,7 @@ ID de cliente: ${customerId}
 Código de activación: ${activationCode}
 Plan de prueba: ${planName||"VentaNexIA"}
 Hasta: ${end}
-Condiciones de prueba aceptadas: ${termsVersion||"2026-09-20-v2"}
+Condiciones de prueba aceptadas: ${termsVersion||"2026-09-20-v3"}
 
 Durante estos 15 días:
 - Puedes probar la demo completa de VentaNexIA.
@@ -78,7 +78,7 @@ export default async function handler(req,res){
   const noChargeAccepted=req.body?.noChargeAccepted===true;
   const trialTermsVersion=clean(req.body?.trialTermsVersion,80);
   if(!solutionId||!trialToken) return res.status(400).json({error:"Solicitud de demo incompleta"});
-  if(!trialTermsAccepted||!noChargeAccepted||trialTermsVersion!=="2026-09-20-v2") return res.status(400).json({code:"TRIAL_TERMS_REQUIRED",error:"Debes aceptar las Condiciones de Prueba y confirmar que entiendes que no habrá cobro automático."});
+  if(!trialTermsAccepted||!noChargeAccepted||trialTermsVersion!=="2026-09-20-v3") return res.status(400).json({code:"TRIAL_TERMS_REQUIRED",error:"Debes aceptar las Condiciones de Prueba y confirmar que entiendes que no habrá cobro automático."});
   try{
     const sols=await db(`vnx_solution_requests?id=eq.${encodeURIComponent(solutionId)}&select=*`);
     const sol=sols?.[0]; if(!sol) return res.status(404).json({error:"Solicitud no encontrada"});
