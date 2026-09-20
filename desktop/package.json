@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.72",
+  "version": "0.6.73",
   "private": true,
-  "description": "VentaNexIA Desktop · vista previa PDF/Excel legible y exportación ordenada · 0.6.72",
+  "description": "VentaNexIA Desktop · ventana independiente solo para el diálogo de Carla · 0.6.73",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
