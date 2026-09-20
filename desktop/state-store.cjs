@@ -67,6 +67,6 @@ let chain=Promise.resolve();
 function enqueue(task){const run=chain.then(task,task);chain=run.catch(()=>{});return run}
 function writeState(state){return enqueue(()=>writeNow(state))}
 function updateState(fn){return enqueue(async()=>{const s=await readState();const r=await fn(s);const next=r&&typeof r==='object'?r:s;await writeNow(next);return next})}
-async function audit(type,detail){await updateState(s=>{s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,200);return s})}
+async function audit(type,detail){await updateState(s=>{s.activity=[{at:new Date().toISOString(),type,detail},...(s.activity||[])].slice(0,5000);return s})}
 
 module.exports={storeFile,readState,writeState,updateState,audit};
