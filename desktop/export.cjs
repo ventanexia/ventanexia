@@ -30,6 +30,7 @@ function htmlDocument(data){
   if(data.blocks?.length){
     body=data.blocks.map(b=>{
       if(b.type==='heading')return `<h2>${escHtml(b.text)}</h2>`;
+      if(b.type==='subheading')return `<h3>${escHtml(b.text)}</h3>`;
       if(b.type==='bullet')return `<div class="item"><span>•</span><p>${escHtml(b.text)}</p></div>`;
       if(b.type==='number')return `<div class="item"><span>${escHtml(b.marker)}</span><p>${escHtml(b.text)}</p></div>`;
       return `<p>${escHtml(b.text)}</p>`;
@@ -46,6 +47,7 @@ function htmlDocument(data){
     h1{font-size:20pt;line-height:1.15;margin:5px 0 9px;color:#102235}
     .rule{height:1.5px;background:#dce6ed;margin:0 0 18px}
     h2{font-size:13pt;color:#123b58;margin:18px 0 7px;page-break-after:avoid}
+    h3{font-size:11pt;color:#345b73;margin:13px 0 5px;page-break-after:avoid}
     p{margin:0 0 9px;white-space:pre-wrap}
     .item{display:grid;grid-template-columns:22px 1fr;gap:3px;margin:0 0 6px;page-break-inside:avoid}
     .item span{font-weight:700;color:#2274a0}.item p{margin:0}
