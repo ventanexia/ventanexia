@@ -2,9 +2,9 @@ import crypto from "node:crypto";
 import {signContract} from "../../lib/contract-token.js";
 
 const PLANS={
-  inicio:{name:"VNX Inicio",price:299,employeeSlots:1,extraSeat:310},
-  crecimiento:{name:"VNX Empresa",price:799,employeeSlots:3,extraSeat:185},
-  empresa:{name:"VNX Premium",price:1499,employeeSlots:8,extraSeat:276}
+  inicio:{name:"VNX Inicio",price:299,featureSlots:3,employeeSlots:1,extraSeat:310},
+  crecimiento:{name:"VNX Empresa",price:799,featureSlots:6,employeeSlots:3,extraSeat:185},
+  empresa:{name:"VNX Premium",price:1499,featureSlots:999,employeeSlots:8,extraSeat:276}
 };
 const EXTRA_PRICES={buscador:144,whatsapp:114,email:90,agenda:90,atencion:114,presupuestos:132,redes:108,informes:102,seo:114,administracion:132,automatizacion:144,voz:210,conexion:42,coordinacion:108};
 const EXTRA_NAMES={buscador:"Buscador de clientes",whatsapp:"WhatsApp",email:"Email / bandeja",agenda:"Agenda y seguimiento",atencion:"Atención al cliente",presupuestos:"Presupuestos",redes:"Redes sociales",informes:"Informes",seo:"SEO y visibilidad",administracion:"Administración",automatizacion:"Automatizaciones",voz:"Secretaria con voz",conexion:"Conexión externa adicional",coordinacion:"Coordinación entre ayudantes"};
@@ -31,15 +31,15 @@ export default async function handler(req,res){
   if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
   const b=req.body||{},plan=clean(b.plan,40),p=PLANS[plan];if(!p)return res.status(400).json({error:"Plan no válido"});
   const signer=clean(b.signer,200),company=clean(b.company,250),taxid=clean(b.taxid,80),email=clean(b.email,320).toLowerCase(),phone=clean(b.phone,40);
-  if(!signer||!company||!taxid||!email||!phone||b.accepted!==true||b.authority!==true||b.dataAnnexAccepted!==true||b.recurringChargeAccepted!==true)return res.status(400).json({error:"Faltan datos o aceptaciones contractuales"});
+  if(!signer||!company||!taxid||!email||!phone||b.accepted!==true||b.authority!==true||b.termAcknowledged!==true||b.dataAnnexAccepted!==true||b.recurringChargeAccepted!==true)return res.status(400).json({error:"Faltan datos o aceptaciones contractuales"});
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return res.status(400).json({error:"Email no válido"});
   if(!/^[+0-9 ()-]{7,25}$/.test(phone))return res.status(400).json({error:"Teléfono/WhatsApp no válido"});
-  let included=uniq(b.included).filter(x=>STANDARD.has(x));let extras=uniq(b.extras).filter(x=>Object.hasOwn(EXTRA_PRICES,x));if(plan==="empresa"){included=[...STANDARD];extras=extras.filter(x=>x==="conexion")}else included=included.slice(0,p.employeeSlots);if(plan==="crecimiento")extras=extras.filter(x=>x!=="coordinacion");extras=extras.filter(x=>!included.includes(x));
+  let included=uniq(b.included).filter(x=>STANDARD.has(x));let extras=uniq(b.extras).filter(x=>Object.hasOwn(EXTRA_PRICES,x));if(plan==="empresa"){included=[...STANDARD];extras=extras.filter(x=>x==="conexion")}else included=included.slice(0,p.featureSlots);if(plan==="crecimiento")extras=extras.filter(x=>x!=="coordinacion");extras=extras.filter(x=>!included.includes(x));
   const extraEmployees=Math.max(0,Math.min(20,Number(b.extraEmployees||0)||0));
   const ownAgents=Math.max(0,Math.min(p.employeeSlots+extraEmployees,Number(b.ownAgents||0)||0));
   const ownAgentFee=49;
   const total=p.price+extras.reduce((s,k)=>s+EXTRA_PRICES[k],0)+(extraEmployees*p.extraSeat)+(ownAgents*ownAgentFee),acceptedAt=new Date().toISOString();
-  const payload={contractId:`VNX-${acceptedAt.slice(0,10).replaceAll("-","")}-${crypto.randomUUID().slice(0,8).toUpperCase()}`,version:CONTRACT_VERSION,dpaVersion:DPA_VERSION,subprocessorVersion:SUBPROCESSOR_VERSION,acceptedAt,signer,company,taxid,email,phone,plan,planName:p.name,included,extras,total,employeeSlots:p.employeeSlots,extraEmployees,extraEmployeePrice:p.extraSeat,ownAgents,ownAgentFee,minMonths:12,noticeDays:30,authorityConfirmed:true,dataAnnexAccepted:true,recurringChargeAccepted:true,paymentSchedule:paymentSchedule(acceptedAt,total)};
+  const payload={contractId:`VNX-${acceptedAt.slice(0,10).replaceAll("-","")}-${crypto.randomUUID().slice(0,8).toUpperCase()}`,version:CONTRACT_VERSION,dpaVersion:DPA_VERSION,subprocessorVersion:SUBPROCESSOR_VERSION,acceptedAt,signer,company,taxid,email,phone,plan,planName:p.name,included,extras,total,employeeSlots:p.employeeSlots,extraEmployees,extraEmployeePrice:p.extraSeat,ownAgents,ownAgentFee,minMonths:12,noticeDays:30,authorityConfirmed:true,dataAnnexAccepted:true,termAcknowledged:true,recurringChargeAccepted:true,paymentSchedule:paymentSchedule(acceptedAt,total)};
   let token;try{token=signContract(payload)}catch{return res.status(503).json({error:"Firma contractual no configurada"})}
   let evidenceEmailSent=false,contractPersisted=false;try{evidenceEmailSent=await sendEvidenceEmail(payload)}catch{}try{contractPersisted=await persistContract(payload)}catch{}
   return res.status(200).json({ok:true,token,contract:payload,evidenceEmailSent,contractPersisted,contractDocument:contractHtml(payload)});
