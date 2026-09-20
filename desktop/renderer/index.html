@@ -262,6 +262,12 @@
       <div class="card connections-page"><div class="eyebrow">CONEXIONES</div><h2>Conecta las cuentas que usa tu empresa</h2><p>Aquí puedes ver y conectar el correo, WhatsApp, redes, tienda y otros datos que VentaNexIA necesita para ayudarte.</p>
         <div id="allAgentConnections" class="agent-overview-grid"><div class="empty">Comprobando agentes…</div></div>
         <div class="connection-section-head"><div><h3>Tus cuentas y datos</h3><small>Conecta solo lo que uses. Siempre podrás ver qué está conectado y quitarlo cuando quieras.</small></div></div>
+        <div class="card vnx-connection-capacity-card" style="margin-bottom:14px">
+          <div class="row" style="justify-content:space-between;align-items:center;gap:12px">
+            <div><div class="eyebrow">MIS CONEXIONES</div><h3 style="margin:4px 0">Conexiones incluidas en tu plan</h3><p id="connectionCapacityText" style="margin:0">Comprobando tu límite…</p></div>
+            <button class="btn outline" id="connectionCapacityPlansBtn" type="button">Ver conexiones extra · 42 €/mes</button>
+          </div>
+        </div>
         <div class="modulegrid">
           <article class="modulecard connection-live-card" data-connection-card="email"><b>📧 Email</b><span id="emailAccountPolicyText">Lee tus correos, los organiza y prepara respuestas.</span><div class="connection-live-summary" data-connection-summary="email"><span class="connection-summary-loading">Comprobando cuentas conectadas…</span></div><button class="btn outline" data-real-module="email">Gestionar correo</button><button class="btn outline" id="buyExtraEmail">+ Añadir otra cuenta · 39 €/mes</button></article>
           <article class="modulecard connection-live-card" data-connection-card="whatsapp"><b>💬 WhatsApp</b><span>Lee y responde conversaciones reales de WhatsApp.</span><div class="connection-live-summary" data-connection-summary="whatsapp"><span class="connection-summary-loading">Comprobando WhatsApp…</span></div><button class="btn outline" data-real-module="whatsapp">Gestionar WhatsApp</button></article>
