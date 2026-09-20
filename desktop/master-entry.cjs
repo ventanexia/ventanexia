@@ -246,6 +246,8 @@ app.on('browser-window-created',(_event,win)=>{
       await win.webContents.executeJavaScript(adaptive,true);
       const exportsUi=await fs.readFile(path.join(__dirname,'renderer','export.js'),'utf8');
       await win.webContents.executeJavaScript(exportsUi,true);
+      const masterControl=await fs.readFile(path.join(__dirname,'renderer','master-control.js'),'utf8');
+      await win.webContents.executeJavaScript(masterControl,true);
     }catch(e){
       console.error('master_renderer_inject_error',String(e?.message||e).slice(0,300));
     }
