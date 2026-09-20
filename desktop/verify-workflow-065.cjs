@@ -1,7 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
-const html=read('renderer/index.html'),js=read('renderer/master.js'),css=read('renderer/styles.css'),master=read('master.cjs');
+const html=read('renderer/index.html'),js=read('renderer/master.js'),css=read('renderer/styles.css'),master=read('master.cjs'),orders=read('orders.cjs'),ordersCore=read('orders-core.cjs'),policy=read('agent-policy.cjs'),main=read('main.cjs');
 const plans=fs.readFileSync(path.join(__dirname,'..','planes.html'),'utf8');
 const contract=fs.readFileSync(path.join(__dirname,'..','contrato-servicio.html'),'utf8');
 const contractApi=fs.readFileSync(path.join(__dirname,'..','server','handlers','contract-accept.js'),'utf8');
@@ -24,7 +24,12 @@ const checks=[
  ['Contract carries order channels',contract.includes('extraOrderChannels')&&contractApi.includes('extraOrderChannelPrice=29')],
  ['Checkout charges order channels',checkout.includes('Canal adicional de pedidos online')&&checkout.includes('extra_order_channels')],
  ['Webhook provisions order level',webhook.includes('order_channel_limit')&&webhook.includes('order_web_level')],
- ['Work queue responsive CSS',css.includes('0.6.65 — Mi trabajo')]
+ ['Work queue responsive CSS',css.includes('0.6.65 — Mi trabajo')],
+ ['Order channel plan limits',policy.includes('function orderChannelLimit')&&policy.includes("return 1")&&policy.includes("return 3")&&policy.includes("return 6")],
+ ['Multiple web stores supported',orders.includes("storeKey=S.id+':'+host")&&orders.includes('orderStoreId(key,x)')],
+ ['Order channel capacity enforced',orders.includes('assertOrderChannelCapacity')&&orders.includes('29 €/mes')],
+ ['Shopify excluded from generic connection count',main.includes("!['email','shopify'].includes(k)")&&main.includes('assertOrderChannelCapacity(preState)')],
+ ['Automatic web delivery gated',ordersCore.includes("o.source?.kind!=='web'||webLevel==='auto'")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 if(failed.length){console.error('0.6.65 verification failed:',failed.map(x=>x[0]).join(', '));process.exit(1)}
