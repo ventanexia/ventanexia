@@ -54,8 +54,13 @@ function googleEvent(x){
   const start=x.start?.dateTime||x.start?.date||'',end=x.end?.dateTime||x.end?.date||'';
   return {id:x.id||'',provider:'google_calendar',title:x.summary||'(sin título)',start,end,allDay:Boolean(x.start?.date&&!x.start?.dateTime),location:x.location||'',meetingUrl:x.hangoutLink||x.conferenceData?.entryPoints?.find(p=>p.entryPointType==='video')?.uri||'',attendees:(x.attendees||[]).map(a=>({name:a.displayName||'',email:a.email||'',status:a.responseStatus||''})).slice(0,30),organizer:x.organizer?.displayName||x.organizer?.email||'',status:x.status||'',description:clean(x.description,1500),htmlLink:x.htmlLink||''};
 }
+function microsoftDate(v={}){
+  const d=String(v?.dateTime||'');if(!d)return '';
+  if(/[zZ]$|[+-]\d\d:\d\d$/.test(d))return d;
+  return String(v?.timeZone||'').toUpperCase()==='UTC'?d+'Z':d;
+}
 function microsoftEvent(x){
-  return {id:x.id||'',provider:'microsoft_calendar',title:x.subject||'(sin título)',start:x.start?.dateTime||'',end:x.end?.dateTime||'',allDay:Boolean(x.isAllDay),location:x.location?.displayName||'',meetingUrl:x.onlineMeeting?.joinUrl||x.onlineMeetingUrl||'',attendees:(x.attendees||[]).map(a=>({name:a.emailAddress?.name||'',email:a.emailAddress?.address||'',status:a.status?.response||''})).slice(0,30),organizer:x.organizer?.emailAddress?.name||x.organizer?.emailAddress?.address||'',status:x.isCancelled?'cancelled':'confirmed',description:clean(String(x.bodyPreview||'').replace(/\s+/g,' '),1500),htmlLink:x.webLink||''};
+  return {id:x.id||'',provider:'microsoft_calendar',title:x.subject||'(sin título)',start:microsoftDate(x.start),end:microsoftDate(x.end),allDay:Boolean(x.isAllDay),location:x.location?.displayName||'',meetingUrl:x.onlineMeeting?.joinUrl||x.onlineMeetingUrl||'',attendees:(x.attendees||[]).map(a=>({name:a.emailAddress?.name||'',email:a.emailAddress?.address||'',status:a.status?.response||''})).slice(0,30),organizer:x.organizer?.emailAddress?.name||x.organizer?.emailAddress?.address||'',status:x.isCancelled?'cancelled':'confirmed',description:clean(String(x.bodyPreview||'').replace(/\s+/g,' '),1500),htmlLink:x.webLink||''};
 }
 async function listRange(integration,start,end){
   const p=integration?.provider;
