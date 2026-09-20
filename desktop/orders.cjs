@@ -267,6 +267,27 @@ async function stockLookup({refs,cfg}){
 const erpCache={customers:{at:0,rows:null},catalog:{at:0,rows:null}};
 const TTL={customers:10*60e3,catalog:2*60e3};
 async function erpSecret(){const s=await readState();return {s,cfg:s.secret?.ordersErp||{}}}
+function orderStoreId(key,x={}){return String(x.id||String(key||'').split(':')[0]||'').toLowerCase()}
+function orderStoreHost(x={}){try{return new URL(String(x.url||'')).host.toLowerCase()}catch{return ''}}
+function orderChannelUsageFromState(s){
+  const stores=Object.entries(s.secret?.ordersErp?.stores||{});
+  const items=[];
+  if(s.secret?.integrations?.shopify?.shop)items.push({type:'shopify',label:'Shopify · '+s.secret.integrations.shopify.shop});
+  for(const [key,x] of stores){const id=orderStoreId(key,x),host=orderStoreHost(x);items.push({type:id,label:(connectors.STORES[id]?.name||id||'Tienda')+(host?' · '+host:'')})}
+  const limit=policy.orderChannelLimit?policy.orderChannelLimit(s.license):1;
+  return {used:items.length,limit:(policy.isMaster&&policy.isMaster(s.license))?null:limit,items};
+}
+async function assertOrderChannelCapacity({storeId='',url='',replacing=false}={}){
+  const s=await readState();if(policy.isMaster&&policy.isMaster(s.license))return true;
+  const usage=orderChannelUsageFromState(s);
+  const host=(()=>{try{return new URL(String(url||'')).host.toLowerCase()}catch{return ''}})();
+  const exists=replacing||(storeId&&host&&Object.entries(s.secret?.ordersErp?.stores||{}).some(([k,x])=>orderStoreId(k,x)===storeId&&orderStoreHost(x)===host));
+  if(!exists&&usage.used>=usage.limit){
+    const e=new Error('Has usado '+usage.used+' de '+usage.limit+' canales de pedidos incluidos. Añade otro canal por 29 €/mes o cambia de plan.');
+    e.code='ORDER_CHANNEL_LIMIT';throw e;
+  }
+  return true;
+}
 async function saveErpSecret(mut){if(!safeStorage?.isEncryptionAvailable?.())throw new Error('Este equipo no tiene disponible el cifrado seguro del sistema. No guardaré claves de programas sin cifrar.');const s=await readState();s.secret=s.secret||{};s.secret.ordersErp=s.secret.ordersErp||{};mut(s.secret.ordersErp);await writeState(s)}
 async function erpAdapter(){
   const {cfg}=await erpSecret();const p=cfg.program;if(!p||!connectors.PROGRAMS[p.id]?.make)return null;
@@ -316,10 +337,13 @@ const erpApi={
     const a=connectors.parseArgs(text);const S=connectors.STORES[a.id];
     if(!S)return {ok:false,message:'Tiendas que puedo conectar:\n'+Object.values(connectors.STORES).map(x=>'• '+x.name+'\n'+x.how).join('\n\n')+'\n\nShopify se conecta desde Conexiones.'};
     if(!a.url||!a.key||!a.secret)return {ok:false,message:S.name+': me falta '+[!a.url&&'la dirección web',!a.key&&'la clave',!a.secret&&'el secreto'].filter(Boolean).join(', ')+'.\n\n'+S.how};
-    const cfg={url:a.url,key:a.key,secret:a.secret};
+    const cfg={id:S.id,url:a.url,key:a.key,secret:a.secret};
+    try{await assertOrderChannelCapacity({storeId:S.id,url:cfg.url})}catch(e){return {ok:false,message:e.message}}
     try{await S.make(cfg,{fetch:(...x)=>fetch(...x)}).test()}catch(e){return {ok:false,message:'No he podido conectar con '+S.name+': '+String(e?.message||e).slice(0,200)+'\n\n'+S.how}}
-    await saveErpSecret(o=>{o.stores=o.stores||{};o.stores[S.id]=cfg});
-    return {ok:true,message:'✅ Conectada tu tienda '+S.name+' ('+new URL(cfg.url).host+'). Leeré sus pedidos «en proceso» o «en espera» igual que los del correo. Tu clave se ha guardado cifrada.'};
+    const host=new URL(cfg.url).host.toLowerCase(),storeKey=S.id+':'+host;
+    await saveErpSecret(o=>{o.stores=o.stores||{};for(const [k,x] of Object.entries(o.stores)){if(orderStoreId(k,x)===S.id&&orderStoreHost(x)===host)delete o.stores[k]}o.stores[storeKey]=cfg});
+    const usage=orderChannelUsageFromState((await erpSecret()).s);
+    return {ok:true,message:'✅ Conectada tu tienda '+S.name+' ('+host+'). Leeré sus pedidos «en proceso» o «en espera» igual que los del correo. Canales de pedidos usados: '+usage.used+(usage.limit==null?' (Maestro)':' de '+usage.limit)+'. Tu clave se ha guardado cifrada.'};
   },
   async disconnect(){await saveErpSecret(o=>{delete o.program;delete o.stores});erpCache.customers={at:0,rows:null};erpCache.catalog={at:0,rows:null};return 'He desconectado tu programa y tus tiendas y he borrado sus claves de este ordenador.'},
   async closeBatch(){
@@ -351,8 +375,9 @@ async function allWebOrders(o){
   const out=[],errs=[];
   try{out.push(...await shopifyWebOrders(o))}catch(e){errs.push('Shopify: '+String(e?.message||e))}
   const {cfg}=await erpSecret();
-  for(const [id,x] of Object.entries(cfg.stores||{})){
-    try{out.push(...await connectors.STORES[id].make(x,{fetch:(...a)=>fetch(...a)}).orders(o))}catch(e){errs.push(connectors.STORES[id].name+': '+String(e?.message||e))}
+  for(const [key,x] of Object.entries(cfg.stores||{})){
+    const id=orderStoreId(key,x),S=connectors.STORES[id];if(!S)continue;
+    try{out.push(...await S.make(x,{fetch:(...a)=>fetch(...a)}).orders(o))}catch(e){errs.push(S.name+': '+String(e?.message||e))}
   }
   if(!out.length&&errs.length)throw new Error(errs.join(' · '));
   return out;
@@ -377,6 +402,10 @@ async function monthlyLimit(){
   if(policy.isMaster&&policy.isMaster(s.license))return null;
   return policy.orderMonthlyLimit?(policy.orderMonthlyLimit(s.license)||100):100;
 }
+async function orderChannelStatus(){
+  const s=await readState(),u=orderChannelUsageFromState(s);
+  return {...u,level:policy.orderWebLevel?policy.orderWebLevel(s.license):'basic',extraMonthlyEur:29};
+}
 function get(){
   if(instance)return instance;
   instance=createOrders({dir:path.join(app.getPath('userData'),'orders'),mail,extract,files:{extract:files.extractText},webOrders:allWebOrders,erp:erpApi,stockLookup,monthlyLimit,confirm,notify,audit,loadList,fetch:(...a)=>fetch(...a),pickFolder,pickFile,
@@ -390,4 +419,4 @@ function startScheduler(){
   const first=setTimeout(tick,2*60*1000);first.unref?.();
   timer=setInterval(tick,15*60*1000);timer.unref?.();
 }
-module.exports={handleChat,startScheduler,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
+module.exports={handleChat,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
