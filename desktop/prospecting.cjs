@@ -7,7 +7,7 @@ const {gmailCall}=require('./gmail-auth.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const GMAIL='https://gmail.googleapis.com/gmail/v1/users/me/';
-const DEFAULTS={dailyLimit:20,followUpDays:[4,9],maxFollowUps:2,autoFollowUp:false,senderAccount:null};
+const DEFAULTS={dailyLimit:20,followUpDays:[4,9],maxFollowUps:2,autoFollowUp:true,senderAccount:null};
 const FREE=/@(gmail|googlemail|hotmail|outlook|live|msn|yahoo|ymail|icloud|me|aol|proton|protonmail|gmx)\./i;
 const OPTOUT=/\b(baja|unsubscribe|no me (?:escrib|env[ií]e)|no quiero recibir|eliminar.*lista)\b/i;
 let instance=null,timer=null,writeChain=Promise.resolve();
