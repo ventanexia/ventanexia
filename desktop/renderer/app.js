@@ -129,9 +129,10 @@ function setupServiceConnectionWizard(){
     email:[['gmail','Gmail / Google Workspace'],['microsoft_365','Outlook / Hotmail / Live / Microsoft'],['yahoo_mail','Yahoo Mail'],['icloud_mail','iCloud Mail'],['generic_imap','Correo de empresa / otro proveedor']],
     whatsapp:[['whatsapp_personal','WhatsApp normal'],['whatsapp_business','WhatsApp para empresa']],
     social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
-    crm:[['hubspot','HubSpot']]
+    crm:[['hubspot','HubSpot']],
+    agenda:[['google_calendar','Google Calendar'],['microsoft_calendar','Microsoft / Outlook Calendar']]
   };
-  const labels={email:'Email',whatsapp:'WhatsApp',social:'Redes sociales',crm:'Ventas y clientes'};
+  const labels={email:'Email',whatsapp:'WhatsApp',social:'Redes sociales',crm:'Ventas y clientes',agenda:'Agenda'};
   let activeKey=null,activeButton=null,oauthState=null,pollTimer=null,currentAddAnother=false;
   const genericBox=$('#genericEmailFields'),waModeInfo=$('#whatsappModeInfo'),genericUser=$('#genericEmailUser'),genericPass=$('#genericEmailPassword'),imapHost=$('#genericImapHost'),imapPort=$('#genericImapPort'),smtpHost=$('#genericSmtpHost'),smtpPort=$('#genericSmtpPort');
   function normalizeWhatsappPhone(value=''){
@@ -379,7 +380,7 @@ async function enforcePurchasedFeatures(){
   let agents=[];
   try{agents=await window.vnx.agentCatalog()||[]}catch{agents=[]}
   const byKey=new Map(agents.map(a=>[a.key,a]));
-  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',shopify:'web_ecommerce',wordpress:'web_ecommerce',github_vercel:'web_ecommerce'};
+  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',agenda:'administration',shopify:'web_ecommerce',wordpress:'web_ecommerce',github_vercel:'web_ecommerce'};
   $$('[data-real-module]').forEach(btn=>{
     const agentKey=map[btn.dataset.realModule];if(!agentKey)return;
     const agent=byKey.get(agentKey);
@@ -404,7 +405,9 @@ function connectionProviderLabel(provider=''){
     facebook:'Facebook',
     linkedin:'LinkedIn',
     x_twitter:'X / Twitter',
-    hubspot:'HubSpot · ventas y clientes'
+    hubspot:'HubSpot · ventas y clientes',
+    google_calendar:'Google Calendar',
+    microsoft_calendar:'Microsoft / Outlook Calendar'
   }[provider]||String(provider||'').replace(/_/g,' ');
 }
 function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conectada.'){
@@ -417,12 +420,13 @@ function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conecta
 async function renderConnectionSummaries(){
   let connections=[];try{connections=await window.vnx.listConnections()||[]}catch{}
   const byModule=module=>connections.filter(x=>(x.module||'')===module);
-  const email=byModule('email'),wa=byModule('whatsapp'),social=byModule('social'),crm=byModule('crm');
+  const email=byModule('email'),wa=byModule('whatsapp'),social=byModule('social'),crm=byModule('crm'),agenda=byModule('agenda');
   const set=(key,html)=>{const el=$('[data-connection-summary="'+key+'"]');if(el)el.innerHTML=html};
 
   set('email',connectionSummaryHtml(email,'No hay ninguna cuenta de correo conectada.'));
   set('social',connectionSummaryHtml(social,'No hay ninguna red social conectada.'));
   set('crm',connectionSummaryHtml(crm,'No hay ningún sistema de ventas y clientes conectado.'));
+  set('agenda',connectionSummaryHtml(agenda,'No hay ningún calendario conectado.'));
 
   const savedWhatsApp=getRealModuleSources()?.whatsapp;
   if(savedWhatsApp?.provider==='whatsapp_personal'&&savedWhatsApp?.status==='manual_ready'){
@@ -466,7 +470,7 @@ async function renderConnectionSummaries(){
 window.vnxRefreshConnectionSummaries=renderConnectionSummaries;
 
 function setupRealModuleMode(){
-  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Buscar clientes',crm:'Ventas y clientes',shopify:'Tienda Shopify',wordpress:'Tienda WordPress',github_vercel:'Web personalizada'};
+  const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Buscar clientes',crm:'Ventas y clientes',agenda:'Agenda',shopify:'Tienda Shopify',wordpress:'Tienda WordPress',github_vercel:'Web personalizada'};
   const saved=getRealModuleSources();
   const openServiceWizard=setupServiceConnectionWizard();
   window.vnxOpenServiceWizard=openServiceWizard;
@@ -480,7 +484,7 @@ function setupRealModuleMode(){
       const all=getRealModuleSources();delete all[key];localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
     }
     btn.onclick=async()=>{
-      if(['email','whatsapp','social','crm'].includes(key)){openServiceWizard(key,btn);return;}
+      if(['email','whatsapp','social','crm','agenda'].includes(key)){openServiceWizard(key,btn);return;}
       if(key==='shopify'){await openShopify(btn);return;}
       if(['wordpress','github_vercel'].includes(key)){
         const previous=current?.url||'';
