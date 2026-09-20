@@ -139,58 +139,39 @@ Debe explicar:
 
 La demo no debe afirmar que ha ejecutado acciones reales si no existen integraciones activas.
 
-## Política comercial del agente Pedidos
+## Modelo comercial vigente
 
-El agente **Pedidos** forma parte de los tres planes mensuales y no consume una de las funciones estándar elegibles.
+VentaNexIA vende capacidad de trabajo, no plazas de asistentes. Todos los asistentes estándar están disponibles en los tres planes y Carla coordina el especialista adecuado para cada tarea.
 
-- VNX Inicio: 299 €/mes + IVA, 1 plaza de empleado IA, 1 canal de pedidos online y hasta 100 pedidos procesados al mes. Nivel web Básico: aviso, lectura y preparación para revisar.
-- VNX Empresa: 799 €/mes + IVA, 3 plazas de empleados IA, 3 canales de pedidos online y hasta 500 pedidos procesados al mes. Pedidos Web Pro incluido: comprobación de cliente, referencias, datos y stock y preparación para aprobar.
-- VNX Premium: 1.499 €/mes + IVA, 8 plazas de empleados IA, 6 canales de pedidos online y hasta 2.000 pedidos procesados al mes. Pedidos Web Automático incluido: los pedidos web completamente válidos pueden procesarse automáticamente según las reglas configuradas; las excepciones van a revisión.
+- VNX Inicio: 99 €/mes + IVA durante lanzamiento (precio normal 129 €), 1.500 trabajos/mes, 1 usuario, 1 correo, 1 tienda online, 1 dispositivo y hasta 3 conexiones.
+- VNX Negocio: 249 €/mes + IVA durante lanzamiento (precio normal 299 €), 5.000 trabajos/mes, 3 usuarios, 3 correos, 2 tiendas online, hasta 3 dispositivos y 8 conexiones.
+- VNX Empresa: 499 €/mes + IVA durante lanzamiento (precio normal 599 €), 12.000 trabajos/mes, 8 usuarios, 6 correos, 4 tiendas online, hasta 5 dispositivos y 15 conexiones.
 
-Todos los planes pueden recibir pedidos desde una web/tienda compatible sin contratar el módulo Web & Ecommerce completo. Actualmente el motor dispone de entrada directa de pedidos desde Shopify y WooCommerce; otros canales se incorporan únicamente cuando exista un conector compatible y validado.
+El precio de lanzamiento se mantiene conforme a las condiciones aceptadas mientras la suscripción correspondiente permanezca activa y al corriente de pago. La oferta puede cerrarse a nuevas altas cuando VentaNexIA finalice la fase de lanzamiento.
 
-Ampliaciones de Pedidos web:
-- Canal de pedidos online adicional compatible: 29 €/mes + IVA.
-- Pedidos Web Pro para un plan que no lo incluya: 79 €/mes + IVA.
-- Pedidos Web Automático para un plan que no lo incluya: 149 €/mes + IVA.
+### Ampliaciones
 
-El módulo Web & Ecommerce de 550 €/mes corresponde a gestión completa de tienda, catálogo, contenido y operaciones web; no es requisito para recibir pedidos online.
+La capacidad adicional se vende separada de los asistentes:
+- 2.000 trabajos adicionales: 49 €/mes + IVA.
+- Conexión o cuenta adicional compatible: 49 €/mes + IVA.
+- 10 GB adicionales: 39 €/mes + IVA.
+- 10 créditos de vídeo: 99 € + IVA, pago único.
+- 250 minutos de voz: 49 € + IVA, pago único.
+- 1.000 mensajes WhatsApp adicionales: 59 € + IVA, pago único, más cargos propios de Meta/proveedor cuando correspondan.
 
-Las funciones disponibles y las plazas de empleados IA son conceptos distintos: una empresa puede tener varias capacidades disponibles, pero solo puede mantener activos simultáneamente tantos empleados/agentes como plazas tenga contratadas.
+No se debe vender uso ilimitado de servicios de coste variable. Cuando una empresa alcance su capacidad, debe ampliarla, cambiar de plan o contratar una propuesta específica.
 
-### Agentes propios del cliente
+### Pedidos y canales
 
-- Un agente propio conectado consume 1 plaza de empleado, igual que un agente de VentaNexIA.
-- Cada agente propio conectado añade 49 €/mes + IVA por integración, permisos, coordinación y trazabilidad.
-- El cliente puede sustituir un agente de VentaNexIA por uno propio dentro de sus plazas.
-- Un agente externo nunca obtiene acceso global automático: debe recibir permisos explícitos por fuente y por tipo de acción.
-- Si se superan las plazas incluidas, se aplica también la plaza adicional correspondiente al plan.
+Pedidos forma parte del equipo estándar. El volumen y los canales dependen del plan:
+- Inicio: 1 canal, hasta 100 pedidos/mes.
+- Negocio: 2 canales, hasta 500 pedidos/mes.
+- Empresa: 4 canales, hasta 2.000 pedidos/mes.
 
-Precios de plaza adicional:
-- VNX Inicio: 310 €/mes + IVA.
-- VNX Empresa: 185 €/mes + IVA.
-- VNX Premium: 276 €/mes + IVA.
-
-La regla comercial es deliberada: ampliar un plan inferior hasta alcanzar las plazas del plan siguiente debe resultar aproximadamente un 15 % más caro que subir directamente de plan. VentaNexIA debe recomendar el cambio de plan cuando resulte más económico.
+Un canal de pedidos adicional compatible puede mantenerse como ampliación de 29 €/mes + IVA mientras el sistema siga soportando ese concepto. El módulo Web & Ecommerce completo no es requisito para recibir pedidos online.
 
 ### Permanencia y portabilidad
 
-La duración mínima inicial sigue siendo de 12 meses. El cliente puede utilizar software de terceros y exportar sus datos cuando proceda; no se implementará ningún bloqueo técnico para impedirlo. Dejar de usar VentaNexIA o contratar una solución competidora no cancela por sí solo el compromiso contractual mínimo.
+La duración mínima inicial sigue siendo de 12 meses. El cliente puede utilizar software de terceros y exportar sus datos cuando proceda; no se implementará un bloqueo técnico para impedirlo. Dejar de usar VentaNexIA o contratar otra solución no cancela por sí solo el compromiso contractual mínimo.
 
-Un conector estándar ya compatible con VentaNexIA puede utilizarse dentro del número de conexiones incluidas en el plan. Cuando un ERP, programa propio o portal requiera desarrollo específico, debe presupuestarse como **conector personalizado**, desde 150 €/mes según complejidad, y no se activa sin aprobación previa.
-
-El vídeo generado con IA no se considera uso mensual incluido por defecto. Se ofrece mediante paquetes de créditos para evitar trasladar ese coste a clientes que no lo utilizan.
-
-Nunca se debe vender “uso ilimitado” de Pedidos. Si una empresa necesita más volumen, debe ampliarse su capacidad o prepararse una propuesta específica.
-
-
-### Conexiones adicionales
-
-Las conexiones son un límite independiente de las plazas de empleados IA.
-
-- VNX Inicio: hasta 2 conexiones incluidas.
-- VNX Empresa: hasta 5 conexiones incluidas.
-- VNX Premium: hasta 10 conexiones incluidas.
-- Cada conexión compatible adicional: 42 €/mes + IVA.
-
-El cliente puede elegir la cantidad de conexiones adicionales en el configurador antes de firmar. La licencia recibe el límite total contratado y el Desktop debe impedir nuevas conexiones cuando se alcance ese límite, ofreciendo contratar una conexión adicional o cambiar de plan.
+Los conectores personalizados, desarrollos a medida y licencias de proveedores externos se presupuestan o informan antes de activarse.

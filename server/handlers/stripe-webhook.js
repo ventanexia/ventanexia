@@ -9,7 +9,7 @@ function cleanPhone(v){return String(v||"").replace(/[^+0-9]/g,"").slice(0,30)}
 async function recordCustomerEvent({customerId="",contractId="",tenantId=null,eventType,title="",details={}}){try{await sbFetch("vnx_customer_events",{method:"POST",body:JSON.stringify([{stripe_customer_id:customerId||null,contract_id:contractId||null,tenant_id:tenantId||null,event_type:eventType,title:title||eventType,details}])})}catch{}}
 async function linkContract({contractId,customerId,subscriptionId,sessionId}){if(!contractId)return;try{await sbFetch(`vnx_contracts?contract_id=eq.${encodeURIComponent(contractId)}`,{method:"PATCH",body:JSON.stringify({stripe_customer_id:customerId||null,stripe_subscription_id:subscriptionId||null,stripe_checkout_session_id:sessionId||null,status:"active",updated_at:new Date().toISOString()})})}catch{}}
 async function sendPaymentFailedEmail({email,company="",amountText,payUrl,invoiceNumber=""}){const key=process.env.RESEND_API_KEY;if(!key||!email)return false;const from=process.env.BILLING_FROM_EMAIL||process.env.CONTRACT_FROM_EMAIL||"facturacion@ventanexia.es";const subject=`No hemos podido cobrar tu cuota de VentaNexIA${invoiceNumber?` · ${invoiceNumber}`:""}`;const text=`Hola${company?` ${company}`:""},\n\nNo hemos podido realizar el cargo automático de tu cuota de VentaNexIA por ${amountText}. Puede deberse, entre otros motivos, a saldo insuficiente, tarjeta caducada o rechazo de la entidad emisora.\n\nPuedes regularizar la factura de forma segura con otra tarjeta o método de pago desde este enlace de Stripe:\n${payUrl||"Consulta tu factura en el área de facturación."}\n\nMientras el pago permanezca pendiente, el servicio puede quedar suspendido conforme al contrato. Si ya has realizado el pago, ignora este mensaje.\n\nVentaNexIA · ECOJAFER S.L.`;const r=await fetch("https://api.resend.com/emails",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({from,to:[email],subject,text})});return r.ok}
-const MANUAL_PROVISIONING=new Set(["conexion","email_account","storage_pack","extra_agent","extra_device"]);
+const MANUAL_PROVISIONING=new Set(["conexion","email_account","storage_pack","extra_device"]);
 async function createProvisioningTask({tenantId,itemKey,sessionId}){
   if(!MANUAL_PROVISIONING.has(itemKey)||!tenantId)return null;
   const x=EXTRA_ACTIONS[itemKey]||{label:itemKey,provider:"Revisar",action:"Revisar y activar manualmente."};
@@ -87,18 +87,18 @@ function featurePolicyFromMeta(meta={}){
   const included=new Set(split(meta.included));if(String(meta.orders_included||'')==='pedidos')included.add('pedidos');
   const extras=split(meta.extras);
   const plan=String(meta.plan||'').toLowerCase();
-  const baseConnections=["start","inicio"].includes(plan)?2:["core","crecimiento"].includes(plan)?5:["scale","empresa","premium"].includes(plan)?10:0;
-  const baseEmployees=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?3:["scale","empresa","premium"].includes(plan)?8:0;
-  const baseOrderChannels=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?3:["scale","empresa","premium"].includes(plan)?6:0;
+  const baseConnections=["start","inicio"].includes(plan)?3:["core","crecimiento"].includes(plan)?8:["scale","empresa","premium"].includes(plan)?15:0;
+  const baseEmployees=12;
+  const baseOrderChannels=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?2:["scale","empresa","premium"].includes(plan)?4:0;
   const baseOrderLevel=["scale","empresa","premium"].includes(plan)?"auto":["core","crecimiento"].includes(plan)?"pro":"basic";
   const extraConnections=Math.max(0,Number(meta.extra_connections||0)||0),extraEmployees=Math.max(0,Number(meta.extra_employee_slots||0)||0),ownAgents=Math.max(0,Number(meta.own_agents||0)||0),extraOrderChannels=Math.max(0,Number(meta.extra_order_channels||0)||0);
   const orderLevel=extras.includes("order_web_auto")?"auto":extras.includes("order_web_pro")&&baseOrderLevel==="basic"?"pro":baseOrderLevel;
   return {
     purchased_included:[...included],
     purchased_extras:extras.filter(x=>x!=="conexion"),
-    extra_agents:Math.max(0,Number(meta.extra_agents||0)||0),
-    own_agent_limit:ownAgents,
-    employee_slot_limit:baseEmployees+extraEmployees,
+    extra_agents:0,
+    own_agent_limit:0,
+    employee_slot_limit:baseEmployees,
     connection_limit:baseConnections+extraConnections,
     extra_connections:extraConnections,
     order_channel_limit:baseOrderChannels+extraOrderChannels,
@@ -109,10 +109,8 @@ function featurePolicyFromMeta(meta={}){
 }
 const CREDIT_PACKS={
   video_pack:{meter:"video_credits",quantity:10,amount:9900},
-  image_pack:{meter:"image_credits",quantity:100,amount:2900},
   voice_pack:{meter:"voice_minutes",quantity:250,amount:4900},
-  whatsapp_pack:{meter:"whatsapp_messages",quantity:1000,amount:5900},
-  lead_pack:{meter:"lead_credits",quantity:500,amount:7900}
+  whatsapp_pack:{meter:"whatsapp_messages",quantity:1000,amount:5900}
 };
 async function grantCreditPack(tenantId,packKey,sessionId){
   const p=CREDIT_PACKS[packKey];if(!tenantId||!p||!sessionId)return false;
@@ -153,7 +151,7 @@ export default async function handler(req,res){
             await reactivateAgents(activeTenantId);
             const packs=String(obj.metadata?.credit_packs||"").split(",").map(x=>x.trim()).filter(Boolean);
             for(const pack of packs)await grantCreditPack(activeTenantId,pack,obj.id);
-            const recurringExtras=String(obj.metadata?.extras||"").split(",").map(x=>x.trim()).filter(x=>["conexion","email_account","storage_pack"].includes(x));
+            const recurringExtras=String(obj.metadata?.extras||"").split(",").map(x=>x.trim()).filter(x=>["conexion","email_account","storage_pack","capacity_pack"].includes(x));
             const customerItems=[...packs,...recurringExtras];
             if(customerItems.length){
               for(const itemKey of recurringExtras)await createProvisioningTask({tenantId:activeTenantId,itemKey,sessionId:obj.id}).catch(()=>null);
