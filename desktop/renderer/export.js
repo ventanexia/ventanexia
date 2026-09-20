@@ -2,27 +2,43 @@
   function esc(v=''){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
   function cleanText(node){
     const clone=node.cloneNode(true);
-    clone.querySelectorAll('.vnx-export-actions').forEach(x=>x.remove());
+    clone.querySelectorAll('.vnx-export-actions,.vnx-secretary-actions,.vnx-handoff-card,.email-action-btn').forEach(x=>x.remove());
     return String(clone.innerText||'').trim();
   }
-  function smartLines(text){
-    let raw=String(text||'').replace(/\r/g,'').trim();
-    raw=raw
-      .replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️))/g,'\n')
-      .replace(/\s+(?=(?:Resumen breve|Mi recomendación|Prioridad|Prioridades|Qué puedo hacer|Qué necesitas decidir|Necesito tu decisión|Siguiente mejor acción|Agenda de hoy|Pendientes|En revisión|Para autorizar|Solucionado)\b)/gi,'\n')
-      .replace(/\s+(?=\d+\.\s+[A-ZÁÉÍÓÚÑ])/g,'\n');
-    return raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  const SECTION_TITLES=[
+    'Resumen rápido','1. Lo más importante de hoy','2. Situación por área','3. Lo que ya he dejado preparado',
+    '4. Necesito tu decisión','5. Alertas','6. Siguiente paso recomendado','7. Fuentes consultadas',
+    'Buenos días · resumen breve','Mi recomendación para empezar','🟢 Puedo adelantar por ti',
+    '🟡 Te lo dejo preparado para autorizar','🔴 Necesito tu decisión','📅 Agenda de hoy','Siguiente mejor acción'
+  ];
+  function normalizeReportText(text){
+    let raw=String(text||'').replace(/\r/g,'').replace(/\u00a0/g,' ').trim();
+    raw=raw.replace(/Preparar y revisar respuestas/gi,'').replace(/Revisar y enviar/gi,'').replace(/Resolver decisiones/gi,'').replace(/Ver Excel/gi,'').replace(/Ver PDF/gi,'');
+    for(const title of SECTION_TITLES){
+      const escaped=title.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
+      raw=raw.replace(new RegExp('\\s*#{0,3}\\s*'+escaped+'\\s*:?[\\s]*','gi'),'\n## '+title+'\n');
+    }
+    raw=raw.replace(/\s+(?=(?:Pedidos|Shopify|Web y tienda|Email|Agenda|WhatsApp|Ventas y clientes|Redes y publicidad|Fuentes consultadas)\s*[:·])/gi,'\n')
+      .replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️|❌))/g,'\n')
+      .replace(/\s+(?=\d+[.)]\s+[A-ZÁÉÍÓÚÑ])/g,'\n').replace(/\n{3,}/g,'\n\n').trim();
+    return raw;
   }
+  function smartLines(text){return normalizeReportText(text).split(/\n+/).map(x=>x.trim()).filter(Boolean)}
   function narrativeBlocks(text){
-    return smartLines(text).map(line=>{
-      const bullet=line.match(/^[-•▪◦]\s+(.+)/);
-      const numbered=line.match(/^(\d+[.)])\s+(.+)/);
-      const shortHeading=(line.length<95&&(/:$/.test(line)||/^(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️)/.test(line)));
-      if(bullet)return {type:'bullet',text:bullet[1]};
-      if(numbered)return {type:'number',marker:numbered[1],text:numbered[2]};
-      if(shortHeading)return {type:'heading',text:line.replace(/:$/,'')};
-      return {type:'paragraph',text:line};
-    });
+    const out=[];
+    for(const line0 of smartLines(text)){
+      const line=line0.replace(/^#{1,3}\s*/,'').trim(); if(!line)continue;
+      if(SECTION_TITLES.some(t=>line.toLowerCase()===t.toLowerCase())){out.push({type:'heading',text:line});continue}
+      const bullet=line.match(/^[-•▪◦]\s+(.+)/), numbered=line.match(/^(\d+[.)])\s+(.+)/);
+      const area=line.match(/^(Pedidos|Shopify|Web y tienda|Email|Agenda|WhatsApp|Ventas y clientes|Redes y publicidad|Atención al cliente|Compras|Fuentes consultadas)\s*[:·]?\s*(.*)$/i);
+      if(area){out.push({type:'subheading',text:area[1]});if(area[2])out.push({type:'bullet',text:area[2]});continue}
+      if(bullet){out.push({type:'bullet',text:bullet[1]});continue}
+      if(numbered){out.push({type:'number',marker:numbered[1],text:numbered[2]});continue}
+      const parts=line.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿])/).map(x=>x.trim()).filter(Boolean);
+      if(parts.length>1&&line.length>170)parts.forEach(p=>out.push({type:'bullet',text:p}));
+      else out.push({type:'paragraph',text:line});
+    }
+    return out;
   }
   function payloadFromText(text){
     const blocks=narrativeBlocks(text);
@@ -47,6 +63,7 @@
   function previewNarrative(payload){
     const html=(payload.blocks||[]).map(b=>{
       if(b.type==='heading')return `<h2>${esc(b.text)}</h2>`;
+      if(b.type==='subheading')return `<h3>${esc(b.text)}</h3>`;
       if(b.type==='bullet')return `<div class="vnx-pdf-item"><span>•</span><p>${esc(b.text)}</p></div>`;
       if(b.type==='number')return `<div class="vnx-pdf-item"><span>${esc(b.marker)}</span><p>${esc(b.text)}</p></div>`;
       return `<p>${esc(b.text)}</p>`;
@@ -95,6 +112,7 @@
       #vnxExportPreviewOverlay .vnx-doc-rule{height:2px;background:#dbe6ed;margin-bottom:26px}
       #vnxExportPreviewOverlay .vnx-doc-body{max-width:690px}
       #vnxExportPreviewOverlay .vnx-preview-paper h2{font-size:16px;line-height:1.3;margin:24px 0 9px;color:#123b58}
+      #vnxExportPreviewOverlay .vnx-preview-paper h3{font-size:13px;line-height:1.3;margin:16px 0 7px;color:#345b73}
       #vnxExportPreviewOverlay .vnx-preview-paper p{font-size:13px;line-height:1.58;margin:0 0 12px;color:#26394c;white-space:pre-wrap}
       #vnxExportPreviewOverlay .vnx-pdf-item{display:grid;grid-template-columns:28px 1fr;gap:4px;margin:0 0 8px;align-items:start}
       #vnxExportPreviewOverlay .vnx-pdf-item>span{font-size:12px;font-weight:700;color:#2274a0;padding-top:2px}
