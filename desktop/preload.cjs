@@ -54,6 +54,7 @@ contextBridge.exposeInMainWorld('vnx',{
   emailMetrics:(payload={})=>ipcRenderer.invoke('email:metrics',payload),
   emailInbox:(payload)=>ipcRenderer.invoke('email:inbox',payload),
   whatsappRuntime:(payload)=>ipcRenderer.invoke('whatsapp:runtime',payload),
+  secretaryNotify:(payload)=>ipcRenderer.invoke('secretary:notify',payload),
   sendChat:(messages,scope)=>ipcRenderer.invoke('chat:send',{messages,scope}),
   pairDemo:()=>ipcRenderer.invoke('device:pair-demo')
 });
