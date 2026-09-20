@@ -1,0 +1,32 @@
+name: Verify VentaNexIA Server Syntax
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'server/**'
+      - 'lib/**'
+      - '.github/workflows/verify-server-syntax.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check API router syntax
+        run: node --check api/router.js
+      - name: Check server handler syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            node --check "$file"
+          done < <(find server lib -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \) -print0)
