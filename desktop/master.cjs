@@ -372,13 +372,16 @@ function gmailMessageText(payload={}){
   if(payload?.body?.data)return decodeGmailBody(payload.body.data).replace(/\r/g,'').trim().slice(0,12000);
   return '';
 }
-async function gmailThreadHasSent(integration,threadId){
-  if(!threadId)return false;
+async function gmailThreadResponseInfo(integration,threadId){
+  if(!threadId)return {responded:false,sentBody:''};
   try{
-    const t=await gmailCall(integration,tok=>gmailApi(tok,'threads/'+encodeURIComponent(threadId)+'?format=minimal'));
-    return (t.messages||[]).some(m=>(m.labelIds||[]).includes('SENT'));
-  }catch{return false}
+    const t=await gmailCall(integration,tok=>gmailApi(tok,'threads/'+encodeURIComponent(threadId)+'?format=full'));
+    const sent=(t.messages||[]).filter(m=>(m.labelIds||[]).includes('SENT')).sort((a,b)=>Number(a.internalDate||0)-Number(b.internalDate||0));
+    const last=sent[sent.length-1];
+    return {responded:Boolean(last),sentBody:last?gmailMessageText(last.payload).slice(0,6000):''};
+  }catch{return {responded:false,sentBody:''}}
 }
+async function gmailThreadHasSent(integration,threadId){return (await gmailThreadResponseInfo(integration,threadId)).responded}
 async function gmailNoReplyLabelId(integration,{create=false}={}){
   const labels=await gmailCall(integration,tok=>gmailApi(tok,'labels'));
   const found=(labels.labels||[]).find(x=>String(x.name||'').toLowerCase()==='ventanexia/no requiere respuesta');
@@ -400,7 +403,7 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLab
     const p=new URLSearchParams({format:'full'});
     const m=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+encodeURIComponent(id)+'?'+p.toString()));
     const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
-    const responded=await gmailThreadHasSent(integration,m.threadId||'');
+    const responseInfo=await gmailThreadResponseInfo(integration,m.threadId||'');const responded=responseInfo.responded;
     const unread=(m.labelIds||[]).includes('UNREAD');
     const noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
     const body=gmailMessageText(m.payload)||String(m.snippet||'').replace(/\s+/g,' ').trim();
@@ -408,7 +411,7 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLab
       account,id:m.id||id,threadId:m.threadId||'',from:headers.from||'',to:headers.to||'',
       subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
       snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
-      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,
+      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,sentBody:responseInfo.sentBody||'',
       status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
       defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')}),
       attentionScore:scoreMailAttention({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''}),
