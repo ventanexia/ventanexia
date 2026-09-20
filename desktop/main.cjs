@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,safeStorage,shell}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,safeStorage,shell,Notification}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const os=require('node:os');
@@ -229,6 +229,12 @@ async function scanBusinessData(roots){
 }
 
 ipcMain.handle('system:status',async()=>({platform:process.platform,hostname:os.hostname(),version:app.getVersion(),encrypted:safeStorage.isEncryptionAvailable(),cloud:CLOUD}));
+ipcMain.handle('secretary:notify',async(_event,payload={})=>{
+  const title=String(payload.title||'VentaNexIA').replace(/[\r\n]+/g,' ').slice(0,100);
+  const body=String(payload.body||'').replace(/[\r\n]+/g,' ').slice(0,260);
+  if(!body)return {ok:false};
+  try{if(Notification.isSupported())new Notification({title,body}).show();return {ok:true}}catch{return {ok:false}}
+});
 ipcMain.handle('state:get',async()=>{const s=await readState();return {permissions:s.permissions||{folders:[]},activity:s.activity||[],paired:Boolean(s.secret?.deviceToken),license:publicLicenseState(s)}});
 
 ipcMain.handle('license:activate',async(_e,payload={})=>{
