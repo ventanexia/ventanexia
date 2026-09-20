@@ -23,6 +23,7 @@ import freeValue from "../server/handlers/free-value.js";
 import health from "../server/handlers/health.js";
 import lead from "../server/handlers/lead.js";
 import meetingEvent from "../server/handlers/meeting-event.js";
+import masterDashboard from "../server/handlers/master-dashboard.js";
 import modulePlanner from "../server/handlers/module-planner.js";
 import onboardingSave from "../server/handlers/onboarding-save.js";
 import onboardingState from "../server/handlers/onboarding-state.js";
@@ -89,6 +90,7 @@ const handlers = {
   "health": health,
   "lead": lead,
   "meeting-event": meetingEvent,
+  "master-dashboard": masterDashboard,
   "module-planner": modulePlanner,
   "onboarding-save": onboardingSave,
   "onboarding-state": onboardingState,
