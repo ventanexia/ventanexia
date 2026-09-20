@@ -1,10 +1,15 @@
-const SUPABASE_URL="https://puthimkwgmncajajlkqe.supabase.co";
-const SUPABASE_KEY="sb_publishable_8lCwhQ2d6Jk044gnISCPGA_RvV8h_EU";
 function clean(v,n=300){return String(v||"").trim().slice(0,n)}
+function cfg(){
+  const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"");
+  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if(!url||!key)throw new Error("SUPABASE_NOT_CONFIGURED");
+  return {url,key};
+}
 async function rpc(name,body){
-  const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`,{
+  const {url,key}=cfg();
+  const r=await fetch(`${url}/rest/v1/rpc/${name}`,{
     method:"POST",
-    headers:{"apikey":SUPABASE_KEY,"Authorization":`Bearer ${SUPABASE_KEY}`,"Content-Type":"application/json"},
+    headers:{"apikey":key,"Authorization":`Bearer ${key}`,"Content-Type":"application/json"},
     body:JSON.stringify(body)
   });
   const data=await r.json().catch(()=>null);
