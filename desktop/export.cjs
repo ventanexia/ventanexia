@@ -17,7 +17,8 @@ function normalizePayload(payload={}){
     if(!headers.length)headers=width>1?Array.from({length:width},(_,i)=>`Campo ${i+1}`):['Resultado'];
   }
   if(!headers.length&&rows.length)headers=Array.from({length:Math.max(...rows.map(r=>r.length))},(_,i)=>`Campo ${i+1}`);
-  return {title,headers,rows,text};
+  const blocks=Array.isArray(payload.blocks)?payload.blocks.map(b=>({type:String(b?.type||'paragraph'),text:String(b?.text||''),marker:String(b?.marker||'')})):[];
+  return {title,headers,rows,text,blocks};
 }
 function spreadsheetXml(data){
   const header=data.headers.map(v=>`<Cell><Data ss:Type="String">${escXml(v)}</Data></Cell>`).join('');
@@ -25,8 +26,32 @@ function spreadsheetXml(data){
   return `<?xml version="1.0"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Datos"><Table><Row>${header}</Row>${body}</Table></Worksheet></Workbook>`;
 }
 function htmlDocument(data){
-  const table=data.rows.length?`<table><thead><tr>${data.headers.map(h=>`<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(r=>`<tr>${data.headers.map((_,i)=>`<td>${escHtml(r[i]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table>`:`<pre>${escHtml(data.text)}</pre>`;
-  return `<!doctype html><html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;margin:28px;color:#13233a}h1{font-size:22px;margin-bottom:18px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #d8e2ea;padding:6px 8px;text-align:left;vertical-align:top}th{background:#eef3f7}pre{white-space:pre-wrap;font-family:Arial,sans-serif;font-size:12px}</style></head><body><h1>${escHtml(data.title)}</h1>${table}<p style="margin-top:18px;font-size:10px;color:#667">Generado por VentaNexIA</p></body></html>`;
+  let body='';
+  if(data.blocks?.length){
+    body=data.blocks.map(b=>{
+      if(b.type==='heading')return `<h2>${escHtml(b.text)}</h2>`;
+      if(b.type==='bullet')return `<div class="item"><span>•</span><p>${escHtml(b.text)}</p></div>`;
+      if(b.type==='number')return `<div class="item"><span>${escHtml(b.marker)}</span><p>${escHtml(b.text)}</p></div>`;
+      return `<p>${escHtml(b.text)}</p>`;
+    }).join('');
+  }else if(data.text){
+    body=`<p>${escHtml(data.text)}</p>`;
+  }else{
+    body=`<table><thead><tr>${data.headers.map(h=>`<th>${escHtml(h)}</th>`).join('')}</tr></thead><tbody>${data.rows.map(r=>`<tr>${data.headers.map((_,i)=>`<td>${escHtml(r[i]??'')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    @page{size:A4;margin:18mm 17mm 16mm}
+    body{font-family:Arial,sans-serif;color:#203246;margin:0;font-size:11.5pt;line-height:1.5}
+    .brand{font-size:9pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#4b6f86}
+    h1{font-size:20pt;line-height:1.15;margin:5px 0 9px;color:#102235}
+    .rule{height:1.5px;background:#dce6ed;margin:0 0 18px}
+    h2{font-size:13pt;color:#123b58;margin:18px 0 7px;page-break-after:avoid}
+    p{margin:0 0 9px;white-space:pre-wrap}
+    .item{display:grid;grid-template-columns:22px 1fr;gap:3px;margin:0 0 6px;page-break-inside:avoid}
+    .item span{font-weight:700;color:#2274a0}.item p{margin:0}
+    table{width:100%;border-collapse:collapse;font-size:9.5pt}th,td{border:1px solid #d8e2ea;padding:6px 8px;text-align:left;vertical-align:top}th{background:#eef3f7}
+    footer{margin-top:22px;padding-top:8px;border-top:1px solid #e4ebf0;font-size:8pt;color:#6e7d89}
+  </style></head><body><div class="brand">VentaNexIA</div><h1>${escHtml(data.title)}</h1><div class="rule"></div>${body}<footer>Generado por VentaNexIA</footer></body></html>`;
 }
 
 ipcMain.handle('export:data',async(_e,payload={})=>{
