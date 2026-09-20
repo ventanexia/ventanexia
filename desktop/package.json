@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.76",
+  "version": "0.6.77",
   "private": true,
-  "description": "VentaNexIA Desktop · cuotas reales en Pedidos y Captación, avisos al 80 % y tolerancia a fallos de contador · 0.6.76",
+  "description": "VentaNexIA Desktop · web comercial alineada, prueba pendiente de descarga y límites de uso corregidos · 0.6.77",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
