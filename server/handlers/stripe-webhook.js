@@ -88,7 +88,7 @@ function featurePolicyFromMeta(meta={}){
   const extras=split(meta.extras);
   const plan=String(meta.plan||'').toLowerCase();
   const baseConnections=["start","inicio"].includes(plan)?3:["core","crecimiento"].includes(plan)?8:["scale","empresa","premium"].includes(plan)?15:0;
-  const baseEmployees=12;
+  const baseEmployees=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?3:["scale","empresa","premium"].includes(plan)?8:0;
   const baseOrderChannels=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?2:["scale","empresa","premium"].includes(plan)?4:0;
   const baseOrderLevel=["scale","empresa","premium"].includes(plan)?"auto":["core","crecimiento"].includes(plan)?"pro":"basic";
   const extraConnections=Math.max(0,Number(meta.extra_connections||0)||0),extraEmployees=Math.max(0,Number(meta.extra_employee_slots||0)||0),ownAgents=Math.max(0,Number(meta.own_agents||0)||0),extraOrderChannels=Math.max(0,Number(meta.extra_order_channels||0)||0);
