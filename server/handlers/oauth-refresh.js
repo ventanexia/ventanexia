@@ -1,6 +1,6 @@
 import {connector} from "./oauth-common.js";
 
-// Renueva el acceso de Gmail de un dispositivo con licencia válida.
+// Renueva accesos OAuth de un dispositivo con licencia válida.
 // El client secret de Google solo existe en el servidor, por eso la app de escritorio
 // no puede renovar el token por su cuenta.
 function cfg(){
@@ -24,7 +24,7 @@ export default async function handler(req,res){
     const provider=clean(req.body?.provider||"gmail",40);
     const refreshToken=clean(req.body?.refreshToken,4096);
     const customerId=clean(req.body?.customerId,80),activationCode=clean(req.body?.activationCode,500),deviceKey=clean(req.body?.deviceKey,120);
-    if(provider!=="gmail")return res.status(400).json({error:"Proveedor no compatible con la renovación automática",code:"PROVIDER_NOT_SUPPORTED"});
+    if(!["gmail","google_calendar","microsoft_365","microsoft_calendar"].includes(provider))return res.status(400).json({error:"Proveedor no compatible con la renovación automática",code:"PROVIDER_NOT_SUPPORTED"});
     if(!refreshToken||!customerId||!activationCode||!deviceKey)return res.status(400).json({error:"Faltan datos para renovar el acceso",code:"MISSING_FIELDS"});
 
     const device=await rpc("vnx_device_status_public",{p_customer_code:customerId,p_activation_code:activationCode,p_device_key:deviceKey});
