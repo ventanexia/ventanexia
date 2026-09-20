@@ -68,7 +68,7 @@ function assertConnectionCapacity(s,{adding=1}={}){
   if(isMaster(s.license))return true;
   const limit=connectionLimit(s.license),used=externalConnectionCount(s);
   if(used+adding<=limit)return true;
-  const err=new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 42 €/mes o cambia de plan.');
+  const err=new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 49 €/mes o cambia de plan.');
   err.code='CONNECTION_LIMIT';err.used=used;err.limit=limit;throw err;
 }
 function orderChannelUsageFromState(s){
