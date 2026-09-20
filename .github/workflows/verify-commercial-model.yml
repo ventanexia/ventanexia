@@ -17,6 +17,7 @@ on:
       - 'assets/portal.js'
       - 'assets/builder.js'
       - 'lib/entitlement.js'
+      - 'condiciones-prueba.html'
       - '.github/workflows/verify-commercial-model.yml'
   workflow_dispatch:
 
@@ -85,5 +86,11 @@ jobs:
           must(plans.includes('15 DÍAS GRATIS')&&plans.includes('sin tarjeta'),'Plans must explain no-card trial');
           must(sweep.includes('trial_expiring_reminder')&&sweep.includes('trial_expired_email'),'Trial lifecycle emails missing');
           must(portal.includes('trialExpiredBanner')&&portal.includes('15 días'),'Expired trial continuation UI missing');
+          const startTrial=read('server/handlers/start-trial.js');
+          const builder=read('assets/builder.js');
+          const terms=read('condiciones-prueba.html');
+          must(startTrial.includes('createCustomerCode')&&startTrial.includes('createActivationCode')&&startTrial.includes('trialTermsAccepted'),'Trial registration/licence automation missing');
+          must(builder.includes('trialTermsAck')&&builder.includes('trialNoChargeAck'),'Trial acceptance checkboxes missing');
+          must(terms.includes('no cedible')&&terms.includes('no transferible')&&terms.includes('15 días gratis'),'Trial terms missing licence restrictions');
           console.log('VentaNexIA commercial model verification OK: launch prices, full standard team, capacity model, contract term and checkout synchronized.');
           NODE
