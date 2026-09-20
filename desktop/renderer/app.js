@@ -408,7 +408,7 @@ async function enforcePurchasedFeatures(){
   let agents=[];
   try{agents=await window.vnx.agentCatalog()||[]}catch{agents=[]}
   const byKey=new Map(agents.map(a=>[a.key,a]));
-  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',agenda:'administration',shopify:'web_ecommerce',wordpress:'web_ecommerce',github_vercel:'web_ecommerce'};
+  const map={email:'email',whatsapp:'whatsapp',social:'social',prospecting:'prospecting',crm:'crm',agenda:'administration',shopify:'orders',wordpress:'web_ecommerce',github_vercel:'web_ecommerce'};
   $$('[data-real-module]').forEach(btn=>{
     const agentKey=map[btn.dataset.realModule];if(!agentKey)return;
     const agent=byKey.get(agentKey);
