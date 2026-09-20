@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.70",
+  "version": "0.6.71",
   "private": true,
-  "description": "VentaNexIA Desktop · vista cómoda y ventana independiente de Carla · 0.6.70",
+  "description": "VentaNexIA Desktop · demo completa protegida, Carla corregida y clasificación de email mejorada · 0.6.71",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
