@@ -1,0 +1,91 @@
+name: VentaNexIA Weekly Capability Watch
+
+on:
+  schedule:
+    - cron: '15 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore previous watch snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: .vnx-watch
+          key: vnx-watch-${{ github.run_id }}
+          restore-keys: |
+            vnx-watch-
+      - name: Check official capability and integration sources
+        id: watch
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, re, urllib.request
+          sources={
+            "OpenAI tools/MCP":"https://developers.openai.com/api/docs/guides/tools-connectors-mcp",
+            "Vercel AI SDK":"https://vercel.com/docs/ai",
+            "Odoo external API":"https://www.odoo.com/documentation/master/developer/reference/external_api.html",
+            "Dolibarr REST API":"https://wiki.dolibarr.org/index.php/Module_Web_Services_REST_(developer)",
+            "Holded API":"https://developers.holded.com/reference",
+            "WooCommerce REST API":"https://developer.woocommerce.com/docs/apis/rest-api/",
+            "Google Calendar API":"https://developers.google.com/workspace/calendar/api/v3/reference/events/list",
+            "Microsoft Graph calendarView":"https://learn.microsoft.com/en-us/graph/api/calendar-list-calendarview"
+          }
+          os.makedirs(".vnx-watch",exist_ok=True)
+          prev_path=".vnx-watch/hashes.json"
+          try: prev=json.load(open(prev_path,encoding="utf-8"))
+          except Exception: prev={}
+          now={}; changed=[]; errors=[]
+          for name,url in sources.items():
+            try:
+              req=urllib.request.Request(url,headers={"User-Agent":"VentaNexIA-Capability-Watch/1.0"})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                raw=r.read(2_000_000).decode("utf-8","ignore")
+              # Reduce noise from spacing, timestamps and common dynamic attributes.
+              text=re.sub(r"\s+"," ",raw)
+              text=re.sub(r"(last-modified|updated|build|timestamp)[^<]{0,80}",r"\1",text,flags=re.I)
+              digest=hashlib.sha256(text.encode()).hexdigest()
+              now[name]={"url":url,"sha256":digest}
+              if name in prev and prev[name].get("sha256")!=digest:
+                changed.append({"name":name,"url":url})
+            except Exception as e:
+              errors.append({"name":name,"url":url,"error":str(e)[:180]})
+          json.dump(now,open(prev_path,"w",encoding="utf-8"),ensure_ascii=False,indent=2)
+          result={"first_run":not bool(prev),"changed":changed,"errors":errors}
+          json.dump(result,open(".vnx-watch/result.json","w",encoding="utf-8"),ensure_ascii=False,indent=2)
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
+            f.write("first_run="+("true" if result["first_run"] else "false")+"\n")
+            f.write("changed="+str(len(changed))+"\n")
+            f.write("errors="+str(len(errors))+"\n")
+          PY
+      - name: Open capability review issue when something changed
+        if: steps.watch.outputs.first_run == 'false' && steps.watch.outputs.changed != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          python - <<'PY' > /tmp/body.md
+          import json
+          r=json.load(open(".vnx-watch/result.json",encoding="utf-8"))
+          print("## VentaNexIA · revisión automática semanal\n")
+          print("Han cambiado fuentes oficiales de las que depende el producto. **Esto no significa que haya que actualizar automáticamente**: hay que revisar qué cambió y si aporta una mejora o rompe compatibilidad.\n")
+          for x in r["changed"]:
+            print(f"- **{x['name']}** — {x['url']}")
+          if r["errors"]:
+            print("\n### Fuentes que no se pudieron comprobar")
+            for x in r["errors"]: print(f"- {x['name']}: {x['error']}")
+          print("\n### Revisión recomendada")
+          print("1. Comprobar cambios de API/permisos/precios o nuevas capacidades.\n2. Compararlos con la versión actual de VentaNexIA.\n3. Crear una mejora solo si existe beneficio real y pruebas.\n4. No publicar compatibilidad nueva hasta validarla.")
+          PY
+          gh issue create --title "🔭 Vigía VentaNexIA: revisar novedades de integraciones" --body-file /tmp/body.md --label "enhancement" || gh issue create --title "🔭 Vigía VentaNexIA: revisar novedades de integraciones" --body-file /tmp/body.md
+      - name: Save current watch snapshot
+        uses: actions/cache/save@v4
+        with:
+          path: .vnx-watch
+          key: vnx-watch-${{ github.run_id }}
