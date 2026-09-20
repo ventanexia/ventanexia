@@ -103,12 +103,14 @@ function moduleEntitlement(module=''){
   if(m==='social')return 'redes';
   if(m==='prospecting')return 'buscador';
   if(m==='crm')return 'crm';
-  if(m==='shopify'||m==='wordpress'||m==='github_vercel'||m==='web_ecommerce')return 'web_ecommerce';
+  if(m==='shopify')return 'pedidos';
+  if(m==='wordpress'||m==='github_vercel'||m==='web_ecommerce')return 'web_ecommerce';
   return m||null;
 }
 function isModuleIncluded(license={},module='',edition=EDITION){
   if(isMaster(license,edition))return true;
   const ent=moduleEntitlement(module);if(!ent)return false;
+  if(ent==='pedidos'&&paidPlan(license))return true;
   const purchased=purchasedFeatures(license);
   if(purchased.has(ent))return true;
   if(standardPremiumPlan(license)&&!['crm','web_ecommerce'].includes(ent))return true;
