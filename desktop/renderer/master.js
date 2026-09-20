@@ -8,7 +8,7 @@
   let runtimeAgents=[];
   let agentMetrics={};
   const AGENT_INPUT_EXAMPLES={
-    core_ai:'Ej.: ¿qué tengo pendiente hoy? · resume pedidos, correos y ventas · dime qué clientes necesitan atención',
+    core_ai:'Ej.: prepárame el día · ¿qué tengo pendiente? · dime por dónde empiezo · ¿qué puedes adelantar por mí?',
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
     whatsapp:'Ej.: prepara una respuesta para este cliente y déjamela lista para autorizar antes de enviarla',
     prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
@@ -24,15 +24,15 @@
   };
   const GUIDED_AGENT_FORMS={
     core_ai:{
-      subtitle:'Tu centro de mando: pregunta aquí por cualquier dato de tus agentes y conexiones sin tener que entrar uno por uno.',
-      primary:'✨ Pedir ayuda a VentaNexIA',
+      subtitle:'Tu secretaria ejecutiva: revisa la empresa, te organiza el día y te deja preparado el trabajo que puede adelantar.',
+      primary:'☀️ Prepárame el día',
       fields:[
-        {key:'goal',label:'¿QUÉ NECESITAS?',type:'textarea',wide:true,placeholder:'Ej. analiza este problema, prepara una propuesta o resume esta información',required:true},
-        {key:'context',label:'CONTEXTO',type:'textarea',wide:true,placeholder:'Añade los datos importantes que deba tener en cuenta'},
-        {key:'result',label:'¿CÓMO QUIERES EL RESULTADO?',type:'text',wide:true,placeholder:'Ej. breve y ejecutivo, paso a paso, tabla, propuesta comercial'}
+        {key:'task',label:'¿QUÉ QUIERES QUE REVISE?',type:'select',options:['Prepárame el día','Dime qué tengo pendiente','Dime por dónde empezar','Dime qué puedes adelantar por mí','Prepárame lo que tengo que autorizar','Hazme el cierre del día','Otra consulta']},
+        {key:'focus',label:'¿ALGUNA PRIORIDAD?',type:'text',wide:true,placeholder:'Opcional. Ej. pedidos, clientes importantes, cobros o una reunión'},
+        {key:'context',label:'ALGO QUE DEBA SABER',type:'textarea',wide:true,placeholder:'Opcional. Añade una condición o asunto especial para hoy'}
       ],
-      capabilities:['Consultar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Cruzar datos de varios agentes en una misma respuesta','Decirte qué tienes pendiente y qué necesita atención','Indicar de qué fuente sale cada dato y qué conexión no está disponible','Las acciones reales siguen pasando por el agente especialista y su autorización'],
-      steps:['Pedir','Revisar','Ajustar']
+      capabilities:['Revisar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Separar lo que puede adelantar, lo que deja preparado para autorizar y lo que requiere tu decisión','Recomendarte por dónde empezar según urgencia e impacto','Prepararte respuestas, seguimientos y trabajo para que solo tengas que revisar y aprobar','Avisarte de correos nuevos que realmente necesitan atención','Indicar qué fuente falta conectar en vez de inventar datos'],
+      steps:['Revisar','Priorizar','Adelantar']
     },
     email:{
       subtitle:'Lee, organiza y prepara respuestas de tu correo conectado.',
@@ -237,6 +237,19 @@
     try{const x=JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')?.whatsapp;return x?.provider==='whatsapp_personal'&&x?.status==='manual_ready'}catch{return false}
   }
   function guidedPrompt(key,data){
+    if(key==='core_ai'){
+      const task=String(data.task||'Prepárame el día').trim();
+      const focus=String(data.focus||'').trim(),context=String(data.context||'').trim();
+      return [
+        'Actúa como mi Secretaria Ejecutiva de VentaNexIA.',
+        'Tarea: '+task+'.',
+        focus?'Prioridad especial: '+focus+'.':'',
+        context?'Contexto adicional: '+context+'.':'',
+        'Revisa únicamente las fuentes realmente conectadas que recibas. Cruza Email, Pedidos, Ventas y clientes, tienda, WhatsApp, redes y agenda solo cuando estén disponibles.',
+        'Organiza la respuesta en: 1) Mi recomendación para empezar, 2) 🟢 Lo que VentaNexIA puede adelantar o preparar, 3) 🟡 Lo que puede dejar listo para mi autorización, 4) 🔴 Lo que necesita mi decisión personal, 5) 📅 Agenda de hoy si está conectada, 6) Siguiente mejor acción.',
+        'No inventes reuniones, correos, clientes, pedidos ni datos. No ejecutes acciones externas desde este panel; para actuar, ofrece conectarme automáticamente con el empleado especializado.'
+      ].filter(Boolean).join('\n');
+    }
     if(key==='email'){
       const task=String(data.task||'').toLowerCase(),target=String(data.target||'').trim(),instruction=String(data.instruction||'').trim(),result=String(data.result||'').trim();
       let lead='Gestiona mi correo.';
@@ -331,7 +344,7 @@
   }
   function agentShortFunction(key){
     return {
-      core_ai:'ideas, textos y tareas',
+      core_ai:'organiza el día y adelanta trabajo',
       email:'leer, responder y borradores',
       whatsapp:'responder clientes y pedir datos',
       prospecting:'buscar posibles clientes',
@@ -1257,6 +1270,121 @@
       .replace(/(\b(?:clave|key|token|api)\s*[:=]?\s*)\S+/gi,'$1••••••••')
       .replace(/(\b(?:secreto|secret)\s*[:=]?\s*)\S+/gi,'$1••••••••');
   }
+  let secretaryNewMails=[];
+  let secretaryMailTimer=null;
+  function secretaryDateKey(){
+    const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  }
+  function secretaryAlertsEnabled(){return localStorage.getItem('vnx_secretary_alerts')!=='off'}
+  function secretaryCoreScope(){
+    const a=(chatConnections()||[]).find(x=>x.key==='core_ai');
+    return a?{type:'agent',key:'core_ai',name:agentDisplayName(a),included:a.included,connected:a.connected,ready:a.ready,source:a.source||null}:null;
+  }
+  function secretaryPrompt(kind='day'){
+    const today=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const common='Usa SOLO datos reales de las fuentes conectadas. No inventes agenda, reuniones, correos, pedidos, clientes ni cifras. Si falta una conexión dilo claramente. Desde este panel no ejecutes acciones externas: cuando una tarea requiera actuar, ofrece conectarme con el empleado especializado y conserva el contexto.';
+    if(kind==='close')return 'Actúa como mi Secretaria Ejecutiva. Haz el cierre de hoy '+today+'. Resume qué se ha gestionado con los datos disponibles, qué queda pendiente, qué debería dejar preparado para mañana y qué puedes adelantar tú. '+common;
+    if(kind==='pending')return 'Actúa como mi Secretaria Ejecutiva. Dime qué tengo pendiente hoy '+today+' y ordénalo por urgencia e impacto. Separa: 🟢 lo que puedes adelantar/preparar tú; 🟡 lo que puedes dejar listo para mi autorización; 🔴 lo que necesita mi decisión; 📅 agenda si está realmente conectada. Termina diciéndome por dónde empezarías. '+common;
+    if(kind==='work')return 'Actúa como mi Secretaria Ejecutiva. Revisa todo lo disponible hoy '+today+' y dime qué trabajo puedes adelantar por mí ahora mismo sin que yo tenga que buscar nada. Separa lo que puedes preparar de lo que requiere mi autorización o una decisión personal. '+common;
+    if(kind==='alerts'){
+      const mails=secretaryNewMails.slice(-8).map((m,i)=>(i+1)+'. '+(m.subject||'(sin asunto)')+' — '+(m.from||'remitente desconocido')+' — '+(Number(m.replyScore||0)>0?'parece requerir respuesta':'conviene revisar')).join('\n');
+      return 'Actúa como mi Secretaria Ejecutiva. Han llegado estos correos nuevos que el sistema ha marcado como relevantes:\n'+mails+'\nDime cuáles revisar primero, cuáles puedes resumir o preparar para responder y cuáles necesitarían mi autorización antes de enviar nada. '+common;
+    }
+    return 'Actúa como mi Secretaria Ejecutiva. Prepárame el día de hoy, '+today+'. Revisa todas las fuentes conectadas y dame un plan de trabajo muy práctico. Estructura exactamente así: # Buenos días · resumen breve; ## Mi recomendación para empezar; ## 🟢 Puedo adelantar por ti; ## 🟡 Te lo dejo preparado para autorizar; ## 🔴 Necesito tu decisión; ## 📅 Agenda de hoy; ## Siguiente mejor acción. En Email distingue los mensajes informativos de los que parecen requerir respuesta. En Pedidos destaca bloqueos, stock, Compras o datos faltantes. '+common;
+  }
+  async function runExecutiveSecretary(kind='day',{automatic=false}={}){
+    const scope=secretaryCoreScope();if(!scope||scope.included===false)return;
+    if(!automatic){
+      selectAgentKey('core_ai',{preserve:true});
+      setWorkspaceMode('free');
+      masterMessages.push({role:'user',content:kind==='close'?'🌙 Hazme el cierre del día':kind==='pending'?'¿Qué tengo pendiente?':kind==='work'?'¿Qué puedes adelantar por mí?':kind==='alerts'?'🔔 Revisa los avisos nuevos':'☀️ Prepárame el día'});
+      renderMasterMessages();
+    }else{
+      selectAgentKey('core_ai',{preserve:true});
+      setWorkspaceMode('free');
+      masterMessages.push({role:'assistant',content:'☀️ Buenos días. Estoy revisando tus conexiones para prepararte el día…'});
+      renderMasterMessages();
+    }
+    try{
+      const r=await window.vnx.sendChat([{role:'user',content:secretaryPrompt(kind)}],scope);
+      masterMessages.push({role:'assistant',content:r.reply||'No he podido preparar el resumen.',images:r.images||[],handoff:r.handoff||null});
+      if(kind==='alerts')secretaryNewMails=[];
+    }catch(e){
+      masterMessages.push({role:'assistant',content:'No he podido completar la revisión: '+(e.message||e)});
+    }
+    updateSecretaryBar();
+    renderMasterMessages();
+  }
+  function injectSecretaryStyles(){
+    if(document.getElementById('vnxSecretaryStyles'))return;
+    const s=document.createElement('style');s.id='vnxSecretaryStyles';s.textContent=
+      '.vnx-secretary-bar{margin:0 0 14px;padding:12px 14px;border:1px solid rgba(104,168,255,.35);border-radius:14px;background:linear-gradient(135deg,rgba(19,55,83,.92),rgba(19,38,64,.92));display:flex;align-items:center;gap:10px;flex-wrap:wrap}.vnx-secretary-title{display:flex;align-items:center;gap:9px;margin-right:auto;min-width:220px}.vnx-secretary-title b{display:block}.vnx-secretary-title small{display:block;opacity:.78;margin-top:2px}.vnx-secretary-bar button{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:inherit;border-radius:9px;padding:8px 10px;cursor:pointer}.vnx-secretary-bar button:hover{background:rgba(255,255,255,.14)}.vnx-secretary-alerts.has-alerts{font-weight:800;box-shadow:0 0 0 2px rgba(255,190,60,.22)}';
+    document.head.appendChild(s);
+  }
+  function updateSecretaryBar(){
+    const n=$m('[data-secretary-alerts]'),toggle=$m('[data-secretary-toggle]');
+    if(n){n.textContent=secretaryNewMails.length?'🔔 '+secretaryNewMails.length+' por revisar':'🔔 Sin avisos';n.classList.toggle('has-alerts',secretaryNewMails.length>0)}
+    if(toggle)toggle.textContent=secretaryAlertsEnabled()?'Avisos: ON':'Avisos: OFF';
+  }
+  function setupExecutiveSecretary(){
+    const form=$m('#chatForm');if(!form||document.querySelector('.vnx-secretary-bar'))return;
+    injectSecretaryStyles();
+    const bar=document.createElement('div');bar.className='vnx-secretary-bar';
+    bar.innerHTML='<div class="vnx-secretary-title"><span style="font-size:24px">🧑‍💼</span><div><b>Secretaria Ejecutiva</b><small>Revisa, prioriza y te deja el trabajo preparado.</small></div></div>'
+      +'<button type="button" data-secretary-day>☀️ Prepárame el día</button>'
+      +'<button type="button" data-secretary-pending>✓ Pendientes</button>'
+      +'<button type="button" data-secretary-work>⚡ Adelanta trabajo</button>'
+      +'<button type="button" data-secretary-close>🌙 Cierre</button>'
+      +'<button type="button" class="vnx-secretary-alerts" data-secretary-alerts>🔔 Sin avisos</button>'
+      +'<button type="button" data-secretary-toggle>Avisos: ON</button>';
+    form.parentElement?.insertBefore(bar,form);
+    bar.querySelector('[data-secretary-day]').onclick=()=>runExecutiveSecretary('day');
+    bar.querySelector('[data-secretary-pending]').onclick=()=>runExecutiveSecretary('pending');
+    bar.querySelector('[data-secretary-work]').onclick=()=>runExecutiveSecretary('work');
+    bar.querySelector('[data-secretary-close]').onclick=()=>runExecutiveSecretary('close');
+    bar.querySelector('[data-secretary-alerts]').onclick=()=>secretaryNewMails.length?runExecutiveSecretary('alerts'):runExecutiveSecretary('pending');
+    bar.querySelector('[data-secretary-toggle]').onclick=()=>{localStorage.setItem('vnx_secretary_alerts',secretaryAlertsEnabled()?'off':'on');updateSecretaryBar()};
+    updateSecretaryBar();
+  }
+  async function pollSecretaryEmail({initial=false}={}){
+    if(!secretaryAlertsEnabled()||document.visibilityState==='hidden'&& !window.vnx?.secretaryNotify)return;
+    const emailAgent=(runtimeAgents||[]).find(x=>x.key==='email');
+    if(!emailAgent?.ready)return;
+    try{
+      const inbox=await window.vnx.emailInbox({limit:12}),rows=Array.isArray(inbox?.messages)?inbox.messages:[];
+      const stored=JSON.parse(localStorage.getItem('vnx_secretary_seen_mail')||'[]');
+      const seen=new Set(stored);
+      if(!stored.length||initial){
+        localStorage.setItem('vnx_secretary_seen_mail',JSON.stringify(rows.map(x=>x.id).filter(Boolean).slice(0,50)));
+        return;
+      }
+      const fresh=rows.filter(x=>x.id&&!seen.has(x.id));
+      const relevant=fresh.filter(x=>Number(x.replyScore||0)>0||Number(x.attentionScore||0)>=3);
+      const next=[...rows.map(x=>x.id).filter(Boolean),...stored].filter((x,i,a)=>a.indexOf(x)===i).slice(0,80);
+      localStorage.setItem('vnx_secretary_seen_mail',JSON.stringify(next));
+      if(!relevant.length)return;
+      secretaryNewMails.push(...relevant.filter(x=>!secretaryNewMails.some(y=>y.id===x.id)));
+      secretaryNewMails=secretaryNewMails.slice(-12);
+      updateSecretaryBar();
+      const first=relevant[0],kind=Number(first.replyScore||0)>0?'parece necesitar respuesta':'conviene revisarlo';
+      const body=relevant.length===1?'Ha llegado «'+(first.subject||'(sin asunto)')+'». '+kind+'.':'Han llegado '+relevant.length+' correos que conviene revisar. Puedo resumirlos y prepararte las respuestas.';
+      try{await window.vnx.secretaryNotify({title:'VentaNexIA · Secretaria Ejecutiva',body})}catch{}
+    }catch{}
+  }
+  function startSecretaryEmailWatch(){
+    if(secretaryMailTimer)clearInterval(secretaryMailTimer);
+    pollSecretaryEmail({initial:true});
+    secretaryMailTimer=setInterval(()=>pollSecretaryEmail(),5*60*1000);
+  }
+  async function maybeRunMorningBrief(){
+    if(localStorage.getItem('vnx_secretary_auto_brief')==='off')return;
+    const key='vnx_secretary_brief_'+secretaryDateKey();
+    if(localStorage.getItem(key)==='done')return;
+    const scope=secretaryCoreScope();if(!scope||scope.included===false)return;
+    localStorage.setItem(key,'done');
+    await runExecutiveSecretary('day',{automatic:true});
+  }
+
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
     const chatInput=ensureChatInputEditable();
@@ -1315,6 +1443,9 @@
     setupMasterCenter();
     await renderMasterPortals();
     await refreshChatConnections();
+    setupExecutiveSecretary();
+    startSecretaryEmailWatch();
+    await maybeRunMorningBrief();
     setInterval(()=>{if($m('#portalList')&&document.visibilityState==='visible')renderMasterPortals()},12000);
   }
   setTimeout(start,350);
