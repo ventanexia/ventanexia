@@ -959,3 +959,5 @@ body{
  .vnx-agent-source-picker{grid-template-columns:1fr}
  .vnx-own-agent-grid{grid-template-columns:1fr}.vnx-own-agent-grid .wide{grid-column:1}
 }
+
+.vnx-global-source{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:8px;align-items:end;margin:0 0 10px}.vnx-global-source label{display:grid;gap:4px}.vnx-global-source select{padding:9px 10px;border-radius:9px;border:1px solid #28668c;background:#041827;color:#fff}.vnx-global-source small{color:#89a9bc;font-size:9px;padding-bottom:8px}@media(max-width:700px){.vnx-global-source{grid-template-columns:1fr}.vnx-global-source small{padding-bottom:0}}
