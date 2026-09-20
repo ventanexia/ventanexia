@@ -20,9 +20,9 @@ const checks=[
  ['own-agent IPC',main.includes("external-agent:list")&&preload.includes('externalAgentSave')],
  ['own-agent chat route',entry.includes("type==='external_agent'")],
  ['connection limit policy',policy.includes('function connectionLimit')&&main.includes('assertConnectionCapacity')],
- ['connection capacity message',main.includes('conexión extra por 42 €/mes')],
- ['commercial extra connection quantity',plans.includes('teamExtraConnections')&&plans.includes('cart.extraConnections*42')],
- ['signed contract extra connections',contract.includes('extraConnections')&&contract.includes('extraConnectionPrice=42')],
+ ['connection capacity message',main.includes('conexión extra por 49 €/mes')],
+ ['commercial extra connection quantity',plans.includes('teamExtraConnections')&&plans.includes('cart.extraConnections*49')],
+ ['signed contract extra connections',contract.includes('extraConnections')&&contract.includes('extraConnectionPrice=49')],
  ['Stripe extra connection line',checkout.includes('Conexión externa adicional')&&checkout.includes('extra_connections')],
  ['feature policy connection limit',webhook.includes('connection_limit:baseConnections+extraConnections')],
  ['responsive fullscreen CSS',css.includes('.vnx-focus-chat #chat.tab.active')&&css.includes('.vnx-status-strip')]
