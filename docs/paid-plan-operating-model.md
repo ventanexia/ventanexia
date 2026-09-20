@@ -173,3 +173,15 @@ Un conector estándar ya compatible con VentaNexIA puede utilizarse dentro del n
 El vídeo generado con IA no se considera uso mensual incluido por defecto. Se ofrece mediante paquetes de créditos para evitar trasladar ese coste a clientes que no lo utilizan.
 
 Nunca se debe vender “uso ilimitado” de Pedidos. Si una empresa necesita más volumen, debe ampliarse su capacidad o prepararse una propuesta específica.
+
+
+### Conexiones adicionales
+
+Las conexiones son un límite independiente de las plazas de empleados IA.
+
+- VNX Inicio: hasta 2 conexiones incluidas.
+- VNX Empresa: hasta 5 conexiones incluidas.
+- VNX Premium: hasta 10 conexiones incluidas.
+- Cada conexión compatible adicional: 42 €/mes + IVA.
+
+El cliente puede elegir la cantidad de conexiones adicionales en el configurador antes de firmar. La licencia recibe el límite total contratado y el Desktop debe impedir nuevas conexiones cuando se alcance ese límite, ofreciendo contratar una conexión adicional o cambiar de plan.
