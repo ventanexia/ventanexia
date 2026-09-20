@@ -155,16 +155,27 @@ function dolibarr(cfg,{fetch:f}){
   let base=secureRemoteUrl(cfg.url,'Dolibarr');if(!/\/api\/index\.php$/i.test(base))base+='/api/index.php';
   const H={DOLAPIKEY:cfg.key};
   const get=p=>http(f,base+'/'+p,{headers:H,what:'Dolibarr'});
+  async function pages(resource){
+    const out=[],limit=500;
+    for(let page=0;page<40;page++){
+      const sep=resource.includes('?')?'&':'?';
+      const batch=await get(resource+sep+'limit='+limit+'&page='+page);
+      if(!Array.isArray(batch)||!batch.length)break;
+      out.push(...batch);
+      if(batch.length<limit)break;
+    }
+    return out;
+  }
   return {
     id:'dolibarr',
     async test(){const r=await get('thirdparties?limit=1');if(!Array.isArray(r))throw new Error('Dolibarr no ha devuelto clientes: ¿está activado el módulo API REST?');return {ok:true}},
     async customers(){
-      const list=await get('thirdparties?sortfield=t.rowid&sortorder=ASC&limit=1000');
-      return [CUST_HEAD,...(list||[]).filter(c=>c&&c.name).map(c=>[c.id,c.name||'',c.idprof1||'',c.email||'',c.phone||'',[c.address,c.zip,c.town].filter(Boolean).join(', ')])];
+      const list=await pages('thirdparties?sortfield=t.rowid&sortorder=ASC');
+      return [CUST_HEAD,...list.filter(c=>c&&c.name).map(c=>[c.id,c.name||'',c.idprof1||'',c.email||'',c.phone||'',[c.address,c.zip,c.town].filter(Boolean).join(', ')])];
     },
     async catalog(){
-      const list=await get('products?sortfield=t.rowid&sortorder=ASC&limit=1000');
-      return [CAT_HEAD,...(list||[]).filter(p=>p&&p.ref).map(p=>[p.ref,p.label||'',num(p.price)??'',p.stock_reel==null?'':num(p.stock_reel)??''])];
+      const list=await pages('products?sortfield=t.rowid&sortorder=ASC');
+      return [CAT_HEAD,...list.filter(p=>p&&p.ref).map(p=>[p.ref,p.label||'',num(p.price)??'',p.stock_reel==null?'':num(p.stock_reel)??''])];
     },
     async createOrder(order,ctx){
       const c=order.extracted.customer,m=order.verification?.customer;
@@ -173,7 +184,18 @@ function dolibarr(cfg,{fetch:f}){
         const r=await http(f,base+'/thirdparties',{method:'POST',headers:H,what:'Dolibarr',body:{name:c.name||order.source.from||'Cliente',client:1,code_client:'auto',country_code:'ES',...(c.taxId?{idprof1:c.taxId}:{}),...(c.email?{email:c.email}:{}),...(c.phone?{phone:c.phone}:{}),...(c.address?{address:c.address}:{})}});
         socid=Number(r);if(!socid)throw new Error('Dolibarr no ha creado el cliente nuevo: créalo en Dolibarr y vuelve a introducir el pedido');
       }
-      const lines=order.extracted.lines.map((l,i)=>{const cat=ctx.lineMatch(i);const price=l.price!=null?l.price:(cat?.price!=null?num(cat.price):0);return {desc:l.description||cat?.description||l.ref||'Artículo',qty:l.qty,subprice:price||0,tva_tx:cfg.tax??21,...(l.ref?{ref:l.ref}:{}),rang:i+1}});
+      const refs=[...new Set(order.extracted.lines.map(l=>String(l.ref||'').trim()).filter(Boolean))];
+      const productIds={};
+      for(const ref of refs){
+        try{
+          const found=await get('products?sqlfilters=' + encodeURIComponent("(t.ref:=:'"+ref.replace(/'/g,"''")+"')") + '&limit=2');
+          const p=Array.isArray(found)?found[0]:null;if(p?.id)productIds[ref]=Number(p.id);
+        }catch{}
+      }
+      const lines=order.extracted.lines.map((l,i)=>{
+        const cat=ctx.lineMatch(i),price=l.price!=null?l.price:(cat?.price!=null?num(cat.price):0),ref=String(l.ref||'').trim();
+        return {desc:l.description||cat?.description||ref||'Artículo',qty:l.qty,subprice:price||0,tva_tx:cfg.tax??21,...(productIds[ref]?{fk_product:productIds[ref]}:{}),...(ref?{ref}:{}),rang:i+1};
+      });
       const id=await http(f,base+'/orders',{method:'POST',headers:H,what:'Dolibarr',body:{socid,date:unix(),type:0,ref_client:order.extracted.orderRef||order.internalRef,
         note_private:'VentaNexIA '+order.internalRef+(c.deliveryAddress?' · entrega: '+c.deliveryAddress:'')+(ctx.leadTime?' · plazo: '+ctx.leadTime:''),lines}});
       if(!id)throw new Error('Dolibarr no ha devuelto el ID del pedido');
@@ -192,9 +214,9 @@ function woocommerce(cfg,{fetch:f}){
     id:'woocommerce',
     async test(){const r=await get('orders?per_page=1');if(!Array.isArray(r))throw new Error('WooCommerce no ha devuelto pedidos');return {ok:true}},
     async orders({sinceMs}){
-      const after=new Date(sinceMs).toISOString();const all=[];
+      const after=new Date(sinceMs).toISOString();const all=[],allowed=new Set(Array.isArray(cfg.statuses)&&cfg.statuses.length?cfg.statuses:['processing','on-hold','pending']);
       for(let page=1;page<=10;page++){const r=await get('orders?per_page=100&page='+page+'&after='+encodeURIComponent(after));if(!Array.isArray(r)||!r.length)break;all.push(...r);if(r.length<100)break}
-      return all.map(o=>({id:String(o.id),account:'woocommerce',name:'#'+o.number,createdAt:o.date_created_gmt?o.date_created_gmt+'Z':o.date_created,email:o.billing?.email||'',phone:o.billing?.phone||'',note:o.customer_note||'',customerName:[o.billing?.first_name,o.billing?.last_name].filter(Boolean).join(' '),company:o.billing?.company||'',
+      return all.filter(o=>allowed.has(String(o.status||'').toLowerCase())).map(o=>({id:String(o.id),account:'woocommerce',name:'#'+o.number,createdAt:o.date_created_gmt?o.date_created_gmt+'Z':o.date_created,email:o.billing?.email||'',phone:o.billing?.phone||'',note:o.customer_note||'',customerName:[o.billing?.first_name,o.billing?.last_name].filter(Boolean).join(' '),company:o.billing?.company||'',
         shippingAddress:[o.shipping?.company,o.shipping?.address_1,[o.shipping?.postcode,o.shipping?.city].filter(Boolean).join(' ')].filter(Boolean).join(', '),billingAddress:[o.billing?.company,o.billing?.address_1,[o.billing?.postcode,o.billing?.city].filter(Boolean).join(' ')].filter(Boolean).join(', '),currency:o.currency||'EUR',total:num(o.total),
         lines:(o.line_items||[]).map(l=>({sku:l.sku||'',title:l.name||'',qty:l.quantity,price:num(l.price)}))}));
     }
