@@ -147,7 +147,7 @@
                 <button type="button" id="vnxAgendaTodayBtn">📅 Agenda de hoy</button>
                 <button type="button" id="vnxEmailSummaryBtn">✉️ Resumen emails</button>
                 <button type="button" id="vnxMyWorkBtn">📥 Mi trabajo</button>
-                <button type="button" id="vnxTranslateEmailsBtn">🌐 Traducir emails</button>
+                <div class="vnx-translate-inline"><button type="button" id="vnxTranslateEmailsBtn">🌐 Traducir emails</button><select id="vnxTranslationLanguage" aria-label="Idioma de traducción"><option>Español</option><option>Català</option><option>English</option><option>Français</option><option>Deutsch</option><option>Italiano</option><option>Português</option></select></div>
                 <button type="button" id="vnxOpenConnectionsBtn">👤 Conectar empleado</button>
               </div>
             </div>
@@ -204,21 +204,6 @@
               </div>
             </div>
 
-            <div class="vnx-bottom-tools">
-              <article class="vnx-translation-card">
-                <div class="vnx-card-title"><span>🌐</span><div><b>Traducción de emails</b><small>Si llega un correo en otro idioma, puedo prepararlo traducido para ti.</small></div><label class="vnx-switch"><input id="vnxTranslationEnabled" type="checkbox"><span></span></label></div>
-                <div class="vnx-translation-controls"><label>Idioma final<select id="vnxTranslationLanguage"><option>Español</option><option>Català</option><option>English</option><option>Français</option><option>Deutsch</option><option>Italiano</option><option>Português</option></select></label><button id="vnxTranslateNowBtn" class="btn outline" type="button">Traducir correos recientes</button></div>
-                <div class="vnx-language-pills"><span>EN → ES</span><span>FR → ES</span><span>DE → ES</span><span>IT → ES</span></div>
-              </article>
-              <article class="vnx-plain-answer-card">
-                <div class="vnx-card-title"><span>🧭</span><div><b>Respuestas fáciles de entender</b><small>Cuando falte una conexión, te explico qué sé, qué no puedo hacer y el siguiente paso.</small></div></div>
-                <div class="vnx-plain-grid">
-                  <span><b>✓ Puedo hacer ahora</b><small>Consultar los datos autorizados y preparar el trabajo.</small></span>
-                  <span><b>⚠ Me falta</b><small>Te diré qué conexión o permiso necesito.</small></span>
-                  <span><b>→ Siguiente paso</b><small>Un botón claro para continuar sin buscar menús.</small></span>
-                </div>
-              </article>
-            </div>
           </div>
 
           <aside class="vnx-workbench-rail">
