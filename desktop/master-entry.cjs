@@ -49,8 +49,9 @@ function scopeTypeOf(payload){
 function normText(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function centralActionHandoff(question=''){
   const q=normText(question);
-  const action=/\b(responde|contesta|envia|manda|crea|haz|prepara|archiva|marca|elimina|borra|publica|programa|introduce|registra|entrega|pide|solicita|modifica|cambia|actualiza|llama|contacta|gestiona|tramita)\b/.test(q);
-  if(!action)return null;
+  const explicitAction=/\b(responde|contesta|envia|manda|archiva|marca|elimina|borra|publica|programa|introduce|registra|entrega|pide|solicita|modifica|cambia|actualiza|llama|contacta|gestiona|tramita)\b/.test(q)
+    ||/\b(crea|prepara)\b[^\n]{0,45}\b(borrador|respuesta|pedido|publicacion|post|campana|presupuesto|oferta|seguimiento|tarea|cita)\b/.test(q);
+  if(!explicitAction)return null;
   const defs=[
     {key:'email',name:'Email y bandeja',icon:'✉️',re:/correo|correos|email|emails|gmail|bandeja|borrador|archiv|remitente|asunto/},
     {key:'orders',name:'Pedidos',icon:'📦',re:/pedido|pedidos|orden de compra|stock|compras|entrega|referencia|sku/},
