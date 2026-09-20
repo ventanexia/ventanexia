@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.71",
+  "version": "0.6.72",
   "private": true,
-  "description": "VentaNexIA Desktop · demo completa protegida, Carla corregida y clasificación de email mejorada · 0.6.71",
+  "description": "VentaNexIA Desktop · vista previa PDF/Excel legible y exportación ordenada · 0.6.72",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
