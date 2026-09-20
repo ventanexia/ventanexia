@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('vnx',{
   provisioningList:()=>ipcRenderer.invoke('provisioning:list'),
   provisioningStart:(taskId)=>ipcRenderer.invoke('provisioning:start',taskId),
   provisioningComplete:(taskId)=>ipcRenderer.invoke('provisioning:complete',taskId),
+  masterDashboard:()=>ipcRenderer.invoke('master:dashboard'),
   videoQuota:()=>ipcRenderer.invoke('video:quota'),
   consumeVideoCredits:(seconds)=>ipcRenderer.invoke('video:consume',seconds),
   openQuickAssist:()=>ipcRenderer.invoke('support:quick-assist'),
