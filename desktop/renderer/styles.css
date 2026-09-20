@@ -1031,3 +1031,33 @@ body{
 .vnx-work-item.automatic{border-color:#23795f}.vnx-work-item.decision{border-color:#806125}.vnx-work-item.resolved{border-color:#255c70}
 @media(max-width:900px){.vnx-work-summary{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.vnx-work-summary{grid-template-columns:1fr}}
+
+
+/* 0.6.70 — readable interface and detachable Carla workspace */
+.vnx-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.vnx-view-controls{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid #245978;border-radius:10px;background:#061a2d}
+.vnx-view-controls .mini{margin:0;min-width:48px;border:0;background:transparent;color:#9fbdcf;padding:7px 8px;border-radius:7px;font-size:10px;font-weight:900;cursor:pointer}
+.vnx-view-controls .mini:hover{background:#0c3150;color:#fff}
+.vnx-view-controls .mini.active{background:#0f5c91;color:#fff;box-shadow:inset 0 0 0 1px #3ecbff}
+.vnx-detached-workbench .shell{grid-template-columns:1fr}
+.vnx-detached-workbench .side{display:none!important}
+.vnx-detached-workbench .main{padding:0!important;overflow:hidden}
+.vnx-detached-workbench .tab{display:none!important}
+.vnx-detached-workbench #chat.tab{display:block!important;height:100vh}
+.vnx-detached-workbench .vnx-workbench{height:100vh!important;padding:14px 16px 16px}
+.vnx-detached-workbench .vnx-workbench-head{position:sticky;top:0;z-index:8;background:#031523;padding-bottom:4px}
+.vnx-detached-workbench .vnx-workbench-grid{grid-template-columns:minmax(0,1fr) 320px}
+.vnx-detached-workbench .vnx-message-canvas .msg{font-size:13px;line-height:1.58}
+.vnx-detached-workbench .vnx-global-source small,
+.vnx-detached-workbench .vnx-card-title small,
+.vnx-detached-workbench .vnx-workbench-head p{font-size:10.5px}
+.vnx-detached-workbench .vnx-rail-head b{font-size:12px}
+@media(max-width:1250px){
+  .vnx-head-actions{max-width:660px}
+  .vnx-detached-workbench .vnx-workbench-grid{grid-template-columns:minmax(0,1fr) 280px}
+}
+@media(max-width:980px){
+  .vnx-view-controls{order:3}
+  .vnx-detached-workbench .vnx-workbench-grid{grid-template-columns:1fr}
+  .vnx-detached-workbench .vnx-workbench-rail{display:none}
+}
