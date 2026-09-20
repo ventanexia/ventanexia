@@ -13,8 +13,8 @@ const indexHtml=read('renderer/index.html');
 const checks=[
   ['renderer morning brief',renderer.includes('maybeRunMorningBrief')],
   ['renderer daily plan',renderer.includes('Prepárame el día')],
-  ['renderer work ahead',renderer.includes('Adelanta trabajo')],
-  ['renderer close day',renderer.includes('Cierre')],
+  ['renderer work ahead',indexHtml.includes('Adelanta trabajo')&&renderer.includes("runExecutiveSecretary('work')")],
+  ['renderer close day',renderer.includes("runExecutiveSecretary('close')")||indexHtml.includes('Cierre')],
   ['renderer mail watcher',renderer.includes('pollSecretaryEmail')],
   ['renderer alert classification',renderer.includes('replyScore')&&renderer.includes('attentionScore')],
   ['native secretary notify',entry.includes("secretary:notify")],
