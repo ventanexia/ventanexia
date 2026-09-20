@@ -222,7 +222,16 @@
   };
 
   const guidedStorageKey=key=>'vnx_guided_'+key;
-  function guidedConfig(key){return GUIDED_AGENT_FORMS[key]||GUIDED_AGENT_FORMS.core_ai}
+  function guidedConfig(key){
+    if(String(key||'').startsWith('external:'))return {
+      subtitle:'Tu agente propio conectado a VentaNexIA.',
+      primary:'🤖 Consultar mi agente',
+      fields:[{key:'task',label:'¿QUÉ QUIERES QUE HAGA?',type:'textarea',wide:true,placeholder:'Explícale la tarea de forma sencilla',required:true}],
+      capabilities:['Usar únicamente la conexión de este agente propio','Consultar o preparar trabajo según los permisos configurados','No recibe acceso automático al resto de tus conexiones'],
+      steps:['Enviar','Revisar','Continuar']
+    };
+    return GUIDED_AGENT_FORMS[key]||GUIDED_AGENT_FORMS.core_ai
+  }
   function guidedSaved(key){try{return JSON.parse(localStorage.getItem(guidedStorageKey(key))||'{}')}catch{return {}}}
   function guidedSave(key,data){try{localStorage.setItem(guidedStorageKey(key),JSON.stringify(data))}catch{}}
   function guidedFieldHtml(field,value=''){
@@ -240,6 +249,7 @@
     try{const x=JSON.parse(localStorage.getItem('vnx_real_module_sources')||'{}')?.whatsapp;return x?.provider==='whatsapp_personal'&&x?.status==='manual_ready'}catch{return false}
   }
   function guidedPrompt(key,data){
+    if(String(key||'').startsWith('external:'))return String(data.task||'').trim();
     if(key==='core_ai'){
       const task=String(data.task||'Prepárame el día').trim();
       const focus=String(data.focus||'').trim(),context=String(data.context||'').trim();
@@ -363,7 +373,7 @@
     }[key]||'ayuda para tu negocio';
   }
   function selectAgentKey(key,{preserve=false}={}){
-    const sel=$m('#chatConnectionSelect');if(!sel)return false;    const value='agent:'+key;
+    const sel=$m('#chatConnectionSelect');if(!sel)return false;    const value=String(key||'').startsWith('external:')?String(key):'agent:'+key;
     if(![...sel.options].some(o=>o.value===value))return false;
     if(preserve)handoffAgentChange=true;
     sel.value=value;sel.dispatchEvent(new Event('change',{bubbles:true}));
@@ -814,6 +824,7 @@
     const missing=(cfg.fields||[]).filter(f=>f.required&&!String(data[f.key]||'').trim());
     if(missing.length){out.style.display='block';out.innerHTML='<b>Falta completar:</b> '+escM(missing.map(x=>x.label).join(', '));return}
     if(cfg.consent&&!$m('#guidedConsent')?.checked){out.style.display='block';out.textContent='Confirma primero los criterios de búsqueda.';return}
+    if(scope.needsSourceChoice){out.style.display='block';out.textContent='Tienes varias conexiones para este empleado. Elige arriba una conexión o “Todas, separadas”.';return}
     if(scope.included===false){out.style.display='block';out.textContent='Este agente no está incluido en tu plan.';return}
     if(scope.connected===false){out.style.display='block';out.textContent='Este agente necesita una conexión. Configúrala en Conexiones y vuelve aquí.';return}
     btn.disabled=true;const old=btn.textContent;btn.textContent='Trabajando…';out.style.display='block';out.innerHTML='<div class="guided-loading">VentaNexIA está trabajando con tus datos…</div>';
@@ -839,7 +850,7 @@
         r=await window.vnx.sendChat([{role:'user',content:search}],scope);
       }else{
         const prompt=guidedPrompt(scope.key,data);
-        r=await window.vnx.sendChat([{role:'user',content:prompt}],scope);
+        r=scope.separateSources?await sendSeparatedBySources(prompt,scope,[{role:'user',content:prompt}]):await window.vnx.sendChat([{role:'user',content:prompt}],scope);
       }
       if(scope.key==='prospecting'&&renderProspectingResults(out,r,data,scope)){
         // La captación se muestra como oportunidades visuales con datos estructurados reales.
@@ -1089,7 +1100,7 @@
   }
   function updateAgentInputExample(chosen){
     const input=ensureChatInputEditable();if(!input)return;
-    input.placeholder=chosen?AGENT_INPUT_EXAMPLES[chosen.key]||'Escribe aquí lo que necesitas que haga este agente':'Elige un agente arriba y te mostraré ejemplos de lo que puedes pedirle';
+    input.placeholder=chosen?(chosen.external?'Escribe aquí lo que quieres pedir a '+chosen.name:AGENT_INPUT_EXAMPLES[chosen.key]||'Escribe aquí lo que necesitas que haga este agente'):'Elige un agente arriba y te mostraré ejemplos de lo que puedes pedirle';
   }
 
   function statusLabel(p){
@@ -1240,6 +1251,7 @@
     if(hint)hint.textContent='Tienes '+sources.length+' conexiones para este empleado. Elige una o “Todas, separadas”.';
   }
   function agentStatusText(x){
+    if(x?.external)return '🟢 Agente propio conectado';
     if(!x?.included)return '🔒 No incluido en tu plan';
     if(!x?.connected)return '🟠 Incluido · falta conectar';
     return '🟢 Listo para usar';
@@ -1261,6 +1273,7 @@
       reports:'Explica tus datos y resultados de forma sencilla.',
       automation:'Hace tareas repetitivas por ti siguiendo reglas claras.'
     };
+    for(const a of items)if(a.external)descriptions[a.key]='Agente propio conectado por el cliente y aislado del resto de conexiones salvo autorización expresa.';
     root.innerHTML=items.map(a=>{
       const status=!a.included?'🔒 No incluido':a.ready?'🟢 Listo para usar':'🟠 Necesita una conexión';
       const source=a.source?.name?'<small class="agent-source">Usará: '+escM(a.source.name)+'</small>':'';
@@ -1524,7 +1537,7 @@
   }
   function secretaryPrompt(kind='day'){
     const today=new Date().toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    const common='Usa SOLO datos reales de las fuentes conectadas. No inventes agenda, reuniones, correos, pedidos, clientes ni cifras. Si falta una conexión dilo claramente. Desde este panel no ejecutes acciones externas: cuando una tarea requiera actuar, ofrece conectarme con el empleado especializado y conserva el contexto.';
+    const common='Usa SOLO datos reales de las fuentes conectadas. No inventes agenda, reuniones, correos, pedidos, clientes ni cifras. Si falta una conexión dilo claramente. Si existen varias conexiones del mismo tipo o varias cuentas, NO mezcles sus datos: crea un bloque claramente titulado para cada conexión (por ejemplo ventas@empresa..., info@empresa..., Tienda A, Tienda B) y después, si ayuda, añade un resumen general. Desde este panel no ejecutes acciones externas: cuando una tarea requiera actuar, ofrece conectarme con el empleado especializado y conserva el contexto.';
     if(kind==='close')return 'Actúa como mi Secretaria Ejecutiva. Haz el cierre de hoy '+today+'. Resume qué se ha gestionado con los datos disponibles, qué queda pendiente, qué debería dejar preparado para mañana y qué puedes adelantar tú. '+common;
     if(kind==='pending')return 'Actúa como mi Secretaria Ejecutiva. Dime qué tengo pendiente hoy '+today+' y ordénalo por urgencia e impacto. Separa: 🟢 lo que puedes adelantar/preparar tú; 🟡 lo que puedes dejar listo para mi autorización; 🔴 lo que necesita mi decisión; 📅 agenda si está realmente conectada. Termina diciéndome por dónde empezarías. '+common;
     if(kind==='work')return 'Actúa como mi Secretaria Ejecutiva. Revisa todo lo disponible hoy '+today+' y dime qué trabajo puedes adelantar por mí ahora mismo sin que yo tenga que buscar nada. Separa lo que puedes preparar de lo que requiere mi autorización o una decisión personal. '+common;
