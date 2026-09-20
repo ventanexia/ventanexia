@@ -105,7 +105,9 @@
       "monthly": 49,
       "units": 2000,
       "billing": "monthly",
-      "description": "2.000 trabajos adicionales al mes."
+      "description": "2.000 trabajos adicionales al mes.",
+      "public_sale": false,
+      "note": "Oculto hasta disponer de un contador global de trabajos realmente aplicado."
     },
     "extra_connection": {
       "monthly": 49,
@@ -122,13 +124,17 @@
       "one_time": 99,
       "credits": 10,
       "billing": "one_time",
-      "description": "10 créditos de vídeo adicionales."
+      "description": "10 créditos de vídeo adicionales.",
+      "public_sale": false,
+      "note": "No mostrar en la web hasta verificar generación de vídeo de extremo a extremo."
     },
     "voice_pack": {
       "one_time": 49,
       "units": 250,
       "billing": "one_time",
-      "description": "250 minutos de voz adicionales."
+      "description": "250 minutos de voz adicionales.",
+      "public_sale": false,
+      "note": "No mostrar en la web hasta verificar telefonía/voz de extremo a extremo."
     },
     "whatsapp_pack": {
       "one_time": 59,
@@ -144,7 +150,9 @@
     "image_pack": {
       "monthly": 29,
       "billing": "monthly",
-      "description": "Ampliación de generación de imágenes."
+      "description": "Ampliación de generación de imágenes.",
+      "public_sale": false,
+      "note": "No mostrar en la web hasta verificar generación y contador de imágenes de extremo a extremo."
     },
     "lead_pack": {
       "monthly": 79,
