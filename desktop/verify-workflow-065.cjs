@@ -11,7 +11,7 @@ const webhook=fs.readFileSync(path.join(__dirname,'..','server','handlers','stri
 const checks=[
  ['Mi trabajo button',html.includes('id="vnxMyWorkBtn"')],
  ['Mi trabajo overlay logic',js.includes('function openWorkQueue')&&js.includes('function renderWorkQueue')],
- ['Email work tabs',js.includes("data-work-tab="automatic"")&&js.includes("data-work-tab="review"")&&js.includes("data-work-tab="decision"")&&js.includes("data-work-tab="resolved"")],
+ ['Email work tabs',js.includes('data-work-tab="automatic"')&&js.includes('data-work-tab="review"')&&js.includes('data-work-tab="decision"')&&js.includes('data-work-tab="resolved"')],
  ['Review can send and edit',js.includes("data-work-send")&&js.includes("data-work-edit")&&js.includes("action:'send_reply'")],
  ['Decision workflow',js.includes('Preparar con mi decisión')&&js.includes('aiReplyForWorkItem')],
  ['Resolved shows sent reply',master.includes('sentBody:responseInfo.sentBody')&&js.includes('Última respuesta enviada')],
@@ -29,7 +29,7 @@ const checks=[
  ['Multiple web stores supported',orders.includes("storeKey=S.id+':'+host")&&orders.includes('orderStoreId(key,x)')],
  ['Order channel capacity enforced',orders.includes('assertOrderChannelCapacity')&&orders.includes('29 €/mes')],
  ['Shopify excluded from generic connection count',main.includes("!['email','shopify'].includes(k)")&&main.includes('assertOrderChannelCapacity(preState)')],
- ['Shopify UI belongs to Pedidos',appUi.includes("shopify:'orders'")&&!appUi.includes("shopify:'web_ecommerce'"),
+ ['Shopify UI belongs to Pedidos',appUi.includes("shopify:'orders'")&&!appUi.includes("shopify:'web_ecommerce'")],
  ['Shopify module policy belongs to Pedidos',policy.includes("if(m==='shopify')return 'pedidos'")],
  ['Automatic web delivery gated',ordersCore.includes("o.source?.kind!=='web'||webLevel==='auto'")]
 ];
