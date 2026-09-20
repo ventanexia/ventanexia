@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.68",
+  "version": "0.6.69",
   "private": true,
-  "description": "VentaNexIA Desktop · MASTER ilimitado, Carla, Mi trabajo y Centro Maestro comercial · 0.6.68",
+  "description": "VentaNexIA Desktop · vista previa de PDF y Excel antes de guardar · 0.6.69",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
