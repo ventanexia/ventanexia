@@ -22,8 +22,8 @@ export default async function handler(req,res){
       state
     });
     for(const [k,v] of Object.entries(cfg.extra||{}))params.set(k,v);
-    if(account&&provider==="gmail")params.set("login_hint",account);
-    if(account&&provider==="microsoft_365")params.set("login_hint",account);
+    if(account&&["gmail","google_calendar"].includes(provider))params.set("login_hint",account);
+    if(account&&["microsoft_365","microsoft_calendar"].includes(provider))params.set("login_hint",account);
     if(cfg.pkce){params.set("code_challenge",proof.challenge);params.set("code_challenge_method","S256")}
     if(!customerId||!deviceId)return res.status(401).json({error:"Activa primero la licencia de VentaNexIA",code:"LICENSE_REQUIRED"});
     await sbFetch("rpc/vnx_create_oauth_session",{method:"POST",body:JSON.stringify({
