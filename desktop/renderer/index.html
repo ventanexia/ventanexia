@@ -118,72 +118,130 @@
     </section>
 
     <section class="tab" id="chat">
-      <div class="guided-shell">
-        <div class="guided-page-head">
+      <div class="vnx-workbench">
+        <div class="vnx-workbench-head">
           <div>
-            <div class="eyebrow">TRABAJAR CON VENTANEXIA</div>
-            <h2>¿Qué necesitas hacer?</h2>
-            <p>Ahora puedes trabajar con formularios guiados según el agente elegido.</p>
+            <div class="eyebrow">TU EQUIPO IA</div>
+            <h2>Dime qué necesitas</h2>
+            <p>Consulta, resume, traduce, prepara y deriva tareas al empleado adecuado desde un único lugar.</p>
           </div>
-          <button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button>
+          <div class="mode-switch vnx-top-mode">
+            <button id="guidedModeBtn" type="button" class="active">✨ Modo guiado<small>Te acompaño paso a paso</small></button>
+            <button id="freeModeBtn" type="button">⚡ Modo libre<small>Tú decides</small></button>
+          </div>
         </div>
 
-        <div id="guidedAgentTabs" class="guided-agent-tabs"></div>
+        <div id="guidedAgentTabs" class="guided-agent-tabs vnx-agent-ribbon"></div>
 
-        <div class="guided-layout">
-          <div class="guided-main-card">
-            <div class="guided-card-head">
-              <div>
-                <div id="guidedAgentTitle" class="guided-agent-title">🎯 Buscar clientes</div>
-                <div id="guidedAgentSubtitle" class="guided-agent-subtitle">Encuentra nuevas oportunidades de negocio y llega a más clientes.</div>
+        <div class="vnx-workbench-grid">
+          <div class="vnx-workbench-main">
+            <div class="vnx-daily-card" id="vnxSecretaryWelcome">
+              <div class="vnx-daily-copy">
+                <span class="vnx-sun">☀️</span>
+                <div><h3 id="vnxDailyGreeting">Buenos días</h3><p>Te organizo el trabajo para que empieces por lo importante.</p></div>
               </div>
-              <div class="mode-switch">
-                <button id="guidedModeBtn" type="button" class="active">Modo guiado</button>
-                <button id="freeModeBtn" type="button">Modo libre</button>
+              <div class="vnx-daily-actions">
+                <button type="button" data-secretary-day>☀️ Prepárame el día</button>
+                <button type="button" data-secretary-pending>✓ Pendientes <span id="vnxPendingBadge" class="vnx-action-badge" style="display:none">0</span></button>
+                <button type="button" data-secretary-work>⚡ Adelanta trabajo</button>
+                <button type="button" id="vnxAgendaTodayBtn">📅 Agenda de hoy</button>
+                <button type="button" id="vnxEmailSummaryBtn">✉️ Resumen emails</button>
+                <button type="button" id="vnxTranslateEmailsBtn">🌐 Traducir emails</button>
+                <button type="button" id="vnxOpenConnectionsBtn">👤 Conectar empleado</button>
               </div>
             </div>
 
-            <div id="guidedModePanel">
-              <div id="guidedFormHost"></div>
-              <div id="guidedCatalogRow" class="guided-file-row" style="display:none">
-                <div><span class="guided-file-icon">PDF</span><span id="guidedCatalogText">Buscando catálogo autorizado…</span></div>
-                <button class="btn outline" type="button" data-tab-jump="files">Cambiar archivo</button>
-              </div>
-              <label id="guidedConsentRow" class="guided-consent" style="display:none">
-                <input id="guidedConsent" type="checkbox">
-                <span>Acepto que VentaNexIA use estos datos para realizar esta búsqueda y atender mi solicitud. <u>Privacidad</u>.</span>
-              </label>
-              <button id="guidedPrimaryAction" class="btn guided-primary" type="button">✨ Empezar</button>
-              <div id="guidedSteps" class="guided-steps"></div>
-              <div id="guidedResult" class="guided-result" style="display:none"></div>
-            </div>
-
-            <div id="freeModePanel" style="display:none">
-              <div class="agent-picker" id="chatScopeBar">
-                <label><span class="agent-picker-label">Especialista</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label>
-                <small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small>
-              </div>
-              <div id="messages" class="messages"><div class="msg ai">Elige un especialista arriba y dime qué necesitas. Usaré únicamente las herramientas y datos que tengas autorizados.</div></div>
-              <form id="chatForm">
-                <textarea id="chatInput" rows="4" placeholder="Cuéntame qué necesitas"></textarea>
-                <div class="row" style="justify-content:space-between;align-items:center">
-                  <button class="btn outline" id="chatClearBtn" type="button">Limpiar conversación</button>
-                  <button class="btn primary">Enviar</button>
+            <div class="guided-main-card vnx-primary-work">
+              <div class="guided-card-head">
+                <div>
+                  <div id="guidedAgentTitle" class="guided-agent-title">🧑‍💼 Secretaria Ejecutiva</div>
+                  <div id="guidedAgentSubtitle" class="guided-agent-subtitle">Revisa, prioriza y te deja el trabajo preparado.</div>
                 </div>
-              </form>
+                <button class="btn outline" id="chatNewConversation" type="button">＋ Nueva consulta</button>
+              </div>
+
+              <div id="guidedModePanel">
+                <div class="vnx-guided-intro"><b>Cuestionario guiado</b><span>Te hago solo las preguntas necesarias para preparar bien la tarea.</span></div>
+                <div id="guidedFormHost"></div>
+                <div id="guidedCatalogRow" class="guided-file-row" style="display:none">
+                  <div><span class="guided-file-icon">PDF</span><span id="guidedCatalogText">Buscando catálogo autorizado…</span></div>
+                  <button class="btn outline" type="button" data-tab-jump="files">Cambiar archivo</button>
+                </div>
+                <label id="guidedConsentRow" class="guided-consent" style="display:none">
+                  <input id="guidedConsent" type="checkbox">
+                  <span>Acepto que VentaNexIA use estos datos para realizar esta búsqueda y atender mi solicitud. <u>Privacidad</u>.</span>
+                </label>
+                <button id="guidedPrimaryAction" class="btn guided-primary" type="button">✨ Empezar</button>
+                <div id="guidedSteps" class="guided-steps"></div>
+                <div id="guidedResult" class="guided-result" style="display:none"></div>
+              </div>
+
+              <div id="freeModePanel" style="display:none">
+                <div class="agent-picker" id="chatScopeBar">
+                  <label><span class="agent-picker-label">Especialista</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label>
+                  <small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small>
+                </div>
+                <div id="messages" class="messages vnx-message-canvas"><div class="msg ai">Elige un especialista arriba y dime qué necesitas. Usaré únicamente las herramientas y datos que tengas autorizados.</div></div>
+                <form id="chatForm" class="vnx-composer">
+                  <textarea id="chatInput" rows="3" placeholder="Escribe aquí lo que necesitas… Ej.: prepárame el día · qué tengo pendiente · prepara una respuesta al cliente en inglés"></textarea>
+                  <div class="vnx-composer-actions">
+                    <button class="btn outline" id="chatClearBtn" type="button">Limpiar</button>
+                    <button class="btn primary">➤ Enviar</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <div class="vnx-bottom-tools">
+              <article class="vnx-translation-card">
+                <div class="vnx-card-title"><span>🌐</span><div><b>Traducción de emails</b><small>Si llega un correo en otro idioma, puedo prepararlo traducido para ti.</small></div><label class="vnx-switch"><input id="vnxTranslationEnabled" type="checkbox"><span></span></label></div>
+                <div class="vnx-translation-controls"><label>Idioma final<select id="vnxTranslationLanguage"><option>Español</option><option>Català</option><option>English</option><option>Français</option><option>Deutsch</option><option>Italiano</option><option>Português</option></select></label><button id="vnxTranslateNowBtn" class="btn outline" type="button">Traducir correos recientes</button></div>
+                <div class="vnx-language-pills"><span>EN → ES</span><span>FR → ES</span><span>DE → ES</span><span>IT → ES</span></div>
+              </article>
+              <article class="vnx-plain-answer-card">
+                <div class="vnx-card-title"><span>🧭</span><div><b>Respuestas fáciles de entender</b><small>Cuando falte una conexión, te explico qué sé, qué no puedo hacer y el siguiente paso.</small></div></div>
+                <div class="vnx-plain-grid">
+                  <span><b>✓ Puedo hacer ahora</b><small>Consultar los datos autorizados y preparar el trabajo.</small></span>
+                  <span><b>⚠ Me falta</b><small>Te diré qué conexión o permiso necesito.</small></span>
+                  <span><b>→ Siguiente paso</b><small>Un botón claro para continuar sin buscar menús.</small></span>
+                </div>
+              </article>
             </div>
           </div>
 
-          <aside class="guided-help-card">
-            <div class="guided-help-title">💡 Qué puede hacer este agente</div>
-            <p id="guidedHelpIntro">La IA te guía durante todo el proceso.</p>
-            <div id="guidedCapabilities" class="guided-capabilities"></div>
-            <div id="guidedConnectionSummary" class="guided-connection-summary"></div>
+          <aside class="vnx-workbench-rail">
+            <article class="vnx-rail-card">
+              <div class="vnx-rail-head"><b>📅 Tu agenda de hoy</b><button id="vnxAgendaRefreshBtn" type="button">Actualizar</button></div>
+              <div id="vnxAgendaList" class="vnx-agenda-list"><div class="vnx-empty-mini">Conecta tu agenda para ver aquí tus reuniones.</div></div>
+            </article>
+            <article class="vnx-rail-card">
+              <div class="vnx-rail-head"><b>🔔 Solicitudes de aprobación</b><span id="vnxApprovalsCount" class="vnx-count">0</span></div>
+              <div id="vnxApprovalsList" class="vnx-approval-list"><div class="vnx-empty-mini">No hay aprobaciones pendientes conocidas.</div></div>
+              <button id="vnxReviewApprovalsBtn" class="vnx-rail-link" type="button">Revisar pendientes →</button>
+            </article>
+            <article class="vnx-rail-card">
+              <div class="vnx-rail-head"><b>🔗 Conexiones</b><button id="vnxManageConnectionsBtn" type="button">Gestionar</button></div>
+              <div id="vnxQuickConnections" class="vnx-connection-grid">
+                <button data-vnx-connect="email"><span>✉️</span><b>Email</b><small>Comprobar</small></button>
+                <button data-vnx-connect="shopify"><span>🛍️</span><b>Shopify</b><small>Comprobar</small></button>
+                <button data-vnx-connect="whatsapp"><span>💬</span><b>WhatsApp</b><small>Comprobar</small></button>
+                <button data-vnx-connect="agenda"><span>📅</span><b>Agenda</b><small>Comprobar</small></button>
+                <button data-vnx-connect="crm"><span>👥</span><b>Ventas y clientes</b><small>Comprobar</small></button>
+                <button data-vnx-connect="orders"><span>📦</span><b>Pedidos</b><small>Disponible</small></button>
+              </div>
+            </article>
+            <article class="vnx-rail-card vnx-agent-status">
+              <div class="vnx-rail-head"><b>Estado del agente</b><span class="vnx-ready-dot"></span></div>
+              <strong id="vnxRailAgentName">Secretaria Ejecutiva</strong>
+              <p id="guidedHelpIntro">La IA te guía durante todo el proceso.</p>
+              <div id="guidedCapabilities" class="guided-capabilities"></div>
+              <div id="guidedConnectionSummary" class="guided-connection-summary"></div>
+            </article>
           </aside>
         </div>
 
-        <div class="guided-other-agents">
-          <div class="guided-other-head"><div><b>Plantillas guiadas para otros agentes</b><small>Todos los agentes tienen su propio formulario sencillo.</small></div><span>Cambia de agente en cualquier momento.</span></div>
+        <div class="guided-other-agents vnx-other-agents">
+          <div class="guided-other-head"><div><b>Todos tus empleados IA</b><small>Cada agente conserva su cuestionario guiado y su modo libre.</small></div><span>Cambia de agente en cualquier momento.</span></div>
           <div id="guidedOtherCards" class="guided-other-grid"></div>
         </div>
       </div>
