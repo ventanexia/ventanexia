@@ -565,7 +565,7 @@
     layout?.classList.remove('email-dashboard-mode');if(help)help.style.display='';if(switcher)switcher.style.display='';if(primaryEl)primaryEl.style.display='';if(stepsEl)stepsEl.style.display='';
     const cfg=guidedConfig(chosen.key),saved=guidedSaved(chosen.key);
     const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
-    if(title)title.textContent=(chosen.icon||'🤖')+' '+chosen.name;
+    if(title)title.textContent=chosen.key==='core_ai'?'👩‍💼 Carla · Secretaria ejecutiva':(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
     if(chosen.key==='email'){renderEmailDashboard(chosen);renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div data-whatsapp-workspace-metrics></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
@@ -914,7 +914,7 @@
   }
   function updateWorkbenchAgent(chosen){
     const name=$m('#vnxRailAgentName');
-    if(name)name.textContent=chosen?.name||'Secretaria Ejecutiva';
+    if(name)name.textContent=chosen?.key==='core_ai'?'Carla · Secretaria ejecutiva':(chosen?.name||'Carla · Secretaria ejecutiva');
   }
   async function refreshWorkbenchAgenda(){
     const root=$m('#vnxAgendaList');if(!root||!window.vnx?.agendaToday)return;
@@ -995,7 +995,7 @@
     if(m.responded||m.noReply)return 'resolved';
     if(emailNeedsDecision(m))return 'decision';
     if(Number(m.replyScore||0)>0)return 'review';
-    return 'pending';
+    return 'review';
   }
   async function loadWorkQueueData(force=false){
     if(!force&&Date.now()-workQueueCache.at<45000)return workQueueCache.rows;
@@ -1021,13 +1021,28 @@
     const map=new Map();for(const m of rows){const k=m.account||'Cuenta de correo';if(!map.has(k))map.set(k,[]);map.get(k).push(m)}return [...map.entries()];
   }
   function workItemHtml(m,tab,index){
-    const original=String(m.body||m.snippet||'').slice(0,1200);
-    const suggested=tab==='resolved'?(m.sentBody||'La conversación aparece como respondida, pero no hay texto de respuesta disponible.'):(m.defaultBody||'');
+    const original=String(m.body||m.snippet||'').slice(0,1400);
+    const sent=String(m.sentBody||'').trim();
+    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'La conversación aparece como respondida, pero Gmail no ha devuelto el texto de la respuesta.'):(m.defaultBody||'');
     const decision=tab==='decision'?'<div class="vnx-work-decision"><input data-work-decision placeholder="Indica tu decisión. Ej.: ofrece 10 % y entrega en 7 días"><button class="btn outline" data-work-apply-decision>Preparar con mi decisión</button></div>':'';
-    const buttons=tab==='resolved'
-      ?'<button data-work-open>Ver en Gmail</button>'
+    const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='decision'?'Necesita tu decisión':'Para revisar';
+    const statusClass=tab==='automatic'?'automatic':tab==='resolved'?'resolved':tab==='decision'?'decision':'review';
+    const buttons=(tab==='resolved'||tab==='automatic')
+      ?'<button data-work-open>Ver conversación en Gmail</button>'
       :'<button class="primary" data-work-send>Enviar</button><button data-work-edit>Modificar</button><button data-work-ai>Mejorar con IA</button><button data-work-draft>Guardar borrador</button><button data-work-no-reply>No requiere respuesta</button>';
-    return '<article class="vnx-work-item" data-work-index="'+index+'"><div class="vnx-work-item-head"><div><b>'+escM(m.subject||'(sin asunto)')+'</b><small>'+escM(m.from||'')+' · '+escM(m.date||'')+'</small></div><span class="vnx-work-chip">'+escM(m.account||'Email')+'</span></div><div class="vnx-work-columns"><div class="vnx-work-pane"><h4>Correo original · resumen</h4><p>'+escM(original||'Sin contenido').replace(/\n/g,'<br>')+'</p></div><div class="vnx-work-pane"><h4>'+(tab==='resolved'?'Última respuesta enviada':'Respuesta preparada')+'</h4>'+(tab==='resolved'?'<p data-work-sent>'+escM(suggested).replace(/\n/g,'<br>')+'</p>':'<textarea data-work-reply>'+escM(suggested)+'</textarea>')+decision+'</div></div><div class="vnx-work-actions">'+buttons+'</div><div data-work-msg style="font-size:9px;color:#88b4ca;margin-top:7px"></div></article>';
+    const responseTitle=tab==='automatic'?'Respuesta enviada automáticamente':tab==='resolved'?'Última respuesta enviada':'Respuesta preparada por Carla';
+    const reason=tab==='decision'
+      ?'Carla ha detectado que este correo puede implicar precio, condiciones, reclamación u otra decisión que debe tomar una persona.'
+      :tab==='automatic'
+        ?'Esta respuesta figura como enviada automáticamente por VentaNexIA.'
+        :tab==='resolved'
+          ?'Esta conversación ya aparece como atendida.'
+          :'Carla lo ha dejado en tu bandeja de revisión para que decidas si responder, modificar o cerrar.';
+    return '<article class="vnx-work-item '+statusClass+'" data-work-index="'+index+'">'
+      +'<div class="vnx-work-item-head"><div><span class="vnx-work-status '+statusClass+'">'+escM(status)+'</span><b>'+escM(m.subject||'(sin asunto)')+'</b><small>'+escM(m.from||'Remitente no disponible')+' · '+escM(m.date||'Fecha no disponible')+'</small></div><span class="vnx-work-chip">✉ '+escM(m.account||'Email')+'</span></div>'
+      +'<div class="vnx-work-why">'+escM(reason)+'</div>'
+      +'<div class="vnx-work-columns"><div class="vnx-work-pane"><h4>Correo recibido</h4><p>'+escM(original||'Sin contenido').replace(/\n/g,'<br>')+'</p></div><div class="vnx-work-pane"><h4>'+escM(responseTitle)+'</h4>'+((tab==='resolved'||tab==='automatic')?'<p data-work-sent>'+escM(suggested).replace(/\n/g,'<br>')+'</p>':'<textarea data-work-reply>'+escM(suggested)+'</textarea>')+decision+'</div></div>'
+      +'<div class="vnx-work-actions">'+buttons+'</div><div data-work-msg style="font-size:9px;color:#88b4ca;margin-top:7px"></div></article>';
   }
   async function renderWorkQueue(overlay,tab='review',force=false){
     const body=overlay.querySelector('[data-work-body]'),tabs=[...overlay.querySelectorAll('[data-work-tab]')];body.innerHTML='<div class="vnx-work-empty">Revisando tus cuentas de correo…</div>';
@@ -1037,14 +1052,14 @@
       let selected=rows.filter(m=>emailWorkBucket(m)===tab);
       if(tab==='automatic')selected=rows.filter(m=>auto.has(m.id));
       const groups=groupWorkByAccount(selected);
-      body.innerHTML=groups.length?groups.map(([account,items])=>'<section><h3 style="font-size:12px;margin:4px 0 8px;color:#65dcff">'+escM(account)+'</h3>'+items.map((m,i)=>workItemHtml(m,tab,rows.indexOf(m))).join('')+'</section>').join(''):'<div class="vnx-work-empty">'+(tab==='automatic'?'No hay respuestas automáticas registradas. Solo aparecerán aquí acciones automáticas confirmadas por VentaNexIA.':'No hay elementos en esta sección.')+'</div>';
+      body.innerHTML=groups.length?groups.map(([account,items])=>'<section><h3 class="vnx-work-account">'+escM(account)+'</h3>'+items.map((m,i)=>workItemHtml(m,tab,rows.indexOf(m))).join('')+'</section>').join(''):'<div class="vnx-work-empty">'+(tab==='automatic'?'No hay respuestas automáticas registradas. Solo aparecerán aquí envíos automáticos que VentaNexIA haya confirmado.':tab==='review'?'No hay nada pendiente de revisión.':tab==='decision'?'No hay decisiones pendientes.':'No hay conversaciones resueltas en la bandeja cargada.')+'</div>';
       body.querySelectorAll('[data-work-index]').forEach(card=>{
         const m=rows[Number(card.dataset.workIndex)],msg=card.querySelector('[data-work-msg]'),ta=card.querySelector('[data-work-reply]');
         card.querySelector('[data-work-edit]')?.addEventListener('click',()=>{ta?.focus();msg.textContent='Puedes modificar la respuesta antes de enviarla.'});
         card.querySelector('[data-work-ai]')?.addEventListener('click',async()=>{msg.textContent='Preparando una respuesta mejor…';try{ta.value=await aiReplyForWorkItem(m);msg.textContent='Respuesta actualizada. Revísala antes de enviar.'}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-apply-decision]')?.addEventListener('click',async()=>{const input=card.querySelector('[data-work-decision]'),decision=String(input?.value||'').trim();if(!decision){msg.textContent='Indica primero qué decisión quieres tomar.';return}msg.textContent='Aplicando tu decisión…';try{ta.value=await aiReplyForWorkItem(m,decision);msg.textContent='Respuesta preparada con tu decisión. Puedes modificarla o enviarla.'}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-draft]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;msg.textContent='Guardando borrador…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'draft_reply',body:ta.value});msg.textContent='Borrador creado en Gmail.'}catch(e){msg.textContent=e.message||String(e)}});
-        card.querySelector('[data-work-send]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;if(!confirm('¿Enviar esta respuesta ahora desde '+(m.account||'esta cuenta')+'?'))return;msg.textContent='Enviando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'send_reply',body:ta.value});workQueueCache.at=0;msg.textContent='Respuesta enviada.';setTimeout(()=>renderWorkQueue(overlay,tab,true),500)}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-send]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;if(!confirm('¿Enviar esta respuesta ahora desde '+(m.account||'esta cuenta')+'?'))return;msg.textContent='Enviando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'send_reply',body:ta.value});workQueueCache.at=0;msg.textContent='Respuesta enviada. La conversación pasará a Resueltos.';setTimeout(()=>renderWorkQueue(overlay,'resolved',true),500)}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-no-reply]')?.addEventListener('click',async()=>{msg.textContent='Actualizando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'no_reply_needed'});workQueueCache.at=0;setTimeout(()=>renderWorkQueue(overlay,tab,true),300)}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-open]')?.addEventListener('click',()=>window.open('https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id),'_blank','noopener,noreferrer'));
       });
@@ -1053,7 +1068,7 @@
   }
   async function openWorkQueue(initialTab='review'){
     const overlay=document.createElement('div');overlay.className='vnx-work-overlay';
-    overlay.innerHTML='<div class="vnx-work-modal"><div class="vnx-work-head"><div><h3>📥 Mi trabajo</h3><p>Respuestas, decisiones y tareas de correo reunidas en un solo sitio. Cada cuenta se muestra por separado.</p></div><button class="mini" data-work-close>✕</button></div><div class="vnx-work-tabs"><button data-work-tab="automatic">Automáticos <b>0</b></button><button data-work-tab="review">Para revisar <b>0</b></button><button data-work-tab="decision">Necesito tu decisión <b>0</b></button><button data-work-tab="resolved">Resueltos <b>0</b></button></div><div class="vnx-work-body" data-work-body></div></div>';
+    overlay.innerHTML='<div class="vnx-work-modal"><div class="vnx-work-head"><div><h3>📥 Mi trabajo</h3><p>Aquí ves todo lo que Carla ha gestionado por ti: respuestas enviadas automáticamente, tareas para revisar, decisiones pendientes y trabajo ya resuelto.</p></div><button class="mini" data-work-close>✕</button></div><div class="vnx-work-summary"><span><i>⚡</i><b>Automáticos</b><small>Lo que VentaNexIA ha enviado sin esperar revisión, solo cuando esté permitido.</small></span><span><i>👀</i><b>Para revisar</b><small>Lo que Carla ha preparado o considera que debes revisar.</small></span><span><i>✋</i><b>Necesito tu decisión</b><small>Precios, excepciones, reclamaciones o decisiones que no debe tomar sola.</small></span><span><i>✓</i><b>Resueltos</b><small>Conversaciones ya atendidas o cerradas.</small></span></div><div class="vnx-work-tabs"><button data-work-tab="automatic">Automáticos <b>0</b></button><button data-work-tab="review">Para revisar <b>0</b></button><button data-work-tab="decision">Necesito tu decisión <b>0</b></button><button data-work-tab="resolved">Resueltos <b>0</b></button></div><div class="vnx-work-body" data-work-body></div></div>';
     document.body.appendChild(overlay);const close=()=>overlay.remove();overlay.querySelector('[data-work-close]').onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};
     overlay.querySelectorAll('[data-work-tab]').forEach(b=>b.onclick=()=>renderWorkQueue(overlay,b.dataset.workTab));
     await renderWorkQueue(overlay,initialTab,true);
@@ -1252,6 +1267,7 @@
     });
   }
   function agentDisplayName(x){
+    if(String(x?.key||'')==='core_ai')return '👩‍💼 Carla · Secretaria ejecutiva';
     return (x.icon||'🤖')+' '+(x.name||x.key||'');
   }
   function connectionModule(x){return String(x?.module||x?.key||'').toLowerCase()}
