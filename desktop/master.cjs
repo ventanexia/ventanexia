@@ -420,12 +420,23 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLab
   }));
 }
 
+const gmailReadCache=new Map();
+function gmailCacheKey(kind,payload={}){
+  return kind+'|'+String(payload.account||'')+'|'+String(Number.isInteger(payload.accountIndex)?payload.accountIndex:'all')+'|'+String(payload.limit||'');
+}
+function gmailCacheGet(key,maxAge=45000){
+  const x=gmailReadCache.get(key);if(!x||Date.now()-x.at>maxAge)return null;return x.value;
+}
+function gmailCacheSet(key,value){gmailReadCache.set(key,{at:Date.now(),value});return value}
+function clearGmailReadCache(){gmailReadCache.clear()}
+
 async function gmailTodayBounds(){
   const start=new Date();start.setHours(0,0,0,0);
   const end=new Date(start);end.setDate(end.getDate()+1);
   return {after:Math.floor(start.getTime()/1000),before:Math.floor(end.getTime()/1000)};
 }
 ipcMain.handle('email:metrics',async(_e,payload={})=>{
+  const cacheKey=gmailCacheKey('metrics',payload),cached=gmailCacheGet(cacheKey,60000);if(cached)return cached;
   const s=await readState();assertAgentIncluded(s.license,'email');
   const allAccounts=emailAccountsForState(s).filter(x=>x.provider==='gmail');
   const requestedAccount=String(payload?.account||'').trim().toLowerCase();
@@ -457,9 +468,10 @@ ipcMain.handle('email:metrics',async(_e,payload={})=>{
       await audit('email.metrics_error',label+' · '+String(e?.message||e).slice(0,160));
     }
   }
-  return {connected:okAccounts>0,received,responded,pending,unread,accounts:okAccounts,label:'Hoy',errors};
+  return gmailCacheSet(cacheKey,{connected:okAccounts>0,received,responded,pending,unread,accounts:okAccounts,label:'Hoy',errors});
 });
 ipcMain.handle('email:inbox',async(_e,payload={})=>{
+  const cacheKey=gmailCacheKey('inbox',payload),cached=gmailCacheGet(cacheKey,45000);if(cached)return cached;
   const s=await readState();assertAgentIncluded(s.license,'email');
   const all=emailAccountsForState(s).filter(x=>x.provider==='gmail');
   const requestedAccount=String(payload?.account||'').trim().toLowerCase();
@@ -478,10 +490,11 @@ ipcMain.handle('email:inbox',async(_e,payload={})=>{
     }
   }
   rows.sort((a,b)=>(b.internalDate||0)-(a.internalDate||0));
-  return {connected:accounts.length>0&&errors.length<accounts.length,messages:rows.slice(0,30),accounts:accounts.map(x=>x.meta?.email||x.label||x.account||'Gmail'),errors};
+  return gmailCacheSet(cacheKey,{connected:accounts.length>0&&errors.length<accounts.length,messages:rows.slice(0,30),accounts:accounts.map(x=>x.meta?.email||x.label||x.account||'Gmail'),errors});
 });
 
 ipcMain.handle('email:action',async(_e,payload={})=>{
+  clearGmailReadCache();
   const s=await readState();assertAgentIncluded(s.license,'email');
   const account=String(payload.account||'').trim(),messageId=String(payload.messageId||'').trim(),action=String(payload.action||'').trim();
   if(!messageId||!action)throw new Error('Falta el correo o la acción.');
