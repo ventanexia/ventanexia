@@ -1,6 +1,6 @@
 // Lectura de pedidos con IA para VentaNexIA Desktop.
 // La IA SOLO extrae datos del texto que recibe. No decide ni ejecuta nada: eso lo hace la app con reglas propias.
-import {authenticateDesktop,checkScopeAllowed,consumeMeter} from "../../lib/desktop-license.js";
+import {authenticateDesktop,checkScopeAllowed,consumeMeter,meterStatus} from "../../lib/desktop-license.js";
 import {aiConfigured,createAIResponse} from "../../lib/ai-client.js";
 
 function clean(v,n=300){return String(v==null?"":v).trim().slice(0,n)}
@@ -72,6 +72,9 @@ export default async function handler(req,res){
   const requestId="ORD-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
   try{
     let out=null,lastError=null;
+    const quota=await meterStatus(auth.license,"order_extractions");
+    if(!quota.infrastructure&&quota.remaining!=null&&Number(quota.remaining)<1)return res.status(429).json({ok:false,error:"Has alcanzado el límite mensual de lectura de pedidos de tu plan.",code:"USAGE_LIMIT_REACHED",meter:"order_extractions",usage:quota});
+    const quotaWarning=!quota.unlimited&&quota.monthlyLimit>0&&quota.usedThisMonth/Math.max(1,quota.monthlyLimit)>=0.8?{level:quota.usedThisMonth>=quota.monthlyLimit?"limit":"warning",message:quota.usedThisMonth>=quota.monthlyLimit?"Límite mensual alcanzado.":"Has utilizado al menos el 80 % de las lecturas de pedidos de este mes.",used:quota.usedThisMonth,limit:quota.monthlyLimit}:null;
     for(let attempt=1;attempt<=2;attempt++){
       try{
         out=await createAIResponse({instructions:mode==="fill"?FILL:mode==="purchasing"?PURCHASING:EXTRACT,input,max_output_tokens:1800,store:false});
@@ -89,8 +92,9 @@ export default async function handler(req,res){
       console.error(JSON.stringify({event:"orders_extract_bad_json",requestId,mode,inputChars:input.length}));
       return res.status(502).json({ok:false,error:"La IA respondió, pero no devolvió datos utilizables.",code:"AI_BAD_JSON",requestId});
     }
-    try{await consumeMeter(auth.license,"order_extractions",1,{mode})}catch{}
-    return res.status(200).json({ok:true,result,requestId});
+    const meter=await consumeMeter(auth.license,"order_extractions",1,{mode});
+    if(meter.meterError)console.warn(JSON.stringify({event:"orders_meter_error",policy:"fail_open_low_cost",error:meter.meterError}));
+    return res.status(200).json({ok:true,result,requestId,usageWarning:quotaWarning});
   }catch(e){
     console.error(JSON.stringify({event:"orders_extract_error",requestId,mode,error:String(e?.message||e).slice(0,220),inputChars:input.length}));
     return res.status(502).json({ok:false,error:"No se pudo leer el pedido con la IA. Código: "+requestId,code:"AI_FAILED",requestId});
