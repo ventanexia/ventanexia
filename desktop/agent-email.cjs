@@ -42,7 +42,12 @@ function parseGmailContext(localContext=[]){
 // Mensaje que solo cierra la conversación («ok, gracias»): no pide respuesta ni merece aviso.
 function isCourtesyOnly(m){
   const word='(ok|vale|perfecto|recibido|gracias|muchas gracias|de acuerdo|genial|entendido)';
-  return !/[?¿]/.test(String(m.subject||'')+' '+String(m.snippet||''))&&new RegExp('^'+word+'([ ,.!y]+'+word+')*[ .,!]*
+  const snippet=norm(m?.snippet||'').trim();
+  return !/[?¿]/.test(String(m?.subject||'')+' '+String(m?.snippet||'')) &&
+    new RegExp('^'+word+'([ ,.!y]+'+word+')*[ .,!]*$').test(snippet);
+}
+
+function scoreMailAttention(m){
   const t=norm([m.subject,m.snippet,m.status,m.from].join(' '));
   let s=0;
   if(/no leido|unread/.test(t))s+=2;
