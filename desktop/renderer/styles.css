@@ -924,3 +924,6 @@ body{
   .vnx-plain-grid{grid-template-columns:1fr}
   .vnx-composer{grid-template-columns:1fr}.vnx-composer-actions{flex-direction:row}.vnx-composer-actions .btn{flex:1}
 }
+
+/* 0.6.63 — connection controls must never be covered by decorative layers */
+.connections-page button,.connection-live-card button,[data-real-module]{pointer-events:auto!important;position:relative;z-index:3}
