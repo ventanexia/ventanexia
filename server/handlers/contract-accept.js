@@ -2,11 +2,11 @@ import crypto from "node:crypto";
 import {signContract} from "../../lib/contract-token.js";
 
 const PLANS={
-  inicio:{name:"VNX Inicio",price:350,listPrice:350,featureSlots:999,employeeSlots:12,extraSeat:0,orderChannels:1,orderLevel:"basic",workUnits:1500},
-  crecimiento:{name:"VNX Negocio",price:900,listPrice:900,featureSlots:999,employeeSlots:12,extraSeat:0,orderChannels:2,orderLevel:"pro",workUnits:5000},
-  empresa:{name:"VNX Premium",price:1750,listPrice:1750,featureSlots:999,employeeSlots:12,extraSeat:0,orderChannels:4,orderLevel:"auto",workUnits:12000}
+  inicio:{name:"VNX Inicio",price:99,listPrice:129,featureSlots:999,employeeSlots:12,extraSeat:0,orderChannels:1,orderLevel:"basic",workUnits:1500},
+  crecimiento:{name:"VNX Negocio",price:249,listPrice:299,featureSlots:999,employeeSlots:12,extraSeat:0,orderChannels:2,orderLevel:"pro",workUnits:5000},
+  empresa:{name:"VNX Empresa",price:499,listPrice:599,featureSlots:999,employeeSlots:12,extraSeat:0,orderChannels:4,orderLevel:"auto",workUnits:12000}
 };
-const EXTRA_PRICES={conexion:42,email_account:39,storage_pack:39,capacity_pack:49};
+const EXTRA_PRICES={conexion:49,email_account:49,storage_pack:39,capacity_pack:49};
 const EXTRA_NAMES={buscador:"Buscar clientes",whatsapp:"WhatsApp",email:"Correo",agenda:"Agenda y seguimiento",atencion:"Atención al cliente",presupuestos:"Presupuestos",redes:"Redes sociales",informes:"Informes",seo:"Visibilidad",administracion:"Administración",automatizacion:"Automatizaciones",voz:"Voz",conexion:"Conexión o cuenta adicional",email_account:"Conexión o cuenta adicional",storage_pack:"10 GB de espacio adicional",capacity_pack:"2.000 trabajos adicionales al mes"};
 const STANDARD=new Set(["buscador","whatsapp","email","agenda","atencion","presupuestos","redes","informes","seo","administracion","automatizacion","voz"]);
 const CONTRACT_VERSION="2026-09-20-v10";
