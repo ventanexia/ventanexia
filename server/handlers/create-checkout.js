@@ -8,7 +8,7 @@ async function resolvePrice(envId,lookupKey){const data=await stripeGet(`/prices
 const PRICE_MAP={start:{envId:()=>process.env.STRIPE_PRICE_START_MONTHLY,lookupKey:"vnx_inicio_monthly",expectedAmount:9900},core:{envId:()=>process.env.STRIPE_PRICE_CORE_MONTHLY||process.env.STRIPE_PRICE_MONTHLY,lookupKey:"vnx_crecimiento_monthly",expectedAmount:24900},scale:{envId:()=>process.env.STRIPE_PRICE_SCALE_MONTHLY,lookupKey:"vnx_empresa_monthly",expectedAmount:49900}};
 const CONTRACT_PLAN={inicio:"start",crecimiento:"core",empresa:"scale"};
 const ORDER_LIMITS={start:100,core:500,scale:2000};
-const EXTRA_PRICES={capacity_pack:{name:"2.000 trabajos adicionales al mes",amount:4900},conexion:{name:"Conexión o cuenta adicional",amount:4900},email_account:{name:"Conexión o cuenta adicional",amount:4900},storage_pack:{name:"10 GB de espacio adicional",amount:3900}};
+const EXTRA_PRICES={conexion:{name:"Conexión o cuenta adicional",amount:4900},email_account:{name:"Conexión o cuenta adicional",amount:4900},storage_pack:{name:"10 GB de espacio adicional",amount:3900}};
 const CREDIT_PACKS={voice_pack:{name:"250 minutos de voz adicionales",amount:4900,meter:"voice_minutes",quantity:250},whatsapp_pack:{name:"1.000 mensajes automatizados adicionales",amount:5900,meter:"whatsapp_messages",quantity:1000},video_pack:{name:"10 créditos de vídeo adicionales",amount:9900,meter:"video_credits",quantity:10}};
 export default async function handler(req,res){
   if(req.method!=="POST")return res.status(405).json({error:"Método no permitido"});
