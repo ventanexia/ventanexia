@@ -25,6 +25,8 @@ export default async function handler(req,res){
     if(!customerId||!activationCode||!deviceKey||!allowed.has(meter))return res.status(400).json({error:"Datos de uso no válidos"});
     const device=await rpc("vnx_device_status_public",{p_customer_code:customerId,p_activation_code:activationCode,p_device_key:deviceKey});
     if(!device?.ok)return res.status(401).json({error:device?.message||"Licencia no válida",code:device?.code||"LICENSE_INVALID"});
+    const trialLocked=Boolean(device?.featurePolicy?.variable_cost_locked);
+    if(action==="consume"&&trialLocked&&new Set(["image_credits","voice_minutes"]).has(meter))return res.status(403).json({ok:false,code:"TRIAL_COST_LOCKED",error:"Esta función usa un servicio de pago y no consume saldo durante la demo gratuita."});
     if(action==="consume"){
       const out=await rpc("vnx_consume_meter",{p_customer_code:customerId,p_device_id:device.deviceId||null,p_meter:meter,p_quantity:quantity,p_metadata:metadata});
       return res.status(out?.ok?200:409).json(out||{ok:false,error:"No se pudo registrar el uso"});
