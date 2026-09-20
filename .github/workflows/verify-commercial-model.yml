@@ -102,7 +102,7 @@ jobs:
           must(builder.includes('/descargar.html?trial=15'),'Public builder must not activate trial before commercial download');
           must(download.includes('Próximamente descargable')&&download.includes('no empieza ningún plazo de 15 días'),'Download status page must clearly pause public trial');
           must(constructor.includes('vnxLegacyTrialRedirect')&&constructor.includes('/descargar.html?trial=15'),'Legacy trial URLs must redirect safely');
-          must(terms.includes('no cedible')&&terms.includes('no transferible')&&terms.includes('15 días gratis'),'Trial terms missing licence restrictions');
+          must(terms.includes('no cedible')&&terms.includes('no transferible')&&terms.includes('15 días de demo completa, gratis'),'Trial terms missing licence restrictions');
           must(terms.includes('secretos empresariales')&&terms.includes('Prohibición de copia')&&terms.includes('interoperabilidad'),'Trial anti-copy/confidentiality clauses missing');
           must(contract.includes('16 bis. Confidencialidad')&&contract.includes('ipAck'),'Paid contract anti-copy/confidentiality acceptance missing');
           must(accept.includes('ipConfidentialityAccepted')&&accept.includes('2026-09-20-v11'),'Server must enforce current IP/confidentiality acceptance');
