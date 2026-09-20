@@ -1014,3 +1014,20 @@ body{
   .vnx-translate-inline button{flex:1}
   .vnx-translate-inline select{max-width:none;min-width:118px}
 }
+
+
+/* 0.6.67 — Carla + complete Mi trabajo review center */
+.vnx-work-head p{max-width:900px;line-height:1.45}
+.vnx-work-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:10px 14px;background:#06192c;border-bottom:1px solid #123d59}
+.vnx-work-summary>span{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:7px;align-items:start;border:1px solid #174a6b;background:#071f35;border-radius:10px;padding:9px}
+.vnx-work-summary i{grid-row:1/3;font-style:normal;font-size:18px}.vnx-work-summary b{font-size:9px;color:#e7f7ff}.vnx-work-summary small{font-size:8px;color:#7f9fb4;line-height:1.35;margin-top:2px}
+.vnx-work-account{font-size:12px;margin:4px 0 8px;color:#65dcff}
+.vnx-work-status{display:inline-flex;margin-bottom:6px;border-radius:999px;padding:4px 7px;font-size:8px;font-weight:900;border:1px solid}
+.vnx-work-status.automatic{color:#c9ffe9;border-color:#1c8f68;background:#0c4d3b}
+.vnx-work-status.review{color:#dff5ff;border-color:#247ead;background:#0b3e60}
+.vnx-work-status.decision{color:#ffe8b6;border-color:#9a7122;background:#584013}
+.vnx-work-status.resolved{color:#d2f5ff;border-color:#27708a;background:#0b3446}
+.vnx-work-why{margin-top:9px;border-left:3px solid #2d86b5;background:#06192c;color:#9fc0d3;border-radius:6px;padding:8px 10px;font-size:9px;line-height:1.4}
+.vnx-work-item.automatic{border-color:#23795f}.vnx-work-item.decision{border-color:#806125}.vnx-work-item.resolved{border-color:#255c70}
+@media(max-width:900px){.vnx-work-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.vnx-work-summary{grid-template-columns:1fr}}
