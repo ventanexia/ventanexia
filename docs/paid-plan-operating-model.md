@@ -143,11 +143,30 @@ La demo no debe afirmar que ha ejecutado acciones reales si no existen integraci
 
 El agente **Pedidos** forma parte de los tres planes mensuales y no consume una de las funciones estándar elegibles.
 
-- VNX Inicio: hasta 100 pedidos procesados al mes.
-- VNX Crecimiento: hasta 500 pedidos procesados al mes.
-- VNX Premium: hasta 2.000 pedidos procesados al mes.
+- VNX Inicio: 299 €/mes + IVA, 1 plaza de empleado IA y hasta 100 pedidos procesados al mes.
+- VNX Empresa: 799 €/mes + IVA, 3 plazas de empleados IA y hasta 500 pedidos procesados al mes.
+- VNX Premium: 1.499 €/mes + IVA, 8 plazas de empleados IA y hasta 2.000 pedidos procesados al mes.
 
-Los precios base permanecen en 350 €, 900 € y 1.750 € al mes + IVA.
+Las funciones disponibles y las plazas de empleados IA son conceptos distintos: una empresa puede tener varias capacidades disponibles, pero solo puede mantener activos simultáneamente tantos empleados/agentes como plazas tenga contratadas.
+
+### Agentes propios del cliente
+
+- Un agente propio conectado consume 1 plaza de empleado, igual que un agente de VentaNexIA.
+- Cada agente propio conectado añade 49 €/mes + IVA por integración, permisos, coordinación y trazabilidad.
+- El cliente puede sustituir un agente de VentaNexIA por uno propio dentro de sus plazas.
+- Un agente externo nunca obtiene acceso global automático: debe recibir permisos explícitos por fuente y por tipo de acción.
+- Si se superan las plazas incluidas, se aplica también la plaza adicional correspondiente al plan.
+
+Precios de plaza adicional:
+- VNX Inicio: 310 €/mes + IVA.
+- VNX Empresa: 185 €/mes + IVA.
+- VNX Premium: 276 €/mes + IVA.
+
+La regla comercial es deliberada: ampliar un plan inferior hasta alcanzar las plazas del plan siguiente debe resultar aproximadamente un 15 % más caro que subir directamente de plan. VentaNexIA debe recomendar el cambio de plan cuando resulte más económico.
+
+### Permanencia y portabilidad
+
+La duración mínima inicial sigue siendo de 12 meses. El cliente puede utilizar software de terceros y exportar sus datos cuando proceda; no se implementará ningún bloqueo técnico para impedirlo. Dejar de usar VentaNexIA o contratar una solución competidora no cancela por sí solo el compromiso contractual mínimo.
 
 Un conector estándar ya compatible con VentaNexIA puede utilizarse dentro del número de conexiones incluidas en el plan. Cuando un ERP, programa propio o portal requiera desarrollo específico, debe presupuestarse como **conector personalizado**, desde 150 €/mes según complejidad, y no se activa sin aprobación previa.
 
