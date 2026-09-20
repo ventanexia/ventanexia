@@ -837,3 +837,90 @@ body{
 .vnx-doc-paper .vnx-rich-table{background:#fff;color:#111}
 .vnx-doc-paper .vnx-rich-table th{background:#edf3f7;color:#10263b;border-bottom:1px solid #c4d2dc}
 .vnx-doc-paper .vnx-rich-table td{color:#111820;border-bottom:1px solid #dce5eb}
+
+
+/* 0.6.63 — Executive Workbench inspired by the approved mockup */
+#chat.tab.active{padding:0!important;overflow:hidden}
+.vnx-workbench{height:calc(100vh - 28px);display:flex;flex-direction:column;gap:10px;max-width:none;margin:0;padding:12px 14px 14px;box-sizing:border-box;min-width:0}
+.vnx-workbench-head{display:flex;align-items:center;justify-content:space-between;gap:18px;flex:0 0 auto}
+.vnx-workbench-head h2{font-size:30px;margin:2px 0 2px;color:#f7fbff}
+.vnx-workbench-head p{margin:0;color:#8eabc0;font-size:12px}
+.vnx-top-mode{align-self:center}
+.vnx-top-mode button{display:grid;gap:2px;min-width:140px;padding:8px 13px}
+.vnx-top-mode button small{font-size:9px;font-weight:600;opacity:.72}
+.vnx-agent-ribbon{display:flex!important;gap:7px!important;overflow-x:auto;overflow-y:hidden;margin:0!important;padding:1px 0 5px;scrollbar-width:thin;flex:0 0 auto}
+.vnx-agent-ribbon .guided-agent-tab{flex:0 0 108px;min-height:57px!important;padding:7px 7px!important;border-radius:10px!important;gap:4px!important}
+.vnx-agent-ribbon .guided-agent-tab span{font-size:17px!important}
+.vnx-agent-ribbon .guided-agent-tab b{font-size:10px!important}
+.vnx-workbench-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:10px;min-height:0;flex:1 1 auto}
+.vnx-workbench-main{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.vnx-daily-card{background:linear-gradient(135deg,#082947,#071e36);border:1px solid #1b608b;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.vnx-daily-copy{display:flex;align-items:center;gap:10px;min-width:210px;margin-right:auto}
+.vnx-sun{font-size:34px}.vnx-daily-copy h3{font-size:19px;margin:0 0 2px}.vnx-daily-copy p{margin:0;color:#94b1c6;font-size:11px}
+.vnx-daily-actions{display:flex;gap:7px;flex-wrap:wrap}
+.vnx-daily-actions button{border:1px solid #2b638b;background:#0d365a;color:#e8f5ff;border-radius:9px;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer}
+.vnx-daily-actions button:hover{border-color:#36c8ff;background:#10446f;transform:translateY(-1px)}
+.vnx-action-badge{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:#ef4554;color:#fff;font-size:9px;margin-left:4px}
+.vnx-primary-work{padding:14px!important;min-height:0;display:flex;flex-direction:column;flex:1 1 auto;overflow:hidden}
+.vnx-primary-work .guided-card-head{margin-bottom:10px}
+.vnx-primary-work #guidedModePanel,.vnx-primary-work #freeModePanel{min-height:0;overflow:auto}
+.vnx-primary-work #freeModePanel{display:flex;flex-direction:column;flex:1 1 auto}
+.vnx-primary-work .agent-picker{margin:0 0 8px}
+.vnx-message-canvas{height:auto!important;min-height:220px;flex:1 1 auto;max-height:none!important;margin:8px 0!important;overflow:auto!important;padding:12px!important}
+.vnx-message-canvas .msg{max-width:92%;font-size:12px;line-height:1.5}
+.vnx-composer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:stretch;margin-top:8px}
+.vnx-composer textarea{min-height:66px!important;max-height:120px;resize:vertical;margin:0!important}
+.vnx-composer-actions{display:flex;flex-direction:column;gap:6px;justify-content:flex-end}
+.vnx-composer-actions .btn{min-width:92px}
+.vnx-guided-intro{display:flex;justify-content:space-between;gap:15px;align-items:center;padding:8px 10px;margin-bottom:10px;border:1px solid #194f75;border-radius:10px;background:#061d33}
+.vnx-guided-intro b{font-size:12px}.vnx-guided-intro span{font-size:10px;color:#87a8be}
+.vnx-primary-work .guided-form-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.vnx-primary-work .guided-field.wide{grid-column:span 2}
+.vnx-primary-work .guided-field textarea{min-height:62px}
+.vnx-primary-work .guided-field input,.vnx-primary-work .guided-field select,.vnx-primary-work .guided-field textarea{padding:9px 10px;font-size:11px}
+.vnx-primary-work .guided-field>span{font-size:9px}
+.vnx-bottom-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;flex:0 0 auto}
+.vnx-translation-card,.vnx-plain-answer-card{border:1px solid #19547d;background:linear-gradient(180deg,#08233d,#061c31);border-radius:14px;padding:11px 12px;min-width:0}
+.vnx-card-title{display:flex;gap:8px;align-items:center}.vnx-card-title>span{font-size:20px}.vnx-card-title>div{min-width:0;flex:1}.vnx-card-title b{display:block;font-size:12px}.vnx-card-title small{display:block;color:#8ca8bc;font-size:9px;margin-top:2px}
+.vnx-switch input{display:none}.vnx-switch span{display:block;width:34px;height:19px;border-radius:20px;background:#294760;position:relative;cursor:pointer}.vnx-switch span:after{content:"";position:absolute;width:15px;height:15px;left:2px;top:2px;border-radius:50%;background:#dcebf4;transition:.18s}.vnx-switch input:checked+span{background:#1683ed}.vnx-switch input:checked+span:after{left:17px}
+.vnx-translation-controls{display:flex;gap:8px;margin-top:9px;align-items:end}.vnx-translation-controls label{display:grid;gap:3px;font-size:9px;color:#9fb8ca;flex:1}.vnx-translation-controls select{padding:8px 9px;background:#06192c;color:#fff;border:1px solid #245d83;border-radius:8px}
+.vnx-language-pills{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}.vnx-language-pills span{font-size:8px;border:1px solid #2b5d80;background:#0b3150;padding:4px 6px;border-radius:999px;color:#bfe7f7}
+.vnx-plain-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:9px}.vnx-plain-grid span{display:block;border:1px solid #1b4e70;background:#06192c;border-radius:9px;padding:8px}.vnx-plain-grid b{display:block;font-size:9px;color:#dff6ff}.vnx-plain-grid small{display:block;font-size:8px;line-height:1.35;color:#83a3ba;margin-top:3px}
+.vnx-workbench-rail{display:grid;grid-template-rows:auto auto auto minmax(0,1fr);gap:9px;min-height:0;overflow:auto}
+.vnx-rail-card{border:1px solid #19547d;background:linear-gradient(180deg,#08223c,#06192d);border-radius:14px;padding:11px;min-width:0}
+.vnx-rail-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.vnx-rail-head b{font-size:11px}.vnx-rail-head button,.vnx-rail-link{border:0;background:transparent;color:#56cfff;font-size:9px;cursor:pointer;padding:2px}
+.vnx-count{display:grid;place-items:center;min-width:20px;height:20px;border-radius:999px;background:#ec4558;color:#fff;font-size:9px;font-weight:900}
+.vnx-agenda-list,.vnx-approval-list{display:grid;gap:6px}
+.vnx-agenda-item,.vnx-approval-item{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:start;padding:7px 8px;border:1px solid #173f5e;border-radius:8px;background:#071d32}
+.vnx-agenda-time{font-size:9px;font-weight:900;color:#6ddcff;padding-top:2px}.vnx-agenda-item b,.vnx-approval-item b{display:block;font-size:9px}.vnx-agenda-item small,.vnx-approval-item small{display:block;font-size:8px;color:#7897ad;margin-top:2px}
+.vnx-empty-mini{padding:8px;border:1px dashed #2a506d;border-radius:8px;color:#7895aa;font-size:9px;text-align:center}
+.vnx-connection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.vnx-connection-grid button{min-width:0;border:1px solid #1b4b6d;border-radius:9px;background:#071e34;color:#dceefa;padding:7px 5px;display:grid;place-items:center;gap:2px;cursor:pointer}.vnx-connection-grid button:hover{border-color:#35c8fb}.vnx-connection-grid span{font-size:17px}.vnx-connection-grid b{font-size:8px;line-height:1.15;text-align:center}.vnx-connection-grid small{font-size:7px;color:#8aa8bc}.vnx-connection-grid button.is-connected small{color:#5ae39d}.vnx-connection-grid button.needs-connection small{color:#f2c45c}
+.vnx-ready-dot{width:9px;height:9px;border-radius:50%;background:#55e29b;box-shadow:0 0 12px #55e29b88}.vnx-agent-status strong{font-size:13px}.vnx-agent-status p{font-size:9px;margin:5px 0 8px}.vnx-agent-status .guided-capabilities{display:grid;gap:5px}.vnx-agent-status .guided-capabilities>div{font-size:8px;padding:5px 0}.vnx-agent-status .guided-connection-summary{font-size:8px}
+.vnx-other-agents{display:none!important}
+#chat .guided-help-card{display:none!important}
+#chat .guided-shell{max-width:none!important}
+@media(max-width:1250px){
+  .vnx-workbench-grid{grid-template-columns:minmax(0,1fr) 260px}
+  .vnx-agent-ribbon .guided-agent-tab{flex-basis:96px}
+  .vnx-primary-work .guided-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .vnx-primary-work .guided-field.wide{grid-column:1/-1}
+}
+@media(max-width:980px){
+  #chat.tab.active{overflow:auto}
+  .vnx-workbench{height:auto;min-height:100vh;overflow:visible}
+  .vnx-workbench-head{align-items:flex-start;flex-direction:column}
+  .vnx-workbench-grid{grid-template-columns:1fr}
+  .vnx-workbench-rail{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;overflow:visible}
+  .vnx-bottom-tools{grid-template-columns:1fr}
+}
+@media(max-width:650px){
+  .vnx-workbench{padding:8px}
+  .vnx-workbench-head h2{font-size:24px}
+  .vnx-top-mode{width:100%;display:grid;grid-template-columns:1fr 1fr}.vnx-top-mode button{min-width:0}
+  .vnx-agent-ribbon .guided-agent-tab{flex-basis:88px}
+  .vnx-daily-card{align-items:flex-start}.vnx-daily-actions{width:100%}.vnx-daily-actions button{flex:1 1 45%}
+  .vnx-primary-work .guided-form-grid{grid-template-columns:1fr}.vnx-primary-work .guided-field.wide{grid-column:1}
+  .vnx-workbench-rail{grid-template-columns:1fr}
+  .vnx-plain-grid{grid-template-columns:1fr}
+  .vnx-composer{grid-template-columns:1fr}.vnx-composer-actions{flex-direction:row}.vnx-composer-actions .btn{flex:1}
+}
