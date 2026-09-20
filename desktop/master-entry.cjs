@@ -2,7 +2,9 @@ const {app,ipcMain}=require('electron');
 const {readState}=require('./state-store.cjs');
 const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
-const path=require('node:path');\nlet orders=null;\ntry{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
+const path=require('node:path');
+let orders=null;
+try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
 
 // --- Enrutado único del chat -------------------------------------------------
 // master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
