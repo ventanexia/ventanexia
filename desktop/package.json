@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.66",
+  "version": "0.6.67",
   "private": true,
-  "description": "VentaNexIA Desktop · Asistente IA ampliado, estados siempre visibles y traducción de emails integrada · 0.6.66",
+  "description": "VentaNexIA Desktop · Carla y Mi trabajo como centro completo de revisión · 0.6.67",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
