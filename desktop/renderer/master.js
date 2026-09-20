@@ -3,6 +3,7 @@
   const escM=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   let masterPortals=[];
   let masterMessages=[];
+  let handoffAgentChange=false;
   let runtimeConnections=[];
   let runtimeAgents=[];
   let agentMetrics={};
@@ -304,10 +305,13 @@
       automation:'ahorrar tiempo y repetir tareas'
     }[key]||'ayuda para tu negocio';
   }
-  function selectAgentKey(key){
-    const sel=$m('#chatConnectionSelect');if(!sel)return;
+  function selectAgentKey(key,{preserve=false}={}){
+    const sel=$m('#chatConnectionSelect');if(!sel)return false;
     const value='agent:'+key;
-    if([...sel.options].some(o=>o.value===value)){sel.value=value;sel.dispatchEvent(new Event('change',{bubbles:true}));}
+    if(![...sel.options].some(o=>o.value===value))return false;
+    if(preserve)handoffAgentChange=true;
+    sel.value=value;sel.dispatchEvent(new Event('change',{bubbles:true}));
+    return true;
   }
   function renderGuidedAgentTabs(items,selected){
     const root=$m('#guidedAgentTabs');if(!root)return;
@@ -1025,13 +1029,14 @@
       const nextValue=sel.value;
       const input=ensureChatInputEditable();
       const hasCurrentWork=masterMessages.length>0||Boolean(input?.value?.trim());
-      if(nextValue!==activeAgentValue&&hasCurrentWork){
+      if(nextValue!==activeAgentValue&&hasCurrentWork&&!handoffAgentChange){
         const ok=confirm('Vas a cambiar de agente. ¿Quieres cerrar el trabajo actual y eliminar esta conversación para empezar uno nuevo?');
         if(!ok){sel.value=activeAgentValue;return;}
         masterMessages=[];
         if(input)input.value='';
         renderMasterMessages();
       }
+      handoffAgentChange=false;
       activeAgentValue=nextValue;
       if(nextValue)localStorage.setItem('vnx_master_chat_agent',nextValue);
       const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
@@ -1144,8 +1149,9 @@
     root.innerHTML=intro+masterMessages.map(m=>{
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
+      const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -1169,6 +1175,40 @@
         masterMessages.push({role:'assistant',content:'No he podido completar la acción: '+(e.message||e)});
         renderMasterMessages();
       }
+    });
+    $m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
+      const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
+    });
+    $m('.handoff-accept-btn').forEach(btn=>btn.onclick=async()=>{
+      const wrap=btn.closest('.msg');
+      const msgIndex=[...root.querySelectorAll('.msg')].indexOf(wrap)-1;
+      const msg=masterMessages[msgIndex];
+      const h=msg?.handoff;if(!h)return;
+      const agent=(runtimeAgents||[]).find(x=>x.key===h.agentKey);
+      if(!agent?.included){
+        masterMessages.push({role:'assistant',content:'Ese empleado no está incluido en tu plan actual.'});renderMasterMessages();return;
+      }
+      if(!agent?.connected&&agent?.requires){
+        masterMessages.push({role:'assistant',content:'Ese empleado necesita conectar primero su herramienta o fuente de datos. Ve a Conexiones y actívala.'});renderMasterMessages();return;
+      }
+      const ok=selectAgentKey(h.agentKey,{preserve:true});
+      if(!ok){
+        masterMessages.push({role:'assistant',content:'No he podido abrir el empleado '+(h.agentName||'correspondiente')+'.'});renderMasterMessages();return;
+      }
+      const context=masterMessages.slice(Math.max(0,msgIndex-3),msgIndex+1).map(x=>(x.role==='user'?'Usuario: ':'Asistente: ')+String(x.content||'')).join('\n\n');
+      const task='Tarea recibida del Asistente IA. Continúa desde este punto sin pedir al usuario que repita la información.\n\nTAREA:\n'+String(h.task||'')+'\n\nCONTEXTO PREVIO:\n'+context+'\n\nRealiza únicamente las acciones permitidas por este agente y pide confirmación cuando corresponda.';
+      masterMessages.push({role:'assistant',content:'Te conecto con tu empleado de '+(h.agentName||'VentaNexIA')+' y le paso todo el contexto de esta consulta.'});
+      masterMessages.push({role:'user',content:task,handoffInternal:true});
+      renderMasterMessages();
+      try{
+        const scope=selectedChatScope();
+        const payload=masterMessages.filter(x=>!x.handoffInternal||x===masterMessages[masterMessages.length-1]).map(({role,content})=>({role,content}));
+        const r=await window.vnx.sendChat(payload,scope);
+        masterMessages.push({role:'assistant',content:r.reply||'Sin respuesta',images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});
+      }catch(e){
+        masterMessages.push({role:'assistant',content:'No he podido pasar la tarea al empleado: '+(e.message||e)});
+      }
+      renderMasterMessages();
     });
     root.scrollTop=root.scrollHeight;
   }
@@ -1215,7 +1255,7 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null});renderMasterMessages();
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
