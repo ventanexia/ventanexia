@@ -268,3 +268,71 @@ grant execute on function public.vnx_consume_meter(text,uuid,text,integer,jsonb)
 grant execute on function public.vnx_video_quota_status(text) to service_role;
 grant execute on function public.vnx_consume_video_quota(text,uuid,integer) to service_role;
 grant execute on function public.vnx_grant_usage_credits(uuid,text,text,integer,integer,text) to service_role;
+
+
+create or replace function public.vnx_register_device_public(
+  p_customer_code text,
+  p_activation_code text,
+  p_device_key text,
+  p_fingerprint_hash text default null,
+  p_device_name text default null,
+  p_platform text default null,
+  p_app_version text default null
+)
+returns jsonb language plpgsql security definer set search_path to public,extensions as $$
+declare
+  t public.vnx_tenants%rowtype; e public.vnx_entitlements%rowtype; d public.vnx_devices%rowtype;
+  v_active int; v_base int; v_limit int; v_hash text; v_valid boolean:=false;
+begin
+  if coalesce(trim(p_customer_code),'')='' or coalesce(trim(p_activation_code),'')='' or coalesce(trim(p_device_key),'')='' then
+    return jsonb_build_object('ok',false,'code','INVALID_REQUEST','message','Faltan datos de activación');
+  end if;
+  select * into t from public.vnx_tenants where upper(customer_code)=upper(trim(p_customer_code)) limit 1;
+  if t.id is null then return jsonb_build_object('ok',false,'code','CUSTOMER_NOT_FOUND','message','ID de cliente no válido'); end if;
+  v_hash:=encode(digest(trim(p_activation_code),'sha256'),'hex');
+  if t.desktop_activation_hash is null or t.desktop_activation_hash<>v_hash then
+    return jsonb_build_object('ok',false,'code','ACTIVATION_INVALID','message','Código de activación no válido');
+  end if;
+  select * into e from public.vnx_entitlements where tenant_id=t.id limit 1;
+  if e.id is not null then v_valid:=e.state='active' or (e.state='trial' and e.trial_ends_at is not null and now()<e.trial_ends_at); end if;
+  if not v_valid then return jsonb_build_object('ok',false,'code','LICENSE_NOT_ACTIVE','message','La licencia no está activa'); end if;
+
+  if e.state='trial' then v_base:=1;
+  else
+    v_base:=case lower(coalesce(e.plan_key,'start'))
+      when 'core' then 3 when 'growth' then 3 when 'crecimiento' then 3
+      when 'scale' then 5 when 'enterprise' then 5 when 'empresa' then 5 when 'premium' then 5
+      when 'master' then 50 else 1 end;
+  end if;
+  if coalesce(t.device_limit_override,0)>0 then v_base:=t.device_limit_override; end if;
+  v_limit:=v_base+greatest(0,coalesce(t.extra_device_count,0));
+
+  select * into d from public.vnx_devices where tenant_id=t.id and device_key=trim(p_device_key) limit 1;
+  if d.id is not null then
+    if d.status<>'active' then return jsonb_build_object('ok',false,'code','DEVICE_REVOKED','message','Este dispositivo está revocado. Contacta con soporte.'); end if;
+    update public.vnx_devices set last_seen_at=now(),fingerprint_hash=nullif(trim(p_fingerprint_hash),''),
+      device_name=coalesce(nullif(trim(p_device_name),''),device_name),platform=coalesce(nullif(trim(p_platform),''),platform),
+      app_version=coalesce(nullif(trim(p_app_version),''),app_version) where id=d.id;
+  else
+    select count(*) into v_active from public.vnx_devices where tenant_id=t.id and status='active';
+    if v_active>=v_limit then
+      return jsonb_build_object('ok',false,'code','DEVICE_LIMIT_REACHED','message',format('Has utilizado %s de %s dispositivos.',v_active,v_limit),
+        'activeCount',v_active,'limit',v_limit,'extraDeviceMonthlyEur',coalesce(t.device_addon_price_cents,4900)/100.0);
+    end if;
+    insert into public.vnx_devices(tenant_id,device_key,fingerprint_hash,device_name,platform,app_version,status,last_seen_at)
+      values(t.id,trim(p_device_key),nullif(trim(p_fingerprint_hash),''),coalesce(nullif(trim(p_device_name),''),'Equipo VentaNexIA'),
+        nullif(trim(p_platform),''),nullif(trim(p_app_version),''),'active',now()) returning * into d;
+  end if;
+
+  select count(*) into v_active from public.vnx_devices where tenant_id=t.id and status='active';
+  return jsonb_build_object('ok',true,'registered',d.first_seen_at=d.last_seen_at,'customerId',t.customer_code,'deviceId',d.id,
+    'planKey',e.plan_key,'state',e.state,'trialEndsAt',e.trial_ends_at,'baseLimit',v_base,
+    'extraDeviceCount',greatest(0,coalesce(t.extra_device_count,0)),'limit',v_limit,'activeCount',v_active,
+    'available',greatest(0,v_limit-v_active),'extraDeviceMonthlyEur',coalesce(t.device_addon_price_cents,4900)/100.0);
+end;
+$$;
+
+revoke all on function public.vnx_register_device_public(text,text,text,text,text,text,text) from public,anon,authenticated;
+grant execute on function public.vnx_register_device_public(text,text,text,text,text,text,text) to service_role;
+
+create index if not exists vnx_provisioning_tasks_tenant_idx on public.vnx_provisioning_tasks(tenant_id);
