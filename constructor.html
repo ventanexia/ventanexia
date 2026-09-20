@@ -3,7 +3,7 @@
 <title>Diseña qué quieres que haga VentaNexIA</title>
 <meta name="description" content="Cuéntanos con tus palabras qué tareas quieres dejar de hacer a mano. VentaNexIA te propone qué ayudantes necesitas y cómo empezar.">
 <meta name="robots" content="index,follow"><link rel="canonical" href="https://www.ventanexia.es/constructor.html">
-<link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/builder.css"></head>
+<link rel="stylesheet" href="/assets/styles.css"><link rel="stylesheet" href="/assets/builder.css"><style>.trial-acceptance{margin:16px 0;padding:15px;border:1px solid #cfe1f2;border-radius:14px;background:#f5faff;display:grid;gap:10px}.trial-acceptance label{display:flex;gap:9px;align-items:flex-start;line-height:1.45;color:#38536c}.trial-acceptance input{margin-top:3px}.trial-acceptance a{font-weight:800}</style></head>
 <body class="builder-body">
 <header class="topbar"><div class="wrap nav premium-nav">
 <a class="brand premium-brand" href="/"><span class="vmark">V</span><span><b>VentaNexIA</b><small>Más ventas. Menos esfuerzo.</small></span></a>
@@ -41,7 +41,12 @@
 <div class="bp-block"><h3>Tareas que podemos dejar preparadas</h3><ul id="bpAutomations"></ul></div>
 <div class="bp-block"><h3>Programas o servicios que habría que conectar</h3><ul id="bpIntegrations"></ul></div>
 <div class="bp-block"><h3>Cosas que siempre necesitarán tu permiso</h3><ul id="bpApprovals"></ul></div>
-<div class="bp-block"><h3>Plan que mejor encaja</h3><div id="planRecommendation" class="plan-recommendation">—</div></div><div class="bp-next"><small>SIGUIENTE PASO</small><b id="bpNext">—</b><span>Nada importante se activa sin tu autorización.</span></div><button id="startTrial" class="btn primary trial-btn" hidden>Probarlo gratis 15 días · sin tarjeta →</button><div id="trialMsg" class="builder-msg"></div>
+<div class="bp-block"><h3>Plan que mejor encaja</h3><div id="planRecommendation" class="plan-recommendation">—</div></div><div class="bp-next"><small>SIGUIENTE PASO</small><b id="bpNext">—</b><span>Nada importante se activa sin tu autorización.</span></div>
+<div id="trialAcceptance" class="trial-acceptance" hidden>
+<label><input id="trialTermsAck" type="checkbox"> Acepto las <a href="/condiciones-prueba.html" target="_blank" rel="noopener">Condiciones de Prueba de 15 días</a> y entiendo que la licencia de prueba es nominativa para mi empresa, no cedible ni transferible.</label>
+<label><input id="trialNoChargeAck" type="checkbox"> Entiendo que no tengo que introducir tarjeta, no se cobrará nada al finalizar y que, si quiero continuar, tendré que firmar el contrato de pago y añadir un método de pago.</label>
+</div>
+<button id="startTrial" class="btn primary trial-btn" hidden disabled>Crear mi ID y empezar 15 días gratis →</button><div id="trialMsg" class="builder-msg"></div>
 </div>
 </aside>
 </div></section>

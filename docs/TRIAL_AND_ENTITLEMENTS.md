@@ -7,6 +7,10 @@ BLUEPRINT -> TRIAL (15 días, sin tarjeta) -> CONTRACT + PAYMENT -> PAID/ACTIVE 
 - Duration: exactly 15 x 24 hours from activation.
 - No card required to start.
 - No paid contract is accepted at trial start.
+- Before trial activation, the registrant must explicitly accept the current Trial Terms.
+- Trial activation generates a unique customer ID and a one-time-visible activation code for the registered business.
+- The activation code is stored only as a hash server-side; the clear code is returned once and emailed to the registered address.
+- The trial licence is nominative to the registered business, non-assignable and non-transferable, subject to device/user limits.
 - The customer can stop using the trial at any time without charge.
 - At expiry, access is blocked until the customer explicitly chooses to continue, accepts the paid contract and adds a payment method.
 - The tenant is personalized from the prospect blueprint.
