@@ -93,12 +93,22 @@
       <div class="master-page">
         <div class="master-page-head">
           <div><div class="eyebrow gold">SOLO EDICIÓN MAESTRA</div><h2>Centro Maestro</h2><p>Elige una cuenta o programa y mira sus clientes, facturas, pedidos o cualquier otro dato real desde aquí.</p></div>
-          <span class="master-badge">♛ Vista completa</span>
+          <span class="master-badge">♛ MASTER · Sin límites de VentaNexIA</span>
         </div>
         <div class="master-result" style="margin-bottom:18px">
           <div class="panel-head"><h3>Activaciones pendientes</h3><button id="refreshProvisioningBtn" class="mini">Actualizar</button></div>
           <p>Cuando un cliente paga una ampliación que requiere intervención real, aparece aquí hasta que confirmemos que está activa.</p>
           <div id="provisioningTaskList"><div class="empty">Comprobando activaciones pendientes…</div></div>
+        </div>
+        <div class="master-result" style="margin-bottom:18px">
+          <div class="panel-head"><div><h3>Clientes, contratos y facturación</h3><small>Vista exclusiva MASTER con datos reales de VentaNexIA.</small></div><button id="refreshMasterBillingBtn" class="mini">Actualizar</button></div>
+          <div class="master-data-cards vnx-master-business-cards">
+            <button type="button" data-master-business="customers"><span>👥</span><b id="masterCustomersCount">—</b><small>Clientes</small></button>
+            <button type="button" data-master-business="contracts"><span>📝</span><b id="masterContractsCount">—</b><small>Contratos aceptados</small></button>
+            <button type="button" data-master-business="invoices"><span>🧾</span><b id="masterInvoicesCount">—</b><small>Facturas</small></button>
+            <button type="button" data-master-business="subscriptions"><span>💳</span><b id="masterSubscriptionsCount">—</b><small>Suscripciones</small></button>
+          </div>
+          <div id="masterBusinessResult" class="master-data-output"><div class="empty">Pulsa una categoría para ver los datos reales.</div></div>
         </div>
         <div class="master-source-box">
           <label><b>¿De dónde quieres ver los datos?</b><select id="masterSourceSelect"><option value="">Elige una cuenta o programa…</option></select></label>
