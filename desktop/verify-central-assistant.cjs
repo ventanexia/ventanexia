@@ -19,5 +19,10 @@ must(master.includes("collectGmailContextMaster(integration,question)"),'central
 must(adaptive.includes("async function queryReadOnlyScope"),'read-only connector API is missing');
 must(adaptive.includes("module.exports={calibratePortal,queryReadOnlyScope"),'read-only connector API is not exported');
 must(ui.includes("Tu centro de mando:"),'UI does not explain central assistant');
+must(entry.includes("centralActionHandoff"),'missing specialist handoff detector');
+must(entry.includes("crea|prepara")&&entry.includes("borrador|respuesta|pedido|publicacion"),'handoff must target concrete actions, not summaries');
+must(ui.includes("handoff-accept-btn"),'missing handoff accept control');
+must(ui.includes("selectAgentKey(h.agentKey,{preserve:true})"),'handoff must preserve conversation context');
+must(ui.includes("Tarea recibida del Asistente IA"),'handoff must pass the task to the specialist');
 
 console.log('VentaNexIA central assistant verification OK · cross-agent read-only hub enabled.');
