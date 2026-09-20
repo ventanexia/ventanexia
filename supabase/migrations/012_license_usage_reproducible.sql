@@ -73,18 +73,18 @@ returns integer language sql immutable set search_path to public,extensions as $
 select case lower(coalesce(p_plan,'start'))
   when 'start' then case p_meter
     when 'image_credits' then 0 when 'voice_minutes' then 0 when 'whatsapp_messages' then 0
-    when 'lead_credits' then 50 when 'ai_heavy_tasks' then 150 when 'email_ai_actions' then 1500
+    when 'lead_credits' then 50 when 'lead_search' then 50 when 'order_extractions' then 100 when 'ai_heavy_tasks' then 150 when 'email_ai_actions' then 1500
     when 'automation_runs' then 500 when 'seo_pages' then 100 when 'report_generations' then 30 when 'storage_mb' then 5120 else 0 end
   when 'inicio' then public.vnx_meter_limit('start',p_meter)
   when 'core' then case p_meter
     when 'image_credits' then 0 when 'voice_minutes' then 0 when 'whatsapp_messages' then 0
-    when 'lead_credits' then 250 when 'ai_heavy_tasks' then 600 when 'email_ai_actions' then 5000
+    when 'lead_credits' then 250 when 'lead_search' then 250 when 'order_extractions' then 500 when 'ai_heavy_tasks' then 600 when 'email_ai_actions' then 5000
     when 'automation_runs' then 2500 when 'seo_pages' then 500 when 'report_generations' then 100 when 'storage_mb' then 20480 else 0 end
   when 'growth' then public.vnx_meter_limit('core',p_meter)
   when 'crecimiento' then public.vnx_meter_limit('core',p_meter)
   when 'scale' then case p_meter
     when 'image_credits' then 0 when 'voice_minutes' then 0 when 'whatsapp_messages' then 0
-    when 'lead_credits' then 700 when 'ai_heavy_tasks' then 1500 when 'email_ai_actions' then 12000
+    when 'lead_credits' then 700 when 'lead_search' then 700 when 'order_extractions' then 2000 when 'ai_heavy_tasks' then 1500 when 'email_ai_actions' then 12000
     when 'automation_runs' then 7000 when 'seo_pages' then 1500 when 'report_generations' then 250 when 'storage_mb' then 51200 else 0 end
   when 'empresa' then public.vnx_meter_limit('scale',p_meter)
   when 'enterprise' then public.vnx_meter_limit('scale',p_meter)
@@ -96,7 +96,7 @@ create or replace function public.vnx_trial_meter_limit(p_meter text)
 returns integer language sql immutable set search_path to public,extensions as $$
 select case p_meter
   when 'image_credits' then 0 when 'voice_minutes' then 0 when 'whatsapp_messages' then 0
-  when 'lead_credits' then 25 when 'ai_heavy_tasks' then 25 when 'email_ai_actions' then 100
+  when 'lead_credits' then 25 when 'lead_search' then 25 when 'order_extractions' then 25 when 'ai_heavy_tasks' then 25 when 'email_ai_actions' then 100
   when 'automation_runs' then 100 when 'seo_pages' then 20 when 'report_generations' then 20
   when 'storage_mb' then 1024 else 0 end
 $$;
