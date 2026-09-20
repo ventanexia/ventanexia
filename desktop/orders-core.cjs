@@ -348,7 +348,7 @@ function parseCommand(text=''){
 
 // ------------------------------------------------------------------ fábrica
 function createOrders(deps){
-  const {dir,mail,extract,files,webOrders=null,erp=null,stockLookup=async()=>({}),monthlyLimit=async()=>null,confirm,notify=()=>{},now=()=>Date.now(),audit=async()=>{},loadList=async()=>null,deliverers={},fetch:doFetch,pickFolder=async()=>null,pickFile=async()=>null,fsApi=fsp}=deps;
+  const {dir,mail,extract,files,webOrders=null,erp=null,stockLookup=async()=>({}),monthlyLimit=async()=>null,webOrderLevel=async()=> 'basic',confirm,notify=()=>{},now=()=>Date.now(),audit=async()=>{},loadList=async()=>null,deliverers={},fetch:doFetch,pickFolder=async()=>null,pickFile=async()=>null,fsApi=fsp}=deps;
   const store=createStore(dir);
   const today=()=>new Date(now()).toISOString().slice(0,10);
 
@@ -625,7 +625,8 @@ function createOrders(deps){
   }
   async function processAuto(){
     const s=await store.load();if(s.settings.mode!=='auto'||!s.settings.destination)return null;
-    const ids=Object.values(s.orders).filter(o=>autoEligible(o,s)).map(o=>o.id);
+    const webLevel=await webOrderLevel();
+    const ids=Object.values(s.orders).filter(o=>autoEligible(o,s)&&(o.source?.kind!=='web'||webLevel==='auto')).map(o=>o.id);
     if(!ids.length)return null;
     const r=await deliverBatch(ids,{auto:true});
     if(r?.res?.length)notify('Pedidos introducidos',r.res.filter(x=>x.r.ok).length+' pedido(s) entregado(s) automáticamente.');
