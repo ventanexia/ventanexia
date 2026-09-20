@@ -961,3 +961,27 @@ body{
 }
 
 .vnx-global-source{display:grid;grid-template-columns:minmax(0,360px) 1fr;gap:8px;align-items:end;margin:0 0 10px}.vnx-global-source label{display:grid;gap:4px}.vnx-global-source select{padding:9px 10px;border-radius:9px;border:1px solid #28668c;background:#041827;color:#fff}.vnx-global-source small{color:#89a9bc;font-size:9px;padding-bottom:8px}@media(max-width:700px){.vnx-global-source{grid-template-columns:1fr}.vnx-global-source small{padding-bottom:0}}
+
+
+/* 0.6.65 — Mi trabajo / revisión y decisiones */
+.vnx-work-overlay{position:fixed;inset:0;z-index:10060;background:rgba(0,8,16,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+.vnx-work-modal{width:min(1180px,97vw);height:min(820px,94vh);background:#051a2d;border:1px solid #286d96;border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 30px 100px #000b}
+.vnx-work-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-bottom:1px solid #164867;background:#07213a}
+.vnx-work-head h3{margin:0;font-size:20px}.vnx-work-head p{margin:3px 0 0;color:#89a8bc;font-size:10px}
+.vnx-work-tabs{display:flex;gap:7px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid #123d59;background:#061d32}
+.vnx-work-tabs button{border:1px solid #245d82;background:#082845;color:#cde8f6;border-radius:999px;padding:8px 11px;font-size:10px;font-weight:800;cursor:pointer}
+.vnx-work-tabs button.active{background:#1269a0;border-color:#47cdf7;color:#fff}
+.vnx-work-tabs b{display:inline-grid;place-items:center;min-width:18px;height:18px;border-radius:999px;background:#031523;margin-left:5px;padding:0 4px}
+.vnx-work-body{flex:1;overflow:auto;padding:14px;display:grid;gap:10px}
+.vnx-work-item{border:1px solid #1e587e;background:#071e34;border-radius:13px;padding:12px}
+.vnx-work-item-head{display:flex;justify-content:space-between;gap:10px;align-items:start}.vnx-work-item-head b{display:block;font-size:12px}.vnx-work-item-head small{display:block;color:#8ba8bb;font-size:9px;margin-top:3px}
+.vnx-work-chip{font-size:8px;border:1px solid #2b6389;background:#0d3659;border-radius:999px;padding:4px 7px;color:#c6e8f7;white-space:nowrap}
+.vnx-work-columns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.vnx-work-pane{border:1px solid #173f5c;background:#06192c;border-radius:10px;padding:10px}.vnx-work-pane h4{margin:0 0 7px;font-size:10px;color:#69d9ff}.vnx-work-pane p{margin:0;color:#bfd2df;font-size:10px;line-height:1.5;white-space:pre-wrap}
+.vnx-work-pane textarea{width:100%;min-height:150px;box-sizing:border-box;border:1px solid #28668c;background:#031522;color:#fff;border-radius:9px;padding:10px;resize:vertical;font:inherit;font-size:10px;line-height:1.45}
+.vnx-work-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.vnx-work-actions button{border:1px solid #28668c;background:#0a3152;color:#e7f7ff;border-radius:8px;padding:8px 10px;font-size:9px;font-weight:800;cursor:pointer}.vnx-work-actions button.primary{background:linear-gradient(135deg,#315bff,#8a3dff);border-color:transparent}.vnx-work-actions button.danger{border-color:#9b4150;color:#ffd7dc}
+.vnx-work-decision{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:9px}.vnx-work-decision input{border:1px solid #28668c;background:#031522;color:#fff;border-radius:8px;padding:9px 10px}
+.vnx-work-empty{border:1px dashed #2a5573;border-radius:12px;padding:28px;text-align:center;color:#87a6ba}
+.vnx-secretary-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;padding-top:9px;border-top:1px solid #1c4d6c}.vnx-secretary-actions button{border:1px solid #28668c;background:#0a3152;color:#e5f6ff;border-radius:8px;padding:7px 9px;font-size:9px;font-weight:800;cursor:pointer}
+@media(max-width:760px){.vnx-work-overlay{padding:6px}.vnx-work-modal{height:98vh}.vnx-work-columns{grid-template-columns:1fr}.vnx-work-head{align-items:flex-start}.vnx-work-tabs{overflow-x:auto;flex-wrap:nowrap}}
