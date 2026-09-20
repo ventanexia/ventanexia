@@ -9,6 +9,7 @@ const {EDITION,assertModuleIncluded,isMaster}=require('./agent-policy.cjs');
 const {storeFile,readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
 const {shopifyCall,requestOwnedToken}=require('./shopify-auth.cjs');
+const calendar=require('./calendar.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -347,6 +348,14 @@ async function verifyIntegration(provider,payload){
     const j=await providerFetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName',{headers:{Authorization:'Bearer '+token}});
     return {label:j.displayName||j.mail||account||'Microsoft 365',meta:{id:j.id||'',email:j.mail||j.userPrincipalName||account||''}};
   }
+  if(provider==='google_calendar'){
+    const j=await providerFetch('https://www.googleapis.com/oauth2/v2/userinfo',{headers:{Authorization:'Bearer '+token}});
+    return {label:j.email||account||'Google Calendar',meta:{id:j.id||'',email:j.email||account||'',name:j.name||''}};
+  }
+  if(provider==='microsoft_calendar'){
+    const j=await providerFetch('https://graph.microsoft.com/v1.0/me?$select=id,displayName,mail,userPrincipalName',{headers:{Authorization:'Bearer '+token}});
+    return {label:j.displayName||j.mail||account||'Microsoft Calendar',meta:{id:j.id||'',email:j.mail||j.userPrincipalName||account||''}};
+  }
   if(provider==='hubspot'){
     const j=await providerFetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1',{headers:{Authorization:'Bearer '+token}});
     return {label:'HubSpot',meta:{sampleCount:Array.isArray(j.results)?j.results.length:0}};
@@ -522,6 +531,13 @@ ipcMain.handle('integration:status',async(_e,module)=>{
   if(!x)return {connected:false,module:key};
   return {connected:true,module:key,provider:x.provider,label:x.label||x.account||x.provider,mode:x.mode||'read',meta:x.meta||{},connectedAt:x.connectedAt||null};
 });
+ipcMain.handle('agenda:today',async()=>{
+  const s=await readState();assertModuleIncluded(s.license,'agenda');return calendar.today();
+});
+ipcMain.handle('agenda:upcoming',async(_e,minutes=180)=>{
+  const s=await readState();assertModuleIncluded(s.license,'agenda');return calendar.upcoming(minutes);
+});
+
 ipcMain.handle('integration:disconnect',async(_e,module)=>{
   const key=normalizeProviderKey(module),s=await readState();
   if(key==='email'){if(s.secret?.integrations?.email)delete s.secret.integrations.email;s.secret.emailAccounts=[];}
