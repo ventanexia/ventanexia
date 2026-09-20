@@ -3,16 +3,16 @@
   "vat_note": "Precios sin IVA. Los impuestos se aplicarán según corresponda.",
   "trial_days": 15,
   "launch_offer": {
-    "active": false,
-    "label": "Tarifa VentaNexIA",
+    "active": true,
+    "label": "Precio de lanzamiento",
     "customer_limit": 50,
-    "note": "Precios mensuales vigentes. La prueba gratuita de 15 días no requiere tarjeta ni genera cobro automático."
+    "note": "El precio de lanzamiento se mantiene mientras la suscripción permanezca activa y al corriente de pago, sujeto al contrato aceptado."
   },
   "plans": {
     "start": {
       "name": "VNX Inicio",
-      "monthly": 350,
-      "list_monthly": 350,
+      "monthly": 99,
+      "list_monthly": 129,
       "all_standard_agents": true,
       "agents_included": 12,
       "integrations_included": 3,
@@ -38,8 +38,8 @@
     },
     "core": {
       "name": "VNX Negocio",
-      "monthly": 900,
-      "list_monthly": 900,
+      "monthly": 249,
+      "list_monthly": 299,
       "all_standard_agents": true,
       "agents_included": 12,
       "integrations_included": 8,
@@ -64,9 +64,9 @@
       }
     },
     "scale": {
-      "name": "VNX Premium",
-      "monthly": 1750,
-      "list_monthly": 1750,
+      "name": "VNX Empresa",
+      "monthly": 499,
+      "list_monthly": 599,
       "all_standard_agents": true,
       "agents_included": 12,
       "integrations_included": 15,
@@ -75,7 +75,7 @@
       "stores_included": 4,
       "devices_included": 5,
       "work_units_monthly": 12000,
-      "description": "Plan Premium para empresas con mayor volumen, más usuarios, más conexiones y mayor capacidad de automatización.",
+      "description": "Para empresas con más volumen: todo el equipo estándar, mayor capacidad y una bolsa inicial de voz y WhatsApp.",
       "video_credits_monthly": 0,
       "usage_limits": {
         "image_credits": 250,
@@ -108,9 +108,9 @@
       "description": "2.000 trabajos adicionales al mes."
     },
     "extra_connection": {
-      "monthly": 42,
+      "monthly": 49,
       "billing": "monthly",
-      "description": "Una conexión adicional compatible."
+      "description": "Una conexión o cuenta adicional compatible."
     },
     "storage_pack": {
       "monthly": 39,
@@ -125,19 +125,21 @@
       "description": "10 créditos de vídeo adicionales."
     },
     "voice_pack": {
-      "monthly": 49,
-      "billing": "monthly",
-      "description": "Ampliación de voz."
+      "one_time": 49,
+      "units": 250,
+      "billing": "one_time",
+      "description": "250 minutos de voz adicionales."
     },
     "whatsapp_pack": {
-      "monthly": 59,
-      "billing": "monthly",
-      "description": "Ampliación de WhatsApp. Los cargos propios de Meta/proveedor, si existen, se informan aparte."
+      "one_time": 59,
+      "units": 1000,
+      "billing": "one_time",
+      "description": "1.000 mensajes automatizados adicionales. Los cargos propios de Meta/proveedor, si existen, se informan aparte."
     },
     "email_account": {
-      "monthly": 39,
+      "monthly": 49,
       "billing": "monthly",
-      "description": "Una cuenta de email adicional."
+      "description": "Una conexión o cuenta adicional compatible."
     },
     "image_pack": {
       "monthly": 29,
