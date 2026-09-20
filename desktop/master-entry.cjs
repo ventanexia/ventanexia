@@ -5,6 +5,8 @@ const fs=require('node:fs/promises');
 const path=require('node:path');
 let orders=null;
 try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
+let calendar=null;
+try{calendar=require('./calendar.cjs')}catch(e){console.error('calendar_load_error',String(e?.message||e).slice(0,200))}
 
 // --- Enrutado único del chat -------------------------------------------------
 // master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
@@ -111,10 +113,17 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
         }catch(e){add('ESTADO Pedidos no disponible',String(e?.message||e).slice(0,180))}
       }
 
-      const agendaIntegration=s.secret?.integrations?.agenda||s.secret?.integrations?.calendar||null;
+      const agendaIntegration=s.secret?.integrations?.agenda||null;
       if(broad||/agenda|calendario|reunion|reuniones|cita|citas/.test(q)){
-        if(agendaIntegration)add('ESTADO Agenda', 'Hay una conexión de agenda guardada, pero esta versión todavía no dispone de un lector verificable de citas. No inventes reuniones ni horarios; indica que falta activar la lectura de calendario.');
-        else add('ESTADO Agenda', 'Agenda no conectada. No inventes reuniones, citas ni horarios. Indica claramente que falta conectar Google Calendar o Microsoft Calendar para incluirlos en el plan del día.');
+        if(agendaIntegration&&calendar){
+          try{
+            const day=await calendar.today();
+            add('CONEXION Agenda · solo lectura',{
+              connected:day.connected,provider:day.provider,label:day.label,date:day.date,timezoneOffset:day.timezoneOffset,
+              events:(day.events||[]).slice(0,40).map(e=>({title:e.title,start:e.start,end:e.end,allDay:e.allDay,location:e.location,meetingUrl:e.meetingUrl,organizer:e.organizer,attendees:e.attendees,status:e.status}))
+            });
+          }catch(e){add('ESTADO Agenda no disponible','La agenda está conectada pero no se ha podido leer: '+String(e?.message||e).slice(0,180)+'. No inventes citas.')}
+        }else add('ESTADO Agenda','Agenda no conectada. No inventes reuniones, citas ni horarios. Indica claramente que falta conectar Google Calendar o Microsoft Calendar para incluirlos en el plan del día.');
       }
 
       const query=portalAdaptive?.queryReadOnlyScope;
