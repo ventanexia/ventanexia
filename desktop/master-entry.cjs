@@ -1,4 +1,4 @@
-const {app,ipcMain}=require('electron');
+const {app,ipcMain,Notification}=require('electron');
 const {readState}=require('./state-store.cjs');
 const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
@@ -83,7 +83,7 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
       const last=[...messages].reverse().find(m=>m?.role==='user');
       const question=String(last?.content||'').trim();
       const q=question.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      const broad=/resumen|general|todo|todos|pendiente|hoy|empresa|situacion|estado|prioridad|que tengo|como va/.test(q);
+      const broad=/resumen|general|todo|todos|pendiente|hoy|dia|empresa|situacion|estado|prioridad|que tengo|como va|preparame|recomendacion|secretaria|organiza/.test(q);
       const hubContext=[];
       const add=(path,data)=>hubContext.push({path,content:typeof data==='string'?data:JSON.stringify(data,null,2)});
       const safeResult=r=>r&&typeof r==='object'?{
@@ -109,6 +109,12 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
             }))
           });
         }catch(e){add('ESTADO Pedidos no disponible',String(e?.message||e).slice(0,180))}
+      }
+
+      const agendaIntegration=s.secret?.integrations?.agenda||s.secret?.integrations?.calendar||null;
+      if(broad||/agenda|calendario|reunion|reuniones|cita|citas/.test(q)){
+        if(agendaIntegration)add('ESTADO Agenda', 'Hay una conexión de agenda guardada, pero esta versión todavía no dispone de un lector verificable de citas. No inventes reuniones ni horarios; indica que falta activar la lectura de calendario.');
+        else add('ESTADO Agenda', 'Agenda no conectada. No inventes reuniones, citas ni horarios. Indica claramente que falta conectar Google Calendar o Microsoft Calendar para incluirlos en el plan del día.');
       }
 
       const query=portalAdaptive?.queryReadOnlyScope;
@@ -200,6 +206,19 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
     portalChat:typeof portalChat
   });
 }
+
+// Avisos del modo Secretaria Ejecutiva. El renderer decide qué evento merece aviso;
+// el proceso principal muestra la notificación nativa sin ejecutar ninguna acción externa.
+ipcMain.removeHandler('secretary:notify');
+ipcMain.handle('secretary:notify',async(_event,payload={})=>{
+  const title=String(payload.title||'VentaNexIA').replace(/[\r\n]+/g,' ').slice(0,100);
+  const body=String(payload.body||'').replace(/[\r\n]+/g,' ').slice(0,260);
+  if(!body)return {ok:false};
+  try{
+    if(Notification.isSupported())new Notification({title,body}).show();
+    return {ok:true};
+  }catch{return {ok:false}}
+});
 
 // --- Inyección de la interfaz ------------------------------------------------
 app.on('browser-window-created',(_event,win)=>{
