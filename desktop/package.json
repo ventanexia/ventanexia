@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.57",
+  "version": "0.6.58",
   "private": true,
-  "description": "VentaNexIA Desktop · Asistente IA central con datos cruzados de agentes y conexiones · Pedidos seguros · 0.6.57",
+  "description": "VentaNexIA Desktop · Asistente IA centro de consulta con derivación automática a empleados especializados · 0.6.58",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
