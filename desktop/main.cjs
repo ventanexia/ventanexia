@@ -903,7 +903,7 @@ ipcMain.handle('external-agent:remove',async(_e,id)=>externalAgents.remove(Strin
 
 ipcMain.handle('connection:capacity',async()=>{
   const s=await readState(),used=externalConnectionCount(s),limit=connectionLimit(s.license);
-  return {used,limit:isMaster(s.license)?null:limit,available:isMaster(s.license)?null:Math.max(0,limit-used),extraMonthlyEur:42};
+  return {used,limit:isMaster(s.license)?null:limit,available:isMaster(s.license)?null:Math.max(0,limit-used),extraMonthlyEur:49};
 });
 ipcMain.handle('orders:channel-capacity',async()=>{
   const s=await readState(),u=orderChannelUsageFromState(s),limit=orderChannelLimit(s.license);
