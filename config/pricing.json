@@ -5,14 +5,14 @@
   "launch_offer": {
     "active": true,
     "label": "Precio de lanzamiento",
-    "customer_limit": 50,
-    "note": "El precio de lanzamiento se mantiene mientras la suscripción permanezca activa y al corriente de pago, sujeto al contrato aceptado."
+    "customer_limit": null,
+    "note": "Precio vigente de lanzamiento. No se muestra como rebaja frente a un precio anterior no aplicado."
   },
   "plans": {
     "start": {
       "name": "VNX Inicio",
       "monthly": 99,
-      "list_monthly": 129,
+      "list_monthly": 99,
       "all_standard_agents": true,
       "agents_included": 12,
       "integrations_included": 3,
@@ -21,10 +21,10 @@
       "stores_included": 1,
       "devices_included": 1,
       "work_units_monthly": 1500,
-      "description": "Todo el equipo estándar de VentaNexIA incluido para una pequeña empresa. Cambia la capacidad, no el número de asistentes.",
+      "description": "Todo el equipo estándar de VentaNexIA para empezar con una empresa pequeña. Se diferencia por usuarios, dispositivos, conexiones y límites técnicos realmente disponibles.",
       "video_credits_monthly": 0,
       "usage_limits": {
-        "image_credits": 20,
+        "image_credits": 0,
         "voice_minutes": 0,
         "whatsapp_messages": 0,
         "lead_credits": 50,
@@ -39,7 +39,7 @@
     "core": {
       "name": "VNX Negocio",
       "monthly": 249,
-      "list_monthly": 299,
+      "list_monthly": 249,
       "all_standard_agents": true,
       "agents_included": 12,
       "integrations_included": 8,
@@ -48,12 +48,12 @@
       "stores_included": 2,
       "devices_included": 3,
       "work_units_monthly": 5000,
-      "description": "El plan recomendado para pymes: todo el equipo estándar, más capacidad, más cuentas y automatizaciones.",
+      "description": "El plan recomendado para pymes que necesitan más usuarios, dispositivos, conexiones y automatización.",
       "video_credits_monthly": 0,
       "usage_limits": {
-        "image_credits": 100,
+        "image_credits": 0,
         "voice_minutes": 0,
-        "whatsapp_messages": 1500,
+        "whatsapp_messages": 0,
         "lead_credits": 250,
         "ai_heavy_tasks": 600,
         "email_ai_actions": 5000,
@@ -66,7 +66,7 @@
     "scale": {
       "name": "VNX Empresa",
       "monthly": 499,
-      "list_monthly": 599,
+      "list_monthly": 499,
       "all_standard_agents": true,
       "agents_included": 12,
       "integrations_included": 15,
@@ -75,12 +75,12 @@
       "stores_included": 4,
       "devices_included": 5,
       "work_units_monthly": 12000,
-      "description": "Para empresas con más volumen: todo el equipo estándar, mayor capacidad y una bolsa inicial de voz y WhatsApp.",
+      "description": "Para empresas con más volumen, más usuarios, más dispositivos, más conexiones y más canales de pedidos.",
       "video_credits_monthly": 0,
       "usage_limits": {
-        "image_credits": 250,
-        "voice_minutes": 120,
-        "whatsapp_messages": 4000,
+        "image_credits": 0,
+        "voice_minutes": 0,
+        "whatsapp_messages": 0,
         "lead_credits": 700,
         "ai_heavy_tasks": 1500,
         "email_ai_actions": 12000,
@@ -134,7 +134,7 @@
       "one_time": 59,
       "units": 1000,
       "billing": "one_time",
-      "description": "1.000 mensajes automatizados adicionales. Los cargos propios de Meta/proveedor, si existen, se informan aparte."
+      "description": "Créditos internos de automatización de WhatsApp cuando corresponda. Los cargos de Meta/proveedor se facturan en la cuenta del cliente."
     },
     "email_account": {
       "monthly": 49,
@@ -162,11 +162,10 @@
   "installation_fee": 0,
   "device_addon_monthly": 49,
   "fair_use": {
-    "note": "Todos los asistentes estándar están disponibles en todos los planes. Los planes se diferencian por capacidad, usuarios, conexiones y consumos de coste variable. Los excesos no se ejecutan de forma ilimitada: se amplían mediante bolsas o cambio de plan.",
+    "note": "Todos los asistentes estándar están disponibles. Los planes se diferencian por usuarios, dispositivos, conexiones, canales de pedidos y consumos que tengan contador técnico activo. Los servicios con coste externo se activan mediante créditos o facturación propia del proveedor.",
     "expensive_features": [
       "video",
       "voice",
-      "whatsapp",
       "heavy_ai",
       "storage"
     ]
