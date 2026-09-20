@@ -3,7 +3,7 @@ const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
 const {normalizeChatScope,parseGmailContext,emailAgentDirectReply,scoreMailAttention,needsReplyScore}=require('./agent-email.cjs');
-const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster}=require('./agent-policy.cjs');
+const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster,connectionLimit}=require('./agent-policy.cjs');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
 let prospecting=null;
@@ -90,6 +90,12 @@ async function savePortal(payload={}){
   if(isShopifyAdminUrl(url))throw new Error('Shopify no debe conectarse como portal del navegador. Usa “Conexiones > Shopify” para crear una conexión real y verificada por API.');
   const s=await readState();s.portals=Array.isArray(s.portals)?s.portals:[];
   const id=clean(payload.id,80)||portalId(url),i=s.portals.findIndex(p=>p.id===id||p.url===url),old=i>=0?s.portals[i]:{};
+  if(i<0&&!isMaster(s.license)){
+    const emails=emailAccountsForState(s).length;
+    const ints=Object.entries(s.secret?.integrations||{}).filter(([k,v])=>k!=='email'&&v).length;
+    const used=emails+ints+s.portals.length,limit=connectionLimit(s.license);
+    if(used>=limit)throw new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 42 €/mes o cambia de plan.');
+  }
   const next={...old,id,name,url,mode,createdAt:old.createdAt||new Date().toISOString()};
   if(i>=0)s.portals[i]=next;else s.portals.push(next);
   await writeState(s);await audit('portal.saved',`${name} · ${mode==='read'?'solo lectura':'lectura/escritura'}`);return next;
