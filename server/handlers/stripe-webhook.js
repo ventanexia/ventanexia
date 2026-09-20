@@ -85,10 +85,18 @@ async function finishWebhookEvent(event,status,lastError=null){if(!event?.id)ret
 function featurePolicyFromMeta(meta={}){
   const split=v=>String(v||"").split(",").map(x=>x.trim()).filter(Boolean);
   const included=new Set(split(meta.included));if(String(meta.orders_included||'')==='pedidos')included.add('pedidos');
+  const plan=String(meta.plan||'').toLowerCase();
+  const baseConnections=["start","inicio"].includes(plan)?2:["core","crecimiento"].includes(plan)?5:["scale","empresa","premium"].includes(plan)?10:0;
+  const baseEmployees=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?3:["scale","empresa","premium"].includes(plan)?8:0;
+  const extraConnections=Math.max(0,Number(meta.extra_connections||0)||0),extraEmployees=Math.max(0,Number(meta.extra_employee_slots||0)||0),ownAgents=Math.max(0,Number(meta.own_agents||0)||0);
   return {
     purchased_included:[...included],
-    purchased_extras:split(meta.extras),
+    purchased_extras:split(meta.extras).filter(x=>x!=="conexion"),
     extra_agents:Math.max(0,Number(meta.extra_agents||0)||0),
+    own_agent_limit:ownAgents,
+    employee_slot_limit:baseEmployees+extraEmployees,
+    connection_limit:baseConnections+extraConnections,
+    extra_connections:extraConnections,
     order_monthly_limit:Math.max(0,Number(meta.order_monthly_limit||0)||0)
   };
 }
