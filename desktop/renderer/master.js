@@ -1449,23 +1449,16 @@
     if(toggle)toggle.textContent=secretaryAlertsEnabled()?'Avisos: ON':'Avisos: OFF';
   }
   function setupExecutiveSecretary(){
-    const form=$m('#chatForm');if(!form||document.querySelector('.vnx-secretary-bar'))return;
-    injectSecretaryStyles();
-    const bar=document.createElement('div');bar.className='vnx-secretary-bar';
-    bar.innerHTML='<div class="vnx-secretary-title"><span style="font-size:24px">🧑‍💼</span><div><b>Secretaria Ejecutiva</b><small>Revisa, prioriza y te deja el trabajo preparado.</small></div></div>'
-      +'<button type="button" data-secretary-day>☀️ Prepárame el día</button>'
-      +'<button type="button" data-secretary-pending>✓ Pendientes</button>'
-      +'<button type="button" data-secretary-work>⚡ Adelanta trabajo</button>'
-      +'<button type="button" data-secretary-close>🌙 Cierre</button>'
-      +'<button type="button" class="vnx-secretary-alerts" data-secretary-alerts>🔔 Sin avisos</button>'
-      +'<button type="button" data-secretary-toggle>Avisos: ON</button>';
-    form.parentElement?.insertBefore(bar,form);
-    bar.querySelector('[data-secretary-day]').onclick=()=>runExecutiveSecretary('day');
-    bar.querySelector('[data-secretary-pending]').onclick=()=>runExecutiveSecretary('pending');
-    bar.querySelector('[data-secretary-work]').onclick=()=>runExecutiveSecretary('work');
-    bar.querySelector('[data-secretary-close]').onclick=()=>runExecutiveSecretary('close');
-    bar.querySelector('[data-secretary-alerts]').onclick=()=>secretaryNewMails.length?runExecutiveSecretary('alerts'):runExecutiveSecretary('pending');
-    bar.querySelector('[data-secretary-toggle]').onclick=()=>{localStorage.setItem('vnx_secretary_alerts',secretaryAlertsEnabled()?'off':'on');updateSecretaryBar()};
+    const bind=(selector,fn)=>$$m(selector).forEach(btn=>{btn.onclick=fn});
+    bind('[data-secretary-day]',()=>runExecutiveSecretary('day'));
+    bind('[data-secretary-pending]',()=>runExecutiveSecretary('pending'));
+    bind('[data-secretary-work]',()=>runExecutiveSecretary('work'));
+    bind('[data-secretary-close]',()=>runExecutiveSecretary('close'));
+    bind('[data-secretary-alerts]',()=>secretaryNewMails.length?runExecutiveSecretary('alerts'):runExecutiveSecretary('pending'));
+    bind('[data-secretary-toggle]',()=>{
+      localStorage.setItem('vnx_secretary_alerts',secretaryAlertsEnabled()?'off':'on');
+      updateSecretaryBar();
+    });
     updateSecretaryBar();
   }
   async function pollSecretaryEmail({initial=false}={}){
