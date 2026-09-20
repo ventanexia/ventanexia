@@ -35,10 +35,18 @@ REGLAS ABSOLUTAS
 4. leadTime: el plazo tal y como está escrito (por ejemplo "10 días laborables" o "semana 42"); date: la fecha tal y como está escrita. Si no aparecen, null.
 Devuelve SOLO un JSON válido, sin markdown: {"canSupply":"yes"|"no"|"partial"|null,"leadTime":string|null,"date":string|null,"notes":string|null}`;
 
+const MAX_INPUT_CHARS=90000;
 function block(message){
-  const atts=(Array.isArray(message.attachments)?message.attachments:[]).slice(0,6).map(a=>"--- ADJUNTO: "+clean(a?.name,120)+" ---\n"+clean(a?.text,60000)).join("\n\n");
+  const body=clean(message.text,18000);
+  let remaining=Math.max(0,MAX_INPUT_CHARS-body.length-4000);
+  const attParts=[];
+  for(const a of (Array.isArray(message.attachments)?message.attachments:[]).slice(0,6)){
+    if(remaining<=0)break;
+    const name=clean(a?.name,120),text=clean(a?.text,Math.min(25000,remaining));
+    attParts.push("--- ADJUNTO: "+name+" ---\n"+text);remaining-=text.length;
+  }
   const notes=(Array.isArray(message.attachmentNotes)?message.attachmentNotes:[]).slice(0,6).map(n=>clean(n,160)).join("; ");
-  return "<<<CORREO>>>\nDe: "+clean(message.from,200)+"\nAsunto: "+clean(message.subject,300)+"\nFecha: "+clean(message.date,60)+"\n\n"+clean(message.text,20000)+"\n\n"+atts+(notes?"\n\n(Adjuntos que no se han podido leer: "+notes+")":"")+"\n<<<FIN>>>";
+  return "<<<CORREO>>>\nDe: "+clean(message.from,200)+"\nAsunto: "+clean(message.subject,300)+"\nFecha: "+clean(message.date,60)+"\n\n"+body+"\n\n"+attParts.join("\n\n")+(notes?"\n\n(Adjuntos que no se han podido leer: "+notes+")":"")+"\n<<<FIN>>>";
 }
 function parseJson(text){
   const t=String(text||"").replace(/^```(?:json)?/i,"").replace(/```$/,"").trim();
@@ -61,15 +69,30 @@ export default async function handler(req,res){
     const fields=(Array.isArray(req.body?.missing)?req.body.missing:[]).map(x=>clean(x,30)).slice(0,10);
     input="Campos que se pidieron al cliente: "+fields.join(", ")+"\n\n"+input;
   }
+  const requestId="ORD-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,8);
   try{
-    const out=await createAIResponse({instructions:mode==="fill"?FILL:mode==="purchasing"?PURCHASING:EXTRACT,input,max_output_tokens:1800,store:false});
-    if(!out?.ok)return res.status(502).json({ok:false,error:"No se pudo leer el pedido con la IA.",code:"AI_FAILED"});
+    let out=null,lastError=null;
+    for(let attempt=1;attempt<=2;attempt++){
+      try{
+        out=await createAIResponse({instructions:mode==="fill"?FILL:mode==="purchasing"?PURCHASING:EXTRACT,input,max_output_tokens:1800,store:false});
+        if(out?.ok)break;
+        lastError=new Error("AI_RESPONSE_NOT_OK");
+      }catch(e){lastError=e}
+      if(attempt===1)await new Promise(r=>setTimeout(r,350));
+    }
+    if(!out?.ok){
+      console.error(JSON.stringify({event:"orders_extract_failed",requestId,mode,error:String(lastError?.message||"AI_RESPONSE_NOT_OK").slice(0,220),inputChars:input.length}));
+      return res.status(502).json({ok:false,error:"No se pudo leer el pedido con la IA. Inténtalo de nuevo.",code:"AI_FAILED",requestId});
+    }
     const result=parseJson(out?.data?.output_text||out?.data?.choices?.[0]?.message?.content);
-    if(!result)return res.status(502).json({ok:false,error:"La IA no devolvió datos utilizables.",code:"AI_BAD_JSON"});
+    if(!result){
+      console.error(JSON.stringify({event:"orders_extract_bad_json",requestId,mode,inputChars:input.length}));
+      return res.status(502).json({ok:false,error:"La IA respondió, pero no devolvió datos utilizables.",code:"AI_BAD_JSON",requestId});
+    }
     try{await consumeMeter(auth.license,"order_extractions",1,{mode})}catch{}
-    return res.status(200).json({ok:true,result});
+    return res.status(200).json({ok:true,result,requestId});
   }catch(e){
-    console.error(JSON.stringify({event:"orders_extract_error",error:String(e?.message||e).slice(0,160)}));
-    return res.status(502).json({ok:false,error:"No se pudo leer el pedido con la IA.",code:"AI_FAILED"});
+    console.error(JSON.stringify({event:"orders_extract_error",requestId,mode,error:String(e?.message||e).slice(0,220),inputChars:input.length}));
+    return res.status(502).json({ok:false,error:"No se pudo leer el pedido con la IA. Código: "+requestId,code:"AI_FAILED",requestId});
   }
 }
