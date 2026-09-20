@@ -1,0 +1,66 @@
+name: Verify VentaNexIA Commercial Model
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'planes.html'
+      - 'contrato-servicio.html'
+      - 'checkout.html'
+      - 'server/handlers/contract-accept.js'
+      - 'server/handlers/create-checkout.js'
+      - 'docs/paid-plan-operating-model.md'
+      - '.github/workflows/verify-commercial-model.yml'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check server syntax
+        run: |
+          node --check server/handlers/contract-accept.js
+          node --check server/handlers/create-checkout.js
+      - name: Verify commercial model and inline scripts
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const vm=require('vm');
+          const read=p=>fs.readFileSync(p,'utf8');
+          const plans=read('planes.html');
+          const contract=read('contrato-servicio.html');
+          const checkout=read('checkout.html');
+          const home=read('index.html');
+          const accept=read('server/handlers/contract-accept.js');
+          const pay=read('server/handlers/create-checkout.js');
+          const docs=read('docs/paid-plan-operating-model.md');
+          function must(ok,msg){if(!ok)throw new Error(msg)}
+          function checkInlineScripts(html,name){
+            for(const m of html.matchAll(/<script(?![^>]*type=["']application\/ld\+json["'])[^>]*>([\s\S]*?)<\/script>/gi)){
+              const src=m[1].trim(); if(!src)continue;
+              new vm.Script(src,{filename:name});
+            }
+          }
+          checkInlineScripts(plans,'planes-inline.js');
+          checkInlineScripts(contract,'contract-inline.js');
+          checkInlineScripts(checkout,'checkout-inline.js');
+
+          must(plans.includes("employeeSlots:1")&&plans.includes("employeeSlots:3")&&plans.includes("employeeSlots:8"),'Plan employee slots mismatch');
+          must(plans.includes("extraSeat:310")&&plans.includes("extraSeat:185")&&plans.includes("extraSeat:276"),'Extra employee seat prices mismatch');
+          must(plans.includes("49 €/mes")&&plans.includes("teamOwnAgents"),'Own-agent price/calculator missing');
+          must(home.includes('id="equipo-propio"')&&home.includes('49 €/mes'),'Home own-agent explanation missing');
+          must(contract.includes("termAck")&&contract.includes("ownAgents")&&contract.includes("extraEmployees"),'Customer contract own-agent/term fields missing');
+          must(accept.includes('price:299')&&accept.includes('price:799')&&accept.includes('price:1499'),'Contract server plan prices mismatch');
+          must(accept.includes('ownAgentFee=49')&&accept.includes('extraSeat:310')&&accept.includes('extraSeat:185')&&accept.includes('extraSeat:276'),'Contract server employee pricing mismatch');
+          must(accept.includes('termAcknowledged')&&accept.includes('b.termAcknowledged!==true'),'Contract term acknowledgement not enforced');
+          must(pay.includes('Integración de agente IA propio')&&pay.includes('Plaza adicional de empleado IA'),'Stripe checkout employee lines missing');
+          must(checkout.includes('Agentes propios:')&&checkout.includes('Plazas extra:'),'Final checkout summary missing team configuration');
+          must(docs.includes('299 €/mes')&&docs.includes('799 €/mes')&&docs.includes('1.499 €/mes'),'Operating docs pricing stale');
+          must(docs.includes('Un agente propio conectado consume 1 plaza'),'Operating docs own-agent rule missing');
+          console.log('VentaNexIA commercial model verification OK: prices, employee seats, own agents, contract term and checkout synchronized.');
+          NODE
