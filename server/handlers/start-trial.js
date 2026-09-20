@@ -18,7 +18,7 @@ ID de cliente: ${customerId}
 Código de activación: ${activationCode}
 Plan de prueba: ${planName||"VentaNexIA"}
 Hasta: ${end}
-Condiciones de prueba aceptadas: ${termsVersion||"2026-09-20-v1"}
+Condiciones de prueba aceptadas: ${termsVersion||"2026-09-20-v2"}
 
 Durante estos 15 días:
 - No necesitas introducir tarjeta.
@@ -75,7 +75,7 @@ export default async function handler(req,res){
   const noChargeAccepted=req.body?.noChargeAccepted===true;
   const trialTermsVersion=clean(req.body?.trialTermsVersion,80);
   if(!solutionId||!trialToken) return res.status(400).json({error:"Solicitud de demo incompleta"});
-  if(!trialTermsAccepted||!noChargeAccepted||trialTermsVersion!=="2026-09-20-v1") return res.status(400).json({code:"TRIAL_TERMS_REQUIRED",error:"Debes aceptar las Condiciones de Prueba y confirmar que entiendes que no habrá cobro automático."});
+  if(!trialTermsAccepted||!noChargeAccepted||trialTermsVersion!=="2026-09-20-v2") return res.status(400).json({code:"TRIAL_TERMS_REQUIRED",error:"Debes aceptar las Condiciones de Prueba y confirmar que entiendes que no habrá cobro automático."});
   try{
     const sols=await db(`vnx_solution_requests?id=eq.${encodeURIComponent(solutionId)}&select=*`);
     const sol=sols?.[0]; if(!sol) return res.status(404).json({error:"Solicitud no encontrada"});
@@ -108,7 +108,7 @@ export default async function handler(req,res){
       activationCode=createActivationCode();
       const rows=await db("vnx_tenants",{method:"POST",body:JSON.stringify([{
         name:sol.company,status:"trial",autonomy_level:"prepare",customer_code:customerCode,desktop_activation_hash:activationHash(activationCode),
-        settings:{solution_request_id:sol.id,blueprint:sol.blueprint,owner_email:sol.email,trial_mode:true,recommended_plan:planKey,trial_terms:{version:trialTermsVersion,accepted_at:acceptedAt,license_nominative:true,non_transferable:true,no_card_required:true,no_automatic_charge:true},trial_restrictions:["no_external_writes","no_bulk_outbound","no_financial_commitments"]}
+        settings:{solution_request_id:sol.id,blueprint:sol.blueprint,owner_email:sol.email,trial_mode:true,recommended_plan:planKey,trial_terms:{version:trialTermsVersion,accepted_at:acceptedAt,license_nominative:true,non_transferable:true,confidentiality_accepted:true,no_competitive_copy:true,no_card_required:true,no_automatic_charge:true},trial_restrictions:["no_external_writes","no_bulk_outbound","no_financial_commitments"]}
       }])});
       tenant=rows?.[0];
       if(!tenant?.id) throw new Error("TENANT_CREATE_FAILED");
