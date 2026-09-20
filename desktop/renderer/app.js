@@ -73,6 +73,33 @@ function renderLicense(){
     $('#licenseMsg').textContent=`Licencia activa. Quedan ${Math.max(0,l.available||0)} plaza(s) de dispositivo disponibles. Dispositivo adicional: ${Number(l.extraDeviceMonthlyEur||49).toFixed(0)} €/mes.`;
   }
 }
+function renderResultsGuarantees(){
+  const activity=Array.isArray(state?.activity)?state.activity:[];
+  const useful=activity.filter(a=>!/error|failed|status|started|diagnostic|health/i.test(String(a?.type||'')));
+  const todayKey=new Date().toISOString().slice(0,10);
+  const today=useful.filter(a=>String(a?.at||'').slice(0,10)===todayKey);
+  const input=$('#resultMinutesPerAction');
+  let minutes=Math.max(1,Math.min(60,Number(localStorage.getItem('vnx_result_minutes')||6)||6));
+  if(input){
+    input.value=String(minutes);
+    if(!input.dataset.bound){
+      input.dataset.bound='1';
+      input.addEventListener('change',()=>{
+        const v=Math.max(1,Math.min(60,Number(input.value||6)||6));
+        localStorage.setItem('vnx_result_minutes',String(v));
+        renderResultsGuarantees();
+      });
+    }
+  }
+  const actions=$('#resultActions'),todayEl=$('#resultToday'),saved=$('#resultSavedTime');
+  if(actions)actions.textContent=String(useful.length);
+  if(todayEl)todayEl.textContent=String(today.length);
+  if(saved){
+    const total=useful.length*minutes;
+    saved.textContent=total<60?(total+' min'):(total/60).toLocaleString('es-ES',{maximumFractionDigits:1})+' h';
+  }
+}
+
 function renderState(){
   $('#pairState').textContent='Datos reales';
   $('#folderCount').textContent=state.permissions?.folders?.length||0;
@@ -81,6 +108,7 @@ function renderState(){
   $('#permissionList').innerHTML=list.length?list.map(f=>`<div class="listrow"><div><b>${esc(f)}</b><span>Carpeta autorizada</span></div><button class="mini revoke" data-folder="${esc(f)}">Revocar</button></div>`).join(''):'<div class="empty">No hay carpetas autorizadas.</div>';
   $('#folderSelect').innerHTML=list.length?list.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join(''):'<option value="">Autoriza una carpeta primero</option>';
   $$('.revoke').forEach(b=>b.onclick=async()=>{await window.vnx.revokeFolder(b.dataset.folder);await refresh()});
+  renderResultsGuarantees();
   $('#activityList').innerHTML=(state.activity||[]).length?state.activity.map(a=>`<div class="listrow"><div><b>${esc(a.type)}</b><span>${esc(a.detail)}</span></div><small>${new Date(a.at).toLocaleString('es-ES')}</small></div>`).join(''):'<div class="empty">Todavía no hay actividad.</div>';
 }
 async function refresh(){state=await window.vnx.getState();renderState();if(typeof renderConnectionSummaries==='function')await renderConnectionSummaries()}
