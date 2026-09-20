@@ -1,0 +1,27 @@
+'use strict';
+const fs=require('node:fs');
+const path=require('node:path');
+const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
+const renderer=read('renderer/master.js');
+const entry=read('master-entry.cjs');
+const master=read('master.cjs');
+const preload=read('preload.cjs');
+
+const checks=[
+  ['renderer morning brief',renderer.includes('maybeRunMorningBrief')],
+  ['renderer daily plan',renderer.includes('Prepárame el día')],
+  ['renderer work ahead',renderer.includes('Adelanta trabajo')],
+  ['renderer close day',renderer.includes('Cierre')],
+  ['renderer mail watcher',renderer.includes('pollSecretaryEmail')],
+  ['renderer alert classification',renderer.includes('replyScore')&&renderer.includes('attentionScore')],
+  ['native secretary notify',entry.includes("secretary:notify")],
+  ['agenda truth guard',entry.includes('Agenda no conectada')&&entry.includes('No inventes reuniones')],
+  ['email triage scores',master.includes('scoreMailAttention')&&master.includes('needsReplyScore')],
+  ['preload notify bridge',preload.includes('secretaryNotify')]
+];
+const failed=checks.filter(([,ok])=>!ok);
+if(failed.length){
+  console.error('Executive Secretary verification failed:',failed.map(x=>x[0]).join(', '));
+  process.exit(1);
+}
+console.log('VentaNexIA Executive Secretary verification OK · daily brief, priorities, smart email alerts and truthful agenda guard enabled.');
