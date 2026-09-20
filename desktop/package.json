@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.74",
+  "version": "0.6.75",
   "private": true,
-  "description": "VentaNexIA Desktop · Centro Maestro de negocio, licencias endurecidas y contadores reproducibles · 0.6.74",
+  "description": "VentaNexIA Desktop · informes de Carla claros, separados y fáciles de leer · 0.6.75",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
