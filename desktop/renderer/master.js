@@ -1129,7 +1129,7 @@
   async function refreshConnectionCapacityNotice(){
     try{
       const x=await window.vnx.connectionCapacity();const root=$m('#ownAgentsSummary');
-      if(root&&x.limit!=null)root.insertAdjacentHTML('beforeend','<br><small>Conexiones del plan: '+x.used+' de '+x.limit+' · extra: 42 €/mes por conexión.</small>');
+      if(root&&x.limit!=null)root.insertAdjacentHTML('beforeend','<br><small>Conexiones del plan: '+x.used+' de '+x.limit+' · extra: 49 €/mes por conexión.</small>');
     }catch{}
   }
 
