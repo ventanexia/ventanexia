@@ -1136,7 +1136,7 @@
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
     $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
-    $m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')openWorkQueue('decision');else if(k==='solved')openWorkQueue('resolved');else openWorkQueue('review')});
+    $$m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')openWorkQueue('decision');else if(k==='solved')openWorkQueue('resolved');else openWorkQueue('review')});
     if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
     if(toggle){toggle.checked=localStorage.getItem('vnx_translation_enabled')==='on';toggle.onchange=()=>localStorage.setItem('vnx_translation_enabled',toggle.checked?'on':'off')}
     $m('#vnxTranslateNowBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
@@ -1563,8 +1563,8 @@
         renderMasterMessages();
       }
     });
-    $m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
-    $m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
+    $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
+    $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
     $$m('.handoff-accept-btn').forEach(btn=>btn.onclick=async()=>{
