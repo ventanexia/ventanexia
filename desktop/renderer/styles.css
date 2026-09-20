@@ -927,3 +927,35 @@ body{
 
 /* 0.6.63 — connection controls must never be covered by decorative layers */
 .connections-page button,.connection-live-card button,[data-real-module]{pointer-events:auto!important;position:relative;z-index:3}
+
+
+/* 0.6.64 — expandable workbench, counters, multi-source and own agents */
+.vnx-head-actions{display:flex;align-items:center;gap:10px}
+.vnx-expand-btn{white-space:nowrap}
+.vnx-status-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.vnx-status-strip button{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #1d567c;background:#071f35;color:#cde6f4;border-radius:10px;padding:8px 10px;cursor:pointer}
+.vnx-status-strip button:hover{border-color:#3ac9fa;background:#0a2b48}
+.vnx-status-strip span{font-size:9px;font-weight:800}.vnx-status-strip b{font-size:17px;color:#fff}
+.vnx-agent-source-picker{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;align-items:end}
+.vnx-agent-source-picker>small{grid-column:1/-1}
+.vnx-agent-source-picker label{min-width:0}
+.vnx-focus-chat .side{display:none!important}
+.vnx-focus-chat .shell{grid-template-columns:1fr!important}
+.vnx-focus-chat .main{width:100%!important;max-width:none!important}
+.vnx-focus-chat #chat.tab.active{position:fixed;inset:0;z-index:9998;background:#031523;overflow:hidden!important;padding:0!important}
+.vnx-focus-chat .vnx-workbench{height:100vh;padding:12px 16px}
+.vnx-focus-chat .vnx-workbench-head{position:sticky;top:0;z-index:4;background:#031523}
+.vnx-focus-chat .vnx-message-canvas{min-height:360px}
+.vnx-own-agent-overlay{position:fixed;inset:0;z-index:10050;background:rgba(0,8,16,.86);display:flex;align-items:center;justify-content:center;padding:18px}
+.vnx-own-agent-modal{width:min(760px,96vw);max-height:92vh;overflow:auto;background:#061c31;border:1px solid #2a7199;border-radius:18px;padding:18px;box-shadow:0 30px 100px #000a}
+.vnx-own-agent-modal h3{margin:0 0 5px}.vnx-own-agent-modal p{color:#99b7ca}
+.vnx-own-agent-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.vnx-own-agent-grid label{display:grid;gap:5px;font-size:10px;color:#a9c6d8}.vnx-own-agent-grid .wide{grid-column:1/-1}
+.vnx-own-agent-grid input,.vnx-own-agent-grid select{padding:10px 11px;border-radius:9px;border:1px solid #28668c;background:#041827;color:#fff}
+.vnx-own-agent-list{display:grid;gap:8px;margin-top:12px}.vnx-own-agent-item{display:grid;grid-template-columns:1fr auto;gap:10px;border:1px solid #1e5678;background:#071e34;border-radius:10px;padding:10px}.vnx-own-agent-item b{display:block}.vnx-own-agent-item small{color:#84a3b8}
+.vnx-source-block{border:1px solid #1d567c;background:#071e34;border-radius:12px;padding:12px;margin:8px 0}.vnx-source-block h4{margin:0 0 8px;color:#65dcff}
+@media(max-width:700px){
+ .vnx-head-actions{width:100%;flex-wrap:wrap}.vnx-expand-btn{flex:1}
+ .vnx-status-strip{grid-template-columns:1fr 1fr}
+ .vnx-agent-source-picker{grid-template-columns:1fr}
+ .vnx-own-agent-grid{grid-template-columns:1fr}.vnx-own-agent-grid .wide{grid-column:1}
+}
