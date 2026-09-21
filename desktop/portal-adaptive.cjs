@@ -4,6 +4,7 @@ const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {shopifyCall}=require('./shopify-auth.cjs');
+const {gmailFetch,friendlyGmailError}=require('./gmail-auth.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const MAX_FILES=80,MAX_CHARS=120000,MAX_FILE_CHARS=20000;
@@ -163,14 +164,19 @@ async function apiJson(url,opts={}){
   if(!r.ok){const msg=j?.error?.message||j?.message||j?.error_description||('HTTP '+r.status);throw new Error(msg)}
   return j;
 }
+async function gmailApiJson(url,opts={}){
+  const r=await gmailFetch(url,opts);const text=await r.text();let j={};try{j=JSON.parse(text)}catch{j={raw:text.slice(0,800)}}
+  if(!r.ok){const e=new Error(j?.error?.message||j?.message||('HTTP '+r.status));e.status=r.status;throw friendlyGmailError(e)}
+  return j;
+}
 async function queryIntegrationData(scope,question,state){
   const cfg=state.secret?.integrations?.[scope?.key];
   if(!cfg?.token)return {status:'not_connected',name:scope?.name||scope?.key||'Integración'};
   const p=cfg.provider,auth={Authorization:'Bearer '+cfg.token},name=scope?.name||cfg.label||p;
   if(p==='gmail'){
-    const list=await apiJson('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q=newer_than:30d',{headers:auth});
+    const list=await gmailApiJson('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=15&q=newer_than:30d',{headers:auth});
     const ids=(list.messages||[]).slice(0,15).map(x=>x.id);
-    const items=await Promise.all(ids.map(id=>apiJson('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+encodeURIComponent(id)+'?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date',{headers:auth}).catch(()=>null)));
+    const items=await Promise.all(ids.map(id=>gmailApiJson('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+encodeURIComponent(id)+'?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date',{headers:auth}).catch(()=>null)));
     const rows=items.filter(Boolean).map(m=>{const hs=Object.fromEntries((m.payload?.headers||[]).map(h=>[h.name.toLowerCase(),h.value]));return [hs.date||'',hs.from||'',hs.subject||'',m.snippet||'',(m.labelIds||[]).includes('UNREAD')?'No leído':'Leído']});
     return {status:'connected',name,category:'email',headers:['Fecha','De','Asunto','Resumen','Estado'],rows,total:Number(list.resultSizeEstimate||rows.length),text:'Correos recientes de Gmail autorizados. Se muestran hasta 15 mensajes de los últimos 30 días.',images:[],source:'gmail_api',mode:cfg.mode||'read'};
   }
