@@ -50,24 +50,13 @@ async function refreshGmailToken(integration,{failedToken=null}={}){
   return run;
 }
 
-// ---------------------------------------------------------------------------
-// Control de cuota de Gmail
-// Google limita cada usuario a 6.000 unidades por minuto (proyectos nuevos desde el 1-may-2026) y cada
-// llamada cuesta unidades distintas: messages.get 20, threads.get 40, messages.list 5, labels.list 1...
-// Sin control, abrir el panel de correo gastaba más de 6.000 unidades de golpe y Gmail respondía
-// "Quota exceeded for quota metric 'Total Query Cost'...". Ahora TODAS las llamadas a Gmail pasan por aquí:
-//   - cada cuenta tiene su propio presupuesto por minuto y un máximo de peticiones simultáneas;
-//   - si Gmail aun así responde con límite de uso, se espera y se reintenta con espera exponencial;
-//   - si sigue sin poder, el usuario recibe un mensaje claro (nunca el texto técnico de Google).
-// Costes: https://developers.google.com/workspace/gmail/api/reference/quota (actualizado 2026-09-10).
-// ------------------------------------------------------------------
 const GMAIL_COSTS={
   'messages.list':5,'messages.get':20,'messages.modify':5,'messages.send':100,'messages.trash':20,'messages.untrash':5,
   'messages.batchModify':50,'threads.get':40,'threads.list':10,'threads.modify':10,'threads.trash':20,
   'drafts.create':10,'drafts.get':20,'drafts.list':5,'drafts.send':100,'drafts.update':15,'drafts.delete':10,
   'labels.list':1,'labels.get':1,'labels.create':5,'labels.update':5,'labels.delete':5,'getProfile':1,'history.list':2,'other':10
 };
-const GMAIL_BUDGET_PER_MIN=Number(process.env.VNX_GMAIL_BUDGET||4200); // margen bajo el límite oficial de 6.000
+const GMAIL_BUDGET_PER_MIN=Number(process.env.VNX_GMAIL_BUDGET||4200);
 const GMAIL_MAX_CONCURRENT=6;
 const GMAIL_MAX_RETRIES=4;
 const gmailContext=new AsyncLocalStorage();
@@ -134,7 +123,6 @@ function scheduleGmail(key,cost,run){
 function pauseGmail(key,ms){
   const l=limiterFor(key);
   l.pausedUntil=Math.max(l.pausedUntil,Date.now()+ms);
-  // Gmail ya nos ha dicho que estamos al límite: contamos el minuto como gastado para no volver a chocar.
   l.log.push({t:Date.now(),c:Math.max(0,GMAIL_BUDGET_PER_MIN-limiterUsed(l,Date.now()))});
 }
 
@@ -158,9 +146,8 @@ function gmailQuotaError(){
 }
 function tokenKey(headers){
   const auth=String(headers?.Authorization||headers?.authorization||'');
-  return 'to:'+crypto.createHash('sha1').update(auth).digest('hex').slice(0,12);
+  return 'tok:'+crypto.createHash('sha1').update(auth).digest('hex').slice(0,12);
 }
-// Sustituye a fetch() para cualquier llamada a Gmail: reparte el gasto y reintenta si Gmail pide esperar.
 async function gmailFetch(url,opts={}){
   const u=String(url);
   const idx=u.indexOf('/users/me/');
@@ -180,7 +167,6 @@ async function gmailFetch(url,opts={}){
     await sleepMs(wait);
   }
 }
-// Convierte cualquier error de cuota (raw de Google) en un mensaje claro para el usuario.
 function friendlyGmailError(e){
   if(e&&e.code==='GMAIL_QUOTA')return e;
   if(e&&(e.status===429||((e.status===403||!e.status)&&isGmailQuotaText(e.message))))return gmailQuotaError();
