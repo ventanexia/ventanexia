@@ -2,7 +2,7 @@
   "name": "ventanexia-desktop",
   "version": "0.6.80",
   "private": true,
-  "description": "VentaNexIA Desktop · control de cuota de Gmail (sin errores de límite), errores claros y precios coherentes · 0.6.80",
+  "description": "VentaNexIA Desktop · Gmail sin saturación de cuota, OCR local sin internet, XLSX real y precios coherentes · 0.6.80",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
@@ -85,6 +85,8 @@
     "mailparser": "^3.7.4",
     "pdfjs-dist": "3.11.174",
     "tesseract.js": "^6.0.1",
-    "@napi-rs/canvas": "^0.1.80"
+    "@napi-rs/canvas": "^0.1.80",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0"
   }
 }
