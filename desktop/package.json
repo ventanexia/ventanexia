@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.79",
+  "version": "0.6.80",
   "private": true,
-  "description": "VentaNexIA Desktop · precios unificados, Excel XLSX real, OCR local y flujos de administración reforzados · 0.6.79",
+  "description": "VentaNexIA Desktop · control de cuota de Gmail (sin errores de límite), errores claros y precios coherentes · 0.6.80",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
