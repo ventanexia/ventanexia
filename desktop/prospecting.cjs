@@ -3,7 +3,7 @@ const {app,dialog,Notification,BrowserWindow}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {readState,audit}=require('./state-store.cjs');
-const {gmailCall}=require('./gmail-auth.cjs');
+const {gmailCall,gmailFetch}=require('./gmail-auth.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const GMAIL='https://gmail.googleapis.com/gmail/v1/users/me/';
@@ -35,7 +35,7 @@ async function enrichLead(x){const lead={...x,email:clean(x.email,180),phone:cle
 async function search(text){const data=await cloud('/api/prospect-search',{request:text,desktop:await desktopAuth()},90000);const raw=(data.leads||[]).slice(0,20),out=[];let i=0;await Promise.all(Array.from({length:Math.min(4,raw.length)},async()=>{while(i<raw.length){const k=i++;out[k]=await enrichLead(raw[k])}}));return {data,leads:out.filter(Boolean)}}
 
 async function gmailAccounts(){const s=await readState(),out=[],seen=new Set();for(const x of [...(s.secret?.emailAccounts||[]),s.secret?.integrations?.email].filter(Boolean)){if(x.provider!=='gmail')continue;const address=String(x.meta?.email||x.label||x.account||'').trim().toLowerCase();if(address&&!seen.has(address)){seen.add(address);out.push({address,integration:x})}}return out}
-async function gmailApi(acc,p,{method='GET',body=null}={}){return gmailCall(acc.integration,async token=>{const r=await fetch(GMAIL+p,{method,headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j?.error?.message||('Gmail '+r.status));e.status=r.status;throw e}return j})}
+async function gmailApi(acc,p,{method='GET',body=null}={}){return gmailCall(acc.integration,async token=>{const r=await gmailFetch(GMAIL+p,{method,headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j?.error?.message||('Gmail '+r.status));e.status=r.status;throw e}return j})}
 const h=(m,n)=>((m.payload?.headers||[]).find(x=>String(x.name).toLowerCase()===n)||{}).value||'';
 async function pickAccount(address){const list=await gmailAccounts();return list.find(x=>x.address===address)||list[0]||null}
 
