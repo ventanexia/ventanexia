@@ -81,8 +81,29 @@ function readDocx(buffer){
   const x=strFromU8(files['word/document.xml']);
   return xmlText(x.replace(/<\/w:p>/g,'\n').replace(/<w:tab\/>/g,' ').replace(/<\/w:tc>/g,' | ').replace(/<[^>]+>/g,'')).replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
 }
+async function ocrImage(buffer){
+  const {recognize}=require('tesseract.js');
+  const result=await recognize(Buffer.from(buffer),'spa+eng',{logger:()=>{}});
+  return String(result?.data?.text||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
+}
+async function ocrPdfPages(doc,maxPages=8){
+  const {createCanvas}=require('@napi-rs/canvas');
+  const {recognize}=require('tesseract.js');
+  let out='';
+  for(let i=1;i<=Math.min(doc.numPages,maxPages);i++){
+    const page=await doc.getPage(i);
+    const viewport=page.getViewport({scale:1.55});
+    const canvas=createCanvas(Math.max(1,Math.ceil(viewport.width)),Math.max(1,Math.ceil(viewport.height)));
+    const context=canvas.getContext('2d');
+    await page.render({canvasContext:context,viewport}).promise;
+    const png=canvas.toBuffer('image/png');
+    const result=await recognize(png,'spa+eng',{logger:()=>{}});
+    const text=String(result?.data?.text||'').trim();
+    if(text)out+=(out?'\n\n':'')+text;
+  }
+  return out.replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
+}
 async function readPdf(buffer){
-  // pdfjs-dist 3.x (versión con build CommonJS). Se reconstruyen las líneas por coordenadas para no mezclar columnas.
   const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');
   const data=new Uint8Array(Buffer.from(buffer));
   const doc=await pdfjs.getDocument({data,useSystemFonts:true,isEvalSupported:false,disableFontFace:true,verbosity:0}).promise;
@@ -93,8 +114,12 @@ async function readPdf(buffer){
       for(const it of tc.items){if(!it.str)continue;const y=Math.round(it.transform[5]/2);(lines[y]=lines[y]||[]).push([it.transform[4],it.str])}
       out+=Object.keys(lines).map(Number).sort((a,b)=>b-a).map(y=>lines[y].sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join(' ').replace(/\s+/g,' ').trim()).filter(Boolean).join('\n')+'\n';
     }
+    out=out.trim();
+    if(out.replace(/\s/g,'').length<30){
+      try{out=await ocrPdfPages(doc,8)}catch(e){throw new Error('OCR de PDF no disponible: '+String(e?.message||e).slice(0,100))}
+    }
+    return out.trim();
   }finally{try{await doc.destroy()}catch{}}
-  return out.trim();
 }
 
 function kindOf(name='',mime=''){
@@ -115,14 +140,18 @@ function isReadable(name,mime){return ['pdf','xlsx','csv','text','html','docx'].
 async function extractText({name,mime,buffer}){
   const kind=kindOf(name,mime);const base={name:String(name||'adjunto'),kind};
   try{
-    if(kind==='image')return {...base,text:'',issue:'imagen: no se lee sin OCR'};
+    if(kind==='image'){
+      if(!buffer||!buffer.length)return {...base,text:'',issue:'imagen vacía'};
+      const text=await ocrImage(buffer);
+      return text?{...base,text:text.slice(0,MAX_CHARS)}:{...base,text:'',issue:'imagen sin texto legible por OCR'};
+    }
     if(kind==='other')return {...base,text:'',issue:'formato no soportado'};
     if(kind==='xls')return {...base,text:'',issue:'formato .xls antiguo no soportado: guárdalo como .xlsx'};
     if(!buffer||!buffer.length)return {...base,text:'',issue:'vacío'};
     if(buffer.length>MAX_BYTES)return {...base,text:'',issue:'demasiado grande (más de 8 MB)'};
     if(kind==='pdf'){
       const text=await readPdf(buffer);
-      if(text.replace(/\s/g,'').length<30)return {...base,text:'',issue:'PDF sin texto (probablemente escaneado): no se puede leer sin OCR'};
+      if(text.replace(/\s/g,'').length<30)return {...base,text:'',issue:'PDF sin texto legible incluso después del OCR local'};
       return {...base,text:text.slice(0,MAX_CHARS)};
     }
     if(kind==='xlsx'){
@@ -137,7 +166,6 @@ async function extractText({name,mime,buffer}){
     if(kind==='text')return {...base,text:decodeText(buffer).slice(0,MAX_CHARS)};
     if(kind==='html')return {...base,text:stripHtml(decodeText(buffer)).slice(0,MAX_CHARS)};
     if(kind==='xls')return {...base,text:'',issue:'formato .xls antiguo no soportado: guárdalo como .xlsx'};
-    if(kind==='image')return {...base,text:'',issue:'imagen: no se lee sin OCR'};
     return {...base,text:'',issue:'formato no soportado'};
   }catch(e){return {...base,text:'',issue:'no se pudo leer ('+String(e?.message||e).slice(0,80)+')'}}
 }
