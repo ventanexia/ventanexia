@@ -73,6 +73,7 @@ function installEditing(win){
 }
 
 app.on('browser-window-created',(_event,win)=>{installEditing(win);});
+app.on('before-quit',()=>{for(const win of BrowserWindow.getAllWindows()){try{win.webContents.send('app:before-quit')}catch{}}});
 
 async function listPortals(){
   const s=await readState();
@@ -317,7 +318,8 @@ async function countGmailMessages(integration,q){
 }
 function gmailContextLimit(question=''){
   const q=norm(question);
-  return /todos los correos|todos mis correos|bandeja completa|resumen completo|informe completo|últimos 20|ultimos 20/.test(q)?16:10;
+  const broad=/todos los correos|todos mis correos|bandeja completa|resumen completo|informe completo|ultimos 20|esta semana|semana completa|resumen semanal|ultimos dias|últimos dias|desde el lunes|desde lunes|este mes|mes completo|resumen mensual|ultimas dos semanas|últimas dos semanas|ultimos 7 dias|últimos 7 dias/.test(q);
+  return broad?16:10;
 }
 async function collectGmailContextMaster(integration,question=''){
   if(!String(integration?.token||'').trim()&&!integration?.refreshToken)throw new Error('La conexión de Gmail no tiene un acceso válido. Vuelve a conectarla.');
@@ -597,6 +599,16 @@ ipcMain.handle('email:inbox',async(_e,payload={})=>{
   if(!rows.length){const stale=gmailCacheStale(cacheKey);if(stale)return {...stale,stale:true,errors}}
   return result;
 });
+ipcMain.handle('email:sent-body',async(_e,payload={})=>{
+  const s=await readState();assertAgentIncluded(s.license,'email');
+  const account=String(payload.account||'').trim(),threadId=String(payload.threadId||'').trim();
+  if(!threadId)throw new Error('Falta la conversación de Gmail.');
+  const integration=emailAccountsForState(s).find(x=>x.provider==='gmail'&&(!account||(x.meta?.email||x.label||x.account||'')===account));
+  if(!integration)throw new Error('No encuentro la cuenta de Gmail de este correo.');
+  const body=await gmailSentBodyOf(integration,threadId,{fetchNow:true});
+  return {ok:true,body:body||''};
+});
+
 ipcMain.handle('email:action',async(_e,payload={})=>{
   clearGmailReadCache();
   const s=await readState();assertAgentIncluded(s.license,'email');
