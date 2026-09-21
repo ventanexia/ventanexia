@@ -1091,3 +1091,17 @@ body{
   .vnx-carla-window #guidedAgentTitle{font-size:18px!important}
   .vnx-carla-window #freeModePanel{padding:0 10px 10px}
 }
+
+
+/* 0.6.86 — el compositor de modo libre debe quedar siempre por encima de paneles y ser escribible */
+#freeModePanel{position:relative;z-index:10;pointer-events:auto!important}
+#messages{position:relative;z-index:1}
+#chatForm{position:relative!important;z-index:20!important;pointer-events:auto!important}
+#chatInput{
+  position:relative!important;
+  z-index:21!important;
+  pointer-events:auto!important;
+  -webkit-app-region:no-drag!important;
+  user-select:text!important;
+  -webkit-user-select:text!important;
+}
