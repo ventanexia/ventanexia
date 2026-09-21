@@ -1057,7 +1057,12 @@
   }
   function workCounts(rows=[]){
     const out={automatic:0,review:0,decision:0,informative:0,resolved:0,pending:0};
-    rows.forEach(m=>{const k=emailWorkBucket(m);out[k]=(out[k]||0)+1});return out;
+    rows.forEach(m=>{
+      const k=emailWorkBucket(m);
+      if(k==='informative'){if(m.unread)out.informative++;return}
+      out[k]=(out[k]||0)+1;
+    });
+    return out;
   }
   function accountIndexForMail(m){
     const list=(runtimeConnections||[]).filter(x=>(x.module||x.key)==='email');
@@ -1077,10 +1082,10 @@
     const sent=String(m.sentBody||'').trim();
     const suggested=(tab==='resolved'||tab==='automatic')?(sent||'Respuesta detectada. Pulsa “Cargar última respuesta” para verla sin ralentizar la bandeja.'):(tab==='informative'?'':(m.defaultBody||''));
     const decision=tab==='decision'?'<div class="vnx-work-decision"><input data-work-decision placeholder="Indica tu decisión. Ej.: ofrece 10 % y entrega en 7 días"><button class="btn outline" data-work-apply-decision>Preparar con mi decisión</button></div>':'';
-    const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='informative'?'Informativo · no requiere respuesta':tab==='decision'?'Necesita tu decisión':'Importante · revisar';
+    const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='informative'?(m.unread?'Informativo · pendiente de ver':'Informativo · visto'):tab==='decision'?'Necesita tu decisión':'Importante · revisar';
     const statusClass=tab==='automatic'?'automatic':tab==='resolved'?'resolved':tab==='informative'?'informative':tab==='decision'?'decision':'review';
     const buttons=(tab==='resolved'||tab==='automatic'||tab==='informative')
-      ?((tab==='resolved'&&!sent)?'<button class="primary" data-work-load-sent>Cargar última respuesta</button>':'')+'<button data-work-open>Ver conversación en Gmail</button>'
+      ?((tab==='resolved'&&!sent)?'<button class="primary" data-work-load-sent>Cargar última respuesta</button>':'')+(tab==='informative'&&m.unread?'<button class="primary" data-work-seen>✓ Visto</button>':'')+'<button data-work-open>Ver conversación en Gmail</button>'
       :'<button class="primary" data-work-send>Enviar</button><button data-work-edit>Modificar</button><button data-work-ai>Mejorar con IA</button><button data-work-draft>Guardar borrador</button><button data-work-no-reply>No requiere respuesta</button>';
     const responseTitle=tab==='automatic'?'Respuesta enviada automáticamente':tab==='resolved'?'Última respuesta enviada':tab==='informative'?'Clasificación de Carla':'Respuesta preparada por Carla';
     const reason=tab==='decision'
@@ -1090,7 +1095,7 @@
         :tab==='resolved'
           ?'Esta conversación ya aparece como atendida.'
           :tab==='informative'
-            ?'Carla ha detectado que es un aviso, confirmación o correo informativo que no requiere respuesta.'
+            ?(m.unread?'Carla ha detectado que es informativo y no requiere respuesta. Márcalo como “Visto” cuando lo hayas revisado.':'Correo informativo ya marcado como visto; no cuenta como pendiente.')
             :'Carla lo considera importante y lo ha dejado para que lo revises antes de responder o cerrar.';
     return '<article class="vnx-work-item '+statusClass+'" data-work-index="'+index+'">'
       +'<div class="vnx-work-item-head"><div><span class="vnx-work-status '+statusClass+'">'+escM(status)+'</span><b>'+escM(m.subject||'(sin asunto)')+'</b><small>'+escM(m.from||'Remitente no disponible')+' · '+escM(m.date||'Fecha no disponible')+'</small></div><span class="vnx-work-chip">✉ '+escM(m.account||'Email')+'</span></div>'
@@ -1115,6 +1120,14 @@
         card.querySelector('[data-work-draft]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;msg.textContent='Guardando borrador…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'draft_reply',body:ta.value});msg.textContent='Borrador creado en Gmail.'}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-send]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;if(!confirm('¿Enviar esta respuesta ahora desde '+(m.account||'esta cuenta')+'?'))return;msg.textContent='Enviando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'send_reply',body:ta.value});workQueueCache.at=0;msg.textContent='Respuesta enviada. La conversación pasará a Resueltos.';setTimeout(()=>renderWorkQueue(overlay,'resolved',true),500)}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-no-reply]')?.addEventListener('click',async()=>{msg.textContent='Actualizando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'no_reply_needed'});workQueueCache.at=0;setTimeout(()=>renderWorkQueue(overlay,tab,true),300)}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-seen]')?.addEventListener('click',async e=>{
+          const btn=e.currentTarget;btn.disabled=true;btn.textContent='Marcando…';msg.textContent='Marcando este informativo como visto…';
+          try{
+            await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'mark_read'});
+            m.unread=false;workQueueCache.at=0;msg.textContent='Visto. Ya no cuenta como pendiente de abrir.';
+            setTimeout(()=>renderWorkQueue(overlay,'informative',true),250);
+          }catch(err){msg.textContent=err.message||String(err);btn.disabled=false;btn.textContent='✓ Visto'}
+        });
         card.querySelector('[data-work-load-sent]')?.addEventListener('click',async e=>{
           const btn=e.currentTarget,sentEl=card.querySelector('[data-work-sent]');
           btn.disabled=true;btn.textContent='Cargando…';msg.textContent='Consultando solo esta conversación…';
@@ -1715,9 +1728,11 @@
     });
   }
 
-  function renderMasterMessages(){
-    persistMasterChatState();
+  function renderMasterMessages({focusIndex=null,persist=true,forceBottom=false}={}){
+    if(persist)persistMasterChatState();
     const root=$m('#messages');if(!root)return;
+    const previousTop=root.scrollTop;
+    const wasNearBottom=(root.scrollHeight-root.scrollTop-root.clientHeight)<80;
     const intro='<div class="msg ai">Estoy listo para ayudarte. Elige arriba el agente de VentaNexIA con el que quieres trabajar. El agente utilizará únicamente las conexiones que tengas autorizadas.</div>';
     root.innerHTML=intro+masterMessages.map((m,msgIndex)=>{
       if(m.handoffInternal)return '';
@@ -1786,7 +1801,16 @@
       }
       renderMasterMessages();
     });
-    root.scrollTop=root.scrollHeight;
+    requestAnimationFrame(()=>{
+      if(Number.isInteger(focusIndex)){
+        const target=root.querySelector('[data-master-index="'+focusIndex+'"]');
+        if(target)root.scrollTop=Math.max(0,target.offsetTop-root.offsetTop-8);
+      }else if(forceBottom||wasNearBottom){
+        root.scrollTop=root.scrollHeight;
+      }else{
+        root.scrollTop=Math.min(previousTop,Math.max(0,root.scrollHeight-root.clientHeight));
+      }
+    });
     refreshWorkbenchApprovals();refreshWorkbenchCounters();
   }
   function redactSensitiveChatText(text,scope){
@@ -1816,7 +1840,7 @@
       const mails=secretaryNewMails.slice(-8).map((m,i)=>(i+1)+'. '+(m.subject||'(sin asunto)')+' — '+(m.from||'remitente desconocido')+' — '+(Number(m.replyScore||0)>0?'parece requerir respuesta':'conviene revisar')).join('\n');
       return 'Actúa como mi Secretaria Ejecutiva. Han llegado estos correos nuevos que el sistema ha marcado como relevantes:\n'+mails+'\nFORMATO OBLIGATORIO: una línea por correo y una línea por acción; no juntes correos en un párrafo. Usa: # Correos nuevos; ## Revisar primero; ## Puedo resumir o preparar; ## Necesitan autorización; ## Siguiente acción. '+common;
     }
-    return 'Actúa como mi Secretaria Ejecutiva. Prepárame el día de hoy, '+today+'. Revisa todas las fuentes conectadas y crea un parte de trabajo MUY FÁCIL de leer. REGLAS OBLIGATORIAS: frases cortas; una sola idea por línea; nada de párrafos largos; no repitas información; no copies botones ni textos de la interfaz; no juntes dos títulos o dos frases sin salto de línea; usa listas con guiones; máximo 6 puntos por sección salvo que sea imprescindible. Estructura EXACTAMENTE con estos títulos, cada uno en una línea independiente: # Resumen rápido; ## 1. Lo más importante de hoy; ## 2. Situación por área; ## 3. Lo que ya he dejado preparado; ## 4. Necesito tu decisión; ## 5. Alertas; ## 6. Siguiente paso recomendado; ## 7. Fuentes consultadas. En "Resumen rápido" incluye solo 4-6 datos clave. En "Lo más importante de hoy" usa una lista numerada de máximo 3 prioridades. En "Situación por área" crea subtítulos cortos para Pedidos, Shopify/Web, Email, Agenda u otras fuentes disponibles y debajo solo datos concretos. En "Necesito tu decisión" formula preguntas directas, una por línea. En "Alertas" incluye solo incidencias reales. En "Siguiente paso recomendado" da UNA única recomendación clara. En "Fuentes consultadas" solo nombres de fuentes, sin detalles técnicos. En Email distingue informativos de los que parecen requerir respuesta. En Pedidos destaca bloqueos, stock, Compras o datos faltantes. '+common;
+    return 'Actúa como mi Secretaria Ejecutiva. Prepárame el día de hoy, '+today+'. Debe servir tanto en pantalla como al exportarlo a PDF. REGLAS OBLIGATORIAS: nada de texto suelto, números aislados, palabras aisladas o referencias partidas; nunca dividas un identificador como VNX-PED-00021; una sola idea completa por línea; sin párrafos largos; sin repetir datos; no copies botones ni textos de la interfaz. Usa EXACTAMENTE estas secciones: # Resumen ejecutivo; ## 1. Prioridades de hoy; ## 2. Emails que requieren respuesta; ## 3. Gestiones a realizar; ## 4. Decisiones que debes tomar; ## 5. Alertas y bloqueos; ## 6. Informativos; ## 7. Fuentes consultadas. En Resumen ejecutivo: 4-6 puntos con cifras y estado general. En Prioridades: máximo 3, formato "- Prioridad: ... | Motivo: ... | Acción: ...". En Emails que requieren respuesta: UN correo por línea, formato "- Cuenta: ... | De: ... | Asunto: ... | Qué pide: ... | Acción: ..."; si no hay ninguno escribe "- Sin emails pendientes de respuesta". En Gestiones: una gestión por línea, formato "- Área: ... | Gestión: ... | Motivo: ...". En Decisiones: una pregunta completa por línea, formato "- Decisión: ... | Por qué importa: ...". En Alertas: una incidencia por línea, formato "- Área: ... | Alerta: ... | Consecuencia: ...". En Informativos: solo avisos que no requieren respuesta, formato "- Fuente: ... | Información: ...". En Fuentes consultadas: una fuente por línea, sin datos técnicos. Distingue siempre emails de acción frente a noreply/informativos. No conviertas un dato de stock, un nombre de cuenta o una referencia en una línea independiente: debe ir dentro de su apunte completo. '+common;
   }
   async function runExecutiveSecretary(kind='day',{automatic=false}={}){
     const scope=secretaryCoreScope();if(!scope||scope.included===false)return;
@@ -1839,7 +1863,7 @@
       masterMessages.push({role:'assistant',content:'No he podido completar la revisión: '+(e.message||e)});
     }
     updateSecretaryBar();
-    renderMasterMessages();
+    renderMasterMessages({focusIndex:masterMessages.length-1});
   }
   function injectSecretaryStyles(){
     if(document.getElementById('vnxSecretaryStyles'))return;
@@ -1878,7 +1902,7 @@
         return;
       }
       const fresh=rows.filter(x=>x.id&&!seen.has(x.id));
-      const relevant=fresh.filter(x=>Number(x.replyScore||0)>0||Number(x.attentionScore||0)>=3);
+      const relevant=fresh.filter(x=>!emailIsInformative(x)&&(Number(x.replyScore||0)>0||Number(x.attentionScore||0)>=3));
       const next=[...rows.map(x=>x.id).filter(Boolean),...stored].filter((x,i,a)=>a.indexOf(x)===i).slice(0,80);
       localStorage.setItem('vnx_secretary_seen_mail',JSON.stringify(next));
       if(!relevant.length)return;
@@ -1979,7 +2003,7 @@
             restoringChatState=true;
             masterMessages=raw.messages.slice(-50);
             restoringChatState=false;
-            renderMasterMessages();
+            renderMasterMessages({persist:false});
           }
         }catch{}
       }
