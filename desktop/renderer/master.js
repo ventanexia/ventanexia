@@ -1110,6 +1110,7 @@
       tabs.forEach(b=>{const k=b.dataset.workTab;b.classList.toggle('active',k===tab);const n=b.querySelector('b');if(n)n.textContent=String(counts[k]||0)});
       let selected=rows.filter(m=>emailWorkBucket(m)===tab);
       if(tab==='automatic')selected=rows.filter(m=>auto.has(m.id));
+      if(tab==='informative')selected=[...selected].sort((a,b)=>Number(Boolean(b.unread))-Number(Boolean(a.unread)));
       const groups=groupWorkByAccount(selected);
       body.innerHTML=groups.length?groups.map(([account,items])=>'<section><h3 class="vnx-work-account">'+escM(account)+'</h3>'+items.map((m,i)=>workItemHtml(m,tab,rows.indexOf(m))).join('')+'</section>').join(''):'<div class="vnx-work-empty">'+(tab==='automatic'?'No hay respuestas automáticas registradas. Solo aparecerán aquí envíos automáticos que VentaNexIA haya confirmado.':tab==='review'?'No hay correos importantes pendientes de revisión.':tab==='decision'?'No hay decisiones pendientes.':tab==='informative'?'No hay correos informativos en la bandeja cargada.':'No hay conversaciones resueltas en la bandeja cargada.')+'</div>';
       body.querySelectorAll('[data-work-index]').forEach(card=>{
@@ -1804,7 +1805,10 @@
     requestAnimationFrame(()=>{
       if(Number.isInteger(focusIndex)){
         const target=root.querySelector('[data-master-index="'+focusIndex+'"]');
-        if(target)root.scrollTop=Math.max(0,target.offsetTop-root.offsetTop-8);
+        if(target){
+          const rr=root.getBoundingClientRect(),tr=target.getBoundingClientRect();
+          root.scrollTop=Math.max(0,root.scrollTop+(tr.top-rr.top)-8);
+        }
       }else if(forceBottom||wasNearBottom){
         root.scrollTop=root.scrollHeight;
       }else{
