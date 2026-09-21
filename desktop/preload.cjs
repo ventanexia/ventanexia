@@ -1,4 +1,16 @@
-const {contextBridge,ipcRenderer}=require('electron');
+const {contextBridge,ipcRenderer:electronIpc}=require('electron');
+// Electron antepone "Error invoking remote method '...': Error:" a todo error del proceso principal.
+// Se quita aquí para que el usuario vea solo el mensaje real (y no texto técnico en informes y avisos).
+const ipcRenderer={
+  invoke:(channel,...args)=>electronIpc.invoke(channel,...args).catch(e=>{
+    throw new Error(String(e&&e.message||e).replace(/^Error invoking remote method '[^']+':\s*(?:Error:\s*)?/,''));
+  }),
+  on:(...a)=>electronIpc.on(...a),
+  once:(...a)=>electronIpc.once(...a),
+  removeListener:(...a)=>electronIpc.removeListener(...a),
+  removeAllListeners:(...a)=>electronIpc.removeAllListeners(...a),
+  send:(...a)=>electronIpc.send(...a)
+};
 contextBridge.exposeInMainWorld('vnx',{
   systemStatus:()=>ipcRenderer.invoke('system:status'),
   getState:()=>ipcRenderer.invoke('state:get'),

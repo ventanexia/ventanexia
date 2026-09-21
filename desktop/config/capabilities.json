@@ -7,51 +7,110 @@
       "name": "Asistente IA",
       "category": "core",
       "defaultEnabled": true,
-      "capabilities": ["chat", "authorized_files", "local_data_discovery", "activity_log"]
+      "capabilities": [
+        "chat",
+        "authorized_files",
+        "local_data_discovery",
+        "activity_log"
+      ]
     },
     {
       "id": "email_agent",
       "name": "Email",
       "category": "communications",
-      "connectors": ["gmail", "microsoft_365", "imap_smtp"],
-      "capabilities": ["read_authorized_mail", "draft", "reply", "send_with_policy", "classify", "follow_up", "attachments"]
+      "connectors": [
+        "gmail",
+        "microsoft_365",
+        "imap_smtp"
+      ],
+      "capabilities": [
+        "read_authorized_mail",
+        "draft",
+        "reply",
+        "send_with_policy",
+        "classify",
+        "follow_up",
+        "attachments"
+      ]
     },
     {
       "id": "whatsapp_agent",
       "name": "WhatsApp Business",
       "category": "communications",
-      "connectors": ["meta_whatsapp_business_platform", "approved_provider"],
-      "capabilities": ["inbox", "automatic_replies", "lead_qualification", "customer_service", "handoff_to_human", "templates", "conversation_log"]
+      "connectors": [
+        "meta_whatsapp_business_platform",
+        "approved_provider"
+      ],
+      "capabilities": [
+        "inbox",
+        "automatic_replies",
+        "lead_qualification",
+        "customer_service",
+        "handoff_to_human",
+        "templates",
+        "conversation_log"
+      ]
     },
     {
       "id": "social_agent",
       "name": "Redes sociales",
       "category": "marketing",
-      "connectors": ["facebook", "instagram", "linkedin", "other_supported_apis"],
-      "capabilities": ["create_content", "schedule", "publish", "reply_supported_channels", "content_calendar", "performance_summary"]
+      "connectors": [
+        "facebook",
+        "instagram",
+        "linkedin",
+        "other_supported_apis"
+      ],
+      "capabilities": [
+        "create_content",
+        "schedule",
+        "publish",
+        "reply_supported_channels",
+        "content_calendar",
+        "performance_summary"
+      ]
     },
     {
       "id": "prospecting_agent",
       "name": "Captación y búsqueda de clientes",
       "category": "sales",
-      "capabilities": ["prospect_research", "lead_lists", "qualification", "crm_sync", "outreach_drafts", "follow_up_sequences"]
+      "capabilities": [
+        "prospect_research",
+        "lead_lists",
+        "qualification",
+        "crm_sync",
+        "outreach_drafts",
+        "follow_up_sequences"
+      ]
     },
     {
       "id": "crm_agent",
       "name": "CRM y clientes",
       "category": "sales",
-      "connectors": ["hubspot", "other_supported_crm"],
-      "capabilities": ["contacts", "companies", "deals", "tasks", "notes", "pipeline_updates", "customer_metrics"]
+      "connectors": [
+        "hubspot",
+        "other_supported_crm"
+      ],
+      "capabilities": [
+        "contacts",
+        "companies",
+        "deals",
+        "tasks",
+        "notes",
+        "pipeline_updates",
+        "customer_metrics"
+      ]
     },
     {
       "id": "web_ecommerce_agent",
       "name": "Web & Ecommerce",
       "category": "web",
-      "commercialAddon": {
-        "name": "Agente Web & Ecommerce",
-        "priceMonthlyEur": 550
-      },
-      "connectors": ["shopify", "wordpress_woocommerce", "github_vercel", "supported_cms_api"],
+      "connectors": [
+        "shopify",
+        "wordpress_woocommerce",
+        "github_vercel",
+        "supported_cms_api"
+      ],
       "capabilities": [
         "orders_today",
         "revenue_period",
@@ -78,7 +137,14 @@
       "id": "support_agent",
       "name": "Soporte y asistencia",
       "category": "support",
-      "capabilities": ["customer_id", "device_id", "remote_assistance_with_consent", "incident_history", "diagnostics", "audit_log"]
+      "capabilities": [
+        "customer_id",
+        "device_id",
+        "remote_assistance_with_consent",
+        "incident_history",
+        "diagnostics",
+        "audit_log"
+      ]
     }
   ],
   "licensing": {

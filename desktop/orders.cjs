@@ -7,7 +7,7 @@ const {app,dialog,Notification,BrowserWindow,safeStorage}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {readState,writeState,audit}=require('./state-store.cjs');
-const {gmailCall}=require('./gmail-auth.cjs');
+const {gmailCall,gmailFetch}=require('./gmail-auth.cjs');
 const {shopifyCall}=require('./shopify-auth.cjs');
 const files=require('./order-files.cjs');
 const {createOrders}=require('./orders-core.cjs');
@@ -42,7 +42,7 @@ async function mailAccounts(){
 
 async function gfetch(acc,pq,{method='GET',body=null}={}){
   return gmailCall(acc.integration,async token=>{
-    const r=await fetch(GMAIL+pq,{method,headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
+    const r=await gmailFetch(GMAIL+pq,{method,headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined});
     const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{}
     if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
     return j;

@@ -3,8 +3,11 @@
 // Los adjuntos vienen de correos de terceros: se trata todo como NO fiable. Por eso:
 //  - límites de tamaño, de páginas y de filas;
 //  - Excel y Word se leen con un lector mínimo propio sobre el ZIP (sin ejecutar nada, sin macros);
-//  - un PDF escaneado (sin texto) o una imagen no se "adivinan": se avisa de que no se ha podido leer.
+//  - PDF escaneados e imágenes usan OCR local con español e inglés incluidos en la instalación.
 const {unzipSync,strFromU8}=require('fflate');
+const path=require('node:path');
+const os=require('node:os');
+const fs=require('node:fs/promises');
 
 const MAX_BYTES=8*1024*1024;
 const MAX_CHARS=60000;
@@ -81,14 +84,40 @@ function readDocx(buffer){
   const x=strFromU8(files['word/document.xml']);
   return xmlText(x.replace(/<\/w:p>/g,'\n').replace(/<w:tab\/>/g,' ').replace(/<\/w:tc>/g,' | ').replace(/<[^>]+>/g,'')).replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
 }
-async function ocrImage(buffer){
-  const {recognize}=require('tesseract.js');
-  const result=await recognize(Buffer.from(buffer),'spa+eng',{logger:()=>{}});
+let ocrWorkerPromise=null;
+let ocrLangDirPromise=null;
+async function ensureOcrLangDir(){
+  if(ocrLangDirPromise)return ocrLangDirPromise;
+  ocrLangDirPromise=(async()=>{
+    const dir=path.join(os.tmpdir(),'ventanexia-tessdata');
+    await fs.mkdir(dir,{recursive:true});
+    for(const lang of ['spa','eng']){
+      const target=path.join(dir,lang+'.traineddata.gz');
+      try{await fs.access(target);continue}catch{}
+      const source=require.resolve('@tesseract.js-data/'+lang+'/4.0.0_best_int/'+lang+'.traineddata.gz');
+      await fs.copyFile(source,target);
+    }
+    return dir;
+  })();
+  return ocrLangDirPromise;
+}
+async function getOcrWorker(){
+  if(ocrWorkerPromise)return ocrWorkerPromise;
+  ocrWorkerPromise=(async()=>{
+    const {createWorker}=require('tesseract.js');
+    const langPath=await ensureOcrLangDir();
+    return createWorker('spa+eng',undefined,{langPath,logger:()=>{}});
+  })().catch(e=>{ocrWorkerPromise=null;throw e});
+  return ocrWorkerPromise;
+}
+async function ocrBuffer(buffer){
+  const worker=await getOcrWorker();
+  const result=await worker.recognize(Buffer.from(buffer));
   return String(result?.data?.text||'').replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
 }
+async function ocrImage(buffer){return ocrBuffer(buffer)}
 async function ocrPdfPages(doc,maxPages=8){
   const {createCanvas}=require('@napi-rs/canvas');
-  const {recognize}=require('tesseract.js');
   let out='';
   for(let i=1;i<=Math.min(doc.numPages,maxPages);i++){
     const page=await doc.getPage(i);
@@ -96,9 +125,7 @@ async function ocrPdfPages(doc,maxPages=8){
     const canvas=createCanvas(Math.max(1,Math.ceil(viewport.width)),Math.max(1,Math.ceil(viewport.height)));
     const context=canvas.getContext('2d');
     await page.render({canvasContext:context,viewport}).promise;
-    const png=canvas.toBuffer('image/png');
-    const result=await recognize(png,'spa+eng',{logger:()=>{}});
-    const text=String(result?.data?.text||'').trim();
+    const text=await ocrBuffer(canvas.toBuffer('image/png'));
     if(text)out+=(out?'\n\n':'')+text;
   }
   return out.replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();

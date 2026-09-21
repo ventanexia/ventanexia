@@ -5,7 +5,7 @@ const crypto=require('node:crypto');
 const {normalizeChatScope,parseGmailContext,emailAgentDirectReply,scoreMailAttention,needsReplyScore}=require('./agent-email.cjs');
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster,connectionLimit}=require('./agent-policy.cjs');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
-const {gmailCall}=require('./gmail-auth.cjs');
+const {gmailCall,gmailFetch,friendlyGmailError}=require('./gmail-auth.cjs');
 let prospecting=null;
 try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
 
@@ -219,17 +219,17 @@ ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean
 
 
 async function gmailApi(token,pathAndQuery){
-  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{headers:{Authorization:'Bearer '+token}});
+  const r=await gmailFetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{headers:{Authorization:'Bearer '+token}});
   const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={}}
-  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
+  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw friendlyGmailError(e)}
   return j;
 }
 async function gmailWrite(token,pathAndQuery,{method='POST',body=null,raw=false}={}){
   const headers={Authorization:'Bearer '+token};
   if(body!==null)headers['Content-Type']='application/json';
-  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{method,headers,body:body===null?undefined:JSON.stringify(body)});
+  const r=await gmailFetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{method,headers,body:body===null?undefined:JSON.stringify(body)});
   const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={raw:txt}}
-  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
+  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw friendlyGmailError(e)}
   return j;
 }
 function mimeHeader(v=''){const t=String(v||'').replace(/[\r\n]+/g,' ');return /^[\x20-\x7e]*$/.test(t)?t:'=?UTF-8?B?'+Buffer.from(t,'utf8').toString('base64')+'?='}
@@ -379,7 +379,7 @@ async function gmailThreadResponseInfo(integration,threadId){
     const sent=(t.messages||[]).filter(m=>(m.labelIds||[]).includes('SENT')).sort((a,b)=>Number(a.internalDate||0)-Number(b.internalDate||0));
     const last=sent[sent.length-1];
     return {responded:Boolean(last),sentBody:last?gmailMessageText(last.payload).slice(0,6000):''};
-  }catch{return {responded:false,sentBody:''}}
+  }catch(e){if(e?.code==='GMAIL_QUOTA')throw e;return {responded:false,sentBody:''}}
 }
 async function gmailThreadHasSent(integration,threadId){return (await gmailThreadResponseInfo(integration,threadId)).responded}
 async function gmailNoReplyLabelId(integration,{create=false}={}){
@@ -394,105 +394,197 @@ async function gmailNoReplyLabelId(integration,{create=false}={}){
   }}));
   return created?.id||'';
 }
-async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLabelId=''}={}){
-  const params=new URLSearchParams({maxResults:String(maxResults),q});
-  const list=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
-  const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,maxResults);
-  const account=integration?.meta?.email||integration?.label||integration?.account||'Gmail';
-  return Promise.all(ids.map(async id=>{
-    const p=new URLSearchParams({format:'full'});
-    const m=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+encodeURIComponent(id)+'?'+p.toString()));
-    const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
-    const responseInfo=await gmailThreadResponseInfo(integration,m.threadId||'');const responded=responseInfo.responded;
-    const unread=(m.labelIds||[]).includes('UNREAD');
-    const noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
-    const body=gmailMessageText(m.payload)||String(m.snippet||'').replace(/\s+/g,' ').trim();
-    return {
-      account,id:m.id||id,threadId:m.threadId||'',from:headers.from||'',to:headers.to||'',
-      subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
-      snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
-      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,sentBody:responseInfo.sentBody||'',
-      status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
-      defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')}),
-      attentionScore:scoreMailAttention({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''}),
-      replyScore:needsReplyScore({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''})
-    };
-  }));
-}
 
+// ---------------------------------------------------------------------------
+// Bandeja y métricas de Gmail con el mínimo gasto de cuota.
+// - "respondido" se resuelve con una lista de enviados, no con una conversación por correo;
+// - el texto de la última respuesta enviada se limita y se cachea;
+// - las métricas usan listas, sin leer mensajes completos;
+// - las pantallas que piden lo mismo comparten una sola consulta.
+// ---------------------------------------------------------------------------
 const gmailReadCache=new Map();
+const gmailInflight=new Map();
+const gmailSentThreadCache=new Map();
+const gmailSentBodyCache=new Map();
+function gmailAccountId(integration){return String(integration?.meta?.email||integration?.label||integration?.account||'').trim().toLowerCase()}
 function gmailCacheKey(kind,payload={}){
   return kind+'|'+String(payload.account||'')+'|'+String(Number.isInteger(payload.accountIndex)?payload.accountIndex:'all')+'|'+String(payload.limit||'');
 }
 function gmailCacheGet(key,maxAge=45000){
   const x=gmailReadCache.get(key);if(!x||Date.now()-x.at>maxAge)return null;return x.value;
 }
+function gmailCacheStale(key,maxAge=15*60*1000){
+  const x=gmailReadCache.get(key);return x&&Date.now()-x.at<=maxAge?x.value:null;
+}
 function gmailCacheSet(key,value){gmailReadCache.set(key,{at:Date.now(),value});return value}
-function clearGmailReadCache(){gmailReadCache.clear()}
+function clearGmailReadCache(){gmailReadCache.clear();gmailSentThreadCache.clear()}
+async function gmailShared(key,maxAge,producer){
+  const hit=gmailCacheGet(key,maxAge);if(hit)return hit;
+  if(gmailInflight.has(key))return gmailInflight.get(key);
+  const run=(async()=>{try{return gmailCacheSet(key,await producer())}finally{gmailInflight.delete(key)}})();
+  gmailInflight.set(key,run);
+  return run;
+}
+async function gmailListRefs(integration,query,{maxPages=2,labelIds=[]}={}){
+  const out=[];let pageToken='';
+  for(let page=0;page<maxPages;page++){
+    const params=new URLSearchParams({maxResults:'500',q:query});
+    for(const id of labelIds)params.append('labelIds',id);
+    if(pageToken)params.set('pageToken',pageToken);
+    const j=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
+    out.push(...(j.messages||[]));
+    pageToken=j.nextPageToken||'';if(!pageToken)break;
+  }
+  return out;
+}
+async function gmailSentThreadSet(integration,sinceMs){
+  const account=gmailAccountId(integration);
+  const since=Math.max(0,Math.floor((Number(sinceMs)||Date.now()-30*86400000)/1000));
+  const cached=gmailSentThreadCache.get(account);
+  if(cached&&Date.now()-cached.at<60000&&cached.since<=since)return cached.set;
+  const refs=await gmailListRefs(integration,'in:sent after:'+since,{maxPages:4});
+  const set=new Set();for(const m of refs)if(m.threadId)set.add(m.threadId);
+  gmailSentThreadCache.set(account,{at:Date.now(),since,set});
+  return set;
+}
+async function gmailSentBodyOf(integration,threadId,{fetchNow=true}={}){
+  const key=gmailAccountId(integration)+'|'+threadId;
+  const hit=gmailSentBodyCache.get(key);
+  if(hit&&Date.now()-hit.at<20*60*1000)return hit.body;
+  if(!fetchNow)return '';
+  const info=await gmailThreadResponseInfo(integration,threadId);
+  gmailSentBodyCache.set(key,{at:Date.now(),body:info.sentBody||''});
+  return info.sentBody||'';
+}
+async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLabelId='',maxSentBodies=8}={}){
+  const params=new URLSearchParams({maxResults:String(maxResults),q});
+  const list=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
+  const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,maxResults);
+  const account=integration?.meta?.email||integration?.label||integration?.account||'Gmail';
+  const msgs=await Promise.all(ids.map(id=>{
+    const p=new URLSearchParams({format:'full'});
+    return gmailCall(integration,tok=>gmailApi(tok,'messages/'+encodeURIComponent(id)+'?'+p.toString()));
+  }));
+  const oldest=msgs.reduce((m,x)=>Math.min(m,Number(x?.internalDate||Date.now())),Date.now());
+  let sentThreads=new Set();
+  try{sentThreads=await gmailSentThreadSet(integration,oldest-7*86400000)}
+  catch(e){if(e?.code==='GMAIL_QUOTA')throw e}
+  let bodyBudget=maxSentBodies;
+  const rows=[];
+  for(const m of msgs){
+    const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
+    const threadId=m.threadId||'';
+    const responded=Boolean(threadId&&sentThreads.has(threadId));
+    let sentBody='';
+    if(responded){
+      sentBody=await gmailSentBodyOf(integration,threadId,{fetchNow:false});
+      if(!sentBody&&bodyBudget>0){
+        bodyBudget--;
+        try{sentBody=await gmailSentBodyOf(integration,threadId)}catch(e){if(e?.code==='GMAIL_QUOTA')bodyBudget=0}
+      }
+    }
+    const responseInfo={responded,sentBody};
+    const unread=(m.labelIds||[]).includes('UNREAD');
+    const noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
+    const body=gmailMessageText(m.payload)||String(m.snippet||'').replace(/\s+/g,' ').trim();
+    rows.push({
+      account,id:m.id,threadId,from:headers.from||'',to:headers.to||'',
+      subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
+      snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
+      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded:responseInfo.responded,noReply,sentBody:responseInfo.sentBody||'',
+      status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
+      defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')}),
+      attentionScore:scoreMailAttention({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''}),
+      replyScore:needsReplyScore({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''})
+    });
+  }
+  return rows;
+}
 
 async function gmailTodayBounds(){
   const start=new Date();start.setHours(0,0,0,0);
   const end=new Date(start);end.setDate(end.getDate()+1);
   return {after:Math.floor(start.getTime()/1000),before:Math.floor(end.getTime()/1000)};
 }
+function gmailSelectAccounts(s,payload={}){
+  const all=emailAccountsForState(s).filter(x=>x.provider==='gmail');
+  const requested=String(payload?.account||'').trim().toLowerCase();
+  const idx=Number.isInteger(payload?.accountIndex)?payload.accountIndex:null;
+  const accounts=requested
+    ?all.filter(x=>String(x.meta?.email||x.label||x.account||'').trim().toLowerCase()===requested)
+    :(idx===null?all:[all[idx]].filter(Boolean));
+  return {accounts,requested};
+}
+async function gmailAccountMetrics(integration){
+  const {after,before}=await gmailTodayBounds();
+  const base='after:'+after+' before:'+before;
+  const noReplyLabelId=await gmailNoReplyLabelId(integration,{create:false});
+  const todayInbox=await gmailListRefs(integration,'in:inbox '+base,{maxPages:2});
+  const [sentCount,unreadCount]=await Promise.all([
+    countGmailMessages(integration,'in:sent '+base),
+    countGmailMessages(integration,'in:inbox is:unread')
+  ]);
+  const sentThreads=await gmailSentThreadSet(integration,after*1000-30*86400000);
+  let noReplyIds=new Set();
+  if(noReplyLabelId&&todayInbox.length){
+    const marked=await gmailListRefs(integration,'in:inbox '+base,{maxPages:2,labelIds:[noReplyLabelId]});
+    noReplyIds=new Set(marked.map(x=>x.id));
+  }
+  return {
+    received:todayInbox.length,
+    responded:sentCount,
+    pending:todayInbox.filter(x=>!sentThreads.has(x.threadId)&&!noReplyIds.has(x.id)).length,
+    unread:unreadCount
+  };
+}
 ipcMain.handle('email:metrics',async(_e,payload={})=>{
   const cacheKey=gmailCacheKey('metrics',payload),cached=gmailCacheGet(cacheKey,60000);if(cached)return cached;
   const s=await readState();assertAgentIncluded(s.license,'email');
-  const allAccounts=emailAccountsForState(s).filter(x=>x.provider==='gmail');
-  const requestedAccount=String(payload?.account||'').trim().toLowerCase();
-  const idx=Number.isInteger(payload?.accountIndex)?payload.accountIndex:null;
-  const accounts=requestedAccount
-    ?allAccounts.filter(x=>String(x.meta?.email||x.label||x.account||'').trim().toLowerCase()===requestedAccount)
-    :(idx===null?allAccounts:[allAccounts[idx]].filter(Boolean));
-  if(!accounts.length)return {connected:false,received:0,responded:0,pending:0,unread:0,accounts:0,error:requestedAccount?'No encuentro esa cuenta de Gmail conectada.':''};
-  const {after,before}=await gmailTodayBounds();
+  const {accounts,requested}=gmailSelectAccounts(s,payload);
+  if(!accounts.length)return {connected:false,received:0,responded:0,pending:0,unread:0,accounts:0,error:requested?'No encuentro esa cuenta de Gmail conectada.':''};
   let received=0,responded=0,pending=0,unread=0,okAccounts=0;
   const errors=[];
   for(const integration of accounts){
     try{
-      const base='after:'+after+' before:'+before;
-      const noReplyLabelId=await gmailNoReplyLabelId(integration,{create:false});
-      const [todayRows,sentCount,unreadCount]=await Promise.all([
-        gmailInboxRows(integration,{maxResults:100,q:'in:inbox '+base,noReplyLabelId}),
-        countGmailMessages(integration,'in:sent '+base),
-        countGmailMessages(integration,'in:inbox is:unread')
-      ]);
-      received+=todayRows.length;
-      responded+=sentCount;
-      pending+=todayRows.filter(x=>!x.responded&&!x.noReply).length;
-      unread+=unreadCount;
-      okAccounts++;
+      const m=await gmailShared('metrics-acct|'+gmailAccountId(integration),60000,()=>gmailAccountMetrics(integration));
+      received+=m.received;responded+=m.responded;pending+=m.pending;unread+=m.unread;okAccounts++;
     }catch(e){
       const label=integration.label||integration.meta?.email||integration.account||'Gmail';
       errors.push(label+': '+String(e?.message||e));
       await audit('email.metrics_error',label+' · '+String(e?.message||e).slice(0,160));
     }
   }
-  return gmailCacheSet(cacheKey,{connected:okAccounts>0,received,responded,pending,unread,accounts:okAccounts,label:'Hoy',errors});
+  const result={connected:okAccounts>0,received,responded,pending,unread,accounts:okAccounts,label:'Hoy',errors};
+  if(errors.length===0)return gmailCacheSet(cacheKey,result);
+  if(okAccounts===0){const stale=gmailCacheStale(cacheKey);if(stale)return {...stale,stale:true,errors}}
+  return result;
 });
 ipcMain.handle('email:inbox',async(_e,payload={})=>{
   const cacheKey=gmailCacheKey('inbox',payload),cached=gmailCacheGet(cacheKey,45000);if(cached)return cached;
   const s=await readState();assertAgentIncluded(s.license,'email');
-  const all=emailAccountsForState(s).filter(x=>x.provider==='gmail');
-  const requestedAccount=String(payload?.account||'').trim().toLowerCase();
-  const index=Number.isInteger(payload.accountIndex)?payload.accountIndex:null;
-  const accounts=requestedAccount
-    ?all.filter(x=>String(x.meta?.email||x.label||x.account||'').trim().toLowerCase()===requestedAccount)
-    :(index===null?all:[all[index]].filter(Boolean));
-  if(!accounts.length)return {connected:false,messages:[],accounts:[],error:requestedAccount?'No encuentro esa cuenta de Gmail conectada.':''};
+  const {accounts,requested}=gmailSelectAccounts(s,payload);
+  if(!accounts.length)return {connected:false,messages:[],accounts:[],error:requested?'No encuentro esa cuenta de Gmail conectada.':''};
+  const limit=Math.max(5,Math.min(30,Number(payload.limit||20)));
   const rows=[],errors=[];
   for(const integration of accounts){
-    try{const noReplyLabelId=await gmailNoReplyLabelId(integration,{create:false});rows.push(...await gmailInboxRows(integration,{maxResults:Math.max(5,Math.min(30,Number(payload.limit||20))),q:'in:inbox',noReplyLabelId}))}
-    catch(e){
+    try{
+      const all=await gmailShared('rows-acct|'+gmailAccountId(integration),60000,async()=>{
+        const noReplyLabelId=await gmailNoReplyLabelId(integration,{create:false});
+        return gmailInboxRows(integration,{maxResults:30,q:'in:inbox',noReplyLabelId});
+      });
+      rows.push(...all.slice(0,limit));
+    }catch(e){
       const label=integration.label||integration.meta?.email||integration.account||'Gmail';
       errors.push(label+': '+String(e?.message||e));
       await audit('email.inbox_error',label+' · '+String(e?.message||e).slice(0,160));
     }
   }
   rows.sort((a,b)=>(b.internalDate||0)-(a.internalDate||0));
-  return gmailCacheSet(cacheKey,{connected:accounts.length>0&&errors.length<accounts.length,messages:rows.slice(0,30),accounts:accounts.map(x=>x.meta?.email||x.label||x.account||'Gmail'),errors});
+  const result={connected:accounts.length>0&&errors.length<accounts.length,messages:rows.slice(0,30),accounts:accounts.map(x=>x.meta?.email||x.label||x.account||'Gmail'),errors};
+  if(errors.length===0)return gmailCacheSet(cacheKey,result);
+  if(!rows.length){const stale=gmailCacheStale(cacheKey);if(stale)return {...stale,stale:true,errors}}
+  return result;
 });
-
 ipcMain.handle('email:action',async(_e,payload={})=>{
   clearGmailReadCache();
   const s=await readState();assertAgentIncluded(s.license,'email');

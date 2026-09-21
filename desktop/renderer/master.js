@@ -1,3 +1,4 @@
+// VentaNexIA Desktop 0.6.80 · Gmail quota-safe · OCR local
 (()=>{
   const $m=s=>document.querySelector(s),$$m=s=>[...document.querySelectorAll(s)];
   const escM=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
