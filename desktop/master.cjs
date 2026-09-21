@@ -689,8 +689,11 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     const direct=emailAgentDirectReply(question,localContext);
     if(direct){
       const target=chooseEmailTarget(question,localContext);
+      const parsed=parseGmailContext(localContext);
+      const replyable=(parsed?.mails||[]).filter(m=>needsReplyScore(m)>0).slice(0,6);
+      const emailActionGroups=replyable.map(m=>({label:(m.subject||'(sin asunto)')+' · '+(m.from||'remitente'),meta:emailActionPayload(m)}));
       await audit('ai.chat','Consulta directa con agente Email · '+localContext.length+' cuenta(s) · '+question.slice(0,120));
-      return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length,emailActions:target?.id?emailActionPayload(target):null};
+      return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length,emailActions:target?.id?emailActionPayload(target):null,emailActionGroups};
     }
   }else if(scope?.type==='agent'&&scope?.key==='core_ai'){
     // Asistente central: reúne información de las fuentes permitidas sin ejecutar acciones.
