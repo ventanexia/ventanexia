@@ -94,7 +94,7 @@ async function savePortal(payload={}){
     const emails=emailAccountsForState(s).length;
     const ints=Object.entries(s.secret?.integrations||{}).filter(([k,v])=>k!=='email'&&v).length;
     const used=emails+ints+s.portals.length,limit=connectionLimit(s.license);
-    if(used>=limit)throw new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 42 €/mes o cambia de plan.');
+    if(used>=limit)throw new Error('Has usado todas las conexiones incluidas en tu plan. Añade una conexión extra por 49 €/mes o cambia de plan.');
   }
   const next={...old,id,name,url,mode,createdAt:old.createdAt||new Date().toISOString()};
   if(i>=0)s.portals[i]=next;else s.portals.push(next);

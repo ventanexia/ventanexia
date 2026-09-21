@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.78",
+  "version": "0.6.79",
   "private": true,
-  "description": "VentaNexIA Desktop · PDF y Excel profesionales, una línea por dato y reportes de Carla estructurados · 0.6.78",
+  "description": "VentaNexIA Desktop · precios unificados, Excel XLSX real, OCR local y flujos de administración reforzados · 0.6.79",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
@@ -83,6 +83,8 @@
     "nodemailer": "^7.0.6",
     "fflate": "^0.8.2",
     "mailparser": "^3.7.4",
-    "pdfjs-dist": "3.11.174"
+    "pdfjs-dist": "3.11.174",
+    "tesseract.js": "^6.0.1",
+    "@napi-rs/canvas": "^0.1.80"
   }
 }

@@ -1,5 +1,6 @@
 const {ipcMain,dialog,BrowserWindow}=require('electron');
 const fs=require('node:fs/promises');
+const {zipSync,strToU8}=require('fflate');
 
 function escXml(v=''){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;')}
 function escHtml(v=''){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
@@ -20,22 +21,30 @@ function normalizePayload(payload={}){
   const blocks=Array.isArray(payload.blocks)?payload.blocks.map(b=>({type:String(b?.type||'paragraph'),text:String(b?.text||''),marker:String(b?.marker||'')})):[];
   return {title,headers,rows,text,blocks};
 }
-function spreadsheetXml(data){
-  const widths=[170,115,100,520];
-  const cols=data.headers.map((_,i)=>`<Column ss:AutoFitWidth="0" ss:Width="${widths[i]||180}"/>`).join('');
-  const header=data.headers.map(v=>`<Cell ss:StyleID="Header"><Data ss:Type="String">${escXml(v)}</Data></Cell>`).join('');
-  const body=data.rows.map(row=>`<Row ss:AutoFitHeight="1">${data.headers.map((_,i)=>`<Cell ss:StyleID="${i===3?'Detail':'Body'}"><Data ss:Type="String">${escXml(row[i]??'')}</Data></Cell>`).join('')}</Row>`).join('');
-  return `<?xml version="1.0"?>
-  <Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-    xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-    <Styles>
-      <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top"/><Font ss:FontName="Arial" ss:Size="10"/></Style>
-      <Style ss:ID="Header"><Font ss:FontName="Arial" ss:Size="10" ss:Bold="1"/><Interior ss:Color="#DCE8EF" ss:Pattern="Solid"/><Alignment ss:Vertical="Center" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
-      <Style ss:ID="Body"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5EBEF"/></Borders></Style>
-      <Style ss:ID="Detail"><Alignment ss:Vertical="Top" ss:WrapText="1"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5EBEF"/></Borders></Style>
-    </Styles>
-    <Worksheet ss:Name="Informe"><Table>${cols}<Row ss:AutoFitHeight="1">${header}</Row>${body}</Table></Worksheet>
-  </Workbook>`;
+function colName(n){let s='';for(let x=n+1;x;x=Math.floor((x-1)/26))s=String.fromCharCode(65+((x-1)%26))+s;return s}
+function xlsxBuffer(data){
+  const widths=data.headers.map((_,i)=>i===3?70:i===0?24:18);
+  const rows=[data.headers,...data.rows];
+  const sheetRows=rows.map((row,ri)=>{
+    const cells=data.headers.map((_,ci)=>{
+      const v=String(row[ci]??'');
+      const ref=colName(ci)+(ri+1);
+      const style=ri===0?1:2;
+      return `<c r="${ref}" t="inlineStr" s="${style}"><is><t xml:space="preserve">${escXml(v)}</t></is></c>`;
+    }).join('');
+    return `<row r="${ri+1}">${cells}</row>`;
+  }).join('');
+  const cols=widths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('');
+  const files={
+    '[Content_Types].xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
+    '_rels/.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`,
+    'xl/workbook.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Informe" sheetId="1" r:id="rId1"/></sheets></workbook>`,
+    'xl/_rels/workbook.xml.rels':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
+    'xl/styles.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDCE8EF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border/><border><bottom style="thin"><color rgb="FFE5EBEF"/></bottom></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs></styleSheet>`,
+    'xl/worksheets/sheet1.xml':`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${cols}</cols><sheetData>${sheetRows}</sheetData></worksheet>`
+  };
+  const input={};for(const [k,v] of Object.entries(files))input[k]=strToU8(v);
+  return Buffer.from(zipSync(input,{level:6}));
 }
 function htmlDocument(data){
   let body='';
@@ -78,11 +87,11 @@ function htmlDocument(data){
 ipcMain.handle('export:data',async(_e,payload={})=>{
   const format=payload.format==='pdf'?'pdf':'excel';
   const data=normalizePayload(payload);
-  const ext=format==='pdf'?'pdf':'xls';
-  const result=await dialog.showSaveDialog({title:`Guardar ${format==='pdf'?'PDF':'Excel'}`,defaultPath:`${data.title}.${ext}`,filters:[format==='pdf'?{name:'PDF',extensions:['pdf']}:{name:'Excel',extensions:['xls']} ]});
+  const ext=format==='pdf'?'pdf':'xlsx';
+  const result=await dialog.showSaveDialog({title:`Guardar ${format==='pdf'?'PDF':'Excel'}`,defaultPath:`${data.title}.${ext}`,filters:[format==='pdf'?{name:'PDF',extensions:['pdf']}:{name:'Excel',extensions:['xlsx']} ]});
   if(result.canceled||!result.filePath)return {ok:false,canceled:true};
   if(format==='excel'){
-    await fs.writeFile(result.filePath,spreadsheetXml(data),'utf8');
+    await fs.writeFile(result.filePath,xlsxBuffer(data));
   }else{
     const win=new BrowserWindow({show:false,webPreferences:{sandbox:true}});
     try{

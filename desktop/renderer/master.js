@@ -19,7 +19,7 @@
     orders:'Ej.: revisa los pedidos recibidos por email o portal y prepara su alta en el programa de gestión',
     social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora la visibilidad en Google de la página del producto',
     web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
-    administration:'Ej.: organiza mis tareas de esta semana, prepara seguimientos y ordena estos documentos',
+    administration:'Ej.: revisa facturas vencidas, prepara reclamaciones de cobro, comprueba confirmaciones de proveedores y organiza mis tareas de esta semana',
     reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
     automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos hacer automáticamente'
   };
@@ -192,7 +192,7 @@
         {key:'priority',label:'PRIORIDAD',type:'select',options:['Normal','Alta','Urgente']},
         {key:'details',label:'DETALLES',type:'textarea',wide:true,placeholder:'Añade personas, documentos, plazos o condiciones'}
       ],
-      capabilities:['Ordenar tareas y prioridades','Preparar agendas y seguimientos','Organizar información administrativa','Trabajar con archivos autorizados'],
+      capabilities:['Ordenar tareas y prioridades','Preparar agendas y seguimientos','Detectar facturas vencidas cuando la fecha y el estado estén disponibles','Preparar reclamaciones de cobro para revisar antes de enviar','Comprobar confirmaciones y respuestas de proveedores en el correo conectado','Organizar información administrativa','Trabajar con archivos autorizados'],
       steps:['Organizar','Priorizar','Seguimiento']
     },
     reports:{
@@ -323,7 +323,7 @@
     const lines=Object.entries(data).filter(([,v])=>String(v||'').trim()).map(([k,v])=>{
       const f=(guidedConfig(key).fields||[]).find(x=>x.key===k);return (f?.label||k)+': '+v;
     });
-    const names={core_ai:'Actúa como centro de mando de VentaNexIA. Responde usando todas las fuentes conectadas que recibas, cruza la información cuando sea útil, indica el origen de los datos y no ejecutes acciones desde este panel.',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Gestiona Pedidos con el motor real. Puedes revisar pedidos, ver pendientes, pedir los datos que faltan, introducir los pedidos listos o configurar destino, clientes, catálogo y modo. No afirmes que se comprueba stock, se consulta a Compras, se teclean pedidos en páginas privadas ni se usan conectores ERP directos: esas funciones aún no están implementadas.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Organiza esta tarea de administración y agenda',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
+    const names={core_ai:'Actúa como centro de mando de VentaNexIA. Responde usando todas las fuentes conectadas que recibas, cruza la información cuando sea útil, indica el origen de los datos y no ejecutes acciones desde este panel.',crm:'Prepara el mejor plan de ventas y clientes con estos datos',customer_service:'Prepara la mejor respuesta de atención al cliente con estos datos',quotes:'Prepara un presupuesto y propuesta profesional con estos datos',orders:'Gestiona Pedidos con el motor real. Puedes revisar pedidos, ver pendientes, pedir los datos que faltan, introducir los pedidos listos o configurar destino, clientes, catálogo y modo. No afirmes que se comprueba stock, se consulta a Compras, se teclean pedidos en páginas privadas ni se usan conectores ERP directos: esas funciones aún no están implementadas.',social:'Prepara una campaña de marketing y visibilidad con estos datos',web_ecommerce:'Realiza esta consulta o prepara esta tarea de Web y tienda',administration:'Gestiona esta tarea administrativa con datos reales. Si trata de facturas vencidas, identifica número, cliente, importe, vencimiento y estado solo cuando consten en los datos disponibles; prepara la reclamación pero no afirmes que se ha enviado salvo confirmación real. Si trata de proveedores, revisa las respuestas o confirmaciones disponibles, separa confirmado, pendiente y con incidencia, y no inventes fechas ni compromisos.',reports:'Prepara un informe y análisis con estos datos',automation:'Diseña una tarea automática segura y clara con estos datos'};
     return (names[key]||'Ayúdame con esta tarea')+':\n'+lines.join('\n');
   }
   function guidedConnectedLabels(key){
