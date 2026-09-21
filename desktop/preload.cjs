@@ -77,8 +77,10 @@ contextBridge.exposeInMainWorld('vnx',{
   emailAction:(payload)=>ipcRenderer.invoke('email:action',payload),
   emailMetrics:(payload={})=>ipcRenderer.invoke('email:metrics',payload),
   emailInbox:(payload)=>ipcRenderer.invoke('email:inbox',payload),
+  emailSentBody:(payload)=>ipcRenderer.invoke('email:sent-body',payload),
   whatsappRuntime:(payload)=>ipcRenderer.invoke('whatsapp:runtime',payload),
   secretaryNotify:(payload)=>ipcRenderer.invoke('secretary:notify',payload),
   sendChat:(messages,scope)=>ipcRenderer.invoke('chat:send',{messages,scope}),
+  onBeforeQuit:(handler)=>electronIpc.on('app:before-quit',()=>{try{handler()}catch{}}),
   pairDemo:()=>ipcRenderer.invoke('device:pair-demo')
 });
