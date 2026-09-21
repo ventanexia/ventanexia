@@ -2,7 +2,7 @@ name: Build VentaNexIA Desktop
 
 on:
   push:
-    branches: [main, 'release/desktop-0.6.83']
+    branches: [main]
     paths:
       - 'desktop/**'
       - '.github/workflows/build-desktop.yml'
