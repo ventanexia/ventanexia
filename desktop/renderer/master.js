@@ -6,6 +6,7 @@
   let masterMessages=[];
   const CHAT_STATE_KEY='vnx_master_chat_state_v1';
   const CHAT_DRAFT_KEY='vnx_master_chat_draft_v1';
+  const CHAT_CLEAR_ON_EXIT_KEY='vnx_master_chat_clear_on_exit';
   let restoringChatState=false;
   function serializableMessages(list=masterMessages){
     return (list||[]).slice(-50).map(m=>({
@@ -1067,12 +1068,12 @@
   function workItemHtml(m,tab,index){
     const original=String(m.body||m.snippet||'').slice(0,1400);
     const sent=String(m.sentBody||'').trim();
-    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'Respuesta detectada. Para acelerar la bandeja no se carga el texto completo hasta que abras la conversación en Gmail.'):(tab==='informative'?'':(m.defaultBody||''));
+    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'Respuesta detectada. Pulsa “Cargar última respuesta” para verla sin ralentizar la bandeja.'):(tab==='informative'?'':(m.defaultBody||''));
     const decision=tab==='decision'?'<div class="vnx-work-decision"><input data-work-decision placeholder="Indica tu decisión. Ej.: ofrece 10 % y entrega en 7 días"><button class="btn outline" data-work-apply-decision>Preparar con mi decisión</button></div>':'';
     const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='informative'?'Informativo · no requiere respuesta':tab==='decision'?'Necesita tu decisión':'Importante · revisar';
     const statusClass=tab==='automatic'?'automatic':tab==='resolved'?'resolved':tab==='informative'?'informative':tab==='decision'?'decision':'review';
     const buttons=(tab==='resolved'||tab==='automatic'||tab==='informative')
-      ?'<button data-work-open>Ver conversación en Gmail</button>'
+      ?((tab==='resolved'&&!sent)?'<button class="primary" data-work-load-sent>Cargar última respuesta</button>':'')+'<button data-work-open>Ver conversación en Gmail</button>'
       :'<button class="primary" data-work-send>Enviar</button><button data-work-edit>Modificar</button><button data-work-ai>Mejorar con IA</button><button data-work-draft>Guardar borrador</button><button data-work-no-reply>No requiere respuesta</button>';
     const responseTitle=tab==='automatic'?'Respuesta enviada automáticamente':tab==='resolved'?'Última respuesta enviada':tab==='informative'?'Clasificación de Carla':'Respuesta preparada por Carla';
     const reason=tab==='decision'
@@ -1107,6 +1108,23 @@
         card.querySelector('[data-work-draft]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;msg.textContent='Guardando borrador…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'draft_reply',body:ta.value});msg.textContent='Borrador creado en Gmail.'}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-send]')?.addEventListener('click',async()=>{if(!ta?.value.trim())return;if(!confirm('¿Enviar esta respuesta ahora desde '+(m.account||'esta cuenta')+'?'))return;msg.textContent='Enviando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'send_reply',body:ta.value});workQueueCache.at=0;msg.textContent='Respuesta enviada. La conversación pasará a Resueltos.';setTimeout(()=>renderWorkQueue(overlay,'resolved',true),500)}catch(e){msg.textContent=e.message||String(e)}});
         card.querySelector('[data-work-no-reply]')?.addEventListener('click',async()=>{msg.textContent='Actualizando…';try{await window.vnx.emailAction({account:m.account,messageId:m.id,threadId:m.threadId,subject:m.subject,from:m.from,action:'no_reply_needed'});workQueueCache.at=0;setTimeout(()=>renderWorkQueue(overlay,tab,true),300)}catch(e){msg.textContent=e.message||String(e)}});
+        card.querySelector('[data-work-load-sent]')?.addEventListener('click',async e=>{
+          const btn=e.currentTarget,sentEl=card.querySelector('[data-work-sent]');
+          btn.disabled=true;btn.textContent='Cargando…';msg.textContent='Consultando solo esta conversación…';
+          try{
+            const out=await window.vnx.emailSentBody({account:m.account,threadId:m.threadId});
+            const body=String(out?.body||'').trim();
+            if(body){
+              m.sentBody=body;
+              if(sentEl)sentEl.innerHTML=escM(body).replace(/\n/g,'<br>');
+              btn.remove();
+              msg.textContent='Última respuesta cargada.';
+            }else{
+              msg.textContent='Gmail no ha devuelto texto para esta respuesta.';
+              btn.disabled=false;btn.textContent='Reintentar';
+            }
+          }catch(e){msg.textContent=e.message||String(e);btn.disabled=false;btn.textContent='Reintentar'}
+        });
         card.querySelector('[data-work-open]')?.addEventListener('click',()=>window.open('https://mail.google.com/mail/u/0/#inbox/'+encodeURIComponent(m.threadId||m.id),'_blank','noopener,noreferrer'));
       });
       await refreshWorkbenchCounters(true);
@@ -1216,6 +1234,17 @@
   function setupWorkbench(){
     setupReadableView();
     const lang=$m('#vnxTranslationLanguage');
+    const headActions=$m('.vnx-head-actions');
+    if(headActions&&!$m('#vnxClearChatOnExit')){
+      const privacy=document.createElement('label');
+      privacy.className='vnx-chat-privacy-toggle';
+      privacy.style.cssText='display:flex;align-items:center;gap:7px;font-size:11px;opacity:.9;white-space:nowrap';
+      privacy.innerHTML='<input id="vnxClearChatOnExit" type="checkbox"> Borrar conversación de Carla al cerrar VentaNexIA';
+      headActions.appendChild(privacy);
+      const chk=privacy.querySelector('input');
+      chk.checked=localStorage.getItem(CHAT_CLEAR_ON_EXIT_KEY)==='on';
+      chk.onchange=()=>localStorage.setItem(CHAT_CLEAR_ON_EXIT_KEY,chk.checked?'on':'off');
+    }
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
     $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
@@ -1933,6 +1962,9 @@
         const input=ensureChatInputEditable();
         if(input&&document.activeElement!==input)input.value=ev.newValue||'';
       }
+    });
+    if(window.vnx?.onBeforeQuit)window.vnx.onBeforeQuit(()=>{
+      if(localStorage.getItem(CHAT_CLEAR_ON_EXIT_KEY)==='on')clearPersistedChat();
     });
     renderMasterMessages();
     form.onsubmit=async e=>{
