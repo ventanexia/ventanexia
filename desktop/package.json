@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.81",
+  "version": "0.6.82",
   "private": true,
-  "description": "VentaNexIA Desktop · OCR de PDF escaneados funcionando, Gmail sin saturación de cuota, XLSX real y precios coherentes · 0.6.81",
+  "description": "VentaNexIA Desktop · respuestas más rápidas de Carla, Gmail optimizado, OCR de PDF escaneados, XLSX real y precios coherentes · 0.6.82",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",

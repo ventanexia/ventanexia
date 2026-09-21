@@ -15,7 +15,7 @@ must(entry.includes("orders._get().store.load()"),'Orders must be read from stor
 must(!/core_ai[\s\S]{0,2500}orders\.handleChat\(/.test(entry),'central assistant must not execute Orders commands');
 must(entry.includes("queryReadOnlyScope"),'missing read-only connector query');
 must(master.includes("FUENTE INTERNA DE SOLO LECTURA"),'hub context is not marked as untrusted read-only data');
-must(master.includes("collectGmailContextMaster(integration,question)"),'central assistant cannot read connected Gmail');
+must(master.includes("collectGmailContextMaster(integration,question)")||master.includes("collectGmailContextsFast(emailAccountsForState(s),question)"),'central assistant cannot read connected Gmail');
 must(adaptive.includes("async function queryReadOnlyScope"),'read-only connector API is missing');
 must(adaptive.includes("module.exports={calibratePortal,queryReadOnlyScope"),'read-only connector API is not exported');
 must(ui.includes("Tu secretaria ejecutiva:")||ui.includes("Secretaria Ejecutiva"),'UI does not explain central assistant / executive secretary');
