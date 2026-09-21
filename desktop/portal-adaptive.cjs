@@ -160,8 +160,9 @@ async function shopifyAdminGraphql(shop,token,query,variables={}){
   return j.data||{};
 }
 async function apiJson(url,opts={}){
-  const r=await fetch(url,opts);const text=await r.text();let j={};try{j=JSON.parse(text)}catch{j={raw:text.slice(0,800)}}
-  if(!r.ok){const msg=j?.error?.message||j?.message||j?.error_description||('HTTP '+r.status);throw new Error(msg)}
+  const isGmail=String(url||'').startsWith('https://gmail.googleapis.com/');
+  const r=await (isGmail?gmailFetch(url,opts):fetch(url,opts));const text=await r.text();let j={};try{j=JSON.parse(text)}catch{j={raw:text.slice(0,800)}}
+  if(!r.ok){const e=new Error(j?.error?.message||j?.message||j?.error_description||('HTTP '+r.status));e.status=r.status;throw isGmail?friendlyGmailError(e):e}
   return j;
 }
 async function gmailApiJson(url,opts={}){
