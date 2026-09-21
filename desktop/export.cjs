@@ -18,7 +18,13 @@ function normalizePayload(payload={}){
     if(!headers.length)headers=width>1?Array.from({length:width},(_,i)=>`Campo ${i+1}`):['Resultado'];
   }
   if(!headers.length&&rows.length)headers=Array.from({length:Math.max(...rows.map(r=>r.length))},(_,i)=>`Campo ${i+1}`);
-  const blocks=Array.isArray(payload.blocks)?payload.blocks.map(b=>({type:String(b?.type||'paragraph'),text:String(b?.text||''),marker:String(b?.marker||'')})):[];
+  const blocks=Array.isArray(payload.blocks)?payload.blocks.map(b=>({
+    type:String(b?.type||'paragraph'),
+    text:String(b?.text||''),
+    marker:String(b?.marker||''),
+    label:String(b?.label||''),
+    fields:Array.isArray(b?.fields)?b.fields.map(f=>({label:String(f?.label||''),value:String(f?.value||'')})):[]
+  })):[];
   return {title,headers,rows,text,blocks};
 }
 function colName(n){let s='';for(let x=n+1;x;x=Math.floor((x-1)/26))s=String.fromCharCode(65+((x-1)%26))+s;return s}
@@ -52,6 +58,7 @@ function htmlDocument(data){
     body=data.blocks.map(b=>{
       if(b.type==='heading')return `<h2>${escHtml(b.text)}</h2>`;
       if(b.type==='subheading')return `<h3>${escHtml(b.text)}</h3>`;
+      if(b.type==='record')return `<div class="record">${(b.fields||[]).map(f=>`<div><b>${escHtml(f.label)}</b><span>${escHtml(f.value)}</span></div>`).join('')}</div>`;
       if(b.type==='fact')return `<div class="fact">${b.label?`<b>${escHtml(b.label)}</b>`:''}<span>${escHtml(b.text)}</span></div>`;
       if(b.type==='question')return `<div class="question"><span>?</span><p>${escHtml(b.text)}</p></div>`;
       if(b.type==='bullet')return `<div class="item"><span>•</span><p>${escHtml(b.text)}</p></div>`;
@@ -75,6 +82,9 @@ function htmlDocument(data){
     p{margin:0;white-space:pre-wrap}
     .item{display:grid;grid-template-columns:22px 1fr;gap:4px;margin:0 0 6px;page-break-inside:avoid}
     .item span{font-weight:700;color:#2274a0}.item p{margin:0}
+    .record{border:1px solid #dce7ed;border-radius:7px;padding:8px 10px;margin:0 0 8px;background:#fbfdfe;page-break-inside:avoid}
+    .record>div{display:grid;grid-template-columns:112px 1fr;gap:8px;padding:2.5px 0;font-size:10.5pt;line-height:1.4}
+    .record b{color:#31566f}.record span{white-space:pre-wrap}
     .fact{display:grid;grid-template-columns:120px 1fr;gap:8px;padding:5px 0;border-bottom:1px solid #edf1f4;page-break-inside:avoid}
     .fact b{color:#294b62}.fact span{white-space:pre-wrap}
     .question{display:grid;grid-template-columns:22px 1fr;gap:4px;background:#fff8e8;border:1px solid #f1d79c;border-radius:6px;padding:7px 8px;margin:6px 0;page-break-inside:avoid}
