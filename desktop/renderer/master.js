@@ -4,6 +4,37 @@
   const escM=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   let masterPortals=[];
   let masterMessages=[];
+  const CHAT_STATE_KEY='vnx_master_chat_state_v1';
+  const CHAT_DRAFT_KEY='vnx_master_chat_draft_v1';
+  let restoringChatState=false;
+  function serializableMessages(list=masterMessages){
+    return (list||[]).slice(-50).map(m=>({
+      role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
+      emailActions:m.emailActions||null,handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
+      handoffInternal:Boolean(m.handoffInternal)
+    }));
+  }
+  function persistMasterChatState(){
+    if(restoringChatState)return;
+    try{localStorage.setItem(CHAT_STATE_KEY,JSON.stringify({at:Date.now(),messages:serializableMessages()}))}catch{}
+  }
+  function loadMasterChatState(){
+    try{
+      const raw=JSON.parse(localStorage.getItem(CHAT_STATE_KEY)||'null');
+      if(raw&&Array.isArray(raw.messages))masterMessages=raw.messages.slice(-50);
+    }catch{}
+  }
+  function persistChatDraft(){
+    const input=$m('#chatInput');if(!input)return;
+    try{localStorage.setItem(CHAT_DRAFT_KEY,input.value||'')}catch{}
+  }
+  function loadChatDraft(){
+    const input=ensureChatInputEditable();if(!input)return;
+    try{const v=localStorage.getItem(CHAT_DRAFT_KEY);if(v!=null&&!input.value)input.value=v}catch{}
+  }
+  function clearPersistedChat(){
+    try{localStorage.removeItem(CHAT_STATE_KEY);localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}
+  }
   let handoffAgentChange=false;
   let runtimeConnections=[];
   let runtimeAgents=[];
@@ -1441,6 +1472,7 @@
         if(!ok){sel.value=activeAgentValue;return;}
         masterMessages=[];
         if(input)input.value='';
+        clearPersistedChat();
         renderMasterMessages();
       }
       handoffAgentChange=false;
@@ -1618,6 +1650,7 @@
   }
 
   function renderMasterMessages(){
+    persistMasterChatState();
     const root=$m('#messages');if(!root)return;
     const intro='<div class="msg ai">Estoy listo para ayudarte. Elige arriba el agente de VentaNexIA con el que quieres trabajar. El agente utilizará únicamente las conexiones que tengas autorizadas.</div>';
     root.innerHTML=intro+masterMessages.map((m,msgIndex)=>{
@@ -1853,19 +1886,40 @@
 
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
+    restoringChatState=true;loadMasterChatState();restoringChatState=false;
     const chatInput=ensureChatInputEditable();
+    loadChatDraft();
     if(chatInput){
       ['pointerdown','mousedown','click'].forEach(ev=>chatInput.addEventListener(ev,()=>{ensureChatInputEditable();setTimeout(()=>chatInput.focus(),0)},true));
       chatInput.addEventListener('focus',ensureChatInputEditable,true);
+      chatInput.addEventListener('input',persistChatDraft);
     }
     const clearConversation=()=>{
       masterMessages=[];
       const input=ensureChatInputEditable();if(input)input.value='';
+      clearPersistedChat();
       renderMasterMessages();
       if(input)input.focus();
     };
     const clearBtn=$m('#chatClearBtn');if(clearBtn)clearBtn.onclick=clearConversation;
     const newBtn=$m('#chatNewConversation');if(newBtn)newBtn.onclick=clearConversation;
+    window.addEventListener('storage',ev=>{
+      if(ev.key===CHAT_STATE_KEY&&ev.newValue){
+        try{
+          const raw=JSON.parse(ev.newValue);
+          if(raw&&Array.isArray(raw.messages)){
+            restoringChatState=true;
+            masterMessages=raw.messages.slice(-50);
+            restoringChatState=false;
+            renderMasterMessages();
+          }
+        }catch{}
+      }
+      if(ev.key===CHAT_DRAFT_KEY){
+        const input=ensureChatInputEditable();
+        if(input&&document.activeElement!==input)input.value=ev.newValue||'';
+      }
+    });
     renderMasterMessages();
     form.onsubmit=async e=>{
       e.preventDefault();const input=ensureChatInputEditable(),text=input?.value.trim();if(!text)return;
@@ -1881,7 +1935,7 @@
         masterMessages.push({role:'assistant',content:'Este agente está incluido, pero todavía necesita conectar su herramienta o fuente de datos. Ve a “Conexiones”, actívala y vuelve aquí.'});renderMasterMessages();return;
       }
       const visibleText=redactSensitiveChatText(text,scope);
-      masterMessages.push({role:'user',content:visibleText});input.value='';renderMasterMessages();
+      masterMessages.push({role:'user',content:visibleText});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
         const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?text:content}));
