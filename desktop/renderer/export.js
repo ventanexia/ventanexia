@@ -2,8 +2,10 @@
   function esc(v=''){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
   const SECTION_TITLES=[
+    'Resumen ejecutivo','1. Prioridades de hoy','2. Emails que requieren respuesta','3. Gestiones a realizar',
+    '4. Decisiones que debes tomar','5. Alertas y bloqueos','6. Informativos','7. Fuentes consultadas',
     'Resumen rápido','1. Lo más importante de hoy','2. Situación por área','3. Lo que ya he dejado preparado',
-    '4. Necesito tu decisión','5. Alertas','6. Siguiente paso recomendado','7. Fuentes consultadas',
+    '4. Necesito tu decisión','5. Alertas','6. Siguiente paso recomendado',
     'Buenos días · resumen breve','Mi recomendación para empezar','🟢 Puedo adelantar por ti',
     '🟡 Te lo dejo preparado para autorizar','🔴 Necesito tu decisión','📅 Agenda de hoy','Siguiente mejor acción'
   ];
@@ -53,11 +55,8 @@
     // Emojis de estado/alerta también crean línea.
     s=s.replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️|❌))/g,'\n');
 
-    // Listas numeradas pegadas.
-    s=s.replace(/\s+(?=\d+[.)]\s+[A-ZÁÉÍÓÚÑ¿])/g,'\n');
-
-    // Después de punto/interrogación en párrafos excesivamente largos.
-    s=s.replace(/([.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿])/g,'$1\n');
+    // Solo separar listas numeradas cuando hay un marcador completo; no fragmentar referencias ni frases.
+    s=s.replace(/\s+(?=\d+[.)]\s+(?:Prioridad|Área|Cuenta|Decisión|Fuente|[A-ZÁÉÍÓÚÑ¿][a-záéíóúñ]))/g,'\n');
 
     return s.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
   }
@@ -65,16 +64,20 @@
   function splitDenseLine(line){
     const clean=String(line||'').trim();
     if(!clean)return[];
-    // ; y separadores " · " suelen ser elementos independientes en los informes.
-    let parts=clean.split(/\s*(?:;|\s·\s)\s*/).map(x=>x.trim()).filter(Boolean);
-    if(parts.length===1&&clean.length>150){
-      parts=clean.split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÑ¿])/).map(x=>x.trim()).filter(Boolean);
-    }
-    // Si sigue siendo enorme, separar por etiquetas internas.
-    if(parts.length===1&&clean.length>180){
-      parts=clean.split(/(?=(?:Total|Listos|Falta(?:n)? datos|Para revisar|Stock|Estado|Pedido|Referencia|Cantidad|Cliente)\s*:)/i).map(x=>x.trim()).filter(Boolean);
-    }
+    // No partir frases completas: el informe debe conservar cada apunte como una unidad.
+    const parts=clean.split(/\s*;\s*(?=[A-ZÁÉÍÓÚÑ¿])/).map(x=>x.trim()).filter(Boolean);
     return parts.length?parts:[clean];
+  }
+  function recordFields(line=''){
+    const parts=String(line||'').replace(/^[-•▪◦]\s*/,'').split(/\s*\|\s*/).map(x=>x.trim()).filter(Boolean);
+    if(parts.length<2)return null;
+    const fields=[];
+    for(const part of parts){
+      const m=part.match(/^([^:]{2,32}):\s*(.+)$/);
+      if(!m)return null;
+      fields.push({label:m[1].trim(),value:m[2].trim()});
+    }
+    return fields.length>=2?fields:null;
   }
 
   function parseReport(text){
@@ -96,6 +99,9 @@
         if(rest)splitDenseLine(rest).forEach(x=>blocks.push({type:'bullet',text:x,section,area}));
         continue;
       }
+
+      const record=recordFields(line);
+      if(record){blocks.push({type:'record',fields:record,text:record.map(x=>x.label+': '+x.value).join(' | '),section,area});continue}
 
       const bullet=line.match(/^[-•▪◦]\s*(.+)/);
       const numbered=line.match(/^(\d+[.)])\s*(.+)/);
@@ -134,8 +140,8 @@
       rows.push([
         b.section||currentSection||'General',
         b.area||currentArea||'',
-        b.type==='question'?'Decisión':b.type==='fact'?(b.label||'Dato'):b.type==='number'?'Prioridad':'Detalle',
-        b.type==='number'?(b.marker+' '+b.text):b.text
+        b.type==='question'?'Decisión':b.type==='record'?(b.fields?.[0]?.label||'Apunte'):b.type==='fact'?(b.label||'Dato'):b.type==='number'?'Prioridad':'Detalle',
+        b.type==='record'?(b.fields||[]).map(x=>x.label+': '+x.value).join(' · '):b.type==='number'?(b.marker+' '+b.text):b.text
       ]);
     }
     return {title:'Informe VentaNexIA',text,blocks,headers:['Sección','Área','Tipo','Detalle'],rows};
@@ -156,6 +162,7 @@
     const html=(payload.blocks||[]).map(b=>{
       if(b.type==='heading')return `<section class="vnx-report-section"><h2>${esc(b.text)}</h2></section>`;
       if(b.type==='subheading')return `<h3>${esc(b.text)}</h3>`;
+      if(b.type==='record')return `<div class="vnx-pdf-record">${(b.fields||[]).map(f=>`<div><b>${esc(f.label)}</b><span>${esc(f.value)}</span></div>`).join('')}</div>`;
       if(b.type==='fact')return `<div class="vnx-pdf-fact">${b.label?`<b>${esc(b.label)}</b>`:''}<span>${esc(b.text)}</span></div>`;
       if(b.type==='question')return `<div class="vnx-pdf-question"><span>?</span><p>${esc(b.text)}</p></div>`;
       if(b.type==='number')return `<div class="vnx-pdf-item numbered"><span>${esc(b.marker)}</span><p>${esc(b.text)}</p></div>`;
@@ -214,6 +221,9 @@
       #vnxExportPreviewOverlay .vnx-pdf-item p,#vnxExportPreviewOverlay .vnx-pdf-question p{font-size:12.8px;line-height:1.5;margin:0;color:#26394c}
       #vnxExportPreviewOverlay .vnx-pdf-question{background:#fff8e8;border:1px solid #f1d79c;border-radius:8px;padding:8px 10px;margin:7px 0}
       #vnxExportPreviewOverlay .vnx-pdf-question>span{font-weight:900;color:#a46a00}
+      #vnxExportPreviewOverlay .vnx-pdf-record{border:1px solid #dce7ed;border-radius:9px;padding:9px 11px;margin:0 0 9px;background:#fbfdfe}
+      #vnxExportPreviewOverlay .vnx-pdf-record>div{display:grid;grid-template-columns:minmax(95px,145px) 1fr;gap:8px;padding:3px 0;font-size:12.2px;line-height:1.4}
+      #vnxExportPreviewOverlay .vnx-pdf-record b{color:#31566f}.vnx-pdf-record span{color:#26394c}
       #vnxExportPreviewOverlay .vnx-pdf-fact{display:grid;grid-template-columns:minmax(105px,170px) 1fr;gap:10px;padding:6px 0;border-bottom:1px solid #edf1f4;font-size:12.5px;line-height:1.45}
       #vnxExportPreviewOverlay .vnx-pdf-fact b{color:#294b62}
       #vnxExportPreviewOverlay .vnx-preview-paper footer{margin-top:34px;padding-top:12px;border-top:1px solid #e4ebf0;color:#71808c;font-size:10px}

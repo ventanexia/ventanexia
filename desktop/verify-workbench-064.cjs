@@ -14,7 +14,7 @@ const checks=[
  ['shared multi-connection selector',html.includes('id="chatSourceSelect"')&&js.includes('Todas, separadas')&&js.includes('sendSeparatedBySources')],
  ['writes blocked in all-connections mode',js.includes('Para realizar una acción elige una conexión concreta')],
  ['guided mode respects source selector',js.includes('scope.needsSourceChoice')&&js.includes('scope.separateSources?await sendSeparatedBySources')],
- ['Secretary groups multiple connections',js.includes('NO mezcles sus datos: crea un bloque claramente titulado para cada conexión')],
+ ['Secretary groups multiple connections',js.includes('NO mezcles sus datos')&&js.includes('Si existen varias conexiones del mismo tipo o varias cuentas')],
  ['own-agent card and modal',html.includes('Mis agentes propios')&&js.includes('openOwnAgentManager')],
  ['own-agent secure runtime',external.includes("safeStorage?.isEncryptionAvailable")&&external.includes("u.protocol!=='https:'")],
  ['own-agent IPC',main.includes("external-agent:list")&&preload.includes('externalAgentSave')],

@@ -1105,3 +1105,43 @@ body{
   user-select:text!important;
   -webkit-user-select:text!important;
 }
+
+
+/* 0.6.87 — controles de Carla integrados, ordenados y adaptables */
+.vnx-carla-controls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:10px 0 12px;
+  margin:0 0 2px;
+  border-bottom:1px solid rgba(74,137,177,.20);
+}
+.vnx-carla-controls .vnx-view-controls{flex:0 0 auto}
+.vnx-carla-controls .btn{white-space:nowrap}
+.vnx-carla-controls .vnx-top-mode{margin-left:auto}
+.vnx-carla-controls .vnx-chat-privacy-toggle{
+  flex:1 1 100%;
+  display:flex;
+  align-items:center;
+  gap:7px;
+  font-size:10px;
+  color:#9cb8ca;
+  opacity:.95;
+  white-space:normal;
+  padding:1px 2px 0;
+}
+.vnx-carla-controls .vnx-chat-privacy-toggle input{flex:0 0 auto}
+.vnx-work-status.informative{color:#dcefff;border-color:#527998;background:#16384e}
+.vnx-work-item.informative{border-color:#315c77}
+@media(max-width:1050px){
+  .vnx-carla-controls .vnx-top-mode{margin-left:0}
+}
+@media(max-width:700px){
+  .vnx-carla-controls{align-items:stretch}
+  .vnx-carla-controls>.btn{flex:1 1 46%}
+  .vnx-carla-controls .vnx-view-controls{width:100%;justify-content:center}
+  .vnx-carla-controls .vnx-top-mode{width:100%;grid-template-columns:1fr 1fr}
+}
+.vnx-carla-window .vnx-carla-controls #vnxPopoutWorkbench,
+.vnx-carla-window .vnx-carla-controls #vnxExpandWorkbench{display:none!important}

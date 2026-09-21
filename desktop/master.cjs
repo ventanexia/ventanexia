@@ -318,7 +318,7 @@ async function countGmailMessages(integration,q){
 }
 function gmailContextLimit(question=''){
   const q=norm(question);
-  const broad=/todos los correos|todos mis correos|bandeja completa|resumen completo|informe completo|ultimos 20|esta semana|semana completa|resumen semanal|ultimos dias|últimos dias|desde el lunes|desde lunes|este mes|mes completo|resumen mensual|ultimas dos semanas|últimas dos semanas|ultimos 7 dias|últimos 7 dias/.test(q);
+  const broad=/todos los correos|todos mis correos|bandeja completa|resumen completo|informe completo|ultimos 20|esta semana|semana completa|resumen semanal|resumen de la semana|informe de la semana|correos de la semana|ultimos dias|últimos dias|desde el lunes|desde lunes|este mes|mes completo|resumen mensual|resumen del mes|informe del mes|ultimas dos semanas|últimas dos semanas|ultimos 7 dias|últimos 7 dias/.test(q);
   return broad?16:10;
 }
 async function collectGmailContextMaster(integration,question=''){
