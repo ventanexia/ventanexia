@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.85",
+  "version": "0.6.86",
   "private": true,
-  "description": "VentaNexIA Desktop · última respuesta de Gmail bajo demanda, contexto semanal/mensual ampliado y privacidad de Carla al cerrar · 0.6.85",
+  "description": "VentaNexIA Desktop · escritura en modo libre corregida en todos los agentes, clasificación de email mejorada, Gmail rápido y OCR PDF · 0.6.86",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",

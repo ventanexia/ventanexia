@@ -926,7 +926,7 @@
     if(free)free.style.display=isGuided?'none':'block';
     gbtn?.classList.toggle('active',isGuided);fbtn?.classList.toggle('active',!isGuided);
     localStorage.setItem('vnx_workspace_mode',isGuided?'guided':'free');
-    if(!isGuided)setTimeout(()=>ensureChatInputEditable()?.focus(),30);
+    if(!isGuided)setTimeout(()=>keepChatComposerUsable({focus:true}),30);
   }
   function workbenchLanguage(){return localStorage.getItem('vnx_translation_language')||'Español'}
   function likelyForeignMail(m={}){
@@ -1021,6 +1021,14 @@
     const s=(' '+String(m.subject||'')+' '+String(m.snippet||'')+' '+String(m.body||'')+' ').toLowerCase();
     return Number(m.attentionScore||0)>=6||/\b(descuent|precio especial|rebaja|devoluci[oó]n|reembolso|cancel|reclamaci[oó]n|queja|contrato|legal|abogad|impago|pago pendiente|condiciones de pago|vencimiento|compensaci[oó]n|penalizaci[oó]n|excepci[oó]n|entrega urgente|plazo excepcional)\b/.test(s);
   }
+  function emailAsksForReply(m={}){
+    const subject=String(m.subject||'').toLowerCase();
+    const snippetBody=String(m.snippet||'')+' '+String(m.body||'');
+    const body=(' '+snippetBody+' ').toLowerCase();
+    const phrase=/\b(responde|resp[oó]ndenos|contesta|confirma(?:r|nos)?(?: por favor)?|necesitamos (?:tu|la) (?:respuesta|confirmaci[oó]n)|quedamos a la espera|esperamos tu respuesta|puedes confirmar|puedes decirnos|podeis confirmar|pod[eé]is confirmar|podr[ií]ais confirmar|nos pod[eé]is (?:decir|confirmar)|could you|please reply|let us know)\b/.test(body);
+    const question=/[?¿]/.test(subject+' '+snippetBody)&&Number(m.replyScore||0)>-5;
+    return phrase||question;
+  }
   function emailIsInformative(m={}){
     if(m.noReply)return true;
     const from=String(m.from||'').toLowerCase();
@@ -1029,17 +1037,16 @@
     const noReplySender=/\b(no[-_. ]?reply|noreply|do[-_. ]?not[-_. ]?reply|donotreply|mailer-daemon|notification[s]?|notifications|avisos?)\b/.test(from);
     const automaticSubject=/\b(confirmaci[oó]n|confirmado|recibo|factura emitida|newsletter|bolet[ií]n|notificaci[oó]n|aviso|actualizaci[oó]n|estado del pedido|pedido recibido|pago recibido|suscripci[oó]n|resumen semanal|resumen mensual|informe autom[aá]tico|copia de seguridad|backup)\b/.test(subject);
     const automaticBody=/\b(este (?:es|ha sido) un mensaje autom[aá]tico|no respondas a este (?:mensaje|correo)|do not reply|please do not reply|mensaje generado autom[aá]ticamente)\b/.test(body);
-    const asksReply=/\b(responde|resp[oó]ndenos|contesta|confirma por favor|necesitamos tu respuesta|quedamos a la espera|esperamos tu respuesta|puedes confirmar|could you|please reply|let us know)\b/.test(body);
-    return noReplySender||automaticBody||(automaticSubject&&!asksReply&&Number(m.replyScore||0)<=0);
+    return noReplySender||automaticBody||(automaticSubject&&!emailAsksForReply(m));
   }
   function automaticEmailIds(){try{return new Set(JSON.parse(localStorage.getItem('vnx_auto_replied_ids')||'[]'))}catch{return new Set()}}
   function emailWorkBucket(m={}){
     const auto=automaticEmailIds();
     if(auto.has(m.id))return 'automatic';
     if(m.responded)return 'resolved';
-    if(emailIsInformative(m))return 'informative';
     if(emailNeedsDecision(m))return 'decision';
-    if(Number(m.replyScore||0)>0)return 'review';
+    if(emailIsInformative(m))return 'informative';
+    if(Number(m.replyScore||0)>0||emailAsksForReply(m))return 'review';
     return 'informative';
   }
   async function loadWorkQueueData(force=false){
@@ -1274,16 +1281,32 @@
 
   function ensureChatInputEditable(){
     const input=$m('#chatInput');if(!input)return null;
+    const form=$m('#chatForm');
     input.disabled=false;
     input.readOnly=false;
     input.removeAttribute('disabled');
     input.removeAttribute('readonly');
+    input.setAttribute('aria-disabled','false');
     input.style.pointerEvents='auto';
     input.style.userSelect='text';
     input.style.webkitUserSelect='text';
     input.style.webkitAppRegion='no-drag';
+    input.style.position='relative';
+    input.style.zIndex='30';
     input.tabIndex=0;
+    if(form){form.style.pointerEvents='auto';form.style.position='relative';form.style.zIndex='29'}
     return input;
+  }
+  function keepChatComposerUsable({focus=false}={}){
+    const input=ensureChatInputEditable();
+    if(!input)return;
+    const free=$m('#freeModePanel');
+    if(free&&free.style.display!=='none'){
+      free.style.pointerEvents='auto';
+      free.style.position='relative';
+      free.style.zIndex='10';
+      if(focus)setTimeout(()=>{ensureChatInputEditable()?.focus({preventScroll:true})},0);
+    }
   }
   function updateAgentInputExample(chosen){
     const input=ensureChatInputEditable();if(!input)return;
@@ -1529,10 +1552,10 @@
       updateWorkbenchAgent(chosen);
       refreshWorkbenchConnections();
       refreshAgentSourceSelector(chosen);
-      if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>input.focus(),30);
+      if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>keepChatComposerUsable({focus:true}),30);
     };
     const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
-    ensureChatInputEditable();
+    keepChatComposerUsable();
     updateAgentHint(selectedAgent,hint);
     updateAgentInputExample(selectedAgent);
     renderGuidedAgentTabs(items,selectedAgent);
@@ -1540,7 +1563,7 @@
     updateWorkbenchAgent(selectedAgent);
     refreshWorkbenchConnections();
     refreshAgentSourceSelector(selectedAgent);
-    const sourceSelect=$m('#chatSourceSelect');if(sourceSelect)sourceSelect.onchange=()=>{const hint2=$m('#chatSourceHint');if(hint2&&sourceSelect.value)hint2.textContent=sourceSelect.value==='__all__'?'Mostraré cada conexión en un bloque separado. Para enviar o modificar algo, deberás elegir una sola conexión.':'Usaré únicamente esta conexión.'};
+    const sourceSelect=$m('#chatSourceSelect');if(sourceSelect)sourceSelect.onchange=()=>{const hint2=$m('#chatSourceHint');if(hint2&&sourceSelect.value)hint2.textContent=sourceSelect.value==='__all__'?'Mostraré cada conexión en un bloque separado. Para enviar o modificar algo, deberás elegir una sola conexión.':'Usaré únicamente esta conexión.';keepChatComposerUsable({focus:true})};
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -1933,9 +1956,11 @@
     const chatInput=ensureChatInputEditable();
     loadChatDraft();
     if(chatInput){
-      ['pointerdown','mousedown','click'].forEach(ev=>chatInput.addEventListener(ev,()=>{ensureChatInputEditable();setTimeout(()=>chatInput.focus(),0)},true));
-      chatInput.addEventListener('focus',ensureChatInputEditable,true);
+      ['pointerdown','mousedown','click'].forEach(ev=>chatInput.addEventListener(ev,()=>keepChatComposerUsable({focus:true}),true));
+      chatInput.addEventListener('focus',()=>keepChatComposerUsable(),true);
       chatInput.addEventListener('input',persistChatDraft);
+      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')keepChatComposerUsable()});
+      window.addEventListener('focus',()=>keepChatComposerUsable());
     }
     const clearConversation=()=>{
       masterMessages=[];
