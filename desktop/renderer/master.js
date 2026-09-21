@@ -1023,7 +1023,7 @@
   function workItemHtml(m,tab,index){
     const original=String(m.body||m.snippet||'').slice(0,1400);
     const sent=String(m.sentBody||'').trim();
-    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'La conversación aparece como respondida. El texto de la respuesta se carga poco a poco en las próximas actualizaciones; también puedes verla en Gmail.'):(m.defaultBody||'');
+    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'La conversación aparece como respondida, pero Gmail no ha devuelto el texto de la respuesta.'):(m.defaultBody||'');
     const decision=tab==='decision'?'<div class="vnx-work-decision"><input data-work-decision placeholder="Indica tu decisión. Ej.: ofrece 10 % y entrega en 7 días"><button class="btn outline" data-work-apply-decision>Preparar con mi decisión</button></div>':'';
     const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='decision'?'Necesita tu decisión':'Para revisar';
     const statusClass=tab==='automatic'?'automatic':tab==='resolved'?'resolved':tab==='decision'?'decision':'review';
