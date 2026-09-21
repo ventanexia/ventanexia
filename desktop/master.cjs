@@ -5,7 +5,7 @@ const crypto=require('node:crypto');
 const {normalizeChatScope,parseGmailContext,emailAgentDirectReply,scoreMailAttention,needsReplyScore}=require('./agent-email.cjs');
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster,connectionLimit}=require('./agent-policy.cjs');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
-const {gmailCall}=require('./gmail-auth.cjs');
+const {gmailCall,gmailFetch,friendlyGmailError}=require('./gmail-auth.cjs');
 let prospecting=null;
 try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
 
@@ -219,17 +219,17 @@ ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean
 
 
 async function gmailApi(token,pathAndQuery){
-  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{headers:{Authorization:'Bearer '+token}});
+  const r=await gmailFetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{headers:{Authorization:'Bearer '+token}});
   const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={}}
-  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
+  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw friendlyGmailError(e)}
   return j;
 }
 async function gmailWrite(token,pathAndQuery,{method='POST',body=null,raw=false}={}){
   const headers={Authorization:'Bearer '+token};
   if(body!==null)headers['Content-Type']='application/json';
-  const r=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{method,headers,body:body===null?undefined:JSON.stringify(body)});
+  const r=await gmailFetch('https://gmail.googleapis.com/gmail/v1/users/me/'+pathAndQuery,{method,headers,body:body===null?undefined:JSON.stringify(body)});
   const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch{j={raw:txt}}
-  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw e}
+  if(!r.ok){const e=new Error(j?.error?.message||('Gmail respondió '+r.status));e.status=r.status;throw friendlyGmailError(e)}
   return j;
 }
 function mimeHeader(v=''){const t=String(v||'').replace(/[\r\n]+/g,' ');return /^[\x20-\x7e]*$/.test(t)?t:'=?UTF-8?B?'+Buffer.from(t,'utf8').toString('base64')+'?='}
