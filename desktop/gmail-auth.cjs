@@ -183,7 +183,7 @@ async function gmailFetch(url,opts={}){
 // Convierte cualquier error de cuota (raw de Google) en un mensaje claro para el usuario.
 function friendlyGmailError(e){
   if(e&&e.code==='GMAIL_QUOTA')return e;
-  if(e&&(e.status===429||((e.status===403||!e.status)&&isGmailQuotaText(e.message)))return gmailQuotaError();
+  if(e&&(e.status===429||((e.status===403||!e.status)&&isGmailQuotaText(e.message))))return gmailQuotaError();
   return e;
 }
 
