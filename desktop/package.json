@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.84",
+  "version": "0.6.85",
   "private": true,
-  "description": "VentaNexIA Desktop · correos informativos separados de pendientes, Carla sincronizada entre ventanas, respuestas rápidas, Gmail optimizado y OCR PDF · 0.6.84",
+  "description": "VentaNexIA Desktop · última respuesta de Gmail bajo demanda, contexto semanal/mensual ampliado y privacidad de Carla al cerrar · 0.6.85",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
