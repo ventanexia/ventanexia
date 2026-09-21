@@ -379,7 +379,7 @@ async function gmailThreadResponseInfo(integration,threadId){
     const sent=(t.messages||[]).filter(m=>(m.labelIds||[]).includes('SENT')).sort((a,b)=>Number(a.internalDate||0)-Number(b.internalDate||0));
     const last=sent[sent.length-1];
     return {responded:Boolean(last),sentBody:last?gmailMessageText(last.payload).slice(0,6000):''};
-  }catch{return {responded:false,sentBody:''}}
+  }catch(e){if(e?.code==='GMAIL_QUOTA')throw e;return {responded:false,sentBody:''}}
 }
 async function gmailThreadHasSent(integration,threadId){return (await gmailThreadResponseInfo(integration,threadId)).responded}
 async function gmailNoReplyLabelId(integration,{create=false}={}){
@@ -394,41 +394,86 @@ async function gmailNoReplyLabelId(integration,{create=false}={}){
   }}));
   return created?.id||'';
 }
-async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLabelId=''}={}){
+
+const gmailReadCache=new Map();
+const gmailSentThreadCache=new Map();
+const gmailSentBodyCache=new Map();
+const gmailSharedInflight=new Map();
+function gmailAccountId(integration){return String(integration?.meta?.email||integration?.label||integration?.account||'Gmail').trim().toLowerCase()}
+function gmailCacheKey(kind,payload={}){return kind+'|'+String(payload.account||'')+'|'+String(Number.isInteger(payload.accountIndex)?payload.accountIndex:'all')+'|'+String(payload.limit||'')}
+function gmailCacheGet(key,maxAge=45000){const x=gmailReadCache.get(key);return x&&Date.now()-x.at<=maxAge?x.value:null}
+function gmailCacheStale(key){return gmailReadCache.get(key)?.value||null}
+function gmailCacheSet(key,value){gmailReadCache.set(key,{at:Date.now(),value});return value}
+function clearGmailReadCache(){gmailReadCache.clear();gmailSentThreadCache.clear()}
+async function gmailShared(key,maxAge,producer){
+  const hit=gmailReadCache.get(key);if(hit&&Date.now()-hit.at<=maxAge)return hit.value;
+  if(gmailSharedInflight.has(key))return gmailSharedInflight.get(key);
+  const p=Promise.resolve().then(producer).then(v=>gmailCacheSet(key,v)).finally(()=>gmailSharedInflight.delete(key));
+  gmailSharedInflight.set(key,p);return p;
+}
+async function gmailListRefs(integration,query,{maxPages=2,labelIds=[]}={}){
+  const out=[];let pageToken='',pages=0;
+  do{
+    const params=new URLSearchParams({maxResults:'500',q:query});
+    for(const l of labelIds.filter(Boolean))params.append('labelIds',l);
+    if(pageToken)params.set('pageToken',pageToken);
+    const j=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
+    out.push(...(j.messages||[]));pageToken=j.nextPageToken||'';pages++;
+  }while(pageToken&&pages<maxPages);
+  return out;
+}
+async function gmailSentThreadSet(integration,sinceMs=Date.now()-30*86400000){
+  const account=gmailAccountId(integration),cached=gmailSentThreadCache.get(account);
+  if(cached&&Date.now()-cached.at<110000&&cached.since<=sinceMs)return cached.set;
+  const since=Math.floor(sinceMs/1000);
+  const refs=await gmailListRefs(integration,'in:sent after:'+since,{maxPages:4});
+  const set=new Set(refs.map(x=>x.threadId).filter(Boolean));
+  gmailSentThreadCache.set(account,{at:Date.now(),since:sinceMs,set});
+  return set;
+}
+async function gmailSentBodyOf(integration,threadId,{fetchNow=true}={}){
+  if(!threadId)return '';
+  const key=gmailAccountId(integration)+'|'+threadId,hit=gmailSentBodyCache.get(key);
+  if(hit&&Date.now()-hit.at<20*60*1000)return hit.body;
+  if(!fetchNow)return '';
+  const info=await gmailThreadResponseInfo(integration,threadId);
+  gmailSentBodyCache.set(key,{at:Date.now(),body:info.sentBody||''});
+  return info.sentBody||'';
+}
+async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLabelId='',maxSentBodies=8}={}){
   const params=new URLSearchParams({maxResults:String(maxResults),q});
   const list=await gmailCall(integration,tok=>gmailApi(tok,'messages?'+params.toString()));
   const ids=(list.messages||[]).map(x=>x.id).filter(Boolean).slice(0,maxResults);
   const account=integration?.meta?.email||integration?.label||integration?.account||'Gmail';
-  return Promise.all(ids.map(async id=>{
+  const msgs=await Promise.all(ids.map(id=>{
     const p=new URLSearchParams({format:'full'});
-    const m=await gmailCall(integration,tok=>gmailApi(tok,'messages/'+encodeURIComponent(id)+'?'+p.toString()));
+    return gmailCall(integration,tok=>gmailApi(tok,'messages/'+encodeURIComponent(id)+'?'+p.toString()));
+  }));
+  const oldest=msgs.reduce((m,x)=>Math.min(m,Number(x?.internalDate||Date.now())),Date.now());
+  let sentThreads=new Set();
+  try{sentThreads=await gmailSentThreadSet(integration,oldest-7*86400000)}catch(e){if(e?.code==='GMAIL_QUOTA')throw e}
+  let bodyBudget=maxSentBodies;const rows=[];
+  for(const m of msgs){
     const headers={};for(const h of m.payload?.headers||[])headers[String(h.name||'').toLowerCase()]=String(h.value||'');
-    const responseInfo=await gmailThreadResponseInfo(integration,m.threadId||'');const responded=responseInfo.responded;
-    const unread=(m.labelIds||[]).includes('UNREAD');
-    const noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
+    const threadId=m.threadId||'',responded=Boolean(threadId&&sentThreads.has(threadId));
+    let sentBody='';
+    if(responded){
+      sentBody=await gmailSentBodyOf(integration,threadId,{fetchNow:false});
+      if(!sentBody&&bodyBudget>0){bodyBudget--;try{sentBody=await gmailSentBodyOf(integration,threadId)}catch(e){if(e?.code==='GMAIL_QUOTA')bodyBudget=0}}
+    }
+    const unread=(m.labelIds||[]).includes('UNREAD'),noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
     const body=gmailMessageText(m.payload)||String(m.snippet||'').replace(/\s+/g,' ').trim();
-    return {
-      account,id:m.id||id,threadId:m.threadId||'',from:headers.from||'',to:headers.to||'',
-      subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
-      snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
-      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,sentBody:responseInfo.sentBody||'',
+    rows.push({
+      account,id:m.id,threadId,from:headers.from||'',to:headers.to||'',subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
+      snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,sentBody,
       status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
       defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')}),
       attentionScore:scoreMailAttention({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''}),
       replyScore:needsReplyScore({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''})
-    };
-  }));
+    });
+  }
+  return rows;
 }
-
-const gmailReadCache=new Map();
-function gmailCacheKey(kind,payload={}){
-  return kind+'|'+String(payload.account||'')+'|'+String(Number.isInteger(payload.accountIndex)?payload.accountIndex:'all')+'|'+String(payload.limit||'');
-}
-function gmailCacheGet(key,maxAge=45000){
-  const x=gmailReadCache.get(key);if(!x||Date.now()-x.at>maxAge)return null;return x.value;
-}
-function gmailCacheSet(key,value){gmailReadCache.set(key,{at:Date.now(),value});return value}
-function clearGmailReadCache(){gmailReadCache.clear()}
 
 async function gmailTodayBounds(){
   const start=new Date();start.setHours(0,0,0,0);
