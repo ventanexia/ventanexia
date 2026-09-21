@@ -11,7 +11,7 @@
   function serializableMessages(list=masterMessages){
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
-      emailActions:m.emailActions||null,handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
+      emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
       handoffInternal:Boolean(m.handoffInternal)
     }));
   }
@@ -1007,7 +1007,7 @@
     masterMessages.push({role:'user',content:kind==='translate'?'🌐 Traducir correos recientes a '+lang:'✉️ Resumen de emails'});renderMasterMessages();
     try{
       const r=await window.vnx.sendChat([{role:'user',content:prompt}],selectedChatScope());
-      masterMessages.push({role:'assistant',content:r.reply||'No he podido revisar los correos.',emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
+      masterMessages.push({role:'assistant',content:r.reply||'No he podido revisar los correos.',emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null});renderMasterMessages({focusIndex:masterMessages.length-1});
     }catch(e){masterMessages.push({role:'assistant',content:'No he podido revisar el correo: '+(e.message||e)});renderMasterMessages()}
   }
   async function autoTranslateFreshEmails(){ return; }
@@ -1171,15 +1171,22 @@
   function looksLikeWriteAction(text=''){return /\b(envia|manda|archiva|borra|elimina|publica|crea|modifica|actualiza|responde|contesta|entrega|registra)\b/i.test(String(text))}
   async function sendSeparatedBySources(text,scope,payload){
     if(looksLikeWriteAction(text))throw new Error('Para realizar una acción elige una conexión concreta. Así evitamos actuar en la cuenta equivocada.');
-    const blocks=[];
+    const blocks=[],emailActionGroups=[];
     for(const src of (scope.sources||[])){
       const direct=sourceScope(src);if(!direct)continue;
       const specialist=String(scope.name||'VentaNexIA').replace(/^\S+\s/,'');
-      const q='Actúa como '+specialist+'. Consulta SOLO esta conexión: '+src.label+'. '+text+'\nNo mezcles datos de otras conexiones.';
-      try{const r=await window.vnx.sendChat([{role:'user',content:q}],direct);blocks.push('## '+src.label+'\n\n'+(r.reply||'Sin información disponible.'))}
-      catch(e){blocks.push('## '+src.label+'\n\nNo he podido consultar esta conexión: '+(e.message||e))}
+      const isEmail=String(src.module||src.key||'').includes('email')||String(direct.key||'')==='email';
+      const instruction=isEmail
+        ?'No copies el correo completo ni prepares texto de relleno. Resume SOLO lo útil para trabajar. Formato: **Resumen:** una frase; **Qué pide:** una frase; **¿Requiere respuesta?:** Sí/No; **Acción recomendada:** una frase. Si requiere respuesta, añade **Respuesta propuesta:** con un texto breve y listo para enviar. Si es informativo/noreply, dilo y no redactes respuesta.'
+        :'Da primero un **Resumen rápido** de 2-5 puntos y después solo tareas, decisiones o datos útiles agrupados por tipo. No vuelques datos en bruto si puedes resumirlos.';
+      const q='Actúa como '+specialist+'. Consulta SOLO esta conexión: '+src.label+'. '+text+'\n'+instruction+'\nNo mezcles datos de otras conexiones.';
+      try{
+        const r=await window.vnx.sendChat([{role:'user',content:q}],direct);
+        blocks.push('## '+src.label+'\n\n'+(r.reply||'Sin información disponible.'));
+        if(isEmail&&r.emailActions?.messageId)emailActionGroups.push({label:src.label,meta:r.emailActions});
+      }catch(e){blocks.push('## '+src.label+'\n\nNo he podido consultar esta conexión: '+(e.message||e))}
     }
-    return {reply:blocks.join('\n\n---\n\n')||'No hay conexiones compatibles para esta consulta.'};
+    return {reply:blocks.join('\n\n---\n\n')||'No hay conexiones compatibles para esta consulta.',emailActionGroups};
   }
   async function refreshOwnAgentsCard(){
     const root=$m('#ownAgentsSummary');if(!root)return;
@@ -1739,10 +1746,11 @@
       if(m.handoffInternal)return '';
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
+      const groupedActions=Array.isArray(m.emailActionGroups)&&m.emailActionGroups.length?'<div class="vnx-email-action-groups">'+m.emailActionGroups.map((g,gi)=>'<div class="vnx-email-action-group"><b>'+escM(g.label||g.meta?.subject||'Email')+'</b><div class="row">'+(g.meta?.options||[]).filter(a=>['draft_reply','send_reply','archive','mark_read','no_reply_needed'].includes(a.key)).map(a=>'<button class="mini grouped-email-action-btn" data-master-msg="'+msgIndex+'" data-email-group="'+gi+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div></div>').join('')+'</div>':'';
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${secretaryActions}${handoff}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -1767,7 +1775,26 @@
         renderMasterMessages();
       }
     });
-    $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
+    $m('.grouped-email-action-btn').forEach(btn=>btn.onclick=async()=>{
+      const mi=Number(btn.dataset.masterMsg),gi=Number(btn.dataset.emailGroup);
+      const msg=masterMessages[mi],group=msg?.emailActionGroups?.[gi],meta=group?.meta,action=btn.dataset.action;
+      if(!meta)return;
+      let body='',cc='';
+      if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
+        const edited=await openReplyEditor({meta,action});if(!edited)return;
+        body=edited.body;cc=edited.cc||'';
+      }
+      if(action==='send_reply'&&!confirm('¿Enviar esta respuesta ahora desde '+(meta.account||'esta cuenta')+'?'))return;
+      const old=btn.textContent;btn.disabled=true;btn.textContent='Procesando…';
+      try{
+        const out=await window.vnx.emailAction({account:meta.account,messageId:meta.messageId,threadId:meta.threadId,subject:meta.subject,from:meta.from,action,body,cc});
+        btn.textContent='Hecho ✓';
+        if(['archive','mark_read','no_reply_needed'].includes(action))setTimeout(()=>{btn.remove()},700);
+        if(action==='send_reply')masterMessages.push({role:'assistant',content:out?.message||'Respuesta enviada.'});
+      }catch(e){alert(e.message||e);btn.textContent=old}
+      finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
+    });
+    $m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
     $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
@@ -1796,7 +1823,7 @@
         const scope=selectedChatScope();
         const payload=masterMessages.filter(x=>!x.handoffInternal||x===masterMessages[masterMessages.length-1]).map(({role,content})=>({role,content}));
         const r=await window.vnx.sendChat(payload,scope);
-        masterMessages.push({role:'assistant',content:r.reply||'Sin respuesta',images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});
+        masterMessages.push({role:'assistant',content:r.reply||'Sin respuesta',images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null});
       }catch(e){
         masterMessages.push({role:'assistant',content:'No he podido pasar la tarea al empleado: '+(e.message||e)});
       }
@@ -2004,10 +2031,13 @@
         try{
           const raw=JSON.parse(ev.newValue);
           if(raw&&Array.isArray(raw.messages)){
+            const oldCount=masterMessages.length;
             restoringChatState=true;
             masterMessages=raw.messages.slice(-50);
             restoringChatState=false;
-            renderMasterMessages({persist:false});
+            const newest=masterMessages[masterMessages.length-1];
+            const focusNew=masterMessages.length>oldCount&&newest?.role==='assistant'?masterMessages.length-1:null;
+            renderMasterMessages({persist:false,focusIndex:focusNew});
           }
         }catch{}
       }
@@ -2049,7 +2079,7 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai'});renderMasterMessages();
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai'});renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
