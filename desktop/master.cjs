@@ -483,6 +483,7 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLab
         try{sentBody=await gmailSentBodyOf(integration,threadId)}catch(e){if(e?.code==='GMAIL_QUOTA')bodyBudget=0}
       }
     }
+    const responseInfo={responded,sentBody};
     const unread=(m.labelIds||[]).includes('UNREAD');
     const noReply=Boolean(noReplyLabelId&&(m.labelIds||[]).includes(noReplyLabelId));
     const body=gmailMessageText(m.payload)||String(m.snippet||'').replace(/\s+/g,' ').trim();
@@ -490,7 +491,7 @@ async function gmailInboxRows(integration,{maxResults=20,q='in:inbox',noReplyLab
       account,id:m.id,threadId,from:headers.from||'',to:headers.to||'',
       subject:headers.subject||'(sin asunto)',date:headers.date||'',internalDate:Number(m.internalDate||0),
       snippet:String(m.snippet||'').replace(/\s+/g,' ').trim(),body,
-      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded,noReply,sentBody:sentBody||'',
+      unread,important:(m.labelIds||[]).includes('IMPORTANT'),responded:responseInfo.responded,noReply,sentBody:responseInfo.sentBody||'',
       status:noReply?'no_reply':(unread?'unread':(responded?'responded':'pending')),
       defaultBody:defaultReplyBody({subject:headers.subject||'',snippet:String(m.snippet||'')}),
       attentionScore:scoreMailAttention({subject:headers.subject||'',snippet:String(m.snippet||''),status:unread?'NO LEÍDO':'leído',from:headers.from||''}),
