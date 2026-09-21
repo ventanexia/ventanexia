@@ -1020,14 +1020,26 @@
     const s=(' '+String(m.subject||'')+' '+String(m.snippet||'')+' '+String(m.body||'')+' ').toLowerCase();
     return Number(m.attentionScore||0)>=6||/\b(descuent|precio especial|rebaja|devoluci[oó]n|reembolso|cancel|reclamaci[oó]n|queja|contrato|legal|abogad|impago|pago pendiente|condiciones de pago|vencimiento|compensaci[oó]n|penalizaci[oó]n|excepci[oó]n|entrega urgente|plazo excepcional)\b/.test(s);
   }
+  function emailIsInformative(m={}){
+    if(m.noReply)return true;
+    const from=String(m.from||'').toLowerCase();
+    const subject=String(m.subject||'').toLowerCase();
+    const body=(' '+String(m.snippet||'')+' '+String(m.body||'')+' ').toLowerCase();
+    const noReplySender=/\b(no[-_. ]?reply|noreply|do[-_. ]?not[-_. ]?reply|donotreply|mailer-daemon|notification[s]?|notifications|avisos?)\b/.test(from);
+    const automaticSubject=/\b(confirmaci[oó]n|confirmado|recibo|factura emitida|newsletter|bolet[ií]n|notificaci[oó]n|aviso|actualizaci[oó]n|estado del pedido|pedido recibido|pago recibido|suscripci[oó]n|resumen semanal|resumen mensual|informe autom[aá]tico|copia de seguridad|backup)\b/.test(subject);
+    const automaticBody=/\b(este (?:es|ha sido) un mensaje autom[aá]tico|no respondas a este (?:mensaje|correo)|do not reply|please do not reply|mensaje generado autom[aá]ticamente)\b/.test(body);
+    const asksReply=/\b(responde|resp[oó]ndenos|contesta|confirma por favor|necesitamos tu respuesta|quedamos a la espera|esperamos tu respuesta|puedes confirmar|could you|please reply|let us know)\b/.test(body);
+    return noReplySender||automaticBody||(automaticSubject&&!asksReply&&Number(m.replyScore||0)<=0);
+  }
   function automaticEmailIds(){try{return new Set(JSON.parse(localStorage.getItem('vnx_auto_replied_ids')||'[]'))}catch{return new Set()}}
   function emailWorkBucket(m={}){
     const auto=automaticEmailIds();
     if(auto.has(m.id))return 'automatic';
-    if(m.responded||m.noReply)return 'resolved';
+    if(m.responded)return 'resolved';
+    if(emailIsInformative(m))return 'informative';
     if(emailNeedsDecision(m))return 'decision';
     if(Number(m.replyScore||0)>0)return 'review';
-    return 'review';
+    return 'informative';
   }
   async function loadWorkQueueData(force=false){
     if(!force&&Date.now()-workQueueCache.at<45000)return workQueueCache.rows;
@@ -1036,7 +1048,7 @@
     workQueueCache={at:Date.now(),rows};return rows;
   }
   function workCounts(rows=[]){
-    const out={automatic:0,review:0,decision:0,resolved:0,pending:0};
+    const out={automatic:0,review:0,decision:0,informative:0,resolved:0,pending:0};
     rows.forEach(m=>{const k=emailWorkBucket(m);out[k]=(out[k]||0)+1});return out;
   }
   function accountIndexForMail(m){
@@ -1055,25 +1067,27 @@
   function workItemHtml(m,tab,index){
     const original=String(m.body||m.snippet||'').slice(0,1400);
     const sent=String(m.sentBody||'').trim();
-    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'Respuesta detectada. Para acelerar la bandeja no se carga el texto completo hasta que abras la conversación en Gmail.'):(m.defaultBody||'');
+    const suggested=(tab==='resolved'||tab==='automatic')?(sent||'Respuesta detectada. Para acelerar la bandeja no se carga el texto completo hasta que abras la conversación en Gmail.'):(tab==='informative'?'':(m.defaultBody||''));
     const decision=tab==='decision'?'<div class="vnx-work-decision"><input data-work-decision placeholder="Indica tu decisión. Ej.: ofrece 10 % y entrega en 7 días"><button class="btn outline" data-work-apply-decision>Preparar con mi decisión</button></div>':'';
-    const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='decision'?'Necesita tu decisión':'Para revisar';
-    const statusClass=tab==='automatic'?'automatic':tab==='resolved'?'resolved':tab==='decision'?'decision':'review';
-    const buttons=(tab==='resolved'||tab==='automatic')
+    const status=tab==='automatic'?'Enviado automáticamente':tab==='resolved'?'Resuelto':tab==='informative'?'Informativo · no requiere respuesta':tab==='decision'?'Necesita tu decisión':'Importante · revisar';
+    const statusClass=tab==='automatic'?'automatic':tab==='resolved'?'resolved':tab==='informative'?'informative':tab==='decision'?'decision':'review';
+    const buttons=(tab==='resolved'||tab==='automatic'||tab==='informative')
       ?'<button data-work-open>Ver conversación en Gmail</button>'
       :'<button class="primary" data-work-send>Enviar</button><button data-work-edit>Modificar</button><button data-work-ai>Mejorar con IA</button><button data-work-draft>Guardar borrador</button><button data-work-no-reply>No requiere respuesta</button>';
-    const responseTitle=tab==='automatic'?'Respuesta enviada automáticamente':tab==='resolved'?'Última respuesta enviada':'Respuesta preparada por Carla';
+    const responseTitle=tab==='automatic'?'Respuesta enviada automáticamente':tab==='resolved'?'Última respuesta enviada':tab==='informative'?'Clasificación de Carla':'Respuesta preparada por Carla';
     const reason=tab==='decision'
       ?'Carla ha detectado que este correo puede implicar precio, condiciones, reclamación u otra decisión que debe tomar una persona.'
       :tab==='automatic'
         ?'Esta respuesta figura como enviada automáticamente por VentaNexIA.'
         :tab==='resolved'
           ?'Esta conversación ya aparece como atendida.'
-          :'Carla lo ha dejado en tu bandeja de revisión para que decidas si responder, modificar o cerrar.';
+          :tab==='informative'
+            ?'Carla ha detectado que es un aviso, confirmación o correo informativo que no requiere respuesta.'
+            :'Carla lo considera importante y lo ha dejado para que lo revises antes de responder o cerrar.';
     return '<article class="vnx-work-item '+statusClass+'" data-work-index="'+index+'">'
       +'<div class="vnx-work-item-head"><div><span class="vnx-work-status '+statusClass+'">'+escM(status)+'</span><b>'+escM(m.subject||'(sin asunto)')+'</b><small>'+escM(m.from||'Remitente no disponible')+' · '+escM(m.date||'Fecha no disponible')+'</small></div><span class="vnx-work-chip">✉ '+escM(m.account||'Email')+'</span></div>'
       +'<div class="vnx-work-why">'+escM(reason)+'</div>'
-      +'<div class="vnx-work-columns"><div class="vnx-work-pane"><h4>Correo recibido</h4><p>'+escM(original||'Sin contenido').replace(/\n/g,'<br>')+'</p></div><div class="vnx-work-pane"><h4>'+escM(responseTitle)+'</h4>'+((tab==='resolved'||tab==='automatic')?'<p data-work-sent>'+escM(suggested).replace(/\n/g,'<br>')+'</p>':'<textarea data-work-reply>'+escM(suggested)+'</textarea>')+decision+'</div></div>'
+      +'<div class="vnx-work-columns"><div class="vnx-work-pane"><h4>Correo recibido</h4><p>'+escM(original||'Sin contenido').replace(/\n/g,'<br>')+'</p></div><div class="vnx-work-pane"><h4>'+escM(responseTitle)+'</h4>'+((tab==='resolved'||tab==='automatic')?'<p data-work-sent>'+escM(suggested).replace(/\n/g,'<br>')+'</p>':tab==='informative'?'<p>Este correo se ha separado de tus pendientes porque no parece necesitar contestación.</p>':'<textarea data-work-reply>'+escM(suggested)+'</textarea>')+decision+'</div></div>'
       +'<div class="vnx-work-actions">'+buttons+'</div><div data-work-msg style="font-size:9px;color:#88b4ca;margin-top:7px"></div></article>';
   }
   async function renderWorkQueue(overlay,tab='review',force=false){
@@ -1084,7 +1098,7 @@
       let selected=rows.filter(m=>emailWorkBucket(m)===tab);
       if(tab==='automatic')selected=rows.filter(m=>auto.has(m.id));
       const groups=groupWorkByAccount(selected);
-      body.innerHTML=groups.length?groups.map(([account,items])=>'<section><h3 class="vnx-work-account">'+escM(account)+'</h3>'+items.map((m,i)=>workItemHtml(m,tab,rows.indexOf(m))).join('')+'</section>').join(''):'<div class="vnx-work-empty">'+(tab==='automatic'?'No hay respuestas automáticas registradas. Solo aparecerán aquí envíos automáticos que VentaNexIA haya confirmado.':tab==='review'?'No hay nada pendiente de revisión.':tab==='decision'?'No hay decisiones pendientes.':'No hay conversaciones resueltas en la bandeja cargada.')+'</div>';
+      body.innerHTML=groups.length?groups.map(([account,items])=>'<section><h3 class="vnx-work-account">'+escM(account)+'</h3>'+items.map((m,i)=>workItemHtml(m,tab,rows.indexOf(m))).join('')+'</section>').join(''):'<div class="vnx-work-empty">'+(tab==='automatic'?'No hay respuestas automáticas registradas. Solo aparecerán aquí envíos automáticos que VentaNexIA haya confirmado.':tab==='review'?'No hay correos importantes pendientes de revisión.':tab==='decision'?'No hay decisiones pendientes.':tab==='informative'?'No hay correos informativos en la bandeja cargada.':'No hay conversaciones resueltas en la bandeja cargada.')+'</div>';
       body.querySelectorAll('[data-work-index]').forEach(card=>{
         const m=rows[Number(card.dataset.workIndex)],msg=card.querySelector('[data-work-msg]'),ta=card.querySelector('[data-work-reply]');
         card.querySelector('[data-work-edit]')?.addEventListener('click',()=>{ta?.focus();msg.textContent='Puedes modificar la respuesta antes de enviarla.'});
@@ -1100,14 +1114,14 @@
   }
   async function openWorkQueue(initialTab='review'){
     const overlay=document.createElement('div');overlay.className='vnx-work-overlay';
-    overlay.innerHTML='<div class="vnx-work-modal"><div class="vnx-work-head"><div><h3>📥 Mi trabajo</h3><p>Aquí ves todo lo que Carla ha gestionado por ti: respuestas enviadas automáticamente, tareas para revisar, decisiones pendientes y trabajo ya resuelto.</p></div><button class="mini" data-work-close>✕</button></div><div class="vnx-work-summary"><span><i>⚡</i><b>Automáticos</b><small>Lo que VentaNexIA ha enviado sin esperar revisión, solo cuando esté permitido.</small></span><span><i>👀</i><b>Para revisar</b><small>Lo que Carla ha preparado o considera que debes revisar.</small></span><span><i>✋</i><b>Necesito tu decisión</b><small>Precios, excepciones, reclamaciones o decisiones que no debe tomar sola.</small></span><span><i>✓</i><b>Resueltos</b><small>Conversaciones ya atendidas o cerradas.</small></span></div><div class="vnx-work-tabs"><button data-work-tab="automatic">Automáticos <b>0</b></button><button data-work-tab="review">Para revisar <b>0</b></button><button data-work-tab="decision">Necesito tu decisión <b>0</b></button><button data-work-tab="resolved">Resueltos <b>0</b></button></div><div class="vnx-work-body" data-work-body></div></div>';
+    overlay.innerHTML='<div class="vnx-work-modal"><div class="vnx-work-head"><div><h3>📥 Mi trabajo</h3><p>Carla separa lo que necesita acción de los correos que solo debes leer. Así los avisos y noreply no llenan tus pendientes.</p></div><button class="mini" data-work-close>✕</button></div><div class="vnx-work-summary"><span><i>⚡</i><b>Automáticos</b><small>Acciones que VentaNexIA ha realizado automáticamente cuando está permitido.</small></span><span><i>👀</i><b>Importantes / revisar</b><small>Correos que merecen atención y pueden necesitar respuesta o seguimiento.</small></span><span><i>✋</i><b>Necesito tu decisión</b><small>Precios, excepciones, reclamaciones o decisiones que no debe tomar sola.</small></span><span><i>ℹ️</i><b>Informativos</b><small>Noreply, avisos, confirmaciones y correos que no requieren respuesta.</small></span><span><i>✓</i><b>Resueltos</b><small>Conversaciones ya atendidas o cerradas.</small></span></div><div class="vnx-work-tabs"><button data-work-tab="automatic">Automáticos <b>0</b></button><button data-work-tab="review">Importantes / revisar <b>0</b></button><button data-work-tab="decision">Necesito tu decisión <b>0</b></button><button data-work-tab="informative">Informativos <b>0</b></button><button data-work-tab="resolved">Resueltos <b>0</b></button></div><div class="vnx-work-body" data-work-body></div></div>';
     document.body.appendChild(overlay);const close=()=>overlay.remove();overlay.querySelector('[data-work-close]').onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};
     overlay.querySelectorAll('[data-work-tab]').forEach(b=>b.onclick=()=>renderWorkQueue(overlay,b.dataset.workTab));
     await renderWorkQueue(overlay,initialTab,true);
   }
 
   async function refreshWorkbenchCounters(force=false){
-    let counts={review:0,decision:0,resolved:0,pending:0};
+    let counts={review:0,decision:0,informative:0,resolved:0,pending:0};
     try{counts=workCounts(await loadWorkQueueData(force))}catch{}
     const set=(id,n)=>{const e=$m(id);if(e)e.textContent=String(n||0)};
     set('#vnxCountPending',(counts.review||0)+(counts.decision||0)+(counts.pending||0));
