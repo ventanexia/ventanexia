@@ -130,10 +130,43 @@ async function ocrPdfPages(doc,maxPages=8){
   }
   return out.replace(/[ \t]+/g,' ').replace(/\n\s*\n+/g,'\n').trim();
 }
+// pdfjs-dist (Node) necesita un lienzo para dibujar las páginas antes del OCR. Por defecto intenta cargar el
+// paquete "canvas" (no incluido) y fallaba con "Cannot find module 'canvas'"; aquí se usa @napi-rs/canvas.
+function prepareNapiForPdfjs(){
+  try{
+    const napi=require('@napi-rs/canvas');
+    if(!globalThis.DOMMatrix&&napi.DOMMatrix)globalThis.DOMMatrix=napi.DOMMatrix;
+    if(!globalThis.Path2D&&napi.Path2D)globalThis.Path2D=napi.Path2D;
+    if(!globalThis.ImageData&&napi.ImageData)globalThis.ImageData=napi.ImageData;
+    return napi;
+  }catch{return null}
+}
+function makeNapiCanvasFactory(napi){
+  return {
+    create(width,height){
+      if(width<=0||height<=0)throw new Error('Invalid canvas size');
+      const canvas=napi.createCanvas(Math.max(1,Math.ceil(width)),Math.max(1,Math.ceil(height)));
+      return {canvas,context:canvas.getContext('2d')};
+    },
+    reset(entry,width,height){
+      if(!entry.canvas)throw new Error('Canvas is not specified');
+      if(width<=0||height<=0)throw new Error('Invalid canvas size');
+      entry.canvas.width=Math.max(1,Math.ceil(width));entry.canvas.height=Math.max(1,Math.ceil(height));
+    },
+    destroy(entry){
+      if(!entry.canvas)throw new Error('Canvas is not specified');
+      entry.canvas.width=0;entry.canvas.height=0;entry.canvas=null;entry.context=null;
+    }
+  };
+}
 async function readPdf(buffer){
+  const napi=prepareNapiForPdfjs();
   const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');
   const data=new Uint8Array(Buffer.from(buffer));
-  const doc=await pdfjs.getDocument({data,useSystemFonts:true,isEvalSupported:false,disableFontFace:true,verbosity:0}).promise;
+  const params={data,useSystemFonts:true,isEvalSupported:false,disableFontFace:true,verbosity:0};
+  // pdfjs busca por defecto el paquete "canvas", que no está en la instalación: se le da @napi-rs/canvas.
+  if(napi)params.canvasFactory=makeNapiCanvasFactory(napi);
+  const doc=await pdfjs.getDocument(params).promise;
   let out='';
   try{
     for(let i=1;i<=Math.min(doc.numPages,20);i++){
