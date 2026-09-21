@@ -67,7 +67,7 @@ function renderLicense(){
   const isMasterPlan=Boolean(l.master||l.unlimited)||String(l.edition||'').toLowerCase()==='master'||String(l.plan||'').toLowerCase()==='master';
   const emailPolicy=$('#emailAccountPolicyText'),extraEmail=$('#buyExtraEmail');
   if(emailPolicy)emailPolicy.textContent=isMasterPlan?'Versión Maestro: conecta todas las cuentas de email que necesites, sin límite de cuentas de VentaNexIA.': 'Lee y organiza correos, prepara respuestas y hace seguimiento de conversaciones. La primera cuenta está incluida con el agente Email.';
-  if(extraEmail)extraEmail.textContent=isMasterPlan?'+ Añadir otra cuenta · Maestro ilimitado':'+ Añadir otra cuenta · 39 €/mes';
+  if(extraEmail)extraEmail.textContent=isMasterPlan?'+ Añadir otra cuenta · Maestro ilimitado':'+ Añadir otra cuenta · 49 €/mes';
   if(l.customerId&&!$('#customerIdInput').value)$('#customerIdInput').value=l.customerId;
   if(activated){
     $('#licenseMsg').textContent=`Licencia activa. Quedan ${Math.max(0,l.available||0)} plaza(s) de dispositivo disponibles. Dispositivo adicional: ${Number(l.extraDeviceMonthlyEur||49).toFixed(0)} €/mes.`;
