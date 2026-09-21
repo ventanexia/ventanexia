@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.86",
+  "version": "0.6.87",
   "private": true,
-  "description": "VentaNexIA Desktop · escritura en modo libre corregida en todos los agentes, clasificación de email mejorada, Gmail rápido y OCR PDF · 0.6.86",
+  "description": "VentaNexIA Desktop · controles de Carla reorganizados, scroll estable, informes PDF claros e informativos con Visto · 0.6.87",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
