@@ -105,10 +105,6 @@
       "id": "web_ecommerce_agent",
       "name": "Web & Ecommerce",
       "category": "web",
-      "commercialAddon": {
-        "name": "Agente Web & Ecommerce",
-        "priceMonthlyEur": 550
-      },
       "connectors": [
         "shopify",
         "wordpress_woocommerce",
