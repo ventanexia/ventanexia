@@ -14,7 +14,8 @@ need(renderer,/\| SKU \/ EAN \| Producto \| Stock actual \| Ventas 6 meses \| Me
 need(renderer,/Menos de 5 días de cobertura/,'visible urgent rule must stay at 5 days');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
-need(renderer,/headers:\['sku_ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must stay stable');
+need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');
+need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep SKU and EAN separate and stable');
 const exportCode=fs.readFileSync(path.join(__dirname,'export.cjs'),'utf8');
 need(exportCode,/function csvBuffer\(data\)/,'CSV exporter must exist');
 need(exportCode,/payload\.format==='csv'/,'CSV format must be routed by exporter');

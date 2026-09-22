@@ -2000,11 +2000,11 @@ function emailListItem(m,i,selected){
     finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='PDF guardado ✓')btn.textContent=old}},1600)}
   }
   function printPurchaseProposal(msg){
-    const rows=purchaseRowsFromReply(msg?.content||'');
-    if(!rows.length){alert('No encuentro líneas de reposición para imprimir.');return}
+    const data=purchaseExportDataFromMessage(msg);
+    if(!data.rows.length){alert('No encuentro líneas de reposición para imprimir.');return}
     const esc=s=>String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
     const w=window.open('','_blank','noopener,noreferrer');if(!w)return;
-    w.document.write('<!doctype html><meta charset="utf-8"><title>Pedido para Compras</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1{font-size:22px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #bbb;padding:6px;vertical-align:top}th{background:#eee}@media print{button{display:none}}</style><h1>Pedido para Compras</h1><p>Preparado por VentaNexIA. Revisar antes de enviar o introducir en el programa.</p><table><thead><tr>'+['SKU','Producto','Stock actual','Ventas periodo','Media semanal','Stock mínimo','Cantidad a pedir','Motivo'].map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table><p><button onclick="window.print()">Imprimir</button></p>');w.document.close();setTimeout(()=>w.print(),250);
+    w.document.write('<!doctype html><meta charset="utf-8"><title>Reposición Shopify</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1{font-size:22px}p{color:#555}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #bbb;padding:6px;vertical-align:top}th{background:#eee;white-space:nowrap}@media print{button{display:none}}</style><h1>Reposición Shopify</h1><p>Preparado por VentaNexIA con datos calculados por SKU/EAN. Revisar las cantidades antes de importar o enviar a Compras.</p><table><thead><tr>'+data.headers.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+data.rows.map(row=>'<tr>'+data.headers.map((_,i)=>'<td>'+esc(row[i]??'')+'</td>').join('')+'</tr>').join('')+'</tbody></table><p><button onclick="window.print()">Imprimir</button></p>');w.document.close();setTimeout(()=>w.print(),250);
   }
 
   function renderMasterMessages({focusIndex=null,persist=true,forceBottom=false}={}){
@@ -2418,7 +2418,8 @@ function emailListItem(m,i,selected){
           const summary=await window.vnx.shopifyReplenishmentSummary();
           const reply=shopifyStockTable(summary);
           const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0).map(r=>[
-            String(r.sku||r.ean||''),
+            String(r.sku||''),
+            String(r.ean||''),
             String(r.product||''),
             Number(r.stock||0),
             Number(r.soldWindow||0),
@@ -2428,7 +2429,7 @@ function emailListItem(m,i,selected){
             r.urgent?'URGENTE <5 DIAS':'REPOSICION'
           ]);
           const purchaseData={
-            headers:['sku_ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
+            headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
             rows:purchaseRows
           };
           masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});
