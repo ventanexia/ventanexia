@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.105",
+  "version": "0.6.106",
   "private": true,
-  "description": "VentaNexIA Desktop · páginas privadas visibles en selector de Carla + aislamiento estricto + seguridad reforzada · 0.6.105",
+  "description": "VentaNexIA Desktop · selector de conexión de Carla restaurado + portales privados + aislamiento estricto · 0.6.106",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
