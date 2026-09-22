@@ -283,7 +283,7 @@ async function assertOrderChannelCapacity({storeId='',url='',replacing=false}={}
   const host=(()=>{try{return new URL(String(url||'')).host.toLowerCase()}catch{return ''}})();
   const exists=replacing||(storeId&&host&&Object.entries(s.secret?.ordersErp?.stores||{}).some(([k,x])=>orderStoreId(k,x)===storeId&&orderStoreHost(x)===host));
   if(!exists&&usage.used>=usage.limit){
-    const e=new Error('Has usado '+usage.used+' de '+usage.limit+' canales de pedidos incluidos. Añade otro canal por 29 €/mes o cambia de plan.');
+    const e=new Error('Has usado '+usage.used+' de '+usage.limit+' canales de pedidos incluidos en tu plan. Para añadir otro canal, cambia a un plan con más canales.');
     e.code='ORDER_CHANNEL_LIMIT';throw e;
   }
   return true;
