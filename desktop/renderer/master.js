@@ -450,11 +450,11 @@
     return '<span class="email-status pending">Pendiente</span>';
   }
   const EMAIL_TOPICS=[
+  {key:'reclamaciones',label:'Reclamaciones',urgent:true},
+  {key:'cobros',label:'Cobros e impagos',urgent:true},
   {key:'pedidos',label:'Pedidos'},
   {key:'facturas',label:'Facturas y recibos'},
   {key:'consultas',label:'Consultas'},
-  {key:'cobros',label:'Cobros e impagos'},
-  {key:'reclamaciones',label:'Reclamaciones y problemas'},
   {key:'informativos',label:'Informativos'}
 ];
 function normEs(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')}
@@ -471,7 +471,7 @@ function emailTopic(m={}){
   return 'informativos';
 }
 function emailTopicCounts(list=[]){const out={};for(const t of EMAIL_TOPICS)out[t.key]=0;for(const m of list)out[emailTopic(m)]=(out[emailTopic(m)]||0)+1;return out}
-function emailTopicTabsHtml(counts={}){return '<div class="email-topic-tabs"><button class="active" data-email-topic="all">Todos <span class="n">'+Object.values(counts).reduce((a,b)=>a+b,0)+'</span></button>'+EMAIL_TOPICS.map(t=>'<button data-email-topic="'+t.key+'">'+escM(t.label)+' <span class="n">'+(counts[t.key]||0)+'</span></button>').join('')+'</div>'}
+function emailTopicTabsHtml(counts={}){return '<div class="email-topic-tabs"><button class="active" data-email-topic="all">Todos <span class="n">'+Object.values(counts).reduce((a,b)=>a+b,0)+'</span></button>'+EMAIL_TOPICS.map(t=>'<button class="'+(t.urgent&&counts[t.key]?'urgent':'')+'" data-email-topic="'+t.key+'">'+escM(t.label)+' <span class="n">'+(counts[t.key]||0)+'</span></button>').join('')+'</div>'}
 function emailListItem(m,i,selected){
     return '<button type="button" class="email-list-row '+(selected?'selected':'')+'" data-email-row="'+i+'">'
       +'<span class="email-avatar">'+escM(emailInitials(m.from))+'</span>'
@@ -495,7 +495,7 @@ function emailListItem(m,i,selected){
       host.innerHTML='<div class="email-dashboard">'
         +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
         +'<div class="email-metric-grid" data-email-metrics></div>'
-        +'<div class="email-workspace"><section class="email-list-panel"><div data-email-topic-tabs></div><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
+        +'<div class="email-workspace"><div class="email-category-panel" data-email-topic-tabs></div><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
       const list=host.querySelector('[data-email-list]'),detail=host.querySelector('[data-email-detail]');
       const visibleIndexes=()=>messages.map((m,i)=>({m,i})).filter(({m})=>{
