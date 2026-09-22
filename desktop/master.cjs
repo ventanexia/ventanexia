@@ -25,13 +25,13 @@ function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u
 function portalId(url){return crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,16)}
 
 function normalizeShopifyHost(value=''){
-  let v=String(value||'').trim().toLowerCase().replace(/^https?:\\/\\//,'').replace(/\\/.*$/,'');
+  let v=String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
   if(/^[a-z0-9][a-z0-9-]*$/.test(v))v+='.myshopify.com';
   return v;
 }
 async function shopifyGraphqlRead(shop,token,query,variables={}){
   const host=normalizeShopifyHost(shop);
-  if(!/^[a-z0-9][a-z0-9-]*\\.myshopify\\.com$/.test(host))throw new Error('La conexión Shopify no tiene un dominio interno válido.');
+  if(!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(host))throw new Error('La conexión Shopify no tiene un dominio interno válido.');
   const r=await fetch('https://'+host+'/admin/api/2026-07/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token,'User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({query,variables})});
   const j=await r.json().catch(()=>({}));
   if(!r.ok||j.errors)throw new Error(j?.errors?.[0]?.message||('Shopify respondió '+r.status));
