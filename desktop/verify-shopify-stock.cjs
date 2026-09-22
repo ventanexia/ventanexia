@@ -11,4 +11,10 @@ need(renderer,/function isShopifyStockRequest/,'renderer must detect Shopify sto
 need(renderer,/shopifyReplenishmentSummary\(\)/,'renderer must use calculated stock summary directly');
 need(renderer,/\| SKU \/ EAN \| Producto \| Stock actual \| Ventas 6 meses \| Media diaria \| Días de cobertura \| Cantidad a pedir \| Estado \|/,'deterministic stock table must be present');
 need(renderer,/Menos de 5 días de cobertura/,'visible urgent rule must stay at 5 days');
+need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
+need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
+need(renderer,/headers:\['sku_ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must stay stable');
+const exportCode=fs.readFileSync(path.join(__dirname,'export.cjs'),'utf8');
+need(exportCode,/function csvBuffer\(data\)/,'CSV exporter must exist');
+need(exportCode,/payload\.format==='csv'/,'CSV format must be routed by exporter');
 console.log('SHOPIFY_STOCK_VERIFY_OK');
