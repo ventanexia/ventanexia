@@ -1367,3 +1367,11 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-carla-window:has(.email-dashboard-mode) .email-list{flex:1!important;height:auto!important;max-height:none!important;overflow-y:auto!important}
 .vnx-carla-window:has(.email-dashboard-mode) .email-detail-panel{grid-column:2;grid-row:2;min-height:0!important;height:100%!important;overflow-y:auto!important;background:#071e35!important}
 @media(max-width:950px){.vnx-carla-window:has(.email-dashboard-mode) .email-workspace{grid-template-columns:1fr!important}.vnx-carla-window:has(.email-dashboard-mode) .email-detail-panel{display:none!important}.vnx-carla-window:has(.email-dashboard-mode) .email-list-panel{grid-column:1!important}}
+
+/* 0.6.103 — estados de facturación MASTER */
+.vnx-billing-row span{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.vnx-billing-badge{display:inline-flex!important;align-items:center;width:max-content;border-radius:999px;padding:4px 8px;font-size:9px!important;font-weight:900;line-height:1;border:1px solid transparent}
+.vnx-billing-badge.paid{color:#72f0b3;background:rgba(21,121,79,.23);border-color:rgba(65,218,145,.38)}
+.vnx-billing-badge.due{color:#ffd36d;background:rgba(134,88,18,.25);border-color:rgba(246,185,61,.42)}
+.vnx-billing-badge.blocked{color:#ff8c9e;background:rgba(132,37,58,.25);border-color:rgba(244,82,112,.4)}
+.vnx-billing-badge.neutral{color:#a9c3d7;background:#0a2a44;border-color:#245878}
