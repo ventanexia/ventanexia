@@ -1740,7 +1740,7 @@
 
   function purchaseRowsFromReply(text=''){
     const rows=[];
-    for(const line of String(text||'').split(/\r?\n/)){
+    for(const line of String(text||'').split(String.fromCharCode(10))){
       if(!/cantidad a pedir\s*:/i.test(line))continue;
       const get=label=>{const m=line.match(new RegExp(label+'\\s*:\\s*([^|]+)','i'));return m?m[1].trim():''};
       const qty=get('Cantidad a pedir');
