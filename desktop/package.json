@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.87",
+  "version": "0.6.88",
   "private": true,
-  "description": "VentaNexIA Desktop · controles de Carla reorganizados, scroll estable, informes PDF claros e informativos con Visto · 0.6.87",
+  "description": "VentaNexIA Desktop · Carla maximizada, respuestas desde el inicio y email resumido con acciones directas · 0.6.88",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
