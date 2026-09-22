@@ -1829,9 +1829,9 @@
       }catch(e){alert(e.message||e);btn.textContent=old}
       finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
     });
-    $m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
-    $m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
-    $m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
+    $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
+    $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
+    $$m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
     $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
