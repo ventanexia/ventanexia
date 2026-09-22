@@ -47,6 +47,7 @@ const EXTRA_ACTIONS={
   whatsapp_pack:{label:"1.000 mensajes automatizados",billing:"Pago único",provider:"Meta / proveedor WhatsApp",action:"No existe normalmente un paquete que se active manualmente en Meta. Confirmar WABA/número operativo, límites y método de facturación. El saldo de VentaNexIA controla el consumo; revisar costes reales de Meta para mantener margen."},
   lead_pack:{label:"500 créditos de captación",billing:"Pago único",provider:"Fuentes/APIs de captación",action:"Comprobar cuota y presupuesto de las APIs usadas. Si son cuentas centrales, no se amplía cliente a cliente; se controla el consumo por tenant y el presupuesto global."},
   storage_pack:{label:"10 GB de espacio adicional",billing:"Mensual",provider:"Almacenamiento / Supabase u otro proveedor",action:"Asignar 10 GB adicionales al tenant mientras la ampliación esté activa y comprobar que el proyecto global tiene capacidad suficiente."},
+  order_pack:{label:"500 pedidos adicionales al mes",billing:"Mensual",provider:"VentaNexIA",action:"Añadir 500 pedidos mensuales al límite del tenant mientras la ampliación esté activa."},
   conexion:{label:"Conexión externa adicional",billing:"Mensual",provider:"Conector correspondiente",action:"Activar una plaza de conexión adicional para el cliente. Si el proveedor externo cobra licencia/conexión recurrente, contratarla o asignarla antes de marcarla como disponible."},
   email_account:{label:"Cuenta de correo adicional",billing:"Mensual",provider:"Google/Microsoft u otro correo",action:"Activar una plaza de cuenta adicional en VentaNexIA y completar su autorización OAuth. Si el proveedor exige licencia propia, confirmar que el cliente ya la tiene o que está contratada."}
 };
@@ -87,7 +88,7 @@ function featurePolicyFromMeta(meta={}){
   const included=new Set(split(meta.included));if(String(meta.orders_included||'')==='pedidos')included.add('pedidos');
   const extras=split(meta.extras);
   const plan=String(meta.plan||'').toLowerCase();
-  const baseConnections=["start","inicio"].includes(plan)?3:["core","crecimiento"].includes(plan)?8:["scale","empresa","premium"].includes(plan)?15:0;
+  const baseConnections=["start","inicio"].includes(plan)?4:["core","crecimiento"].includes(plan)?10:["scale","empresa","premium"].includes(plan)?18:0;
   const baseEmployees=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?3:["scale","empresa","premium"].includes(plan)?8:0;
   const baseOrderChannels=["start","inicio"].includes(plan)?1:["core","crecimiento"].includes(plan)?2:["scale","empresa","premium"].includes(plan)?4:0;
   const baseOrderLevel=["scale","empresa","premium"].includes(plan)?"auto":["core","crecimiento"].includes(plan)?"pro":"basic";
@@ -151,7 +152,7 @@ export default async function handler(req,res){
             await reactivateAgents(activeTenantId);
             const packs=String(obj.metadata?.credit_packs||"").split(",").map(x=>x.trim()).filter(Boolean);
             for(const pack of packs)await grantCreditPack(activeTenantId,pack,obj.id);
-            const recurringExtras=String(obj.metadata?.extras||"").split(",").map(x=>x.trim()).filter(x=>["conexion","email_account","storage_pack","capacity_pack"].includes(x));
+            const recurringExtras=String(obj.metadata?.extras||"").split(",").map(x=>x.trim()).filter(x=>["conexion","email_account","storage_pack","order_pack","capacity_pack"].includes(x));
             const customerItems=[...packs,...recurringExtras];
             if(customerItems.length){
               for(const itemKey of recurringExtras)await createProvisioningTask({tenantId:activeTenantId,itemKey,sessionId:obj.id}).catch(()=>null);
