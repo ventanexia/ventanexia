@@ -1543,8 +1543,11 @@ function emailListItem(m,i,selected){
     }catch{}
   }
   async function renderMasterPortals(){
-    const root=$m('#portalList');if(!root)return;
-    try{masterPortals=await window.vnx.listPortals()}catch{masterPortals=[]}
+    const root=$m('#portalList');
+    // Cargar SIEMPRE las páginas privadas, incluso en la ventana independiente de Carla,
+    // donde no existe #portalList. El selector de fuentes depende de masterPortals.
+    try{masterPortals=await window.vnx.listPortals()||[]}catch{masterPortals=[]}
+    if(!root)return masterPortals;
     root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
     $$m('.master-portal-connect').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Abriendo…';
@@ -1588,6 +1591,10 @@ function emailListItem(m,i,selected){
     try{runtimeConnections=await window.vnx.listConnections()||[]}catch{runtimeConnections=[]}
     try{runtimeAgents=await window.vnx.agentCatalog()||[]}catch{runtimeAgents=[]}
     try{runtimeExternalAgents=await window.vnx.externalAgentList()||[]}catch{runtimeExternalAgents=[]}
+    // Las páginas privadas no forman parte de listConnections(); cargarlas aquí garantiza
+    // que Naturdesma y cualquier portal conectado aparezcan también en el desplegable
+    // de Carla y en ventanas independientes, sin depender de que la pestaña Conexiones exista.
+    try{masterPortals=await window.vnx.listPortals()||[]}catch{masterPortals=[]}
     return runtimeConnections;
   }
   function connectedDataSources(){
