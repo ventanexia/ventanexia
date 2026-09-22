@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.91",
+  "version": "0.6.92",
   "private": true,
-  "description": "VentaNexIA Desktop · Carla compacta, correo legible en ventana y fuentes de tienda/programa claramente separadas · 0.6.91",
+  "description": "VentaNexIA Desktop · nombre y paquete de distribución VentaNexIA, con el rediseño completo de Carla y Email · 0.6.92",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
