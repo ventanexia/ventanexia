@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.89",
+  "version": "0.6.90",
   "private": true,
-  "description": "VentaNexIA Desktop · conexiones aisladas: Shopify nunca se mezcla con ERP/portales · 0.6.89",
+  "description": "VentaNexIA Desktop · conexiones aisladas, reposición Shopify exportable a Excel e impresión, clasificación Email unificada · 0.6.90",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
