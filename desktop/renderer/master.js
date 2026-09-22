@@ -449,7 +449,30 @@
     if(m.status==='no_reply')return '<span class="email-status no-reply">No requiere respuesta</span>';
     return '<span class="email-status pending">Pendiente</span>';
   }
-  function emailListItem(m,i,selected){
+  const EMAIL_TOPICS=[
+  {key:'pedidos',label:'Pedidos'},
+  {key:'facturas',label:'Facturas y recibos'},
+  {key:'consultas',label:'Consultas'},
+  {key:'cobros',label:'Cobros e impagos'},
+  {key:'reclamaciones',label:'Reclamaciones y problemas'},
+  {key:'informativos',label:'Informativos'}
+];
+function normEs(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'')}
+function emailTopic(m={}){
+  if(m.noReply)return 'informativos';
+  const from=normEs(m.from||''),t=normEs([m.subject,m.snippet,m.body].join(' '));
+  if(/\\b(no[-_. ]?reply|noreply|do[-_. ]?not[-_. ]?reply|donotreply|mailer-daemon|notification[s]?|notifications|avisos?)\\b/.test(from))return 'informativos';
+  if(/este es un mensaje automatico|no respondas a este (mensaje|correo)|mensaje generado automaticamente/.test(t))return 'informativos';
+  if(/reclamacion|queja|devoluc|roto|defectuos|no ha llegado|problema|incidencia/.test(t))return 'reclamaciones';
+  if(/impago|vencimiento|pago pendiente|cobro|payment failed|card declined/.test(t))return 'cobros';
+  if(/factura|invoice|recibo/.test(t))return 'facturas';
+  if(/pedido|order|compra|entrega|envio|expedicion|presupuesto/.test(t))return 'pedidos';
+  if(Number(m.replyScore||0)>0||emailAsksForReply(m))return 'consultas';
+  return 'informativos';
+}
+function emailTopicCounts(list=[]){const out={};for(const t of EMAIL_TOPICS)out[t.key]=0;for(const m of list)out[emailTopic(m)]=(out[emailTopic(m)]||0)+1;return out}
+function emailTopicTabsHtml(counts={}){return '<div class="email-topic-tabs"><button class="active" data-email-topic="all">Todos <span class="n">'+Object.values(counts).reduce((a,b)=>a+b,0)+'</span></button>'+EMAIL_TOPICS.map(t=>'<button data-email-topic="'+t.key+'">'+escM(t.label)+' <span class="n">'+(counts[t.key]||0)+'</span></button>').join('')+'</div>'}
+function emailListItem(m,i,selected){
     return '<button type="button" class="email-list-row '+(selected?'selected':'')+'" data-email-row="'+i+'">'
       +'<span class="email-avatar">'+escM(emailInitials(m.from))+'</span>'
       +'<span class="email-row-copy"><b>'+escM(emailDisplayAddress(m.from))+'</b><strong>'+escM(m.subject||'(sin asunto)')+'</strong><small>'+escM(m.snippet||'')+'</small></span>'
@@ -467,20 +490,26 @@
       const allInbox=await window.vnx.emailInbox({limit:30});
       const accountNames=Array.isArray(allInbox?.accounts)?allInbox.accounts:[];
       let messages=[];
-      let selected=0,filter='all',search='';
+      let selected=0,filter='all',search='',topicFilter='all';
       const accountOptions=['Todas las cuentas',...accountNames];
       host.innerHTML='<div class="email-dashboard">'
         +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
         +'<div class="email-metric-grid" data-email-metrics></div>'
-        +'<div class="email-workspace"><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
+        +'<div class="email-workspace"><section class="email-list-panel"><div data-email-topic-tabs></div><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
       const list=host.querySelector('[data-email-list]'),detail=host.querySelector('[data-email-detail]');
       const visibleIndexes=()=>messages.map((m,i)=>({m,i})).filter(({m})=>{
         const statusOk=filter==='all'||m.status===filter;
+        const topicOk=topicFilter==='all'||emailTopic(m)===topicFilter;
         const q=search.toLowerCase();
         const searchOk=!q||[m.from,m.subject,m.snippet].join(' ').toLowerCase().includes(q);
-        return statusOk&&searchOk;
+        return statusOk&&topicOk&&searchOk;
       }).map(x=>x.i);
+      function renderTopicTabs(){
+        const root=host.querySelector('[data-email-topic-tabs]');if(!root)return;
+        root.innerHTML=emailTopicTabsHtml(emailTopicCounts(messages));
+        root.querySelectorAll('[data-email-topic]').forEach(btn=>btn.onclick=()=>{topicFilter=btn.dataset.emailTopic;root.querySelectorAll('[data-email-topic]').forEach(x=>x.classList.toggle('active',x===btn));renderList();renderDetail();});
+      }
       function renderList(){
         const idxs=visibleIndexes();
         if(!idxs.includes(selected)&&idxs.length)selected=idxs[0];
@@ -556,7 +585,7 @@
           +'<article><span class="metric-ico amber">◷</span><b>'+Number(metrics?.pending||0)+'</b><strong>Pendientes</strong><small>Requieren revisión</small></article>'
           +'<article><span class="metric-ico blue">◉</span><b>'+Number(metrics?.unread||0)+'</b><strong>Sin leer</strong><small>En bandeja</small></article>';
         const allBtn=host.querySelector('[data-email-filter="all"]');if(allBtn)allBtn.textContent='✉ Recibidos ('+messages.length+')';
-        renderList();renderDetail();
+        topicFilter='all';renderTopicTabs();renderList();renderDetail();
       }
       host.querySelectorAll('[data-email-filter]').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.emailFilter;host.querySelectorAll('[data-email-filter]').forEach(x=>x.classList.toggle('active',x===btn));renderList();renderDetail()});
       const searchEl=host.querySelector('[data-email-search]');searchEl.oninput=()=>{search=searchEl.value.trim();renderList();renderDetail()};
@@ -1253,12 +1282,13 @@
   }
 
   function setUiZoom(factor){
-    const safe=[1,1.1,1.25].includes(Number(factor))?Number(factor):1.1;
-    localStorage.setItem('vnx_ui_zoom',String(safe));
-    window.vnx?.setUiZoom?.(safe).catch(()=>{});
-    [['#vnxZoom100',1],['#vnxZoom110',1.1],['#vnxZoom125',1.25]].forEach(([id,v])=>{
-      const el=$m(id);if(el)el.classList.toggle('active',v===safe);
-    });
+    const safe=Math.max(.75,Math.min(1.6,Math.round(Number(factor||1)*10)/10));
+    localStorage.setItem('vnx_ui_zoom',String(safe));window.vnx?.setUiZoom?.(safe).catch(()=>{});return safe;
+  }
+  function changeUiZoom(delta){return setUiZoom(Number(localStorage.getItem('vnx_ui_zoom')||1.1)+delta)}
+  function setupZoomShortcuts(){
+    window.addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;if(e.key==='+'||e.key==='='){e.preventDefault();changeUiZoom(.1)}else if(e.key==='-'){e.preventDefault();changeUiZoom(-.1)}else if(e.key==='0'){e.preventDefault();setUiZoom(1)}});
+    window.addEventListener('wheel',e=>{if(!(e.ctrlKey||e.metaKey))return;e.preventDefault();changeUiZoom(e.deltaY<0?.1:-.1)},{passive:false});
   }
   function setupReadableView(){
     const detached=new URLSearchParams(location.search).get('detached')==='workbench';
@@ -1273,9 +1303,7 @@
     }
     const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
     setUiZoom(detached?Math.max(1.1,stored):stored);
-    $m('#vnxZoom100')?.addEventListener('click',()=>setUiZoom(1));
-    $m('#vnxZoom110')?.addEventListener('click',()=>setUiZoom(1.1));
-    $m('#vnxZoom125')?.addEventListener('click',()=>setUiZoom(1.25));
+    setupZoomShortcuts();
     const pop=$m('#vnxPopoutWorkbench');
     if(pop){
       if(detached)pop.style.display='none';
@@ -1624,7 +1652,7 @@
     if(item.external)return {type:'external_agent',id:item.externalId,key:item.key,name:agentDisplayName(item),included:true,connected:true,ready:true};
     const sources=sourcesForAgent(item),sourceSel=$m('#chatSourceSelect'),choice=sourceSel&&sourceSel.dataset.agent===item.key?sourceSel.value:'';
     const base={type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
-    if(sources.length>1){
+    if(sources.length>0){
       if(!choice)return {...base,needsSourceChoice:true,sources};
       if(choice==='__all__')return {...base,separateSources:true,sources};
       const src=sources[Number(choice)];if(src){base.selectedSource=src;if(item.key==='email')base.accountIndex=src.accountIndex;if(item.key==='web_ecommerce'&&src.module==='shopify')base.source={type:'shopify',key:'shopify',name:'Shopify · '+src.label,shop:src.raw?.shop||src.label}}
