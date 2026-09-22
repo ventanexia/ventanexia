@@ -71,7 +71,7 @@ async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WIND
     const query=`query VentaNexIASalesWindow($cursor:String){
       orders(first:100, after:$cursor, sortKey:CREATED_AT, query:"created_at:>=${since}"){
         pageInfo{ hasNextPage endCursor }
-        nodes{ createdAt cancelledAt lineItems(first:100){ nodes{ sku quantity } } }
+        nodes{ createdAt cancelledAt lineItems(first:100){ nodes{ sku quantity variant { barcode } } } }
       }
     }`;
     const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{cursor}));
@@ -80,9 +80,9 @@ async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WIND
     for(const o of nodes){
       if(o.cancelledAt){cancelledSkipped++;continue}
       for(const li of o.lineItems?.nodes||[]){
-        const sku=String(li.sku||'').trim();
-        if(!sku)continue;
-        salesBySku.set(sku,(salesBySku.get(sku)||0)+Number(li.quantity||0));
+        const sku=String(li.sku||'').trim(),ean=String(li.variant?.barcode||'').trim(),key=sku||('EAN:'+ean);
+        if(!key||key==='EAN:')continue;
+        salesBySku.set(key,(salesBySku.get(key)||0)+Number(li.quantity||0));
       }
     }
     pages++;
@@ -96,7 +96,8 @@ async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WIND
 
 function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
   return products.map(p=>{
-    const sold=salesBySku.get(p.sku)||0;
+    const key=p.sku||('EAN:'+String(p.ean||''));
+    const sold=salesBySku.get(key)||0;
     const avgDaily=sold/windowDays;
     const noSalesData=sold===0;
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
