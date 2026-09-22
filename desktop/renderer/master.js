@@ -12,7 +12,7 @@
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
       emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
-      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null
+      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,purchaseExport:Boolean(m.purchaseExport)
     }));
   }
   function persistMasterChatState(){
@@ -1737,6 +1737,39 @@
     });
   }
 
+
+  function purchaseRowsFromReply(text=''){
+    const rows=[];
+    for(const line of String(text||'').split(/\r?\n/)){
+      if(!/cantidad a pedir\s*:/i.test(line))continue;
+      const get=label=>{const m=line.match(new RegExp(label+'\\s*:\\s*([^|]+)','i'));return m?m[1].trim():''};
+      const qty=get('Cantidad a pedir');
+      if(!qty||/^0(?:[,.]0+)?$/.test(qty))continue;
+      rows.push([get('SKU'),get('Producto'),get('Stock actual'),get('Ventas periodo'),get('Media semanal'),get('Stock mínimo propuesto'),qty,get('Motivo')]);
+    }
+    return rows;
+  }
+  function isPurchaseProposal(text=''){
+    return /reposición propuesta|reposicion propuesta|cantidad a pedir\s*:|listo para enviar a compras/i.test(String(text||''))&&purchaseRowsFromReply(text).length>0;
+  }
+  async function exportPurchaseExcel(msg,btn){
+    const rows=purchaseRowsFromReply(msg?.content||'');
+    if(!rows.length){alert('No encuentro líneas de reposición con cantidad a pedir en este resultado.');return}
+    const old=btn.textContent;btn.disabled=true;btn.textContent='Preparando Excel…';
+    try{
+      const r=await window.vnx.exportData({format:'excel',title:'Pedido para Compras - VentaNexIA',headers:['SKU','Producto','Stock actual','Ventas periodo','Media semanal','Stock mínimo propuesto','Cantidad a pedir','Motivo'],rows});
+      if(r?.ok)btn.textContent='Excel guardado ✓';else btn.textContent=old;
+    }catch(e){alert('No he podido guardar el Excel: '+(e.message||e));btn.textContent=old}
+    finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Excel guardado ✓')btn.textContent=old}},1600)}
+  }
+  function printPurchaseProposal(msg){
+    const rows=purchaseRowsFromReply(msg?.content||'');
+    if(!rows.length){alert('No encuentro líneas de reposición para imprimir.');return}
+    const esc=s=>String(s??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+    const w=window.open('','_blank','noopener,noreferrer');if(!w)return;
+    w.document.write('<!doctype html><meta charset="utf-8"><title>Pedido para Compras</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1{font-size:22px}table{width:100%;border-collapse:collapse;font-size:11px}th,td{border:1px solid #bbb;padding:6px;vertical-align:top}th{background:#eee}@media print{button{display:none}}</style><h1>Pedido para Compras</h1><p>Preparado por VentaNexIA. Revisar antes de enviar o introducir en el programa.</p><table><thead><tr>'+['SKU','Producto','Stock actual','Ventas periodo','Media semanal','Stock mínimo','Cantidad a pedir','Motivo'].map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.map(row=>'<tr>'+row.map(x=>'<td>'+esc(x)+'</td>').join('')+'</tr>').join('')+'</tbody></table><p><button onclick="window.print()">Imprimir</button></p>');w.document.close();setTimeout(()=>w.print(),250);
+  }
+
   function renderMasterMessages({focusIndex=null,persist=true,forceBottom=false}={}){
     if(persist)persistMasterChatState();
     const root=$m('#messages');if(!root)return;
@@ -1749,9 +1782,10 @@
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
       const groupedActions=Array.isArray(m.emailActionGroups)&&m.emailActionGroups.length?'<div class="vnx-email-action-groups">'+m.emailActionGroups.map((g,gi)=>'<div class="vnx-email-action-group"><b>'+escM(g.label||g.meta?.subject||'Email')+'</b><div class="row">'+(g.meta?.options||[]).filter(a=>['draft_reply','send_reply','archive','mark_read','no_reply_needed'].includes(a.key)).map(a=>'<button class="mini grouped-email-action-btn" data-master-msg="'+msgIndex+'" data-email-group="'+gi+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div></div>').join('')+'</div>':'';
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
+      const purchaseActions=(m.purchaseExport||isPurchaseProposal(m.content))?'<div class="vnx-secretary-actions"><button data-purchase-excel="'+msgIndex+'">⬇ Descargar Excel para Compras</button><button data-purchase-print="'+msgIndex+'">🖨 Imprimir pedido</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${handoff}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -1795,7 +1829,9 @@
       }catch(e){alert(e.message||e);btn.textContent=old}
       finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
     });
-    $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
+    $m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
+    $m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
+    $m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
     $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
@@ -2102,7 +2138,7 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai',scopeKey:activeScopeKey});renderMasterMessages({focusIndex:masterMessages.length-1});
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai',purchaseExport:isPurchaseProposal(reply),scopeKey:activeScopeKey});renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`,scopeKey:activeScopeKey});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
