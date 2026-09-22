@@ -935,6 +935,32 @@
     const foreign=/\b(hello|hi|thanks|thank you|order|invoice|please|regards|bonjour|merci|commande|facture|bitte|danke|bestellung|rechnung|ciao|grazie|ordine|fattura|obrigado|pedido|fatura)\b/.test(s);
     return foreign&&!spanish;
   }
+  function sourceKindLabel(source={}){
+    const module=String(source.module||source.key||source.integration||'').toLowerCase();
+    const provider=String(source.provider||'').toLowerCase();
+    const label=String(source.label||source.name||source.shopName||source.shop||'');
+    if(module==='shopify'||provider==='shopify'||/shopify/i.test(label))return {kind:'store',icon:'🛍️',title:'Tienda online',detail:'Shopify · ventas, productos y stock de la tienda'};
+    if(module==='orders'||module==='erp'||provider==='erp'||/naturdesma|holded|odoo|dolibarr|factusol|erp|programa/i.test(label))return {kind:'company',icon:'🏢',title:'Programa de empresa',detail:'Pedidos, clientes, facturación o stock del programa conectado'};
+    if(module==='email')return {kind:'email',icon:'✉️',title:'Correo',detail:'Cuenta de email conectada'};
+    return {kind:'other',icon:'🔗',title:'Otra conexión',detail:'Fuente conectada a VentaNexIA'};
+  }
+  function decorateSourceOptions(select){
+    if(!select)return;
+    [...select.options].forEach(opt=>{
+      if(!opt.value||/todas/i.test(opt.textContent||''))return;
+      let src=null;
+      try{const parsed=JSON.parse(opt.value);src=parsed&&typeof parsed==='object'?parsed:null}catch{}
+      if(!src){
+        const txt=String(opt.textContent||'');
+        src=(runtimeConnections||[]).find(x=>txt.includes(x.label||x.name||x.shop||'')||String(x.label||x.name||x.shop||'').includes(txt));
+      }
+      const meta=sourceKindLabel(src||{label:opt.textContent});
+      const clean=String(opt.textContent||'').replace(/^\s*[🛍️🏢✉️🔗]\s*(Tienda online|Programa de empresa|Correo|Otra conexión)?\s*[·—:-]?\s*/,'').trim();
+      opt.textContent=meta.icon+' '+meta.title+' · '+clean;
+      opt.dataset.sourceKind=meta.kind;
+    });
+  }
+
   function openConnectionsTab(module){
     document.querySelector('[data-tab="agents"]')?.click();
     if(!module)return;
