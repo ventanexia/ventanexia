@@ -7,6 +7,7 @@ import adminPromoteSolution from "../server/handlers/admin-promote-solution.js";
 import adminState from "../server/handlers/admin-state.js";
 import adminTenants from "../server/handlers/admin-tenants.js";
 import appQuoteRequest from "../server/handlers/app-quote-request.js";
+import billingGraceSweep from "../server/handlers/billing-grace-sweep.js";
 import chat from "../server/handlers/chat-desktop-router.js";
 import clientConfig from "../server/handlers/client-config.js";
 import clientLead from "../server/handlers/client-lead.js";
@@ -74,6 +75,7 @@ const handlers = {
   "admin-state": adminState,
   "admin-tenants": adminTenants,
   "app-quote-request": appQuoteRequest,
+  "billing-grace-sweep": billingGraceSweep,
   "chat": chat,
   "client-config": clientConfig,
   "client-lead": clientLead,
