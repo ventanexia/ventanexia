@@ -52,6 +52,16 @@ function xlsxBuffer(data){
   const input={};for(const [k,v] of Object.entries(files))input[k]=strToU8(v);
   return Buffer.from(zipSync(input,{level:6}));
 }
+function csvBuffer(data){
+  const q=v=>{
+    let s=String(v??'').replace(/\r?\n/g,' ').trim();
+    // Evitar fórmulas al abrir el CSV en Excel sin alterar números normales ni SKU alfanuméricos.
+    if(/^[=+@]/.test(s))s="'"+s;
+    return '"'+s.replace(/"/g,'""')+'"';
+  };
+  const lines=[data.headers.map(q).join(';'),...data.rows.map(r=>data.headers.map((_,i)=>q(r[i]??'')).join(';'))];
+  return Buffer.from('\ufeff'+lines.join('\r\n'),'utf8');
+}
 function htmlDocument(data){
   let body='';
   if(data.blocks?.length){
@@ -95,7 +105,7 @@ function htmlDocument(data){
 }
 
 ipcMain.handle('export:data',async(_e,payload={})=>{
-  const format=payload.format==='pdf'?'pdf':payload.format==='print'?'print':'excel';
+  const format=payload.format==='pdf'?'pdf':payload.format==='print'?'print':payload.format==='csv'?'csv':'excel';
   const data=normalizePayload(payload);
   if(format==='print'){
     const win=new BrowserWindow({show:false,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
@@ -105,10 +115,13 @@ ipcMain.handle('export:data',async(_e,payload={})=>{
       return {ok,format:'print'};
     }finally{if(!win.isDestroyed())win.destroy()}
   }
-  const ext=format==='pdf'?'pdf':'xlsx';
-  const result=await dialog.showSaveDialog({title:`Guardar ${format==='pdf'?'PDF':'Excel'}`,defaultPath:`${data.title}.${ext}`,filters:[format==='pdf'?{name:'PDF',extensions:['pdf']}:{name:'Excel',extensions:['xlsx']} ]});
+  const ext=format==='pdf'?'pdf':format==='csv'?'csv':'xlsx';
+  const label=format==='pdf'?'PDF':format==='csv'?'CSV importable':'Excel';
+  const filter=format==='pdf'?{name:'PDF',extensions:['pdf']}:format==='csv'?{name:'CSV UTF-8',extensions:['csv']}:{name:'Excel',extensions:['xlsx']};
+  const result=await dialog.showSaveDialog({title:`Guardar ${label}`,defaultPath:`${data.title}.${ext}`,filters:[filter]});
   if(result.canceled||!result.filePath)return {ok:false,canceled:true};
   if(format==='excel')await fs.writeFile(result.filePath,xlsxBuffer(data));
+  else if(format==='csv')await fs.writeFile(result.filePath,csvBuffer(data));
   else{
     const win=new BrowserWindow({show:false,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
     try{
