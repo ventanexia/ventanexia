@@ -338,6 +338,8 @@
         const t=k=>String(data[k]||'').trim();
         const pick=(v,map)=>{for(const [k,c] of map)if(String(v||'').startsWith(k))return c;return ''};
         const L=[
+          pick(data.orderOutput,[['Solo prepararlo','modo: solo preparar'],['Excel / PDF / Imprimir','modo: solo preparar'],['Preguntarme','modo: pedir permiso'],['Pasarlo automáticamente','modo: automático']]),
+          pick(data.orderOutput,[['Excel / PDF / Imprimir','salida preferida: exportar a Excel, PDF o imprimir']]),
           pick(data.stockSource,[['Columna','stock: catálogo'],['Inventario','stock: shopify'],['No comprobar','stock: desactivar']]),
           pick(data.stockAvailable,[['Avisar','aviso de stock: automático'],['Preparar','aviso de stock: pedir permiso'],['No avisar','aviso de stock: no']]),
           t('leadTime')?'plazo: '+t('leadTime'):'',
