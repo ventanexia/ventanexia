@@ -91,7 +91,7 @@ function assertOrderChannelCapacity(s,{adding=1}={}){
   if(isMaster(s.license))return true;
   const limit=orderChannelLimit(s.license),used=orderChannelUsageFromState(s).used;
   if(used+adding<=limit)return true;
-  const err=new Error('Has usado '+used+' de '+limit+' canales de pedidos incluidos. Añade otro canal por 29 €/mes o cambia de plan.');
+  const err=new Error('Has usado '+used+' de '+limit+' canales de pedidos incluidos en tu plan. Para añadir otro canal, cambia a un plan con más canales.');
   err.code='ORDER_CHANNEL_LIMIT';err.used=used;err.limit=limit;throw err;
 }
 function publicLicenseState(s){
