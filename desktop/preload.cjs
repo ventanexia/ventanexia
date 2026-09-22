@@ -69,6 +69,7 @@ contextBridge.exposeInMainWorld('vnx',{
   listConnections:()=>ipcRenderer.invoke('connection:list'),
   connectionCapacity:()=>ipcRenderer.invoke('connection:capacity'),
   orderChannelCapacity:()=>ipcRenderer.invoke('orders:channel-capacity'),
+  ordersExportReady:()=>ipcRenderer.invoke('orders:export-ready'),
   externalAgentList:()=>ipcRenderer.invoke('external-agent:list'),
   externalAgentTest:(payload)=>ipcRenderer.invoke('external-agent:test',payload),
   externalAgentSave:(payload)=>ipcRenderer.invoke('external-agent:save',payload),
