@@ -70,9 +70,28 @@ function renderLicense(){
   if(extraEmail)extraEmail.textContent=isMasterPlan?'+ Añadir otra cuenta · Maestro ilimitado':'+ Añadir otra cuenta · 49 €/mes';
   if(l.customerId&&!$('#customerIdInput').value)$('#customerIdInput').value=l.customerId;
   if(activated){
-    $('#licenseMsg').textContent=`Licencia activa. Quedan ${Math.max(0,l.available||0)} plaza(s) de dispositivo disponibles. Dispositivo adicional: ${Number(l.extraDeviceMonthlyEur||49).toFixed(0)} €/mes.`;
+    const due=l.billingStatus==='payment_due'&&l.paymentGraceUntil&&!l.blocked;
+    if(due){
+      const until=new Date(l.paymentGraceUntil),hours=Math.max(0,Math.ceil((until-Date.now())/3600000));
+      $('#licenseMsg').textContent='Pago pendiente. Tu acceso sigue activo durante el periodo de cortesía. Quedan aproximadamente '+hours+' h para regularizarlo.';
+    }else $('#licenseMsg').textContent=`Licencia activa. Quedan ${Math.max(0,l.available||0)} plaza(s) de dispositivo disponibles. Dispositivo adicional: ${Number(l.extraDeviceMonthlyEur||49).toFixed(0)} €/mes.`;
   }
+  renderBillingAccess();
 }
+function renderBillingAccess(){
+  const l=state.license||{};
+  let overlay=document.getElementById('vnxBillingLock');
+  if(!l.blocked){if(overlay)overlay.remove();return}
+  if(!overlay){
+    overlay=document.createElement('div');overlay.id='vnxBillingLock';overlay.className='vnx-billing-lock';
+    overlay.innerHTML='<div class="vnx-billing-lock-card"><div class="vnx-lock-icon">⏸</div><h2>VentaNexIA está pausado temporalmente</h2><p>La cuota continúa pendiente después de las 24 horas de cortesía. No hemos borrado tus datos ni tu configuración.</p><div class="vnx-lock-note">En cuanto Stripe confirme el pago, tu acceso se reactiva automáticamente.</div><div class="row"><button class="btn primary" id="vnxPayNowBtn">Regularizar pago</button><button class="btn outline" id="vnxRetryBillingBtn">Ya he pagado · comprobar</button></div><small>Si acabas de pagar, la confirmación puede tardar unos minutos.</small></div>';
+    document.body.appendChild(overlay);
+  }
+  const pay=document.getElementById('vnxPayNowBtn'),retry=document.getElementById('vnxRetryBillingBtn');
+  if(pay){pay.disabled=!l.paymentUrl;pay.onclick=()=>{if(l.paymentUrl)window.vnx.openExternal(l.paymentUrl)}}
+  if(retry)retry.onclick=async()=>{retry.disabled=true;retry.textContent='Comprobando…';try{state.license=await window.vnx.refreshLicense();renderState()}catch(e){retry.textContent='Sigue pendiente'}finally{setTimeout(()=>{if(retry.isConnected){retry.disabled=false;retry.textContent='Ya he pagado · comprobar'}},1000)}};
+}
+
 function renderResultsGuarantees(){
   const activity=Array.isArray(state?.activity)?state.activity:[];
   const useful=activity.filter(a=>!/error|failed|status|started|diagnostic|health/i.test(String(a?.type||'')));
@@ -111,7 +130,14 @@ function renderState(){
   renderResultsGuarantees();
   $('#activityList').innerHTML=(state.activity||[]).length?state.activity.map(a=>`<div class="listrow"><div><b>${esc(a.type)}</b><span>${esc(a.detail)}</span></div><small>${new Date(a.at).toLocaleString('es-ES')}</small></div>`).join(''):'<div class="empty">Todavía no hay actividad.</div>';
 }
-async function refresh(){state=await window.vnx.getState();renderState();if(typeof renderConnectionSummaries==='function')await renderConnectionSummaries()}
+async function refresh(){
+  state=await window.vnx.getState();
+  if(state?.license?.activated&&!state?.license?.master){
+    try{state.license=await window.vnx.refreshLicense()}catch{}
+  }
+  renderState();
+  if(typeof renderConnectionSummaries==='function')await renderConnectionSummaries();
+}
 setTimeout(()=>ensureEditableControls(document),500);
 function refreshHomeClock(){
   const now=new Date(),h=$('#homeClock'),d=$('#homeDate'),g=$('#homeGreeting');
