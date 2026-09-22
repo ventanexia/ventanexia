@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.102",
+  "version": "0.6.103",
   "private": true,
-  "description": "VentaNexIA Desktop · inicio ejecutivo profesional + Carla emergente + previsión Shopify por SKU a 6 meses · 0.6.102",
+  "description": "VentaNexIA Desktop · pedidos exportables e integrables + stock SKU/EAN a 7 días + seguridad reforzada + cobros 24 h · 0.6.103",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
@@ -76,6 +76,15 @@
         "dmg"
       ],
       "category": "public.app-category.business"
+    },
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": false
     }
   },
   "dependencies": {
