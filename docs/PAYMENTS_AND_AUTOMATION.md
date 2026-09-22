@@ -44,20 +44,23 @@ Las claves de Stripe viven solo en variables seguras del servidor.
 - Suscripción mensual (PRUEBA): `price_1UFbxwBqvWaQiejVzbjstmnz` — 1,00 EUR/mes.
 - Estos IDs son solo del entorno de prueba y no deben reutilizarse en producción.
 
-## Stripe production catalog (2026-09-15)
-- VNX Start: 490 EUR/mes + 790 EUR de implantación.
-- VNX Core: 990 EUR/mes + 1.490 EUR de implantación.
-- VNX Scale: 1.990 EUR/mes + 2.990 EUR de implantación.
-- Agente VNX adicional: 150 EUR/mes.
-- Los Price IDs de producción se guardan únicamente en variables de entorno `STRIPE_PRICE_*`.
-- Los precios usan `tax_behavior=exclusive`; Stripe Tax no se activa hasta confirmar el registro fiscal aplicable.
+## Stripe production catalog (2026-09-22)
+- VNX Inicio: 129 EUR/mes + IVA.
+- VNX Negocio: 299 EUR/mes + IVA.
+- VNX Empresa: 599 EUR/mes + IVA.
+- Sin cuota de implantación.
+- Ampliaciones vigentes: conexión adicional 49 EUR/mes, 10 GB adicionales 29 EUR/mes y 500 pedidos adicionales/mes 39 EUR/mes.
+- Los importes del checkout se validan en servidor; el navegador no decide el precio.
+- Los precios usan `tax_behavior=exclusive`; la aplicación no guarda datos bancarios.
 
-## Trial de 72 horas
+## Trial de 15 días
 - La prueba no es un producto de Stripe ni una suscripción a precio cero.
 - `start-trial` crea un entitlement con vencimiento calculado en el servidor.
 - Cada acción protegida vuelve a comprobar el vencimiento y bloquea el acceso inmediatamente cuando expira.
 - El cron diario `/api/trial-sweep` suspende los tenants vencidos y desactiva sus agentes como limpieza de estado.
 - El pago confirmado por webhook activa o reactiva el entitlement.
+- Si una renovación falla, se abre una cortesía de 24 horas. Stripe proporciona el enlace seguro de pago, VentaNexIA avisa al cliente y, al vencer la cortesía, la licencia se pausa si sigue pendiente.
+- Cuando Stripe confirma el pago, la licencia y los agentes se reactivan automáticamente.
 
 ## Banking data policy
 - Payout bank details are configured only inside the verified Stripe account.
