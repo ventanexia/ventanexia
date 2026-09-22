@@ -24,8 +24,8 @@ const checks=[
  ['Activity history expanded',stateStore.includes(".slice(0,5000)")],
  ['Results panel exists',indexUi.includes('id="resultsGuarantees"')&&appUi.includes('renderResultsGuarantees')],
  ['Device RPC server-only code',deviceRegister.includes("SUPABASE_SERVICE_ROLE_KEY")&&deviceStatus.includes("SUPABASE_SERVICE_ROLE_KEY")&&!deviceRegister.includes("sb_publishable_")&&!deviceStatus.includes("sb_publishable_")],
- ['Home pricing current',home.includes("99 €")&&home.includes("249 €")&&home.includes("499 €")],
- ['Plans pricing current',plans.includes("price:99")&&plans.includes("price:249")&&plans.includes("price:499")],
+ ['Home pricing current',home.includes("129 €")&&home.includes("299 €")&&home.includes("599 €")],
+ ['Plans pricing current',plans.includes("price:129")&&plans.includes("price:299")&&plans.includes("price:599")],
  ['Checkout pricing current',checkout.includes("expectedAmount:9900")&&checkout.includes("expectedAmount:24900")&&checkout.includes("expectedAmount:49900")],
  ['Executive Secretary visible on web',home.includes("Secretaria Ejecutiva")&&plans.includes("Secretaria Ejecutiva")]
 ];
