@@ -35,6 +35,11 @@ const SKIP_DIRS=new Set([
 
 let mainWindow;
 let workbenchWindow;
+
+app.on('session-created',ses=>{
+  try{ses.setPermissionRequestHandler((_webContents,_permission,callback)=>callback(false))}catch{}
+  try{ses.setPermissionCheckHandler(()=>false)}catch{}
+});
 let discoveryCandidates=new Set();
 async function postJson(url,body,timeoutMs=20000){
   const controller=new AbortController();
