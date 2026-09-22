@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.90",
+  "version": "0.6.91",
   "private": true,
-  "description": "VentaNexIA Desktop · conexiones aisladas, reposición Shopify exportable a Excel e impresión, clasificación Email unificada · 0.6.90",
+  "description": "VentaNexIA Desktop · Carla compacta, correo legible en ventana y fuentes de tienda/programa claramente separadas · 0.6.91",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",

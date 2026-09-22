@@ -600,7 +600,7 @@
     const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
     if(title)title.textContent=chosen.key==='core_ai'?'👩‍💼 Carla · Secretaria ejecutiva':(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
-    if(chosen.key==='email'){renderEmailDashboard(chosen);renderGuidedOtherCards(chatConnections(),chosen);return;}
+    if(chosen.key==='email'){renderEmailDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div data-whatsapp-workspace-metrics></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(chosen.key==='whatsapp')refreshWhatsAppWorkspaceMetrics();
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
@@ -935,6 +935,32 @@
     const foreign=/\b(hello|hi|thanks|thank you|order|invoice|please|regards|bonjour|merci|commande|facture|bitte|danke|bestellung|rechnung|ciao|grazie|ordine|fattura|obrigado|pedido|fatura)\b/.test(s);
     return foreign&&!spanish;
   }
+  function sourceKindLabel(source={}){
+    const module=String(source.module||source.key||source.integration||'').toLowerCase();
+    const provider=String(source.provider||'').toLowerCase();
+    const label=String(source.label||source.name||source.shopName||source.shop||'');
+    if(module==='shopify'||provider==='shopify'||/shopify/i.test(label))return {kind:'store',icon:'🛍️',title:'Tienda online',detail:'Shopify · ventas, productos y stock de la tienda'};
+    if(module==='orders'||module==='erp'||provider==='erp'||/naturdesma|holded|odoo|dolibarr|factusol|erp|programa/i.test(label))return {kind:'company',icon:'🏢',title:'Programa de empresa',detail:'Pedidos, clientes, facturación o stock del programa conectado'};
+    if(module==='email')return {kind:'email',icon:'✉️',title:'Correo',detail:'Cuenta de email conectada'};
+    return {kind:'other',icon:'🔗',title:'Otra conexión',detail:'Fuente conectada a VentaNexIA'};
+  }
+  function decorateSourceOptions(select){
+    if(!select)return;
+    [...select.options].forEach(opt=>{
+      if(!opt.value||/todas/i.test(opt.textContent||''))return;
+      let src=null;
+      try{const parsed=JSON.parse(opt.value);src=parsed&&typeof parsed==='object'?parsed:null}catch{}
+      if(!src){
+        const txt=String(opt.textContent||'');
+        src=(runtimeConnections||[]).find(x=>txt.includes(x.label||x.name||x.shop||'')||String(x.label||x.name||x.shop||'').includes(txt));
+      }
+      const meta=sourceKindLabel(src||{label:opt.textContent});
+      const clean=String(opt.textContent||'').replace(/^\s*[🛍️🏢✉️🔗]\s*(Tienda online|Programa de empresa|Correo|Otra conexión)?\s*[·—:-]?\s*/,'').trim();
+      opt.textContent=meta.icon+' '+meta.title+' · '+clean;
+      opt.dataset.sourceKind=meta.kind;
+    });
+  }
+
   function openConnectionsTab(module){
     document.querySelector('[data-tab="agents"]')?.click();
     if(!module)return;
@@ -1241,8 +1267,9 @@
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       $m('#chat')?.classList.add('active');
       localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
-      localStorage.setItem('vnx_workspace_mode','free');
-      setTimeout(()=>setWorkspaceMode('free'),0);
+      const savedAgent=localStorage.getItem('vnx_master_chat_agent')||'agent:core_ai';
+      if(!savedAgent)localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
+      setTimeout(()=>{setWorkspaceMode(savedAgent==='agent:email'?'guided':'free');},0);
     }
     const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
     setUiZoom(detached?Math.max(1.1,stored):stored);
