@@ -16,6 +16,7 @@ const crypto=require('node:crypto');
 
 const DEFAULTS={
   mode:'ask',                    // prepare (solo preparar) · ask (pide permiso) · auto (solo si todo coincide)
+  outputPreference:'program',    // program · export. Controla cómo quiere recibir el pedido ya revisado.
   autoScan:true,scanDays:14,maxPerScan:15,maxExtractionsPerDay:60,
   newCustomer:'ask',             // ask (pide permiso antes de pedir datos) · auto (pide los datos solo) · never (no da de alta)
   requiredCustomerData:['name','taxId','address','deliveryAddress','email','phone'],
@@ -321,6 +322,7 @@ function parseCommand(text=''){
     return {type:'set',key,value:{type:'file',path:v}};
   }
   if((m=n.match(/^modo\s*[:=\-]?\s*(automatico|auto|pedir permiso|preguntar|solo preparar|preparar)/)))return {type:'set',key:'mode',value:/auto/.test(m[1])?'auto':/preparar$/.test(m[1])?'prepare':'ask'};
+  if((m=n.match(/^salida preferida\s*[:=\-]?\s*(.+)$/)))return {type:'set',key:'outputPreference',value:/excel|pdf|imprimir|export/.test(m[1])?'export':'program'};
   if((m=n.match(/^(clientes nuevos|cliente nuevo|alta de clientes)\s*[:=\-]?\s*(.+)$/)))return {type:'set',key:'newCustomer',value:/solicit|autom|pide/.test(m[2])&&!/permiso/.test(m[2])?'auto':/no |nunca/.test(m[2])?'never':'ask'};
   if((m=n.match(/^(escaneo|revision) automatic[oa]\s*[:=\-]?\s*(activar|activa|activado|si|desactivar|desactiva|desactivado|no|pausa)/)))return {type:'set',key:'autoScan',value:/^(activ|si)/.test(m[2])};
   if((m=n.match(/^pedidos de la (tienda|web)( online)?\s*[:=\-]?\s*(activar|activa|activados|si|desactivar|desactiva|desactivados|no)/)))return {type:'set',key:'webOrders',value:/^(activ|si)/.test(m[3])};
@@ -820,6 +822,7 @@ function createOrders(deps){
           const T={
             destination:()=>cmd.value?.type==='file'?'Destino: archivo '+(cmd.value.format||'csv').toUpperCase()+' en '+cmd.value.dir+'. Cada pedido listo se guardará ahí, listo para importar en tu programa.':cmd.value?.type==='webhook'?'Destino: webhook '+cmd.value.url:'Destino: borradores de pedido en Shopify (necesita permiso de escritura de pedidos borrador).',
             mode:()=>cmd.value==='auto'?'Modo automático: solo entregaré pedidos de clientes conocidos, con todas las referencias exactas en tu catálogo y sin ningún aviso. Todo lo demás lo revisas tú.':cmd.value==='prepare'?'Modo solo preparar: leo y compruebo los pedidos, pero nunca los entrego sin que me lo ordenes.':'Modo pedir permiso: te pido confirmación antes de entregar cualquier pedido.',
+            outputPreference:()=>cmd.value==='export'?'Salida preferida: los pedidos revisados se quedan preparados para exportar a Excel, PDF o imprimir; no se introducen solos en tu programa.':'Salida preferida: usar el programa de gestión conectado cuando el modo lo permita.',
             newCustomer:()=>cmd.value==='auto'?'Cuando el cliente sea nuevo, le pediré por email los datos que falten sin preguntarte.':cmd.value==='never'?'No daré de alta clientes nuevos: esos pedidos los revisas tú.':'Con un cliente nuevo te pediré permiso antes de escribirle.',
             autoScan:()=>cmd.value?'Revisión automática del correo activada (cada 15 minutos con la app abierta).':'Revisión automática desactivada.',
             signature:()=>'Firma guardada.',
@@ -859,7 +862,7 @@ function createOrders(deps){
         case 'detail':{const o=pick(s,cmd.n);return reply(o?detail(o):'No encuentro el pedido #'+cmd.n+'.')}
         case 'status':{
           const os=Object.values(s.orders);const by=k=>os.filter(o=>o.status===k).length;const mu=await monthUsage();
-          return reply((mu.limit!=null?'Este mes: '+mu.used+' de '+mu.limit+' pedidos de tu plan.\n':'')+'Pedidos: '+os.length+' · listos '+by('listo')+' · sin stock '+by('sin_stock')+' · esperando Compras '+by('esperando_compras')+' · faltan datos '+by('falta_datos')+' · a revisar '+by('revisar')+' · esperando cliente '+by('esperando_cliente')+' · introducidos '+by('introducido')+' · con error '+by('error')+'.\nStock: '+(s.settings.stockCheck===false?'desactivado':s.settings.stock?.source||'del catálogo si trae columna de stock')+' · Compras: '+(s.settings.purchasingEmail||'sin configurar')+' · sin stock: '+({auto:'consultar solo',ask:'pedir permiso',wait:'dejar pendiente'}[s.settings.noStock])+'\nDestino: '+destText(s.settings.destination,s)+' · modo: '+({ask:'pedir permiso',auto:'automático',prepare:'solo preparar'}[s.settings.mode])+' · lista de clientes: '+(s.settings.customers?'sí':'no')+' · catálogo: '+(s.settings.catalog?'sí':'no'));
+          return reply((mu.limit!=null?'Este mes: '+mu.used+' de '+mu.limit+' pedidos de tu plan.\n':'')+'Pedidos: '+os.length+' · listos '+by('listo')+' · sin stock '+by('sin_stock')+' · esperando Compras '+by('esperando_compras')+' · faltan datos '+by('falta_datos')+' · a revisar '+by('revisar')+' · esperando cliente '+by('esperando_cliente')+' · introducidos '+by('introducido')+' · con error '+by('error')+'.\nStock: '+(s.settings.stockCheck===false?'desactivado':s.settings.stock?.source||'del catálogo si trae columna de stock')+' · Compras: '+(s.settings.purchasingEmail||'sin configurar')+' · sin stock: '+({auto:'consultar solo',ask:'pedir permiso',wait:'dejar pendiente'}[s.settings.noStock])+'\nDestino: '+destText(s.settings.destination,s)+' · modo: '+({ask:'pedir permiso',auto:'automático',prepare:'solo preparar'}[s.settings.mode])+' · salida: '+(s.settings.outputPreference==='export'?'Excel/PDF/Imprimir':'programa conectado')+' · lista de clientes: '+(s.settings.customers?'sí':'no')+' · catálogo: '+(s.settings.catalog?'sí':'no'));
         }
         case 'stock':{
           if(s.settings.stockCheck===false)return reply('La comprobación de stock está desactivada. Escribe «stock: activar» para usarla.');
