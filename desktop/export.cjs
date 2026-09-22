@@ -95,15 +95,22 @@ function htmlDocument(data){
 }
 
 ipcMain.handle('export:data',async(_e,payload={})=>{
-  const format=payload.format==='pdf'?'pdf':'excel';
+  const format=payload.format==='pdf'?'pdf':payload.format==='print'?'print':'excel';
   const data=normalizePayload(payload);
+  if(format==='print'){
+    const win=new BrowserWindow({show:false,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
+    try{
+      await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlDocument(data))}`);
+      const ok=await new Promise((resolve,reject)=>win.webContents.print({silent:false,printBackground:true},(success,reason)=>success?resolve(true):reject(new Error(reason||'No se pudo imprimir'))));
+      return {ok,format:'print'};
+    }finally{if(!win.isDestroyed())win.destroy()}
+  }
   const ext=format==='pdf'?'pdf':'xlsx';
   const result=await dialog.showSaveDialog({title:`Guardar ${format==='pdf'?'PDF':'Excel'}`,defaultPath:`${data.title}.${ext}`,filters:[format==='pdf'?{name:'PDF',extensions:['pdf']}:{name:'Excel',extensions:['xlsx']} ]});
   if(result.canceled||!result.filePath)return {ok:false,canceled:true};
-  if(format==='excel'){
-    await fs.writeFile(result.filePath,xlsxBuffer(data));
-  }else{
-    const win=new BrowserWindow({show:false,webPreferences:{sandbox:true}});
+  if(format==='excel')await fs.writeFile(result.filePath,xlsxBuffer(data));
+  else{
+    const win=new BrowserWindow({show:false,webPreferences:{sandbox:true,contextIsolation:true,nodeIntegration:false}});
     try{
       await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlDocument(data))}`);
       const pdf=await win.webContents.printToPDF({printBackground:true,pageSize:'A4',landscape:data.headers.length>6});
