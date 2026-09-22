@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.107",
+  "version": "0.6.108",
   "private": true,
-  "description": "VentaNexIA Desktop · tabla de stock Shopify determinista + rotura <5 días + selector y aislamiento · 0.6.107",
+  "description": "VentaNexIA Desktop · stock Shopify descargable/importable + tabla determinista + rotura <5 días · 0.6.108",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
