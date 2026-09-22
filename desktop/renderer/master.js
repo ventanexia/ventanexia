@@ -882,6 +882,26 @@ function emailListItem(m,i,selected){
     const pdf=out.querySelector('[data-doc-pdf]');
     if(pdf)pdf.onclick=()=>printDocumentPdf(currentText());
   }
+  async function appendReadyOrdersExport(out){
+    if(!out||!window.vnx?.ordersExportReady||!window.vnx?.exportData)return;
+    let data;try{data=await window.vnx.ordersExportReady()}catch(e){return}
+    const box=document.createElement('div');box.className='vnx-order-export-box';
+    if(!data?.count){
+      box.innerHTML='<b>Exportación de pedidos</b><small>No hay pedidos verificados y listos para exportar todavía.</small>';
+      out.appendChild(box);return;
+    }
+    box.innerHTML='<div><b>'+data.count+' pedido'+(data.count===1?'':'s')+' listo'+(data.count===1?'':'s')+' para exportar</b><small>Son pedidos ya revisados. Exportar no los introduce en tu programa.</small></div><div class="row"><button type="button" class="mini" data-order-export="excel">Excel</button><button type="button" class="mini" data-order-export="pdf">PDF</button><button type="button" class="mini" data-order-export="print">Imprimir</button></div>';
+    out.appendChild(box);
+    box.querySelectorAll('[data-order-export]').forEach(b=>b.onclick=async()=>{
+      const format=b.dataset.orderExport,old=b.textContent;b.disabled=true;b.textContent='Preparando…';
+      try{
+        const r=await window.vnx.exportData({format,title:'Pedidos listos - VentaNexIA',headers:data.headers,rows:data.rows});
+        b.textContent=r?.ok?(format==='print'?'Impresión abierta ✓':'Guardado ✓'):old;
+      }catch(e){alert('No he podido '+(format==='print'?'imprimir':'exportar')+': '+(e.message||e));b.textContent=old}
+      finally{setTimeout(()=>{if(b.isConnected){b.disabled=false;if(/✓/.test(b.textContent))b.textContent=old}},1500)}
+    });
+  }
+
   async function runGuided(){
     const scope=selectedChatScope(),out=$m('#guidedResult'),btn=$m('#guidedPrimaryAction');if(!scope||!btn||!out)return;
     const cfg=guidedConfig(scope.key),data=guidedRead(scope.key);
@@ -947,6 +967,7 @@ function emailListItem(m,i,selected){
         out.innerHTML='<div class="guided-result-head"><b>Resultado</b><button type="button" data-guided-continue-free class="mini">Continuar en modo libre</button></div><div class="guided-result-copy vnx-rich-result">'+documentHtmlFromMarkdown(r?.reply||'Sin respuesta')+'</div>';
         const cont=out.querySelector('[data-guided-continue-free]');if(cont)cont.onclick=()=>{setWorkspaceMode('free');masterMessages=[{role:'assistant',content:r?.reply||'Sin respuesta'}];renderMasterMessages();};
       }
+      if(scope.key==='orders'&&String(data.orderOutput||'').startsWith('Excel / PDF'))await appendReadyOrdersExport(out);
     }catch(e){out.textContent='No he podido completar la tarea: '+(e.message||e)}
     finally{btn.disabled=false;btn.textContent=old}
   }
