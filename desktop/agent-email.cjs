@@ -109,11 +109,46 @@ function emailAgentDirectReply(question,localContext=[]){
   if((/cuantos|cuantas|numero|total/.test(q))&&/correo|correos|email|emails/.test(q)){
     return 'He consultado tu correo. Hay '+(gmail.total||mails.length)+' correo(s)'+(/hoy|today/.test(q)?' hoy':'')+' en la bandeja de entrada.';
   }
+  const asksSummary=/resumen|resumir|revisa mis correos|revisar correos|preparame el dia|prepárame el dia|prepárame el día|organiza.*correo|que tengo.*correo|qué tengo.*correo/.test(q);
+  if(asksSummary){
+    const classify=m=>{
+      const t=norm([m.subject,m.snippet,m.from].join(' '));
+      if(/reclamacion|queja|devoluc|roto|defectuos|no ha llegado|problema|incidencia/.test(t))return 'Reclamaciones / problemas';
+      if(/impago|vencimiento|pago pendiente|cobro|payment failed|card declined/.test(t))return 'Cobros / impagos';
+      if(/factura|invoice|recibo/.test(t))return 'Facturas / recibos';
+      if(/pedido|order|compra|entrega|envio|expedicion|presupuesto/.test(t))return 'Pedidos';
+      if(needsReplyScore(m)>0)return 'Consultas';
+      return 'Informativos';
+    };
+    const groups=new Map();
+    for(const m of mails){
+      const k=classify(m);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(m);
+    }
+    const order=['Pedidos','Facturas / recibos','Consultas','Cobros / impagos','Reclamaciones / problemas','Informativos'];
+    const totalReply=mails.filter(m=>needsReplyScore(m)>0).length;
+    const lines=['# Resumen rápido','- '+mails.length+' correos revisados','- '+totalReply+' parecen requerir respuesta',''];
+    for(const k of order){
+      const arr=groups.get(k)||[];if(!arr.length)continue;
+      lines.push('## '+k);
+      for(const m of arr.slice(0,6)){
+        const needs=needsReplyScore(m)>0;
+        lines.push('- '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+' — '+(needs?'Requiere respuesta':'No requiere respuesta'));
+      }
+      lines.push('');
+    }
+    const firstReply=mails.find(m=>needsReplyScore(m)>0);
+    if(firstReply){
+      lines.push('## Acción recomendada');
+      lines.push('- Empezaría por «'+firstReply.subject+'» de '+(firstReply.from||'ese remitente')+'.');
+      lines.push('- Puedes preparar o enviar la respuesta desde los botones de debajo.');
+    }
+    return lines.join('\n');
+  }
   const asksReplyQueue=/responder primero|contestar primero|pendientes? de responder|pendientes? de contestar|requieren respuesta|requiere respuesta|necesitan respuesta|necesita respuesta|que correos responder|que emails responder|que correos contestar|que emails contestar|cuales responder|cuales contestar|que tengo que responder|que debo responder|que necesito responder/.test(q);
   if(asksReplyQueue){
     const replyable=mails.map((m,i)=>({m,i,score:needsReplyScore(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,8);
     if(!replyable.length)return 'He revisado los correos recientes y no veo ninguno que claramente requiera una respuesta ahora mismo.';
-    const lines=replyable.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: es una solicitud humana o comercial que espera respuesta'+(x.m.snippet?'\n   '+x.m.snippet:''));
+    const lines=replyable.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Acción: preparar respuesta');
     const n=replyable.length;
     return 'He revisado los correos. '+(n===1?'Solo encuentro 1 que requiera respuesta:':'Encuentro '+n+' que requieren respuesta:')+'\n\n'+lines.join('\n\n')+'\n\nLos avisos automáticos, códigos de acceso y newsletters se han excluido de esta cola.';
   }
@@ -121,14 +156,14 @@ function emailAgentDirectReply(question,localContext=[]){
   if(asksAttention){
     const ranked=mails.map((m,i)=>({m,i,score:scoreMailAttention(m)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,5);
     if(!ranked.length)return 'He revisado tu correo y no veo mensajes recientes que destaquen claramente como prioritarios.';
-    const lines=ranked.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: '+attentionReason(x.m)+(x.m.snippet?'\n   '+x.m.snippet:''));
+    const lines=ranked.map((x,i)=>(i+1)+'. '+x.m.subject+' — '+(x.m.from||'remitente no disponible')+'\n   Motivo: '+attentionReason(x.m));
     return 'He revisado tu correo. Estos son los mensajes que requieren más atención:\n\n'+lines.join('\n\n')+'\n\nOjo: prioridad no significa necesariamente que haya que responder por email.';
   }
   if((/ultim|recient/.test(q))&&/correo|correos|email|emails/.test(q)){
     const n=Math.max(1,Math.min(10,Number((q.match(/\b(\d{1,2})\b/)||[])[1]||5)));
     const chosen=mails.slice(0,n);
     if(!chosen.length)return 'He consultado tu correo, pero no he encontrado mensajes que mostrar.';
-    const lines=chosen.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+(m.date?' — '+m.date:'')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
+    const lines=chosen.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+(m.date?' — '+m.date:'')+(needsReplyScore(m)>0?' — Requiere respuesta':' — Informativo'));
     const top=[...chosen].sort((a,b)=>scoreMailAttention(b)-scoreMailAttention(a))[0];
     return 'He consultado tu correo. Estos son los últimos '+chosen.length+' correos:\n\n'+lines.join('\n\n')+(top?'\n\nEl que revisaría primero es «'+top.subject+'» de '+(top.from||'ese remitente')+'.':'');
   }
@@ -137,7 +172,7 @@ function emailAgentDirectReply(question,localContext=[]){
     const pool=related.length?related:mails;
     if(!pool.length)return 'He consultado tu correo, pero no he encontrado mensajes relacionados con pedidos.';
     const ranked=[...pool].sort((a,b)=>scoreMailAttention(b)-scoreMailAttention(a)).slice(0,5);
-    const lines=ranked.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+(m.status?' — '+m.status:'')+'\n   '+(m.snippet||'Sin vista previa disponible.'));
+    const lines=ranked.map((m,i)=>(i+1)+'. '+m.subject+' — '+(m.from||'remitente no disponible')+(gmail.accounts>1?' · '+m.account:'')+(needsReplyScore(m)>0?' — Requiere respuesta':' — Sin respuesta necesaria'));
     return 'He revisado tu correo y he buscado mensajes relacionados con pedidos:\n\n'+lines.join('\n\n');
   }
   return null;

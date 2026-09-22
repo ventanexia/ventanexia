@@ -11,7 +11,7 @@
   function serializableMessages(list=masterMessages){
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
-      emailActions:m.emailActions||null,handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
+      emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
       handoffInternal:Boolean(m.handoffInternal)
     }));
   }
@@ -51,7 +51,7 @@
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
     orders:'Ej.: revisa los pedidos recibidos por email o portal y prepara su alta en el programa de gestión',
     social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora la visibilidad en Google de la página del producto',
-    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
+    web_ecommerce:'Ej.: analiza stock y ventas por producto, calcula reposición mínima y déjame el Excel listo para Compras',
     administration:'Ej.: revisa facturas vencidas, prepara reclamaciones de cobro, comprueba confirmaciones de proveedores y organiza mis tareas de esta semana',
     reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
     automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos hacer automáticamente'
@@ -61,11 +61,11 @@
       subtitle:'Tu secretaria ejecutiva: revisa la empresa, te organiza el día y te deja preparado el trabajo que puede adelantar.',
       primary:'☀️ Prepárame el día',
       fields:[
-        {key:'task',label:'¿QUÉ QUIERES QUE REVISE?',type:'select',options:['Prepárame el día','Dime qué tengo pendiente','Dime por dónde empezar','Dime qué puedes adelantar por mí','Prepárame lo que tengo que autorizar','Hazme el cierre del día','Otra consulta']},
+        {key:'task',label:'¿QUÉ QUIERES QUE REVISE?',type:'select',options:['Prepárame el día','Dime qué tengo pendiente','Dime por dónde empezar','Dime qué puedes adelantar por mí','Prepárame una reunión','Analiza stock y prepara reposición','Prepárame lo que tengo que autorizar','Hazme el cierre del día','Otra consulta']},
         {key:'focus',label:'¿ALGUNA PRIORIDAD?',type:'text',wide:true,placeholder:'Opcional. Ej. pedidos, clientes importantes, cobros o una reunión'},
         {key:'context',label:'ALGO QUE DEBA SABER',type:'textarea',wide:true,placeholder:'Opcional. Añade una condición o asunto especial para hoy'}
       ],
-      capabilities:['Revisar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Separar lo que puede adelantar, lo que deja preparado para autorizar y lo que requiere tu decisión','Recomendarte por dónde empezar según urgencia e impacto','Prepararte respuestas, seguimientos y trabajo para que solo tengas que revisar y aprobar','Avisarte de correos nuevos que realmente necesitan atención','Indicar qué fuente falta conectar en vez de inventar datos'],
+      capabilities:['Revisar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Separar lo que puede adelantar, lo que deja preparado para autorizar y lo que requiere tu decisión','Analizar stock frente a ventas/pedidos y preparar reposición para Compras','Preparar dossiers de reuniones cruzando agenda, cliente, pedidos, facturación y emails disponibles','Recomendarte por dónde empezar según urgencia e impacto','Prepararte respuestas, seguimientos y trabajo para que solo tengas que revisar y aprobar','Avisarte de correos nuevos que realmente necesitan atención','Indicar qué fuente falta conectar en vez de inventar datos'],
       steps:['Revisar','Priorizar','Adelantar']
     },
     email:{
@@ -208,12 +208,12 @@
       subtitle:'Consulta y trabaja con tu web o tienda conectada.',
       primary:'✨ Ejecutar consulta',
       fields:[
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Consultar pedidos','Consultar facturación','Consultar clientes','Consultar productos y stock','Preparar cambios de producto','Preparar cambio de contenido','Otra tarea']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Consultar pedidos','Consultar facturación','Consultar clientes','Consultar productos y stock','Analizar ventas + stock y preparar reposición','Preparar cambios de producto','Preparar cambio de contenido','Otra tarea']},
         {key:'target',label:'¿SOBRE QUÉ?',type:'text',placeholder:'Ej. pedidos de hoy, producto P616, página de inicio'},
         {key:'detail',label:'DETALLE',type:'textarea',wide:true,placeholder:'Explica exactamente qué necesitas',required:true},
         {key:'expected',label:'RESULTADO ESPERADO',type:'text',wide:true,placeholder:'Ej. una tabla, el total, una propuesta de cambio'}
       ],
-      capabilities:['Consultar pedidos, clientes y productos','Revisar stock y precios','Usar Shopify conectado con datos reales','Preparar cambios de contenido','No aplicar cambios importantes sin permiso'],
+      capabilities:['Consultar pedidos, clientes y productos','Cruzar ventas/pedidos históricos con stock por SKU','Proponer stock mínimo y cantidad de reposición con criterio transparente','Dejar el análisis listo para Excel y preparar el paso a Compras para autorización','Revisar stock y precios','Usar Shopify conectado con datos reales','Preparar cambios de contenido','No aplicar cambios importantes sin permiso'],
       steps:['Consultar','Preparar','Confirmar']
     },
     administration:{
@@ -1007,7 +1007,7 @@
     masterMessages.push({role:'user',content:kind==='translate'?'🌐 Traducir correos recientes a '+lang:'✉️ Resumen de emails'});renderMasterMessages();
     try{
       const r=await window.vnx.sendChat([{role:'user',content:prompt}],selectedChatScope());
-      masterMessages.push({role:'assistant',content:r.reply||'No he podido revisar los correos.',emailActions:r.emailActions||null,handoff:r.handoff||null});renderMasterMessages();
+      masterMessages.push({role:'assistant',content:r.reply||'No he podido revisar los correos.',emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null});renderMasterMessages({focusIndex:masterMessages.length-1});
     }catch(e){masterMessages.push({role:'assistant',content:'No he podido revisar el correo: '+(e.message||e)});renderMasterMessages()}
   }
   async function autoTranslateFreshEmails(){ return; }
@@ -1171,15 +1171,23 @@
   function looksLikeWriteAction(text=''){return /\b(envia|manda|archiva|borra|elimina|publica|crea|modifica|actualiza|responde|contesta|entrega|registra)\b/i.test(String(text))}
   async function sendSeparatedBySources(text,scope,payload){
     if(looksLikeWriteAction(text))throw new Error('Para realizar una acción elige una conexión concreta. Así evitamos actuar en la cuenta equivocada.');
-    const blocks=[];
+    const blocks=[],emailActionGroups=[];
     for(const src of (scope.sources||[])){
       const direct=sourceScope(src);if(!direct)continue;
       const specialist=String(scope.name||'VentaNexIA').replace(/^\S+\s/,'');
-      const q='Actúa como '+specialist+'. Consulta SOLO esta conexión: '+src.label+'. '+text+'\nNo mezcles datos de otras conexiones.';
-      try{const r=await window.vnx.sendChat([{role:'user',content:q}],direct);blocks.push('## '+src.label+'\n\n'+(r.reply||'Sin información disponible.'))}
-      catch(e){blocks.push('## '+src.label+'\n\nNo he podido consultar esta conexión: '+(e.message||e))}
+      const isEmail=String(src.module||src.key||'').includes('email')||String(direct.key||'')==='email';
+      const instruction=isEmail
+        ?'No copies el correo completo ni prepares texto de relleno. Resume SOLO lo útil para trabajar. Formato: **Resumen:** una frase; **Qué pide:** una frase; **¿Requiere respuesta?:** Sí/No; **Acción recomendada:** una frase. Si requiere respuesta, añade **Respuesta propuesta:** con un texto breve y listo para enviar. Si es informativo/noreply, dilo y no redactes respuesta.'
+        :'Da primero un **Resumen rápido** de 2-5 puntos y después solo tareas, decisiones o datos útiles agrupados por tipo. No vuelques datos en bruto si puedes resumirlos.';
+      const q='Actúa como '+specialist+'. Consulta SOLO esta conexión: '+src.label+'. '+text+'\n'+instruction+'\nNo mezcles datos de otras conexiones.';
+      try{
+        const r=await window.vnx.sendChat([{role:'user',content:q}],direct);
+        blocks.push('## '+src.label+'\n\n'+(r.reply||'Sin información disponible.'));
+        if(isEmail&&Array.isArray(r.emailActionGroups))emailActionGroups.push(...r.emailActionGroups.map(g=>({label:g.label||src.label,meta:g.meta})).filter(g=>g.meta?.messageId));
+        else if(isEmail&&r.emailActions?.messageId)emailActionGroups.push({label:src.label,meta:r.emailActions});
+      }catch(e){blocks.push('## '+src.label+'\n\nNo he podido consultar esta conexión: '+(e.message||e))}
     }
-    return {reply:blocks.join('\n\n---\n\n')||'No hay conexiones compatibles para esta consulta.'};
+    return {reply:blocks.join('\n\n---\n\n')||'No hay conexiones compatibles para esta consulta.',emailActionGroups};
   }
   async function refreshOwnAgentsCard(){
     const root=$m('#ownAgentsSummary');if(!root)return;
@@ -1739,10 +1747,11 @@
       if(m.handoffInternal)return '';
       const imgs=(m.images||[]).slice(0,6).map(img=>`<a href="${escM(img.src)}" target="_blank" rel="noreferrer"><img src="${escM(img.src)}" alt="${escM(img.alt||'Imagen')}" style="max-width:220px;max-height:180px;object-fit:contain;border-radius:10px;margin:8px 8px 0 0;background:#fff;border:1px solid #d8e2ea"></a>`).join('');
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
+      const groupedActions=Array.isArray(m.emailActionGroups)&&m.emailActionGroups.length?'<div class="vnx-email-action-groups">'+m.emailActionGroups.map((g,gi)=>'<div class="vnx-email-action-group"><b>'+escM(g.label||g.meta?.subject||'Email')+'</b><div class="row">'+(g.meta?.options||[]).filter(a=>['draft_reply','send_reply','archive','mark_read','no_reply_needed'].includes(a.key)).map(a=>'<button class="mini grouped-email-action-btn" data-master-msg="'+msgIndex+'" data-email-group="'+gi+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div></div>').join('')+'</div>':'';
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${secretaryActions}${handoff}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -1766,6 +1775,25 @@
         masterMessages.push({role:'assistant',content:'No he podido completar la acción: '+(e.message||e)});
         renderMasterMessages();
       }
+    });
+    $$m('.grouped-email-action-btn').forEach(btn=>btn.onclick=async()=>{
+      const mi=Number(btn.dataset.masterMsg),gi=Number(btn.dataset.emailGroup);
+      const msg=masterMessages[mi],group=msg?.emailActionGroups?.[gi],meta=group?.meta,action=btn.dataset.action;
+      if(!meta)return;
+      let body='',cc='';
+      if(['draft_reply','send_reply','send_reply_cc'].includes(action)){
+        const edited=await openReplyEditor({meta,action});if(!edited)return;
+        body=edited.body;cc=edited.cc||'';
+      }
+      if(action==='send_reply'&&!confirm('¿Enviar esta respuesta ahora desde '+(meta.account||'esta cuenta')+'?'))return;
+      const old=btn.textContent;btn.disabled=true;btn.textContent='Procesando…';
+      try{
+        const out=await window.vnx.emailAction({account:meta.account,messageId:meta.messageId,threadId:meta.threadId,subject:meta.subject,from:meta.from,action,body,cc});
+        btn.textContent='Hecho ✓';
+        if(['archive','mark_read','no_reply_needed'].includes(action))setTimeout(()=>{btn.remove()},700);
+        if(action==='send_reply')masterMessages.push({role:'assistant',content:out?.message||'Respuesta enviada.'});
+      }catch(e){alert(e.message||e);btn.textContent=old}
+      finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
     });
     $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
     $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
@@ -1796,7 +1824,7 @@
         const scope=selectedChatScope();
         const payload=masterMessages.filter(x=>!x.handoffInternal||x===masterMessages[masterMessages.length-1]).map(({role,content})=>({role,content}));
         const r=await window.vnx.sendChat(payload,scope);
-        masterMessages.push({role:'assistant',content:r.reply||'Sin respuesta',images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null});
+        masterMessages.push({role:'assistant',content:r.reply||'Sin respuesta',images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null});
       }catch(e){
         masterMessages.push({role:'assistant',content:'No he podido pasar la tarea al empleado: '+(e.message||e)});
       }
@@ -1844,7 +1872,7 @@
       const mails=secretaryNewMails.slice(-8).map((m,i)=>(i+1)+'. '+(m.subject||'(sin asunto)')+' — '+(m.from||'remitente desconocido')+' — '+(Number(m.replyScore||0)>0?'parece requerir respuesta':'conviene revisar')).join('\n');
       return 'Actúa como mi Secretaria Ejecutiva. Han llegado estos correos nuevos que el sistema ha marcado como relevantes:\n'+mails+'\nFORMATO OBLIGATORIO: una línea por correo y una línea por acción; no juntes correos en un párrafo. Usa: # Correos nuevos; ## Revisar primero; ## Puedo resumir o preparar; ## Necesitan autorización; ## Siguiente acción. '+common;
     }
-    return 'Actúa como mi Secretaria Ejecutiva. Prepárame el día de hoy, '+today+'. Debe servir tanto en pantalla como al exportarlo a PDF. REGLAS OBLIGATORIAS: nada de texto suelto, números aislados, palabras aisladas o referencias partidas; nunca dividas un identificador como VNX-PED-00021; una sola idea completa por línea; sin párrafos largos; sin repetir datos; no copies botones ni textos de la interfaz. Usa EXACTAMENTE estas secciones: # Resumen ejecutivo; ## 1. Prioridades de hoy; ## 2. Emails que requieren respuesta; ## 3. Gestiones a realizar; ## 4. Decisiones que debes tomar; ## 5. Alertas y bloqueos; ## 6. Informativos; ## 7. Fuentes consultadas. En Resumen ejecutivo: 4-6 puntos con cifras y estado general. En Prioridades: máximo 3, formato "- Prioridad: ... | Motivo: ... | Acción: ...". En Emails que requieren respuesta: UN correo por línea, formato "- Cuenta: ... | De: ... | Asunto: ... | Qué pide: ... | Acción: ..."; si no hay ninguno escribe "- Sin emails pendientes de respuesta". En Gestiones: una gestión por línea, formato "- Área: ... | Gestión: ... | Motivo: ...". En Decisiones: una pregunta completa por línea, formato "- Decisión: ... | Por qué importa: ...". En Alertas: una incidencia por línea, formato "- Área: ... | Alerta: ... | Consecuencia: ...". En Informativos: solo avisos que no requieren respuesta, formato "- Fuente: ... | Información: ...". En Fuentes consultadas: una fuente por línea, sin datos técnicos. Distingue siempre emails de acción frente a noreply/informativos. No conviertas un dato de stock, un nombre de cuenta o una referencia en una línea independiente: debe ir dentro de su apunte completo. '+common;
+    return 'Actúa como mi Secretaria Ejecutiva. Prepárame el día de hoy, '+today+'. Debe servir tanto en pantalla como al exportarlo a PDF. REGLAS OBLIGATORIAS: nada de texto suelto, números aislados, palabras aisladas o referencias partidas; nunca dividas un identificador como VNX-PED-00021; una sola idea completa por línea; sin párrafos largos; sin repetir datos; no copies botones ni textos de la interfaz. Usa EXACTAMENTE estas secciones: # Resumen ejecutivo; ## 1. Prioridades de hoy; ## 2. Emails que requieren respuesta; ## 3. Gestiones a realizar; ## 4. Decisiones que debes tomar; ## 5. Alertas y bloqueos; ## 6. Informativos; ## 7. Fuentes consultadas. En Resumen ejecutivo: 4-6 puntos con cifras y estado general. En Prioridades: máximo 3, formato "- Prioridad: ... | Motivo: ... | Acción: ...". En Emails que requieren respuesta: UN correo por línea, formato "- Cuenta: ... | De: ... | Asunto: ... | Qué pide: ... | Acción: ..."; si no hay ninguno escribe "- Sin emails pendientes de respuesta". En Gestiones: una gestión por línea, formato "- Área: ... | Gestión: ... | Motivo: ...". En Decisiones: una pregunta completa por línea, formato "- Decisión: ... | Por qué importa: ...". En Alertas: una incidencia por línea, formato "- Área: ... | Alerta: ... | Consecuencia: ...". En Informativos: solo avisos que no requieren respuesta, formato "- Fuente: ... | Información: ...". En Fuentes consultadas: una fuente por línea, sin datos técnicos. Distingue siempre emails de acción frente a noreply/informativos. No conviertas un dato de stock, un nombre de cuenta o una referencia en una línea independiente: debe ir dentro de su apunte completo. Si hay una reunión o cita próxima en Agenda, añade dentro de Gestiones una línea completa "Área: Reunión | Gestión: Preparar dossier de [cliente/asunto] | Motivo: reunión prevista [fecha/hora]" y pregunta en Decisiones si quiero que prepares el dossier PDF. Si detectas riesgo de rotura de stock o productos a cero y existen datos de ventas/pedidos, añade una gestión "Analizar reposición" y ofrece preparar el Excel de compras; no calcules mínimos sin historial verificable. '+common;
   }
   async function runExecutiveSecretary(kind='day',{automatic=false}={}){
     const scope=secretaryCoreScope();if(!scope||scope.included===false)return;
@@ -1978,6 +2006,18 @@
     await runExecutiveSecretary('day',{automatic:true});
   }
 
+  function enrichBusinessRequest(text,scope){
+    const raw=String(text||'').trim(),q=raw.toLowerCase();
+    const stockIntent=/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?)\b/.test(q)&&/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock)\b/.test(q);
+    const meetingIntent=/\b(reuni[oó]n|visita|cita)\b/.test(q)&&/\b(prepar|informe|dossier|cliente|agenda|datos|revis)\b/.test(q);
+    if(stockIntent){
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK Y REPOSICIÓN: Usa solo datos reales de las conexiones disponibles. Cruza inventario/stock actual con ventas o líneas de pedidos históricas por SKU/producto. Indica el periodo real analizado y no extrapoles si no hay historial suficiente. Si existe plazo de reposición configurado, úsalo; si no existe, puedes proponer como referencia una cobertura de 2 semanas más un 25% de seguridad, pero debes marcarlo expresamente como "criterio propuesto", no como dato real. Calcula cantidad sugerida = máximo(0, stock mínimo propuesto - stock disponible). Prioriza productos con stock 0 o por debajo del mínimo. FORMATO OBLIGATORIO: # Resumen rápido; ## Reposición propuesta; una línea completa por producto con "SKU: ... | Producto: ... | Stock actual: ... | Ventas periodo: ... | Media semanal: ... | Stock mínimo propuesto: ... | Cantidad a pedir: ... | Motivo: ..."; ## Productos sin datos suficientes; ## Acción para Compras. Si Compras o un ERP con compras está conectado, NO hagas el pedido sin permiso: deja claro "Listo para enviar a Compras" y pide autorización. Si faltan datos de ventas, stock o plazo, dilo y no inventes. El resultado debe poder exportarse directamente a Excel.';
+    }
+    if(meetingIntent){
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — PREPARACIÓN DE REUNIÓN: Localiza la reunión relevante en la Agenda conectada y usa título, asistentes, organizador, descripción y fecha. Cruza únicamente datos reales disponibles de Email, Ventas y clientes/CRM, Pedidos, tienda/Shopify y demás fuentes autorizadas que correspondan al cliente o a sus asistentes. No confundas clientes con nombres parecidos. FORMATO OBLIGATORIO PARA PDF: # Dossier de reunión; ## Resumen ejecutivo; ## Datos de la reunión; ## Cliente y relación comercial; ## Compras e historial; ## Facturación disponible; ## Pedidos y situación actual; ## Emails y asuntos pendientes; ## Incidencias o riesgos; ## Oportunidades detectadas; ## Temas que conviene tratar; ## Recomendaciones para la reunión; ## Preguntas que conviene hacer; ## Fuentes consultadas. En cada apartado resume, no vuelques correos ni datos en bruto. Incluye cifras solo si están verificadas. Si una fuente no está conectada, indica "Dato no disponible". Las recomendaciones deben derivarse de los datos observados y diferenciarse claramente de los hechos. El resultado debe estar listo para exportar a PDF.';
+    }
+    return raw;
+  }
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
     restoringChatState=true;loadMasterChatState();restoringChatState=false;
@@ -2004,10 +2044,13 @@
         try{
           const raw=JSON.parse(ev.newValue);
           if(raw&&Array.isArray(raw.messages)){
+            const oldCount=masterMessages.length;
             restoringChatState=true;
             masterMessages=raw.messages.slice(-50);
             restoringChatState=false;
-            renderMasterMessages({persist:false});
+            const newest=masterMessages[masterMessages.length-1];
+            const focusNew=masterMessages.length>oldCount&&newest?.role==='assistant'?masterMessages.length-1:null;
+            renderMasterMessages({persist:false,focusIndex:focusNew});
           }
         }catch{}
       }
@@ -2037,8 +2080,9 @@
       masterMessages.push({role:'user',content:visibleText});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
-        const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?text:content}));
-        const r=scope.separateSources?await sendSeparatedBySources(text,scope,payload):await window.vnx.sendChat(payload,scope);
+        const enrichedText=enrichBusinessRequest(text,scope);
+        const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?enrichedText:content}));
+        const r=scope.separateSources?await sendSeparatedBySources(enrichedText,scope,payload):await window.vnx.sendChat(payload,scope);
         let reply=r.reply||'Sin respuesta';
         if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
           try{
@@ -2049,7 +2093,7 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai'});renderMasterMessages();
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai'});renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };

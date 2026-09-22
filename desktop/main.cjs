@@ -149,6 +149,7 @@ ipcMain.handle('ui:open-workbench-window',async()=>{
   }
   workbenchWindow=new BrowserWindow({
     width:1450,height:930,minWidth:1050,minHeight:720,
+    show:false,
     title:'VentaNexIA · Carla',
     backgroundColor:'#031523',
     autoHideMenuBar:true,
@@ -161,7 +162,10 @@ ipcMain.handle('ui:open-workbench-window',async()=>{
   });
   workbenchWindow.removeMenu();
   await workbenchWindow.loadFile(path.join(__dirname,'renderer','index.html'),{query:{detached:'workbench'}});
-  workbenchWindow.webContents.setZoomFactor(1.12);
+  workbenchWindow.webContents.setZoomFactor(1.05);
+  workbenchWindow.maximize();
+  workbenchWindow.show();
+  workbenchWindow.focus();
   workbenchWindow.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//i.test(url)||/^ms-quick-assist:/i.test(url)){shell.openExternal(url);return {action:'deny'}}return {action:'deny'}});
   workbenchWindow.webContents.on('will-navigate',(e,url)=>{if(!url.startsWith('file://'))e.preventDefault()});
   workbenchWindow.on('closed',()=>{workbenchWindow=null});
