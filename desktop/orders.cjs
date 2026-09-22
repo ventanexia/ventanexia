@@ -3,7 +3,7 @@
 //  - correo: Gmail (API oficial, con renovación automática) y cualquier correo IMAP/SMTP (Yahoo, iCloud, hosting, empresa…)
 //  - IA: /api/orders-extract del servidor de VentaNexIA (solo EXTRAE datos; las decisiones las toma orders-core)
 //  - destino: archivo, webhook (en el núcleo) y borradores de pedido en Shopify (aquí)
-const {app,dialog,Notification,BrowserWindow,safeStorage}=require('electron');
+const {app,dialog,Notification,BrowserWindow,safeStorage,ipcMain}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {readState,writeState,audit}=require('./state-store.cjs');
@@ -416,10 +416,25 @@ function get(){
   return instance;
 }
 async function handleChat(text){return get().handleChat(text)}
+async function exportReadyOrders(){
+  const s=await get().store.load();
+  const ready=Object.values(s.orders||{}).filter(o=>o&&o.status==='listo');
+  if(!ready.length)return {ok:true,count:0,headers:[],rows:[]};
+  let headers=null;const rows=[];
+  for(const o of ready){
+    const table=orderRows(o);
+    if(!headers)headers=table.headers;
+    rows.push(...table.rows);
+  }
+  return {ok:true,count:ready.length,headers:headers||[],rows};
+}
+if(!ipcMain.listenerCount('orders:export-ready')){
+  ipcMain.handle('orders:export-ready',async()=>exportReadyOrders());
+}
 function startScheduler(){
   if(timer)return;
   const tick=()=>get().tick().catch(e=>console.error('orders_tick_error',String(e?.message||e).slice(0,160)));
   const first=setTimeout(tick,2*60*1000);first.unref?.();
   timer=setInterval(tick,15*60*1000);timer.unref?.();
 }
-module.exports={handleChat,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
+module.exports={handleChat,exportReadyOrders,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
