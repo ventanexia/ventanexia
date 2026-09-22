@@ -146,6 +146,10 @@ function refreshHomeClock(){
   if(g){const hour=now.getHours();g.textContent=(hour<13?'Buenos días':hour<20?'Buenas tardes':'Buenas noches');}
 }
 refreshHomeClock();setInterval(refreshHomeClock,30000);
+setInterval(async()=>{
+  if(!state?.license?.activated||state?.license?.master||document.visibilityState==='hidden')return;
+  try{state.license=await window.vnx.refreshLicense();renderState()}catch{}
+},10*60*1000);
 
 
 function getPortals(){
