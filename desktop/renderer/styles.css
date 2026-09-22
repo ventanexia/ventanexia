@@ -1381,3 +1381,9 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-order-export-box b{display:block;color:#edf8ff;font-size:12px}
 .vnx-order-export-box small{display:block;color:#88a9c0;font-size:10px;margin-top:3px}
 .vnx-order-export-box .row{display:flex;gap:7px;flex-wrap:wrap}
+
+/* 0.6.103 — bloqueo de facturación recuperable */
+.vnx-billing-lock{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:rgba(2,13,28,.92);backdrop-filter:blur(14px)}
+.vnx-billing-lock-card{width:min(560px,calc(100vw - 38px));border:1px solid #276d9e;border-radius:18px;background:linear-gradient(155deg,#082846,#061b31);padding:28px;text-align:center;box-shadow:0 35px 100px rgba(0,0,0,.52)}
+.vnx-lock-icon{width:66px;height:66px;display:grid;place-items:center;margin:0 auto 14px;border-radius:50%;background:#3a2740;border:1px solid #a45970;color:#ff93a9;font-size:28px}
+.vnx-billing-lock-card h2{margin:0;color:#fff;font-size:24px}.vnx-billing-lock-card p{color:#a8c2d5;line-height:1.55;margin:12px 0}.vnx-lock-note{margin:14px 0 18px;padding:11px;border-radius:10px;background:#082f4a;color:#cce9f7;font-size:11px}.vnx-billing-lock-card .row{justify-content:center}.vnx-billing-lock-card small{display:block;margin-top:14px;color:#7899b2}
