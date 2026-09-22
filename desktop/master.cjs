@@ -39,7 +39,7 @@ async function shopifyGraphqlRead(shop,token,query,variables={}){
 }
 const SHOPIFY_SALES_WINDOW_DAYS=180;
 const SHOPIFY_TARGET_COVER_DAYS=30;
-const SHOPIFY_URGENT_DAYS=7;
+const SHOPIFY_URGENT_DAYS=5;
 const SHOPIFY_MAX_ORDERS=5000;
 const SHOPIFY_MAX_PRODUCTS=5000;
 let shopifyReplenishmentCache={key:'',at:0,value:null};
