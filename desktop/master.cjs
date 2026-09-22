@@ -703,7 +703,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   const scope=normalizeChatScope(Array.isArray(payload)?null:(payload?.scope||null));
   const question=lastUserMessage(messages),s=await readState();
   if(scope?.type==='agent')assertAgentIncluded(s.license,scope.key);
-  let localContext=[],portalContext=[],portalFiles=[];
+  let localContext=[],portalContext=[],portalFiles=[],centralErrors=[];
 
   if(scope?.type==='agent'&&scope?.key==='email'){
     const allIntegrations=emailAccountsForState(s);
@@ -742,10 +742,14 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
         if(!one)throw new Error('La cuenta de email seleccionada ya no está disponible.');
         const mail=await collectGmailContextsFast([one],question);localContext.push(...mail.files);
         if(!localContext.length)throw new Error('No he podido leer la cuenta de email seleccionada. '+mail.failures.join(' · '));
+      }else if(src.module==='portal'||src.type==='portal'){
+        const p=await getPortal(clean(src.id,80));
+        if(!p)throw new Error('La página privada seleccionada ya no está disponible.');
+        const pr=await readPortal(p,question);portalContext=[pr];portalFiles=portalAsLocalFiles([pr]);localContext=portalFiles;
+        if(pr.status!=='connected')throw new Error('La página privada seleccionada necesita iniciar sesión o revisar la conexión.');
       }else throw new Error('Esta conexión todavía no admite consulta aislada desde Carla.');
     }else{
       localContext=await collectAuthorizedContext();
-    const centralErrors=[];
     if(isAgentIncluded(s.license,'email')){
       const coreMail=await collectGmailContextsFast(emailAccountsForState(s),question);
       localContext.push(...coreMail.files);
