@@ -29,6 +29,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
       - run: node smoke-renderer.cjs
       - run: npm run dist:win
       - uses: actions/upload-artifact@v4
