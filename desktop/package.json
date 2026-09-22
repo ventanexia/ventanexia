@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.88",
+  "version": "0.6.89",
   "private": true,
-  "description": "VentaNexIA Desktop · Carla maximizada, respuestas desde el inicio y email resumido con acciones directas · 0.6.88",
+  "description": "VentaNexIA Desktop · conexiones aisladas: Shopify nunca se mezcla con ERP/portales · 0.6.89",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
