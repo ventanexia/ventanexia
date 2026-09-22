@@ -26,12 +26,12 @@ const checks=[
  ['Device RPC server-only code',deviceRegister.includes("SUPABASE_SERVICE_ROLE_KEY")&&deviceStatus.includes("SUPABASE_SERVICE_ROLE_KEY")&&!deviceRegister.includes("sb_publishable_")&&!deviceStatus.includes("sb_publishable_")],
  ['Home pricing current',home.includes("129 €")&&home.includes("299 €")&&home.includes("599 €")],
  ['Plans pricing current',plans.includes("price:129")&&plans.includes("price:299")&&plans.includes("price:599")],
- ['Checkout pricing current',checkout.includes("expectedAmount:9900")&&checkout.includes("expectedAmount:24900")&&checkout.includes("expectedAmount:49900")],
+ ['Checkout pricing current',checkout.includes("expectedAmount:12900")&&checkout.includes("expectedAmount:29900")&&checkout.includes("expectedAmount:59900")],
  ['Executive Secretary visible on web',home.includes("Secretaria Ejecutiva")&&plans.includes("Secretaria Ejecutiva")]
 ];
 const failed=checks.filter(([,ok])=>!ok);
 if(failed.length){
- console.error('VentaNexIA 0.6.62 quality verification failed:',failed.map(x=>x[0]).join(', '));
+ console.error('VentaNexIA quality verification failed:',failed.map(x=>x[0]).join(', '));
  process.exit(1);
 }
-console.log('VentaNexIA 0.6.62 quality verification OK · connectors, orders, follow-up, activity, security, results panel and pricing synchronized.');
+console.log('VentaNexIA quality verification OK · connectors, orders, follow-up, activity, security, results panel and pricing synchronized.');
