@@ -600,7 +600,7 @@
     const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
     if(title)title.textContent=chosen.key==='core_ai'?'👩‍💼 Carla · Secretaria ejecutiva':(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
-    if(chosen.key==='email'){renderEmailDashboard(chosen);renderGuidedOtherCards(chatConnections(),chosen);return;}
+    if(chosen.key==='email'){renderEmailDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div data-whatsapp-workspace-metrics></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(chosen.key==='whatsapp')refreshWhatsAppWorkspaceMetrics();
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
@@ -1241,8 +1241,9 @@
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       $m('#chat')?.classList.add('active');
       localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
-      localStorage.setItem('vnx_workspace_mode','free');
-      setTimeout(()=>setWorkspaceMode('free'),0);
+      const savedAgent=localStorage.getItem('vnx_master_chat_agent')||'agent:core_ai';
+      if(!savedAgent)localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
+      setTimeout(()=>{setWorkspaceMode(savedAgent==='agent:email'?'guided':'free');},0);
     }
     const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
     setUiZoom(detached?Math.max(1.1,stored):stored);
