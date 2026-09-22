@@ -1145,3 +1145,25 @@ body{
 }
 .vnx-carla-window .vnx-carla-controls #vnxPopoutWorkbench,
 .vnx-carla-window .vnx-carla-controls #vnxExpandWorkbench{display:none!important}
+
+
+/* 0.6.88 — Carla en ventana: máxima área útil y respuestas accionables */
+.vnx-carla-window .vnx-workbench{padding:6px 10px 8px!important}
+.vnx-carla-window .guided-card{min-height:calc(100vh - 12px)!important}
+.vnx-carla-window .guided-card-head{padding:10px 14px 8px!important;min-height:auto!important}
+.vnx-carla-window .guided-card-head #guidedAgentTitle{font-size:20px!important;line-height:1.15!important}
+.vnx-carla-window .guided-card-head #guidedAgentSubtitle{font-size:10px!important;margin-top:2px!important}
+.vnx-carla-window .vnx-carla-controls{padding:5px 14px 6px!important;margin:0!important;gap:6px!important}
+.vnx-carla-window .vnx-carla-controls .vnx-view-controls{display:none!important}
+.vnx-carla-window .vnx-carla-controls .vnx-chat-privacy-toggle{display:none!important}
+.vnx-carla-window .vnx-carla-controls .vnx-top-mode{margin-left:auto!important}
+.vnx-carla-window #chatSourceGlobal{padding:7px 14px 5px!important}
+.vnx-carla-window #chatSourceGlobal>label{font-size:10px!important;margin-bottom:4px!important}
+.vnx-carla-window #freeModePanel{padding:0 12px 8px!important}
+.vnx-carla-window #messages{margin:6px 0!important;padding:14px!important}
+.vnx-carla-window #chatForm{padding-top:5px!important}
+.vnx-carla-window #chatInput{min-height:68px!important;max-height:130px!important}
+.vnx-email-action-groups{display:grid;gap:8px;margin-top:12px}
+.vnx-email-action-group{border:1px solid rgba(75,151,196,.32);background:rgba(9,42,66,.72);border-radius:10px;padding:9px 10px}
+.vnx-email-action-group>b{display:block;color:#e8f6ff;font-size:11px;margin-bottom:7px}
+.vnx-email-action-group .row{display:flex;gap:6px;flex-wrap:wrap}
