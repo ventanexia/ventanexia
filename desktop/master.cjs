@@ -37,22 +37,104 @@ async function shopifyGraphqlRead(shop,token,query,variables={}){
   if(!r.ok||j.errors)throw new Error(j?.errors?.[0]?.message||('Shopify respondió '+r.status));
   return j.data||{};
 }
+const SHOPIFY_SALES_WINDOW_DAYS=180;
+const SHOPIFY_TARGET_COVER_DAYS=30;
+const SHOPIFY_URGENT_DAYS=5;
+const SHOPIFY_MAX_ORDERS=5000;
+
+async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,maxOrders=SHOPIFY_MAX_ORDERS}={}){
+  const since=new Date(Date.now()-windowDays*86400000).toISOString().slice(0,10);
+  const salesBySku=new Map();
+  let cursor=null,pages=0,truncated=false,ordersSeen=0,cancelledSkipped=0;
+  const maxPages=Math.ceil(maxOrders/100);
+  for(;;){
+    const query=`query VentaNexIASalesWindow($cursor:String){
+      orders(first:100, after:$cursor, sortKey:CREATED_AT, query:"created_at:>=${since}"){
+        pageInfo{ hasNextPage endCursor }
+        nodes{ createdAt cancelledAt lineItems(first:100){ nodes{ sku quantity } } }
+      }
+    }`;
+    const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{cursor}));
+    const nodes=data.orders?.nodes||[];
+    ordersSeen+=nodes.length;
+    for(const o of nodes){
+      if(o.cancelledAt){cancelledSkipped++;continue}
+      for(const li of o.lineItems?.nodes||[]){
+        const sku=String(li.sku||'').trim();
+        if(!sku)continue;
+        salesBySku.set(sku,(salesBySku.get(sku)||0)+Number(li.quantity||0));
+      }
+    }
+    pages++;
+    const hasNext=data.orders?.pageInfo?.hasNextPage;
+    cursor=data.orders?.pageInfo?.endCursor||null;
+    if(!hasNext||!cursor)break;
+    if(pages>=maxPages||ordersSeen>=maxOrders){truncated=true;break}
+  }
+  return {salesBySku,windowDays,ordersSeen,cancelledSkipped,truncated,since};
+}
+
+function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+  return products.map(p=>{
+    const sold=salesBySku.get(p.sku)||0;
+    const avgDaily=sold/windowDays;
+    const noSalesData=sold===0;
+    const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
+    const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
+    const qty=Math.max(0,targetStock-p.stock);
+    const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
+    return {
+      sku:p.sku,product:p.title,stock:p.stock,
+      soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
+      daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),
+      qty,urgent,noSalesData
+    };
+  });
+}
+
+async function shopifyReplenishmentSummary(integration){
+  if(!integration?.shop)throw new Error('Shopify no está conectado.');
+  const query='query VentaNexIAProducts { products(first:100) { nodes { id title status variants(first:100) { nodes { id sku title inventoryQuantity price } } } } }';
+  const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{}));
+  const products=[];
+  for(const p of data.products?.nodes||[])for(const v of p.variants?.nodes||[]){
+    const sku=String(v.sku||'').trim();
+    if(!sku)continue;
+    products.push({sku,title:p.title+(v.title&&v.title!=='Default Title'?' · '+v.title:''),stock:Number(v.inventoryQuantity||0),price:v.price,status:p.status});
+  }
+  const history=await fetchShopifySalesBySku(integration);
+  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays});
+  return {...history,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
+}
+
+ipcMain.handle('shopify:replenishment-summary',async()=>{
+  const s=await readState(),integration=s.secret?.integrations?.shopify;
+  if(!integration)throw new Error('Conecta Shopify para calcular la previsión de stock.');
+  const result=await shopifyReplenishmentSummary(integration);
+  return {shop:integration.shopName||integration.shop,...result};
+});
+
 async function collectShopifyContext(integration,question=''){
   if(!integration?.shop)throw new Error('Shopify no está conectado.');
-  const q=norm(question),wantStock=/stock|inventario|reposicion|reponer|compras|producto/.test(q),wantOrders=/pedido|venta|factur|cliente|reposicion|reponer|stock/.test(q);
+  const q=norm(question),wantStock=/stock|inventario|reposicion|reponer|compras|producto|agot|rotura|previsi/.test(q),wantOrders=/pedido|venta|factur|cliente|reposicion|reponer|stock|agot|rotura|previsi/.test(q);
   const files=[];
+  let productRows=[];
   if(wantStock||!wantOrders){
     const query='query VentaNexIAProducts { products(first:100) { nodes { id title status variants(first:100) { nodes { id sku title inventoryQuantity price } } } } }';
     const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{}));
-    const rows=[];
-    for(const p of data.products?.nodes||[])for(const v of p.variants?.nodes||[])rows.push({product:p.title,productStatus:p.status,variant:v.title,sku:v.sku||'',stock:Number(v.inventoryQuantity||0),price:v.price});
-    files.push({path:'Shopify · '+integration.shop+' · productos y stock',content:'FUENTE EXCLUSIVA SHOPIFY. Estos datos pertenecen únicamente a la tienda '+integration.shop+'. No los mezcles con ERP, portales, Naturdesma ni otras conexiones.\\n'+JSON.stringify(rows)});
+    for(const p of data.products?.nodes||[])for(const v of p.variants?.nodes||[])productRows.push({product:p.title,productStatus:p.status,variant:v.title,sku:v.sku||'',stock:Number(v.inventoryQuantity||0),price:v.price});
+    files.push({path:'Shopify · '+integration.shop+' · productos y stock',content:'FUENTE EXCLUSIVA SHOPIFY. Estos datos pertenecen únicamente a la tienda '+integration.shop+'. No los mezcles con ERP, portales, Naturdesma ni otras conexiones.\\n'+JSON.stringify(productRows)});
   }
   if(wantOrders){
     const query='query VentaNexIAOrders { orders(first:100, sortKey:CREATED_AT, reverse:true) { nodes { name createdAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:100) { nodes { title sku quantity variant { inventoryQuantity } } } } } }';
     const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{}));
     const rows=(data.orders?.nodes||[]).map(o=>({order:o.name,createdAt:o.createdAt,financialStatus:o.displayFinancialStatus,fulfillmentStatus:o.displayFulfillmentStatus,total:o.totalPriceSet?.shopMoney||null,items:(o.lineItems?.nodes||[]).map(x=>({product:x.title,sku:x.sku||'',quantity:x.quantity,currentStock:x.variant?.inventoryQuantity??null}))}));
     files.push({path:'Shopify · '+integration.shop+' · pedidos recientes',content:'FUENTE EXCLUSIVA SHOPIFY. Pedidos reales de esta tienda; no son pedidos del ERP ni del programa Naturdesma.\\n'+JSON.stringify(rows)});
+  }
+  if(wantStock&&productRows.length){
+    const summary=await shopifyReplenishmentSummary(integration);
+    files.push({path:'Shopify · '+integration.shop+' · reposición y previsión de rotura (calculado, no lo recalcules)',
+      content:'FUENTE EXCLUSIVA SHOPIFY. Estos números YA están calculados por el programa a partir de ventas reales de los últimos '+summary.windowDays+' días ('+summary.ordersSeen+' pedidos revisados; '+summary.cancelledSkipped+' cancelados excluidos'+(summary.truncated?', límite de seguridad alcanzado -- indícalo si se pide precisión total':'')+'). NO recalcules ni inventes cifras. daysRemaining=null significa que no hay ventas registradas en la ventana. urgent=true significa stock agotado o menos de '+SHOPIFY_URGENT_DAYS+' días de cobertura al ritmo de venta actual.\\n'+JSON.stringify({productosConVentas:summary.withSales,productosUrgentes:summary.urgent.length,detalle:summary.rows})});
   }
   return files;
 }
