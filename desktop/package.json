@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.95",
+  "version": "0.6.96",
   "private": true,
-  "description": "VentaNexIA Desktop · navegación visible en pantalla completa y exportación Excel/PDF/Imprimir junto a cada pedido para Compras · 0.6.93",
+  "description": "VentaNexIA Desktop · navegación visible en pantalla completa y exportación Excel/PDF/Imprimir junto a cada pedido para Compras · 0.6.96",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
