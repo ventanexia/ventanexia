@@ -8,7 +8,7 @@ const master=read('renderer/master.js');
 const adaptive=read('renderer/adaptive.js');
 const exp=read('renderer/export.js');
 const preload=read('preload.cjs');
-const mains=['main.cjs','master.cjs','portal-adaptive.cjs','portal-pagination-fix.cjs','export.cjs'].map(read).join('\n');
+const mains=['main.cjs','master.cjs','master-entry.cjs','portal-adaptive.cjs','portal-pagination-fix.cjs','export.cjs'].map(read).join('\n');
 const scripts=[app,master,adaptive,exp].join('\n');
 const errors=[];
 const fail=(x)=>errors.push(x);
