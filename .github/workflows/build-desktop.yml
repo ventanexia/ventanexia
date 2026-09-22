@@ -37,3 +37,5 @@ jobs:
           path: desktop/dist/*.exe
           if-no-files-found: error
           retention-days: 14
+
+# validate-0.6.88-final
