@@ -1076,7 +1076,7 @@ function emailListItem(m,i,selected){
   }
 
   function bindHomeDashboard(){
-    const bindAll=(selector,fn)=>$m(selector).forEach(el=>{if(el.dataset.vnxHomeBound)return;el.dataset.vnxHomeBound='1';el.addEventListener('click',fn)});
+    const bindAll=(selector,fn)=>Array.from(document.querySelectorAll(selector)).forEach(el=>{if(el.dataset.vnxHomeBound)return;el.dataset.vnxHomeBound='1';el.addEventListener('click',fn)});
     bindAll('[data-home-carla]',()=>{selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();$m('#chatInput')?.focus()});
     bindAll('[data-home-email]',()=>runEmailWorkbench('summary'));
     bindAll('[data-home-orders]',()=>{selectAgentKey('orders',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
