@@ -1183,7 +1183,8 @@
       try{
         const r=await window.vnx.sendChat([{role:'user',content:q}],direct);
         blocks.push('## '+src.label+'\n\n'+(r.reply||'Sin información disponible.'));
-        if(isEmail&&r.emailActions?.messageId)emailActionGroups.push({label:src.label,meta:r.emailActions});
+        if(isEmail&&Array.isArray(r.emailActionGroups))emailActionGroups.push(...r.emailActionGroups.map(g=>({label:g.label||src.label,meta:g.meta})).filter(g=>g.meta?.messageId));
+        else if(isEmail&&r.emailActions?.messageId)emailActionGroups.push({label:src.label,meta:r.emailActions});
       }catch(e){blocks.push('## '+src.label+'\n\nNo he podido consultar esta conexión: '+(e.message||e))}
     }
     return {reply:blocks.join('\n\n---\n\n')||'No hay conexiones compatibles para esta consulta.',emailActionGroups};
