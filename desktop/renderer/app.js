@@ -114,29 +114,60 @@ function renderState(){
 async function refresh(){state=await window.vnx.getState();renderState();if(typeof renderConnectionSummaries==='function')await renderConnectionSummaries()}
 setTimeout(()=>ensureEditableControls(document),500);
 
-function getPortals(){
-  try{return JSON.parse(localStorage.getItem('vnx_portals')||'[]')}catch{return []}
-}
-function setPortals(items){localStorage.setItem('vnx_portals',JSON.stringify(items||[]))}
-function renderPortals(){
-  const root=$('#portalList');if(!root)return;
-  const items=getPortals();
-  root.innerHTML=items.length?items.map((p,i)=>`<div class="listrow"><div><b>${esc(p.name)}</b><span>${esc(p.url)} · ${p.mode==='read'?'Solo lectura':'Lectura y escritura'}</span></div><div class="row"><button class="mini portal-open" data-i="${i}">Abrir</button><button class="mini portal-remove" data-i="${i}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
-  $$('.portal-open').forEach(b=>b.onclick=()=>{const p=items[Number(b.dataset.i)];if(p?.url)window.open(p.url,'_blank')});
-  $$('.portal-remove').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.i);const next=getPortals();next.splice(i,1);setPortals(next);renderPortals()});
+async function renderPortals(){
+  const root=$('#portalList');if(!root)return [];
+  let items=[];
+  try{items=await window.vnx.listPortals()||[]}
+  catch(e){root.innerHTML='<div class="empty">No se pudieron cargar las páginas privadas: '+esc(cleanIpcError(e))+'</div>';return []}
+  const status=p=>p.lastStatus==='connected'?'🟢 Conectado':p.lastStatus==='login_required'?'🟠 Inicia sesión':'⚪ Sin comprobar';
+  root.innerHTML=items.length?items.map(p=>`<div class="listrow"><div><b>${esc(p.name)}</b><span>${esc(p.url)} · ${p.mode==='read'?'Solo lectura':'Lectura y escritura'} · ${status(p)}</span></div><div class="row"><button class="mini portal-open" data-id="${esc(p.id)}">${p.lastStatus==='connected'?'Abrir':'Iniciar sesión'}</button><button class="mini master-portal-check" data-id="${esc(p.id)}">Comprobar conexión</button><button class="mini portal-remove" data-id="${esc(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configuradas.</div>';
+  $('.portal-open').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;const old=b.textContent;b.textContent='Abriendo…';
+    try{const r=await window.vnx.connectPortal(b.dataset.id);$('#portalMsg').textContent=r?.message||'Portal abierto. Inicia sesión y vuelve a VentaNexIA cuando termines.'}
+    catch(e){$('#portalMsg').textContent=cleanIpcError(e)||'No se pudo abrir el portal.'}
+    finally{b.disabled=false;b.textContent=old;setTimeout(()=>renderPortals().then(()=>renderConnectionSummaries()),700)}
+  });
+  $('.master-portal-check').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;const old=b.textContent;b.textContent='Comprobando…';
+    try{
+      const r=await window.vnx.checkPortal(b.dataset.id);
+      $('#portalMsg').textContent=r?.status==='connected'?'Conexión comprobada correctamente.':'La página necesita que vuelvas a iniciar sesión.';
+    }catch(e){$('#portalMsg').textContent=cleanIpcError(e)||'No se pudo comprobar la conexión.'}
+    finally{b.disabled=false;b.textContent=old;await renderPortals();await renderConnectionSummaries()}
+  });
+  $('.portal-remove').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Quitar esta página privada de VentaNexIA? También se borrará su sesión guardada en este ordenador.'))return;
+    try{await window.vnx.removePortal(b.dataset.id);$('#portalMsg').textContent='Página privada eliminada.';await renderPortals();await renderConnectionSummaries()}
+    catch(e){$('#portalMsg').textContent=cleanIpcError(e)||'No se pudo quitar la página privada.'}
+  });
+  return items;
 }
 function setupPortalUi(){
-  const toggle=$('#showPortalSetup'),box=$('#portalSetup');if(!toggle||!box)return;
-  toggle.onclick=()=>{box.style.display=box.style.display==='none'?'block':'none';renderPortals()};
-  $('#openPortal').onclick=()=>{const url=$('#portalUrl').value.trim();if(!/^https:\/\//i.test(url)){ $('#portalMsg').textContent='Introduce una URL segura que empiece por https://';return;}window.open(url,'_blank')};
-  $('#savePortal').onclick=()=>{
-    const name=$('#portalName').value.trim(),url=$('#portalUrl').value.trim(),mode=$('#portalMode').value;
-    if(!name||!/^https:\/\//i.test(url)){ $('#portalMsg').textContent='Indica un nombre y una URL válida https://';return;}
-    const items=getPortals();
-    if(!items.some(x=>x.url===url))items.push({name,url,mode,createdAt:new Date().toISOString()});
-    else{const i=items.findIndex(x=>x.url===url);items[i]={...items[i],name,mode};}
-    setPortals(items);renderPortals();
-    $('#portalMsg').textContent=mode==='read'?'Conexión guardada en modo SOLO LECTURA. No se autoriza ninguna modificación.':'Conexión guardada con lectura y escritura. Las acciones sensibles deberán pedir confirmación.';
+  const toggle=$('#showPortalSetup'),box=$('#portalSetup'),msg=$('#portalMsg');if(!toggle||!box)return;
+  toggle.onclick=async()=>{box.style.display=box.style.display==='none'?'block':'none';if(box.style.display!=='none')await renderPortals()};
+  $('#savePortal').onclick=async()=>{
+    const name=$('#portalName').value.trim(),url=$('#portalUrl').value.trim(),mode=$('#portalMode').value,purpose=$('#portalPurpose')?.value||'general';
+    if(!name||!/^https:\/\//i.test(url)){msg.textContent='Indica un nombre y una URL válida https://';return;}
+    const btn=$('#savePortal');btn.disabled=true;const old=btn.textContent;btn.textContent='Guardando…';
+    try{
+      const saved=await window.vnx.savePortal({name,url,mode,purpose});
+      msg.textContent=mode==='read'?'Conexión guardada en modo SOLO LECTURA. Ahora puedes abrirla e iniciar sesión.':'Conexión guardada con lectura y escritura. Las acciones sensibles seguirán requiriendo los permisos configurados.';
+      await renderPortals();await renderConnectionSummaries();
+      return saved;
+    }catch(e){msg.textContent=cleanIpcError(e)||'No se pudo guardar la conexión.'}
+    finally{btn.disabled=false;btn.textContent=old}
+  };
+  $('#openPortal').onclick=async()=>{
+    const name=$('#portalName').value.trim(),url=$('#portalUrl').value.trim(),mode=$('#portalMode').value,purpose=$('#portalPurpose')?.value||'general';
+    if(!name||!/^https:\/\//i.test(url)){msg.textContent='Indica primero un nombre y una URL válida https://';return;}
+    const btn=$('#openPortal');btn.disabled=true;const old=btn.textContent;btn.textContent='Abriendo…';
+    try{
+      const saved=await window.vnx.savePortal({name,url,mode,purpose});
+      const r=await window.vnx.connectPortal(saved.id);
+      msg.textContent=r?.message||'Portal abierto. Inicia sesión y vuelve a VentaNexIA cuando termines.';
+      await renderPortals();await renderConnectionSummaries();
+    }catch(e){msg.textContent=cleanIpcError(e)||'No se pudo abrir el portal.'}
+    finally{btn.disabled=false;btn.textContent=old}
   };
   renderPortals();
 }
