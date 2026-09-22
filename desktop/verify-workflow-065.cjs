@@ -19,15 +19,14 @@ const checks=[
  ['Work queue grouped by email account',js.includes('groupWorkByAccount')],
  ['Order plans have channel limits',plans.includes("orderChannels:1")&&plans.includes("orderChannels:2")&&plans.includes("orderChannels:4")],
  ['Order web tiers configured by plan',plans.includes("orderLevel:'basic'")&&plans.includes("orderLevel:'pro'")&&plans.includes("orderLevel:'auto'")],
- ['Extra order channel is 29 EUR',plans.includes('extraOrderChannels*29')&&plans.includes('teamExtraOrderChannels')],
  ['Pedidos included in all plans',plans.includes("const ALWAYS_INCLUDED=['pedidos']")&&plans.includes("pedidos:{icon:'📦',name:'Pedidos',price:0")],
- ['Contract carries order channels',contract.includes('extraOrderChannels')&&contractApi.includes('extraOrderChannelPrice=29')],
- ['Checkout charges order channels',checkout.includes('Canal adicional de pedidos online')&&checkout.includes('extra_order_channels')],
+ ['Contract carries fixed order-channel capacity',contract.includes('orderPlans')&&contractApi.includes('orderChannelsIncluded:p.orderChannels')],
+ ['Checkout does not sell obsolete extra order channels',!checkout.includes('Canal adicional de pedidos online')&&checkout.includes('extraOrderChannelPrice=0')],
  ['Webhook provisions order level',webhook.includes('order_channel_limit')&&webhook.includes('order_web_level')],
  ['Work queue responsive CSS',css.includes('0.6.65 — Mi trabajo')],
  ['Order channel plan limits',policy.includes('function orderChannelLimit')&&policy.includes("return 1")&&policy.includes("return 2")&&policy.includes("return 4")],
  ['Multiple web stores supported',orders.includes("storeKey=S.id+':'+host")&&orders.includes('orderStoreId(key,x)')],
- ['Order channel capacity enforced',orders.includes('assertOrderChannelCapacity')&&orders.includes('29 €/mes')],
+ ['Order channel capacity enforced',orders.includes('assertOrderChannelCapacity')&&orders.includes('cambia a un plan con más canales')],
  ['Shopify excluded from generic connection count',main.includes("!['email','shopify'].includes(k)")&&main.includes('assertOrderChannelCapacity(preState)')],
  ['Shopify UI belongs to Pedidos',appUi.includes("shopify:'orders'")&&!appUi.includes("shopify:'web_ecommerce'")],
  ['Shopify module policy belongs to Pedidos',policy.includes("if(m==='shopify')return 'pedidos'")],
@@ -35,4 +34,4 @@ const checks=[
 ];
 const failed=checks.filter(([,ok])=>!ok);
 if(failed.length){console.error('0.6.65 verification failed:',failed.map(x=>x[0]).join(', '));process.exit(1)}
-console.log('VentaNexIA 0.6.65 verification OK · Mi trabajo and multichannel order pricing enabled.');
+console.log('VentaNexIA workflow verification OK · Mi trabajo, fixed channel limits and controlled order automation enabled.');
