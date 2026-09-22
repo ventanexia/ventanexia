@@ -1789,6 +1789,16 @@
     }catch(e){alert('No he podido guardar el Excel: '+(e.message||e));btn.textContent=old}
     finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Excel guardado ✓')btn.textContent=old}},1600)}
   }
+  async function exportPurchasePdf(msg,btn){
+    const rows=purchaseRowsFromReply(msg?.content||'');
+    if(!rows.length){alert('No encuentro líneas de reposición con cantidad a pedir en este resultado.');return}
+    const old=btn.textContent;btn.disabled=true;btn.textContent='Preparando PDF…';
+    try{
+      const r=await window.vnx.exportData({format:'pdf',title:'Pedido para Compras - VentaNexIA',headers:['SKU','Producto','Stock actual','Ventas periodo','Media semanal','Stock mínimo propuesto','Cantidad a pedir','Motivo'],rows});
+      if(r?.ok)btn.textContent='PDF guardado ✓';else btn.textContent=old;
+    }catch(e){alert('No he podido guardar el PDF: '+(e.message||e));btn.textContent=old}
+    finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='PDF guardado ✓')btn.textContent=old}},1600)}
+  }
   function printPurchaseProposal(msg){
     const rows=purchaseRowsFromReply(msg?.content||'');
     if(!rows.length){alert('No encuentro líneas de reposición para imprimir.');return}
@@ -1809,7 +1819,7 @@
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
       const groupedActions=Array.isArray(m.emailActionGroups)&&m.emailActionGroups.length?'<div class="vnx-email-action-groups">'+m.emailActionGroups.map((g,gi)=>'<div class="vnx-email-action-group"><b>'+escM(g.label||g.meta?.subject||'Email')+'</b><div class="row">'+(g.meta?.options||[]).filter(a=>['draft_reply','send_reply','archive','mark_read','no_reply_needed'].includes(a.key)).map(a=>'<button class="mini grouped-email-action-btn" data-master-msg="'+msgIndex+'" data-email-group="'+gi+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div></div>').join('')+'</div>':'';
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
-      const purchaseActions=(m.purchaseExport||isPurchaseProposal(m.content))?'<div class="vnx-secretary-actions"><button data-purchase-excel="'+msgIndex+'">⬇ Descargar Excel para Compras</button><button data-purchase-print="'+msgIndex+'">🖨 Imprimir pedido</button></div>':'';
+      const purchaseActions=(m.purchaseExport||isPurchaseProposal(m.content))?'<div class="vnx-secretary-actions vnx-purchase-actions"><b>Pedido para Compras</b><button data-purchase-excel="'+msgIndex+'">📊 Excel</button><button data-purchase-pdf="'+msgIndex+'">📄 PDF</button><button data-purchase-print="'+msgIndex+'">🖨 Imprimir</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
       return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${handoff}</div>`;
@@ -1857,8 +1867,9 @@
       finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
     });
     $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
-    $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
-    $$m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
+    $m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
+    $m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
+    $m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
     $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
