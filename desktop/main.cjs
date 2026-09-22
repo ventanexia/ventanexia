@@ -114,6 +114,11 @@ function publicLicenseState(s){
     ownAgentLimit:master?null:ownAgentLimit(l),
     orderChannelLimit:master?null:orderChannelLimit(l),
     orderWebLevel:orderWebLevel(l),
+    billingStatus:l.billingStatus||l.featurePolicy?.billing_status||null,
+    paymentGraceUntil:l.paymentGraceUntil||l.featurePolicy?.payment_grace_until||null,
+    paymentUrl:l.paymentUrl||l.featurePolicy?.payment_url||null,
+    blocked:Boolean(l.blocked),
+    blockReason:l.blockReason||null,
     lastCheckedAt:l.lastCheckedAt||null
   };
 }
@@ -344,11 +349,20 @@ ipcMain.handle('license:status',async()=>{
   const s=await readState();
   if(!s.secret?.customerId||!s.secret?.activationCode)return publicLicenseState(s);
   const deviceKey=await ensureDeviceKey();
-  const result=await postJson(`${CLOUD}/api/device-status`,{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});
-  const fresh=await readState();
-  fresh.license={...(fresh.license||{}),customerId:result.customerId||s.secret.customerId,deviceId:result.deviceId||fresh.license?.deviceId||null,plan:result.planKey||fresh.license?.plan||null,featurePolicy:result.featurePolicy||fresh.license?.featurePolicy||{},activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
-  await writeState(fresh);
-  return publicLicenseState(fresh);
+  try{
+    const result=await postJson(`${CLOUD}/api/device-status`,{customerId:s.secret.customerId,activationCode:s.secret.activationCode,deviceKey});
+    const fresh=await readState();
+    fresh.license={...(fresh.license||{}),customerId:result.customerId||s.secret.customerId,deviceId:result.deviceId||fresh.license?.deviceId||null,plan:result.planKey||fresh.license?.plan||null,featurePolicy:result.featurePolicy||fresh.license?.featurePolicy||{},billingStatus:result.featurePolicy?.billing_status||null,paymentGraceUntil:result.featurePolicy?.payment_grace_until||null,paymentUrl:result.featurePolicy?.payment_url||null,blocked:false,blockReason:null,activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
+    await writeState(fresh);
+    return publicLicenseState(fresh);
+  }catch(e){
+    if(['PAYMENT_REQUIRED','LICENSE_NOT_ACTIVE'].includes(String(e?.code||''))){
+      const fresh=await readState(),old=fresh.license||{},fp=old.featurePolicy||{};
+      fresh.license={...old,billingStatus:fp.billing_status||old.billingStatus||'payment_due',paymentGraceUntil:fp.payment_grace_until||old.paymentGraceUntil||null,paymentUrl:e?.data?.paymentUrl||fp.payment_url||old.paymentUrl||null,blocked:true,blockReason:String(e.code),lastCheckedAt:new Date().toISOString()};
+      await writeState(fresh);return publicLicenseState(fresh);
+    }
+    throw e;
+  }
 });
 
 ipcMain.handle('folder:choose',async()=>{
