@@ -113,6 +113,14 @@ function renderState(){
 }
 async function refresh(){state=await window.vnx.getState();renderState();if(typeof renderConnectionSummaries==='function')await renderConnectionSummaries()}
 setTimeout(()=>ensureEditableControls(document),500);
+function refreshHomeClock(){
+  const now=new Date(),h=$('#homeClock'),d=$('#homeDate'),g=$('#homeGreeting');
+  if(h)h.textContent=now.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  if(d)d.textContent=now.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long'});
+  if(g){const hour=now.getHours();g.textContent=(hour<13?'Buenos días':hour<20?'Buenas tardes':'Buenas noches');}
+}
+refreshHomeClock();setInterval(refreshHomeClock,30000);
+
 
 function getPortals(){
   try{return JSON.parse(localStorage.getItem('vnx_portals')||'[]')}catch{return []}
