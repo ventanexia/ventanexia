@@ -161,7 +161,7 @@ function makeNapiCanvasFactory(napi){
 }
 async function readPdf(buffer){
   const napi=prepareNapiForPdfjs();
-  const pdfjs=require('pdfjs-dist/legacy/build/pdf.js');
+  const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
   const data=new Uint8Array(Buffer.from(buffer));
   const params={data,useSystemFonts:true,isEvalSupported:false,disableFontFace:true,verbosity:0};
   // pdfjs busca por defecto el paquete "canvas", que no está en la instalación: se le da @napi-rs/canvas.
