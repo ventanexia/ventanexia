@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.106",
+  "version": "0.6.107",
   "private": true,
-  "description": "VentaNexIA Desktop · selector de conexión de Carla restaurado + portales privados + aislamiento estricto · 0.6.106",
+  "description": "VentaNexIA Desktop · tabla de stock Shopify determinista + rotura <5 días + selector y aislamiento · 0.6.107",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
