@@ -122,7 +122,18 @@ export default async function handler(req,res){
     const inv=invRaw.map(i=>({id:i.id,number:i.number||null,status:i.status||null,paid:!!i.paid,amount_due:money(i.amount_due,i.currency),amount_paid:money(i.amount_paid,i.currency),created:i.created,due_date:i.due_date||null,hosted_invoice_url:i.hosted_invoice_url||null,invoice_pdf:i.invoice_pdf||null,customer:typeof i.customer==="string"?i.customer:i.customer?.id||null}));
     const su=subRaw.map(s=>{const a=subscriptionAmounts(s);return {id:s.id,status:s.status,customer:typeof s.customer==="string"?s.customer:s.customer?.id||null,created:s.created||null,cancel_at_period_end:!!s.cancel_at_period_end,metadata:s.metadata||{},
       plan:priceKey(s),amount_period:round(a.period),amount_monthly:round(a.monthly),currency:a.currency,current_period_end:periodEnd(s),trial_end:s.trial_end||null}});
-    const customers=custRaw.map(c=>({id:c.id,name:c.name||null,email:c.email||null,created:c.created||null}));
+    const entByCustomer=new Map(list(data.entitlements).filter(e=>e.stripe_customer_id).map(e=>[e.stripe_customer_id,e]));
+    const subByCustomer=new Map();for(const s of subRaw){const id=typeof s.customer==="string"?s.customer:s.customer?.id;if(id&&!subByCustomer.has(id))subByCustomer.set(id,s)}
+    const openByCustomer=new Map();for(const i of invRaw){const id=typeof i.customer==="string"?i.customer:i.customer?.id;if(id&&i.status==="open"&&Number(i.amount_due||0)>0)openByCustomer.set(id,i)}
+    const customers=custRaw.map(c=>{
+      const ent=entByCustomer.get(c.id),sub=subByCustomer.get(c.id),open=openByCustomer.get(c.id);
+      let billingStatus="no_subscription";
+      if(ent?.state==="suspended")billingStatus="suspended";
+      else if(open||sub?.status==="past_due")billingStatus="payment_due";
+      else if(["active","trialing"].includes(String(sub?.status||""))||ent?.state==="active")billingStatus="active";
+      else if(ent?.state==="trial")billingStatus="trialing";
+      return {id:c.id,name:c.name||null,email:c.email||null,created:c.created||null,billingStatus,paymentUrl:open?.hosted_invoice_url||null,entitlementState:ent?.state||null};
+    });
     const kpis=buildKpis({
       tenants:list(data.tenants),contracts:list(data.contracts),entitlements:list(data.entitlements),usage:list(data.usage).map(u=>({tenant_id:u.tenant_id,capability:u.capability||u.meter_key,quantity:u.quantity})),customers,
       invoices:invRaw.map(i=>({...i,customer:typeof i.customer==="string"?i.customer:i.customer?.id||null})),
