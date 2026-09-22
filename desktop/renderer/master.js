@@ -1498,10 +1498,14 @@ function emailListItem(m,i,selected){
     else if(key==='automation')wanted=all.filter(x=>['email','whatsapp','social','crm','shopify','agenda'].includes(x.module));
     else if(key==='prospecting')wanted=all.filter(x=>x.module==='email');
     else if(key==='core_ai')wanted=all.filter(x=>['email','whatsapp','social','crm','shopify','agenda'].includes(x.module));
-    return wanted.map((x,i)=>({
+    const mapped=wanted.map((x,i)=>({
       id:x.key||('source:'+i),module:x.module,label:x.label||x.account||x.shop||x.module,
       accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,provider:x.provider||'',raw:x
     }));
+    if(key==='core_ai'||key==='web_ecommerce'||key==='orders'){
+      for(const p of masterPortals||[])if(p&&p.id&&['read','write'].includes(p.mode)&&p.lastStatus==='connected')mapped.push({id:p.id,module:'portal',type:'portal',label:p.name||p.url,url:p.url,raw:p});
+    }
+    return mapped;
   }
   function chatConnections(){
     const out=[];
@@ -1533,14 +1537,14 @@ function emailListItem(m,i,selected){
   function refreshAgentSourceSelector(agent){
     const wrap=$m('#chatSourceWrap'),sel=$m('#chatSourceSelect'),hint=$m('#chatSourceHint');if(!wrap||!sel)return;
     const sources=sourcesForAgent(agent);
-    if(sources.length<=1){wrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
+    if(!sources.length){wrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
     wrap.style.display='grid';if(hint)hint.style.display='block';
     const prev=sel.dataset.agent===agent.key?sel.value:'';
-    sel.innerHTML='<option value="">Elige una conexión…</option><option value="__all__">Todas, separadas</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
+    sel.innerHTML='<option value="">Elige una conexión…</option>'+(sources.length>1?'<option value="__all__">Todas, separadas</option>':'')+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
     sel.dataset.agent=agent.key;
     if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;
     else sel.value='';
-    if(hint)hint.textContent='Tienes '+sources.length+' conexiones para este empleado. Elige una o “Todas, separadas”.';
+    if(hint)hint.textContent=sources.length>1?'Tienes '+sources.length+' conexiones para este empleado. Elige una o “Todas, separadas”.':'Elige esta conexión para mantener sus datos separados del resto.';
   }
   function agentStatusText(x){
     if(x?.external)return '🟢 Agente propio conectado';
