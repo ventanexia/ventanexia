@@ -1017,7 +1017,8 @@ function emailListItem(m,i,selected){
         const time=e.allDay?'Todo el día':(Number.isNaN(d?.getTime?.())?'':d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}));
         return '<div class="vnx-agenda-item"><span class="vnx-agenda-time">'+escM(time)+'</span><div><b>'+escM(e.title||'(sin título)')+'</b><small>'+escM(e.location||e.organizer||'Agenda')+'</small></div></div>';
       }).join('');
-    }catch(e){root.innerHTML='<div class="vnx-empty-mini">No he podido leer la agenda: '+escM(String(e?.message||e).slice(0,90))+'</div>'}
+      const hc=$m('#homeAgendaCount');if(hc)hc.textContent=String(events.length);
+    }catch(e){root.innerHTML='<div class="vnx-empty-mini">No he podido leer la agenda: '+escM(String(e?.message||e).slice(0,90))+'</div>';const hc=$m('#homeAgendaCount');if(hc)hc.textContent='—'}
   }
   function refreshWorkbenchApprovals(){
     const root=$m('#vnxApprovalsList'),count=$m('#vnxApprovalsCount'),badge=$m('#vnxPendingBadge');if(!root)return;
@@ -1050,6 +1051,43 @@ function emailListItem(m,i,selected){
       if(small)small.textContent=ok?'Conectado':'Falta conectar';
     }
   }
+  async function refreshHomeReplenishment(){
+    const root=$m('#homeStockRows'),meta=$m('#homeStockMeta'),card=$m('#homeStockCard');
+    if(!root||!window.vnx?.shopifyReplenishmentSummary)return;
+    root.innerHTML='<div class="vnx-home-empty">Calculando previsión con ventas reales…</div>';
+    try{
+      const r=await window.vnx.shopifyReplenishmentSummary();
+      const rows=(r?.rows||[]).slice().sort((a,b)=>(Number(b.urgent)-Number(a.urgent))||((a.daysRemaining??999999)-(b.daysRemaining??999999))).slice(0,5);
+      if(meta)meta.textContent='Ventas por SKU · últimos '+(r?.windowDays||180)+' días · '+(r?.ordersSeen||0)+' pedidos revisados';
+      if(!rows.length){root.innerHTML='<div class="vnx-home-empty">No hay referencias con SKU para analizar.</div>';return}
+      root.innerHTML=rows.map(x=>{
+        const state=x.urgent?'Urgente':x.daysRemaining!=null&&x.daysRemaining<10?'Revisar':'Correcto';
+        const cls=x.urgent?'urgent':state==='Revisar'?'warn':'ok';
+        const days=x.daysRemaining==null?'Sin ventas':x.daysRemaining+' días';
+        return '<button type="button" class="vnx-stock-row '+cls+'" data-home-stock><span><b>'+escM(x.sku||'Sin SKU')+'</b><small>'+escM(x.product||'Producto')+'</small></span><span>'+Number(x.stock||0)+' uds</span><span>'+escM(days)+'</span><span>'+state+'</span></button>';
+      }).join('');
+      root.querySelectorAll('[data-home-stock]').forEach(b=>b.onclick=()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify para los próximos 30 días';input.focus()}});
+      if(card)card.classList.toggle('has-urgent',(r?.urgent||[]).length>0);
+    }catch(e){
+      if(meta)meta.textContent='Conecta Shopify para ver una previsión real.';
+      root.innerHTML='<button type="button" class="vnx-home-empty action" data-home-connect-shopify>Conectar Shopify →</button>';
+      root.querySelector('[data-home-connect-shopify]')?.addEventListener('click',()=>openConnectionsTab('shopify'));
+    }
+  }
+
+  function bindHomeDashboard(){
+    $m('[data-home-carla]')?.addEventListener('click',()=>{selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();$m('#chatInput')?.focus()});
+    $m('[data-home-email]')?.addEventListener('click',()=>runEmailWorkbench('summary'));
+    $m('[data-home-orders]')?.addEventListener('click',()=>{selectAgentKey('orders',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
+    $m('[data-home-clients]')?.addEventListener('click',()=>{selectAgentKey('prospecting',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
+    $m('[data-home-document]')?.addEventListener('click',()=>{selectAgentKey('administration',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Quiero crear un documento';input.focus()}});
+    $m('[data-home-stock-open]')?.addEventListener('click',()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify';input.focus()}});
+    const main=$m('#homeQuickInput'),send=$m('#homeQuickSend');
+    const submit=()=>{const text=String(main?.value||'').trim();if(!text)return;selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value=text;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}};
+    if(send)send.onclick=submit;
+    if(main)main.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();submit()}});
+  }
+
   async function runEmailWorkbench(kind='summary'){
     const agent=(runtimeAgents||[]).find(x=>x.key==='email');
     if(!agent?.included){masterMessages.push({role:'assistant',content:'Email no está incluido en tu plan actual.'});setWorkspaceMode('free');renderMasterMessages();return}
@@ -1218,10 +1256,19 @@ function emailListItem(m,i,selected){
     let counts={review:0,decision:0,informative:0,resolved:0,pending:0};
     try{counts=workCounts(await loadWorkQueueData(force))}catch{}
     const set=(id,n)=>{const e=$m(id);if(e)e.textContent=String(n||0)};
-    set('#vnxCountPending',(counts.review||0)+(counts.decision||0)+(counts.pending||0));
+    const attention=(counts.review||0)+(counts.decision||0)+(counts.pending||0);
+    set('#vnxCountPending',attention);
     set('#vnxCountReview',counts.review||0);
     set('#vnxCountApproval',counts.decision||0);
     set('#vnxCountSolved',counts.resolved||0);
+    set('#homeAttentionCount',attention);
+    set('#homeEmailCount',counts.review||0);
+    set('#homeDecisionCount',counts.decision||0);
+    const line=$m('#homeCarlaSummary');
+    if(line){
+      if(attention)line.textContent='Tienes '+attention+' asunto'+(attention===1?'':'s')+' que merece'+(attention===1?'':'n')+' tu atención. Puedo prepararte el trabajo.';
+      else line.textContent='No veo asuntos urgentes pendientes. Puedes pedirme cualquier tarea.';
+    }
   }
   function looksLikeWriteAction(text=''){return /\b(envia|manda|archiva|borra|elimina|publica|crea|modifica|actualiza|responde|contesta|entrega|registra)\b/i.test(String(text))}
   async function sendSeparatedBySources(text,scope,payload){
@@ -1407,7 +1454,7 @@ function emailListItem(m,i,selected){
     $$m('[data-vnx-connect]').forEach(b=>b.onclick=()=>openConnectionsTab(b.dataset.vnxConnect));
     const h=new Date().getHours(),g=$m('#vnxDailyGreeting');
     if(g)g.textContent=(h<13?'Buenos días':h<20?'Buenas tardes':'Buenas noches');
-    refreshWorkbenchAgenda();refreshWorkbenchApprovals();refreshWorkbenchConnections();refreshWorkbenchCounters();refreshOwnAgentsCard().then(refreshConnectionCapacityNotice);
+    bindHomeDashboard();refreshWorkbenchAgenda();refreshWorkbenchApprovals();refreshWorkbenchConnections();refreshWorkbenchCounters();refreshHomeReplenishment();refreshOwnAgentsCard().then(refreshConnectionCapacityNotice);
   }
 
   function setupGuidedUi(){
@@ -2184,10 +2231,10 @@ function emailListItem(m,i,selected){
 
   function enrichBusinessRequest(text,scope){
     const raw=String(text||'').trim(),q=raw.toLowerCase();
-    const stockIntent=/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?)\b/.test(q)&&/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock)\b/.test(q);
+    const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q))&&(/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock|rotura|previsi[oó]n|d[ií]as)\b/.test(q)||/agot/.test(q));
     const meetingIntent=/\b(reuni[oó]n|visita|cita)\b/.test(q)&&/\b(prepar|informe|dossier|cliente|agenda|datos|revis)\b/.test(q);
     if(stockIntent){
-      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK Y REPOSICIÓN: Usa solo datos reales de las conexiones disponibles. Cruza inventario/stock actual con ventas o líneas de pedidos históricas por SKU/producto. Indica el periodo real analizado y no extrapoles si no hay historial suficiente. Si existe plazo de reposición configurado, úsalo; si no existe, puedes proponer como referencia una cobertura de 2 semanas más un 25% de seguridad, pero debes marcarlo expresamente como "criterio propuesto", no como dato real. Calcula cantidad sugerida = máximo(0, stock mínimo propuesto - stock disponible). Prioriza productos con stock 0 o por debajo del mínimo. FORMATO OBLIGATORIO: # Resumen rápido; ## Reposición propuesta; una línea completa por producto con "SKU: ... | Producto: ... | Stock actual: ... | Ventas periodo: ... | Media semanal: ... | Stock mínimo propuesto: ... | Cantidad a pedir: ... | Motivo: ..."; ## Productos sin datos suficientes; ## Acción para Compras. Si Compras o un ERP con compras está conectado, NO hagas el pedido sin permiso: deja claro "Listo para enviar a Compras" y pide autorización. Si faltan datos de ventas, stock o plazo, dilo y no inventes. El resultado debe poder exportarse directamente a Excel.';
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK, REPOSICIÓN Y RIESGO DE ROTURA: Si hay una fuente con path que empiece por "Shopify" y contenga "reposición y previsión de rotura", esos números YA están calculados por el programa a partir de ventas reales de los últimos 6 meses (180 días) por cada SKU por separado. No recalcules nada ni inventes cifras: explica y prioriza exactamente los valores recibidos. Si la consulta alcanzó el límite de seguridad, indícalo. FORMATO OBLIGATORIO: # Resumen rápido; ## Riesgo de rotura en menos de 5 días — una línea por producto con urgent=true, aunque todavía tenga stock; ## Reposición propuesta para cubrir 30 días — una línea por producto con qty>0 e incluye SKU, producto, stock actual, ventas 6 meses, media diaria, días de cobertura y cantidad a pedir; ## Productos sin ventas registradas — no propongas cantidad para ellos salvo que el stock ya esté agotado; ## Acción para Compras. Si Compras o un ERP está conectado, no hagas el pedido sin permiso: deja "Listo para enviar a Compras" y pide autorización. El resultado debe poder exportarse directamente a Excel y PDF.';
     }
     if(meetingIntent){
       return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — PREPARACIÓN DE REUNIÓN: Localiza la reunión relevante en la Agenda conectada y usa título, asistentes, organizador, descripción y fecha. Cruza únicamente datos reales disponibles de Email, Ventas y clientes/CRM, Pedidos, tienda/Shopify y demás fuentes autorizadas que correspondan al cliente o a sus asistentes. No confundas clientes con nombres parecidos. FORMATO OBLIGATORIO PARA PDF: # Dossier de reunión; ## Resumen ejecutivo; ## Datos de la reunión; ## Cliente y relación comercial; ## Compras e historial; ## Facturación disponible; ## Pedidos y situación actual; ## Emails y asuntos pendientes; ## Incidencias o riesgos; ## Oportunidades detectadas; ## Temas que conviene tratar; ## Recomendaciones para la reunión; ## Preguntas que conviene hacer; ## Fuentes consultadas. En cada apartado resume, no vuelques correos ni datos en bruto. Incluye cifras solo si están verificadas. Si una fuente no está conectada, indica "Dato no disponible". Las recomendaciones deben derivarse de los datos observados y diferenciarse claramente de los hechos. El resultado debe estar listo para exportar a PDF.';
