@@ -1331,7 +1331,13 @@ function emailListItem(m,i,selected){
     }
     $m('#vnxExpandWorkbench')?.addEventListener('click',()=>setWorkbenchExpanded(!document.body.classList.contains('vnx-focus-chat')));
     if(localStorage.getItem('vnx_workbench_expanded')==='on')setWorkbenchExpanded(true);
-    $m('#connectOwnAgentBtn')?.addEventListener('click',openOwnAgentManager);$m('#manageOwnAgentsBtn')?.addEventListener('click',openOwnAgentManager);
+    // Estos botones viven en Conexiones y deben funcionar aunque el Centro de trabajo no llegue a inicializarse por completo.
+    const bindOwnAgentButtons=()=>{
+      const connect=$m('#connectOwnAgentBtn'),manage=$m('#manageOwnAgentsBtn');
+      if(connect&&!connect.dataset.vnxBound){connect.dataset.vnxBound='1';connect.addEventListener('click',openOwnAgentManager)}
+      if(manage&&!manage.dataset.vnxBound){manage.dataset.vnxBound='1';manage.addEventListener('click',openOwnAgentManager)}
+    };
+    bindOwnAgentButtons();
     $$m('[data-vnx-status]').forEach(b=>b.onclick=()=>{const k=b.dataset.vnxStatus;if(k==='approval')openWorkQueue('decision');else if(k==='solved')openWorkQueue('resolved');else openWorkQueue('review')});
     if(lang){lang.value=workbenchLanguage();lang.onchange=()=>localStorage.setItem('vnx_translation_language',lang.value)}
     $m('#vnxTranslateEmailsBtn')?.addEventListener('click',()=>runEmailWorkbench('translate'));
@@ -2215,6 +2221,10 @@ function emailListItem(m,i,selected){
   }
 
   async function start(){
+    // Enlazar primero los controles críticos de Conexiones: un fallo posterior no debe dejar botones muertos.
+    const connectOwn=$m('#connectOwnAgentBtn'),manageOwn=$m('#manageOwnAgentsBtn');
+    if(connectOwn&&!connectOwn.dataset.vnxBound){connectOwn.dataset.vnxBound='1';connectOwn.addEventListener('click',openOwnAgentManager)}
+    if(manageOwn&&!manageOwn.dataset.vnxBound){manageOwn.dataset.vnxBound='1';manageOwn.addEventListener('click',openOwnAgentManager)}
     await migrateLegacyPortals();
     setupMasterPortalUi();
     setupMasterChat();
