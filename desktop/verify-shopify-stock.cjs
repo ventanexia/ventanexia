@@ -1,3 +1,4 @@
+// 0.6.108 build gate
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const backend=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
