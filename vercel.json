@@ -197,6 +197,10 @@
     {
       "path": "/api/trial-sweep",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/billing-grace-sweep",
+      "schedule": "0 * * * *"
     }
   ],
   "redirects": [
