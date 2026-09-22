@@ -143,9 +143,9 @@ La demo no debe afirmar que ha ejecutado acciones reales si no existen integraci
 
 VentaNexIA incluye todos los asistentes estándar en los tres planes de pago. Carla coordina el especialista adecuado para cada tarea. Los planes se diferencian por usuarios, dispositivos, conexiones, canales y volumen de pedidos, además de los límites de funciones que tengan contador técnico activo.
 
-- VNX Inicio: 99 €/mes + IVA, 1 usuario, 1 dispositivo, hasta 3 conexiones, 1 canal de pedidos online y hasta 100 pedidos/mes.
-- VNX Negocio: 249 €/mes + IVA, 3 usuarios, hasta 3 dispositivos, 8 conexiones, 2 canales de pedidos online y hasta 500 pedidos/mes.
-- VNX Empresa: 499 €/mes + IVA, 8 usuarios, hasta 5 dispositivos, 15 conexiones, 4 canales de pedidos online y hasta 2.000 pedidos/mes.
+- VNX Inicio: 129 €/mes + IVA, 1 usuario, 1 dispositivo, hasta 4 conexiones, 1 canal de pedidos online, hasta 150 pedidos/mes y 5 GB.
+- VNX Negocio: 299 €/mes + IVA, 3 usuarios, hasta 3 dispositivos, 10 conexiones, 2 canales de pedidos online, hasta 700 pedidos/mes y 20 GB.
+- VNX Empresa: 599 €/mes + IVA, 8 usuarios, hasta 5 dispositivos, 18 conexiones, 4 canales de pedidos online, hasta 2.500 pedidos/mes y 50 GB.
 
 No se publica una cifra genérica de «trabajos al mes» mientras no exista un contador global que mida de forma coherente todas las tareas. Cuando una función tenga un contador técnico activo, su límite puede mostrarse y aplicarse específicamente.
 
@@ -154,7 +154,8 @@ No se publica una cifra genérica de «trabajos al mes» mientras no exista un c
 Las ampliaciones públicas actuales deben limitarse a conceptos realmente operativos y medibles:
 
 - Conexión o cuenta adicional compatible: 49 €/mes + IVA.
-- 10 GB adicionales: 39 €/mes + IVA.
+- 10 GB adicionales: 29 €/mes + IVA.
+- 500 pedidos adicionales al mes: 39 €/mes + IVA.
 - Canal adicional de pedidos online compatible: 29 €/mes + IVA.
 - WhatsApp u otros servicios de terceros: únicamente cuando exista una integración operativa y se indiquen claramente los cargos de Meta/proveedor o del servicio correspondiente.
 
@@ -164,9 +165,9 @@ Vídeo, voz, imágenes u otras bolsas de coste variable no deben mostrarse como 
 
 Pedidos forma parte del equipo estándar. El volumen y los canales dependen del plan:
 
-- Inicio: 1 canal, hasta 100 pedidos/mes.
-- Negocio: 2 canales, hasta 500 pedidos/mes.
-- Empresa: 4 canales, hasta 2.000 pedidos/mes.
+- Inicio: 1 canal, hasta 150 pedidos/mes.
+- Negocio: 2 canales, hasta 700 pedidos/mes.
+- Empresa: 4 canales, hasta 2.500 pedidos/mes.
 
 Un canal de pedidos adicional compatible puede mantenerse como ampliación de 29 €/mes + IVA mientras el sistema siga soportando ese concepto.
 
