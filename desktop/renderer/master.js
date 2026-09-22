@@ -1086,7 +1086,7 @@ function emailListItem(m,i,selected){
       if(meta)meta.textContent='Ventas por SKU/EAN · últimos '+(r?.windowDays||180)+' días · '+(r?.ordersSeen||0)+' pedidos revisados';
       if(!rows.length){root.innerHTML='<div class="vnx-home-empty">No hay referencias con SKU para analizar.</div>';return}
       root.innerHTML=rows.map(x=>{
-        const state=x.urgent?'Urgente':x.daysRemaining!=null&&x.daysRemaining<10?'Revisar':'Correcto';
+        const state=x.urgent?'Urgente':x.daysRemaining!=null&&x.daysRemaining<14?'Revisar':'Correcto';
         const cls=x.urgent?'urgent':state==='Revisar'?'warn':'ok';
         const days=x.daysRemaining==null?'Sin ventas':x.daysRemaining+' días';
         return '<button type="button" class="vnx-stock-row '+cls+'" data-home-stock><span><b>'+escM(x.sku||x.ean||'Sin SKU/EAN')+'</b><small>'+escM(x.product||'Producto')+'</small></span><span>'+Number(x.stock||0)+' uds</span><span>'+escM(days)+'</span><span>'+state+'</span></button>';
