@@ -2270,12 +2270,63 @@ function emailListItem(m,i,selected){
     await runExecutiveSecretary('day',{automatic:true});
   }
 
+  function isShopifyStockRequest(text='',scope=null){
+    const q=String(text||'').toLowerCase();
+    const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q));
+    if(!stockIntent)return false;
+    if(scope?.type==='shopify')return true;
+    if(scope?.selectedSource?.module==='shopify'||scope?.selectedSource?.type==='shopify')return true;
+    return false;
+  }
+  function shopifyStockTable(summary={}){
+    const rows=Array.isArray(summary.rows)?summary.rows:[];
+    const sorted=[...rows].sort((a,b)=>
+      Number(Boolean(b.urgent))-Number(Boolean(a.urgent)) ||
+      Number(b.qty||0)-Number(a.qty||0) ||
+      Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999) ||
+      String(a.product||'').localeCompare(String(b.product||''))
+    );
+    const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
+    const ref=r=>r.sku||r.ean||'—';
+    const coverage=r=>r.daysRemaining==null?'Sin ventas registradas':String(r.daysRemaining);
+    const status=r=>{
+      if(r.urgent&&Number(r.stock||0)<=0)return 'Stock 0, rotura inmediata';
+      if(r.urgent)return '⚠️ Menos de 5 días de cobertura';
+      if(r.noSalesData)return Number(r.stock||0)<=0?'Stock 0, sin ventas registradas':'Sin ventas registradas';
+      if(Number(r.qty||0)>0)return 'Reposición recomendada';
+      return 'Stock suficiente';
+    };
+    const lines=[
+      '# Stock y reposición · Shopify',
+      '',
+      '**Cálculo real del programa:** ventas de los últimos '+(summary.windowDays||180)+' días por SKU/EAN. Los pedidos cancelados están excluidos.',
+      '',
+      '| SKU / EAN | Producto | Stock actual | Ventas 6 meses | Media diaria | Días de cobertura | Cantidad a pedir | Estado |',
+      '|---|---|---:|---:|---:|---:|---:|---|'
+    ];
+    const maxRows=1000;
+    for(const r of sorted.slice(0,maxRows)){
+      const product=String(r.product||'').replace(/\|/g,'/');
+      lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+fmt(r.qty)+' | '+status(r)+' |');
+    }
+    lines.push('');
+    lines.push('**Resumen:** '+rows.length+' referencias analizadas · '+sorted.filter(r=>r.urgent).length+' con riesgo urgente · '+sorted.filter(r=>Number(r.qty||0)>0).length+' con reposición propuesta.');
+    if(summary.truncated)lines.push('⚠️ La consulta alcanzó el límite de seguridad de pedidos; no presento el periodo como exhaustivo.');
+    if(summary.catalogTruncated)lines.push('⚠️ El catálogo alcanzó el límite de seguridad; pueden faltar referencias.');
+    if(rows.length>maxRows)lines.push('Se muestran las primeras '+maxRows+' referencias, priorizando urgentes y reposición. Total calculado: '+rows.length+'.');
+    lines.push('');
+    lines.push('**Regla urgente:** menos de 5 días de cobertura, aunque todavía quede stock.');
+    lines.push('**Objetivo de reposición:** cubrir 30 días al ritmo real de venta. Los cálculos los hace VentaNexIA, no la IA.');
+    lines.push('');
+    lines.push('Listo para enviar a Compras cuando lo autorices.');
+    return lines.join('\n');
+  }
   function enrichBusinessRequest(text,scope){
     const raw=String(text||'').trim(),q=raw.toLowerCase();
     const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q))&&(/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock|rotura|previsi[oó]n|d[ií]as)\b/.test(q)||/agot/.test(q));
     const meetingIntent=/\b(reuni[oó]n|visita|cita)\b/.test(q)&&/\b(prepar|informe|dossier|cliente|agenda|datos|revis)\b/.test(q);
     if(stockIntent){
-      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK, REPOSICIÓN Y RIESGO DE ROTURA: Si hay una fuente con path que empiece por "Shopify" y contenga "reposición y previsión de rotura", esos números YA están calculados por el programa a partir de ventas reales de los últimos 6 meses (180 días) por cada SKU o EAN por separado. No recalcules nada ni inventes cifras: explica y prioriza exactamente los valores recibidos. Si la consulta alcanzó el límite de seguridad, indícalo. FORMATO OBLIGATORIO: # Resumen rápido; ## Riesgo de rotura en menos de 7 días — una línea por producto con urgent=true, aunque todavía tenga stock; ## Reposición propuesta para cubrir 30 días — una línea por producto con qty>0 e incluye SKU/EAN, producto, stock actual, ventas 6 meses, media diaria, días de cobertura y cantidad a pedir; ## Productos sin ventas registradas — no propongas cantidad para ellos salvo que el stock ya esté agotado; ## Acción para Compras. Si Compras o un ERP está conectado, no hagas el pedido sin permiso: deja "Listo para enviar a Compras" y pide autorización. El resultado debe poder exportarse directamente a Excel y PDF.';
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK, REPOSICIÓN Y RIESGO DE ROTURA: Si hay una fuente con path que empiece por "Shopify" y contenga "reposición y previsión de rotura", esos números YA están calculados por el programa a partir de ventas reales de los últimos 6 meses (180 días) por cada SKU o EAN por separado. No recalcules nada ni inventes cifras: explica y prioriza exactamente los valores recibidos. Si la consulta alcanzó el límite de seguridad, indícalo. FORMATO OBLIGATORIO: # Resumen rápido; ## Riesgo de rotura en menos de 5 días — una línea por producto con urgent=true, aunque todavía tenga stock; ## Reposición propuesta para cubrir 30 días — una línea por producto con qty>0 e incluye SKU/EAN, producto, stock actual, ventas 6 meses, media diaria, días de cobertura y cantidad a pedir; ## Productos sin ventas registradas — no propongas cantidad para ellos salvo que el stock ya esté agotado; ## Acción para Compras. Si Compras o un ERP está conectado, no hagas el pedido sin permiso: deja "Listo para enviar a Compras" y pide autorización. El resultado debe poder exportarse directamente a Excel y PDF.';
     }
     if(meetingIntent){
       return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — PREPARACIÓN DE REUNIÓN: Localiza la reunión relevante en la Agenda conectada y usa título, asistentes, organizador, descripción y fecha. Cruza únicamente datos reales disponibles de Email, Ventas y clientes/CRM, Pedidos, tienda/Shopify y demás fuentes autorizadas que correspondan al cliente o a sus asistentes. No confundas clientes con nombres parecidos. FORMATO OBLIGATORIO PARA PDF: # Dossier de reunión; ## Resumen ejecutivo; ## Datos de la reunión; ## Cliente y relación comercial; ## Compras e historial; ## Facturación disponible; ## Pedidos y situación actual; ## Emails y asuntos pendientes; ## Incidencias o riesgos; ## Oportunidades detectadas; ## Temas que conviene tratar; ## Recomendaciones para la reunión; ## Preguntas que conviene hacer; ## Fuentes consultadas. En cada apartado resume, no vuelques correos ni datos en bruto. Incluye cifras solo si están verificadas. Si una fuente no está conectada, indica "Dato no disponible". Las recomendaciones deben derivarse de los datos observados y diferenciarse claramente de los hechos. El resultado debe estar listo para exportar a PDF.';
@@ -2344,6 +2395,14 @@ function emailListItem(m,i,selected){
       masterMessages.push({role:'user',content:visibleText,scopeKey:activeScopeKey});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
+        if(isShopifyStockRequest(text,scope)&&window.vnx?.shopifyReplenishmentSummary){
+          const summary=await window.vnx.shopifyReplenishmentSummary();
+          const reply=shopifyStockTable(summary);
+          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,scopeKey:activeScopeKey});
+          renderMasterMessages({focusIndex:masterMessages.length-1});
+          btn.disabled=false;btn.textContent='Enviar';
+          return;
+        }
         const enrichedText=enrichBusinessRequest(text,scope);
         const scopedMessages=masterMessages.filter(m=>m.scopeKey===activeScopeKey||m===masterMessages[masterMessages.length-1]);
         const payload=scopedMessages.map(({role,content},i)=>({role,content:i===scopedMessages.length-1&&role==='user'?enrichedText:content}));
