@@ -1,0 +1,23 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path');
+const backend=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
+const preload=fs.readFileSync(path.join(__dirname,'preload.cjs'),'utf8');
+const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'renderer','index.html'),'utf8');
+const css=fs.readFileSync(path.join(__dirname,'renderer','styles.css'),'utf8');
+function need(src,re,msg){if(!re.test(src)){console.error('ONBOARDING_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
+need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'stock sales window must remain 180 days');
+need(backend,/const SHOPIFY_TARGET_COVER_DAYS=30;/,'replenishment target must remain 30 days');
+need(backend,/const SHOPIFY_URGENT_DAYS=5;/,'urgent threshold must remain 5 days');
+need(backend,/ipcMain\.handle\('stock:import-file'/,'local stock import IPC missing');
+need(backend,/readTableBuffer/,'local stock import must use the existing Excel\/CSV parser');
+need(preload,/stockImportFile:\(\)=>ipcRenderer\.invoke\('stock:import-file'\)/,'preload must expose stock import');
+need(renderer,/function isPortalStockRequest/,'portal stock route missing');
+need(renderer,/data-import-stock-file/,'stock file picker button missing');
+need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'SKU and EAN must remain separate in import exports');
+need(renderer,/if\(key==='shopify'\)return Boolean\(shop\?\.connected\)/,'Shopify connected indicator must use backend connected boolean');
+need(html,/id="homeOnboardingCard"/,'first-run checklist HTML missing');
+need(html,/alerta por debajo de 5 días/,'home stock copy must match 5-day calculation');
+need(css,/\.vnx-home-onboarding\{/,'first-run checklist styles missing');
+need(renderer,/card\.style\.display=doneCount<=1\?'':'none'/,'checklist visibility rule missing');
+console.log('ONBOARDING_STOCK_VERIFY_OK');
