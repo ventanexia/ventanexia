@@ -1251,29 +1251,85 @@ function emailListItem(m,i,selected){
     root.innerHTML='<small><b>'+agents.length+'</b> agente'+(agents.length===1?'':'s')+' propio'+(agents.length===1?'':'s')+' conectado'+(agents.length===1?'':'s')+' · límite contratado: '+limit+'.</small>';
   }
   async function openOwnAgentManager(){
-    let agents=[];try{agents=await window.vnx.externalAgentList()||[]}catch{}
+    // La ventana debe abrirse inmediatamente. La lectura de agentes existentes no puede bloquear el clic.
     const overlay=document.createElement('div');overlay.className='vnx-own-agent-overlay';
     overlay.innerHTML='<div class="vnx-own-agent-modal"><div class="panel-head"><div><h3>🤖 Mis agentes propios</h3><p>Conecta un agente externo de forma segura. Solo consultar o preparar trabajo; no recibe acceso automático a tus otras conexiones.</p></div><button class="mini" data-own-close>✕</button></div>'
       +'<div class="vnx-own-agent-grid"><label>Nombre<input id="ownAgentName" placeholder="Ej. Control de calidad"></label><label>Tipo<select id="ownAgentProtocol"><option value="api">API / agente HTTPS</option><option value="webhook">Webhook HTTPS</option><option value="mcp">MCP remoto</option></select></label><label class="wide">Dirección HTTPS<input id="ownAgentUrl" placeholder="https://..."></label><label class="wide">Clave / token (si lo necesita)<input id="ownAgentToken" type="password" autocomplete="off" placeholder="Se guarda cifrada"></label><label>Permiso<select id="ownAgentPermissions"><option value="read">Solo consultar</option><option value="prepare" selected>Consultar y preparar trabajo</option></select></label><label id="ownAgentToolWrap" style="display:none">Herramienta MCP<select id="ownAgentTool"><option value="">Primero pulsa Probar conexión</option></select></label></div>'
       +'<div class="row" style="margin-top:12px"><button class="btn outline" id="ownAgentTest" type="button">Probar conexión</button><button class="btn primary" id="ownAgentSave" type="button">Conectar agente</button><span id="ownAgentMsg" style="font-size:11px;color:#9fc1d3"></span></div>'
-      +'<div class="vnx-own-agent-list" id="ownAgentList">'+(agents.length?agents.map(a=>'<div class="vnx-own-agent-item"><div><b>'+escM(a.name)+'</b><small>'+escM(a.protocol.toUpperCase())+' · '+escM(a.url)+'</small></div><button class="mini own-agent-remove" data-id="'+escM(a.id)+'">Quitar</button></div>').join(''):'<div class="vnx-empty-mini">Todavía no tienes agentes propios conectados.</div>')+'</div></div>';
+      +'<div class="vnx-own-agent-list" id="ownAgentList"><div class="vnx-empty-mini">Cargando agentes conectados…</div></div></div>';
     document.body.appendChild(overlay);
-    const close=()=>overlay.remove();overlay.querySelector('[data-own-close]').onclick=close;overlay.onclick=e=>{if(e.target===overlay)close()};
-    const protocol=overlay.querySelector('#ownAgentProtocol'),toolWrap=overlay.querySelector('#ownAgentToolWrap'),toolSel=overlay.querySelector('#ownAgentTool'),msg=overlay.querySelector('#ownAgentMsg');
+
+    const close=()=>overlay.remove();
+    overlay.querySelector('[data-own-close]').onclick=close;
+    overlay.onclick=e=>{if(e.target===overlay)close()};
+
+    const protocol=overlay.querySelector('#ownAgentProtocol'),
+      toolWrap=overlay.querySelector('#ownAgentToolWrap'),
+      toolSel=overlay.querySelector('#ownAgentTool'),
+      msg=overlay.querySelector('#ownAgentMsg'),
+      listRoot=overlay.querySelector('#ownAgentList');
+
     protocol.onchange=()=>{toolWrap.style.display=protocol.value==='mcp'?'grid':'none'};
     const payload=()=>({name:overlay.querySelector('#ownAgentName').value.trim(),protocol:protocol.value,url:overlay.querySelector('#ownAgentUrl').value.trim(),token:overlay.querySelector('#ownAgentToken').value.trim(),permissions:overlay.querySelector('#ownAgentPermissions').value,tool:toolSel.value});
+
+    const renderOwnAgentList=(agents=[])=>{
+      if(!overlay.isConnected)return;
+      listRoot.innerHTML=agents.length
+        ?agents.map(a=>'<div class="vnx-own-agent-item"><div><b>'+escM(a.name)+'</b><small>'+escM(String(a.protocol||'api').toUpperCase())+' · '+escM(a.url||'')+'</small></div><button class="mini own-agent-remove" data-id="'+escM(a.id)+'">Quitar</button></div>').join('')
+        :'<div class="vnx-empty-mini">Todavía no tienes agentes propios conectados.</div>';
+      listRoot.querySelectorAll('.own-agent-remove').forEach(b=>b.onclick=async()=>{
+        if(!confirm('¿Quitar este agente propio de VentaNexIA?'))return;
+        b.disabled=true;
+        try{
+          await window.vnx.externalAgentRemove(b.dataset.id);
+          await refreshRuntimeConnections();
+          await refreshChatConnections();
+          await refreshOwnAgentsCard();
+          const agentsNow=await window.vnx.externalAgentList()||[];
+          renderOwnAgentList(agentsNow);
+        }catch(e){
+          msg.textContent=e.message||String(e);
+          b.disabled=false;
+        }
+      });
+    };
+
     overlay.querySelector('#ownAgentTest').onclick=async()=>{
       msg.textContent='Probando…';
-      try{const r=await window.vnx.externalAgentTest(payload());if(protocol.value==='mcp'){toolWrap.style.display='grid';toolSel.innerHTML='<option value="">Elige una herramienta…</option>'+(r.tools||[]).map(t=>'<option value="'+escM(t.name)+'">'+escM(t.name)+'</option>').join('')}msg.textContent='✓ Conexión correcta'}
-      catch(e){msg.textContent='No se pudo conectar: '+(e.message||e)}
+      try{
+        const r=await window.vnx.externalAgentTest(payload());
+        if(protocol.value==='mcp'){
+          toolWrap.style.display='grid';
+          toolSel.innerHTML='<option value="">Elige una herramienta…</option>'+(r.tools||[]).map(t=>'<option value="'+escM(t.name)+'">'+escM(t.name)+'</option>').join('');
+        }
+        msg.textContent='✓ Conexión correcta';
+      }catch(e){msg.textContent='No se pudo conectar: '+(e.message||e)}
     };
+
     overlay.querySelector('#ownAgentSave').onclick=async()=>{
       msg.textContent='Guardando…';
-      try{await window.vnx.externalAgentSave(payload());msg.textContent='✓ Agente conectado';await refreshRuntimeConnections();await refreshChatConnections();await refreshOwnAgentsCard();setTimeout(close,500)}
-      catch(e){msg.textContent=e.message||String(e)}
+      try{
+        await window.vnx.externalAgentSave(payload());
+        msg.textContent='✓ Agente conectado';
+        await refreshRuntimeConnections();
+        await refreshChatConnections();
+        await refreshOwnAgentsCard();
+        const agentsNow=await window.vnx.externalAgentList()||[];
+        renderOwnAgentList(agentsNow);
+      }catch(e){msg.textContent=e.message||String(e)}
     };
-    overlay.querySelectorAll('.own-agent-remove').forEach(b=>b.onclick=async()=>{if(!confirm('¿Quitar este agente propio de VentaNexIA?'))return;await window.vnx.externalAgentRemove(b.dataset.id);close();await refreshRuntimeConnections();await refreshChatConnections();await refreshOwnAgentsCard();openOwnAgentManager()});
+
+    // Carga en segundo plano: incluso si esta llamada falla o tarda, el formulario ya está abierto y utilizable.
+    Promise.resolve()
+      .then(()=>window.vnx.externalAgentList())
+      .then(agents=>renderOwnAgentList(Array.isArray(agents)?agents:[]))
+      .catch(e=>{
+        if(!overlay.isConnected)return;
+        listRoot.innerHTML='<div class="vnx-empty-mini">No he podido cargar los agentes existentes. Puedes conectar uno nuevo igualmente.</div>';
+        msg.textContent='Aviso: '+(e.message||'no se pudo leer la lista de agentes');
+      });
   }
+
   async function refreshConnectionCapacityNotice(){
     try{
       const x=await window.vnx.connectionCapacity();const root=$m('#ownAgentsSummary');
