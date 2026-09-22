@@ -1375,3 +1375,9 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-billing-badge.due{color:#ffd36d;background:rgba(134,88,18,.25);border-color:rgba(246,185,61,.42)}
 .vnx-billing-badge.blocked{color:#ff8c9e;background:rgba(132,37,58,.25);border-color:rgba(244,82,112,.4)}
 .vnx-billing-badge.neutral{color:#a9c3d7;background:#0a2a44;border-color:#245878}
+
+/* 0.6.103 — exportación de pedidos verificados */
+.vnx-order-export-box{margin-top:12px;padding:12px 14px;border:1px solid #21668f;border-radius:11px;background:#071f36;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.vnx-order-export-box b{display:block;color:#edf8ff;font-size:12px}
+.vnx-order-export-box small{display:block;color:#88a9c0;font-size:10px;margin-top:3px}
+.vnx-order-export-box .row{display:flex;gap:7px;flex-wrap:wrap}
