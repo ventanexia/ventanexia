@@ -1221,3 +1221,15 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
  body.vnx-focus-chat:not(.vnx-detached-workbench) .shell{grid-template-columns:1fr!important}
  body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0!important}
 }
+
+
+/* 0.6.94 — bandeja por categorías y scroll interno en Carla */
+.email-topic-tabs{display:flex;gap:6px;padding:8px;border-bottom:1px solid #174968;overflow-x:auto;flex:0 0 auto}
+.email-topic-tabs button{border:1px solid #1b587b;background:#08233a;color:#a9c7d9;border-radius:18px;padding:6px 10px;font-size:10px;white-space:nowrap;cursor:pointer}
+.email-topic-tabs button.active{background:#176fd1;border-color:#2e8df0;color:#fff}
+.email-topic-tabs .n{margin-left:4px;font-size:9px;opacity:.9}
+.vnx-carla-window #guidedResult{max-height:calc(100vh - 240px)!important;overflow-y:auto!important;min-height:0!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-dashboard{height:100%!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-workspace{flex:1!important;min-height:0!important;overflow:hidden!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-list-panel{display:flex!important;flex-direction:column!important;min-height:0!important;overflow:hidden!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-list{flex:1!important;height:auto!important;max-height:none!important;overflow-y:auto!important}
