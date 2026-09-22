@@ -1387,3 +1387,54 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-billing-lock-card{width:min(560px,calc(100vw - 38px));border:1px solid #276d9e;border-radius:18px;background:linear-gradient(155deg,#082846,#061b31);padding:28px;text-align:center;box-shadow:0 35px 100px rgba(0,0,0,.52)}
 .vnx-lock-icon{width:66px;height:66px;display:grid;place-items:center;margin:0 auto 14px;border-radius:50%;background:#3a2740;border:1px solid #a45970;color:#ff93a9;font-size:28px}
 .vnx-billing-lock-card h2{margin:0;color:#fff;font-size:24px}.vnx-billing-lock-card p{color:#a8c2d5;line-height:1.55;margin:12px 0}.vnx-lock-note{margin:14px 0 18px;padding:11px;border-radius:10px;background:#082f4a;color:#cce9f7;font-size:11px}.vnx-billing-lock-card .row{justify-content:center}.vnx-billing-lock-card small{display:block;margin-top:14px;color:#7899b2}
+
+
+/* 0.6.106 — restaurar selector de fuente de Carla como en 0.6.90–0.6.100.
+   Mantener la excepción de Email: su bandeja usa su propia cuenta/filtros. */
+.vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceGlobal{
+  display:grid!important;
+  grid-template-columns:minmax(0,500px) minmax(220px,1fr)!important;
+  gap:12px!important;
+  align-items:end!important;
+  padding:10px 18px 8px!important;
+  margin:0!important;
+  border-bottom:1px solid #174b72!important;
+  background:#061a30!important;
+}
+.vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceWrap{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:5px!important;
+  margin:0!important;
+}
+.vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceGlobal .agent-picker-label{
+  display:block!important;
+  font-size:10px!important;
+  line-height:1.2!important;
+  color:#9fc1d8!important;
+  letter-spacing:.04em!important;
+  text-transform:uppercase!important;
+}
+.vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceGlobal select{
+  width:100%!important;
+  min-width:0!important;
+  height:42px!important;
+  padding:8px 12px!important;
+}
+.vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceHint{
+  display:block!important;
+  align-self:end!important;
+  padding:0 0 11px!important;
+  margin:0!important;
+  color:#9fc1d8!important;
+  font-size:10px!important;
+  line-height:1.35!important;
+}
+@media(max-width:800px){
+  .vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceGlobal{
+    grid-template-columns:1fr!important;
+  }
+  .vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceHint{
+    padding:0 0 2px!important;
+  }
+}
