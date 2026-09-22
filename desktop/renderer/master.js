@@ -51,7 +51,7 @@
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
     orders:'Ej.: revisa los pedidos recibidos por email o portal y prepara su alta en el programa de gestión',
     social:'Ej.: crea una campaña para Instagram y LinkedIn y mejora la visibilidad en Google de la página del producto',
-    web_ecommerce:'Ej.: cuántos pedidos han entrado hoy, cuánto hemos facturado esta semana o revisa productos y stock',
+    web_ecommerce:'Ej.: analiza stock y ventas por producto, calcula reposición mínima y déjame el Excel listo para Compras',
     administration:'Ej.: revisa facturas vencidas, prepara reclamaciones de cobro, comprueba confirmaciones de proveedores y organiza mis tareas de esta semana',
     reports:'Ej.: compara este mes con el anterior y prepara un informe de ventas con conclusiones',
     automation:'Ej.: crea un flujo para avisarme de nuevos pedidos y dime qué tareas repetitivas podemos hacer automáticamente'
@@ -61,11 +61,11 @@
       subtitle:'Tu secretaria ejecutiva: revisa la empresa, te organiza el día y te deja preparado el trabajo que puede adelantar.',
       primary:'☀️ Prepárame el día',
       fields:[
-        {key:'task',label:'¿QUÉ QUIERES QUE REVISE?',type:'select',options:['Prepárame el día','Dime qué tengo pendiente','Dime por dónde empezar','Dime qué puedes adelantar por mí','Prepárame lo que tengo que autorizar','Hazme el cierre del día','Otra consulta']},
+        {key:'task',label:'¿QUÉ QUIERES QUE REVISE?',type:'select',options:['Prepárame el día','Dime qué tengo pendiente','Dime por dónde empezar','Dime qué puedes adelantar por mí','Prepárame una reunión','Analiza stock y prepara reposición','Prepárame lo que tengo que autorizar','Hazme el cierre del día','Otra consulta']},
         {key:'focus',label:'¿ALGUNA PRIORIDAD?',type:'text',wide:true,placeholder:'Opcional. Ej. pedidos, clientes importantes, cobros o una reunión'},
         {key:'context',label:'ALGO QUE DEBA SABER',type:'textarea',wide:true,placeholder:'Opcional. Añade una condición o asunto especial para hoy'}
       ],
-      capabilities:['Revisar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Separar lo que puede adelantar, lo que deja preparado para autorizar y lo que requiere tu decisión','Recomendarte por dónde empezar según urgencia e impacto','Prepararte respuestas, seguimientos y trabajo para que solo tengas que revisar y aprobar','Avisarte de correos nuevos que realmente necesitan atención','Indicar qué fuente falta conectar en vez de inventar datos'],
+      capabilities:['Revisar desde un solo sitio Email, Pedidos, Ventas y clientes, Shopify, WhatsApp, Redes y demás conexiones permitidas','Separar lo que puede adelantar, lo que deja preparado para autorizar y lo que requiere tu decisión','Analizar stock frente a ventas/pedidos y preparar reposición para Compras','Preparar dossiers de reuniones cruzando agenda, cliente, pedidos, facturación y emails disponibles','Recomendarte por dónde empezar según urgencia e impacto','Prepararte respuestas, seguimientos y trabajo para que solo tengas que revisar y aprobar','Avisarte de correos nuevos que realmente necesitan atención','Indicar qué fuente falta conectar en vez de inventar datos'],
       steps:['Revisar','Priorizar','Adelantar']
     },
     email:{
@@ -208,12 +208,12 @@
       subtitle:'Consulta y trabaja con tu web o tienda conectada.',
       primary:'✨ Ejecutar consulta',
       fields:[
-        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Consultar pedidos','Consultar facturación','Consultar clientes','Consultar productos y stock','Preparar cambios de producto','Preparar cambio de contenido','Otra tarea']},
+        {key:'task',label:'¿QUÉ QUIERES HACER?',type:'select',options:['Consultar pedidos','Consultar facturación','Consultar clientes','Consultar productos y stock','Analizar ventas + stock y preparar reposición','Preparar cambios de producto','Preparar cambio de contenido','Otra tarea']},
         {key:'target',label:'¿SOBRE QUÉ?',type:'text',placeholder:'Ej. pedidos de hoy, producto P616, página de inicio'},
         {key:'detail',label:'DETALLE',type:'textarea',wide:true,placeholder:'Explica exactamente qué necesitas',required:true},
         {key:'expected',label:'RESULTADO ESPERADO',type:'text',wide:true,placeholder:'Ej. una tabla, el total, una propuesta de cambio'}
       ],
-      capabilities:['Consultar pedidos, clientes y productos','Revisar stock y precios','Usar Shopify conectado con datos reales','Preparar cambios de contenido','No aplicar cambios importantes sin permiso'],
+      capabilities:['Consultar pedidos, clientes y productos','Cruzar ventas/pedidos históricos con stock por SKU','Proponer stock mínimo y cantidad de reposición con criterio transparente','Dejar el análisis listo para Excel y preparar el paso a Compras para autorización','Revisar stock y precios','Usar Shopify conectado con datos reales','Preparar cambios de contenido','No aplicar cambios importantes sin permiso'],
       steps:['Consultar','Preparar','Confirmar']
     },
     administration:{
@@ -2006,6 +2006,18 @@
     await runExecutiveSecretary('day',{automatic:true});
   }
 
+  function enrichBusinessRequest(text,scope){
+    const raw=String(text||'').trim(),q=raw.toLowerCase();
+    const stockIntent=/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?)\b/.test(q)&&/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock)\b/.test(q);
+    const meetingIntent=/\b(reuni[oó]n|visita|cita)\b/.test(q)&&/\b(prepar|informe|dossier|cliente|agenda|datos|revis)\b/.test(q);
+    if(stockIntent){
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK Y REPOSICIÓN: Usa solo datos reales de las conexiones disponibles. Cruza inventario/stock actual con ventas o líneas de pedidos históricas por SKU/producto. Indica el periodo real analizado y no extrapoles si no hay historial suficiente. Si existe plazo de reposición configurado, úsalo; si no existe, puedes proponer como referencia una cobertura de 2 semanas más un 25% de seguridad, pero debes marcarlo expresamente como "criterio propuesto", no como dato real. Calcula cantidad sugerida = máximo(0, stock mínimo propuesto - stock disponible). Prioriza productos con stock 0 o por debajo del mínimo. FORMATO OBLIGATORIO: # Resumen rápido; ## Reposición propuesta; una línea completa por producto con "SKU: ... | Producto: ... | Stock actual: ... | Ventas periodo: ... | Media semanal: ... | Stock mínimo propuesto: ... | Cantidad a pedir: ... | Motivo: ..."; ## Productos sin datos suficientes; ## Acción para Compras. Si Compras o un ERP con compras está conectado, NO hagas el pedido sin permiso: deja claro "Listo para enviar a Compras" y pide autorización. Si faltan datos de ventas, stock o plazo, dilo y no inventes. El resultado debe poder exportarse directamente a Excel.';
+    }
+    if(meetingIntent){
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — PREPARACIÓN DE REUNIÓN: Localiza la reunión relevante en la Agenda conectada y usa título, asistentes, organizador, descripción y fecha. Cruza únicamente datos reales disponibles de Email, Ventas y clientes/CRM, Pedidos, tienda/Shopify y demás fuentes autorizadas que correspondan al cliente o a sus asistentes. No confundas clientes con nombres parecidos. FORMATO OBLIGATORIO PARA PDF: # Dossier de reunión; ## Resumen ejecutivo; ## Datos de la reunión; ## Cliente y relación comercial; ## Compras e historial; ## Facturación disponible; ## Pedidos y situación actual; ## Emails y asuntos pendientes; ## Incidencias o riesgos; ## Oportunidades detectadas; ## Temas que conviene tratar; ## Recomendaciones para la reunión; ## Preguntas que conviene hacer; ## Fuentes consultadas. En cada apartado resume, no vuelques correos ni datos en bruto. Incluye cifras solo si están verificadas. Si una fuente no está conectada, indica "Dato no disponible". Las recomendaciones deben derivarse de los datos observados y diferenciarse claramente de los hechos. El resultado debe estar listo para exportar a PDF.';
+    }
+    return raw;
+  }
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
     restoringChatState=true;loadMasterChatState();restoringChatState=false;
@@ -2068,8 +2080,9 @@
       masterMessages.push({role:'user',content:visibleText});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
-        const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?text:content}));
-        const r=scope.separateSources?await sendSeparatedBySources(text,scope,payload):await window.vnx.sendChat(payload,scope);
+        const enrichedText=enrichBusinessRequest(text,scope);
+        const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?enrichedText:content}));
+        const r=scope.separateSources?await sendSeparatedBySources(enrichedText,scope,payload):await window.vnx.sendChat(payload,scope);
         let reply=r.reply||'Sin respuesta';
         if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
           try{
