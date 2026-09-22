@@ -55,7 +55,7 @@ for(const [key,val] of Object.entries({
 const shipped=Array.isArray(pkg.build?.files)?pkg.build.files:[];
 for(const p of shipped){
   if(/^verify-.*\.cjs$/i.test(p)||/^smoke-.*\.cjs$/i.test(p))failures.push('No enviar verificadores internos al cliente: '+p);
-  if(/\.map$/i.test(p))failures.push('No enviar source maps al cliente: '+p);
+  if(!String(p).startsWith('!')&&/\.map$/i.test(p))failures.push('No enviar source maps al cliente: '+p);
 }
 
 if(failures.length){
