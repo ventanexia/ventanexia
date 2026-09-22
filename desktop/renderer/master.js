@@ -12,7 +12,7 @@
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
       emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
-      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null
+      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
     }));
   }
   function persistMasterChatState(){
@@ -1059,22 +1059,46 @@ function emailListItem(m,i,selected){
     root.innerHTML=unique.length?unique.map(x=>'<button type="button" class="vnx-approval-item" data-vnx-approval><span>●</span><div><b>'+escM(x.title)+'</b><small>'+escM(String(x.detail||'').slice(0,100))+'</small></div></button>').join(''):'<div class="vnx-empty-mini">No hay aprobaciones pendientes conocidas.</div>';
     root.querySelectorAll('[data-vnx-approval]').forEach(b=>b.onclick=()=>{setWorkspaceMode('free');$m('#messages')?.scrollIntoView({block:'nearest'})});
   }
-  async function refreshWorkbenchConnections(){
-    const buttons=$$m('[data-vnx-connect]');if(!buttons.length)return;
+  async function connectionSnapshot(){
     let conns=[];try{conns=await window.vnx.listConnections()||[]}catch{}
     let shop=null;try{shop=await window.vnx.shopifyStatus()}catch{}
+    let portals=[];try{portals=await window.vnx.listPortals()||[]}catch{}
     const readyAgent=k=>(runtimeAgents||[]).find(a=>a.key===k);
+    return {conns,shop,portals,readyAgent};
+  }
+  function connectionIsOk(key,{conns,shop,portals,readyAgent}){
+    if(key==='shopify')return Boolean(shop?.connected);
+    if(key==='email')return conns.some(x=>x.module==='email');
+    if(key==='whatsapp')return conns.some(x=>x.module==='whatsapp')||Boolean(getRealSourcesForChat()?.whatsapp);
+    if(key==='agenda')return conns.some(x=>x.module==='agenda');
+    if(key==='crm')return conns.some(x=>x.module==='crm');
+    if(key==='orders')return Boolean(readyAgent('orders')?.included);
+    if(key==='portal')return (portals||[]).some(p=>p&&['read','write'].includes(p.mode)&&p.lastStatus==='connected');
+    return false;
+  }
+  async function refreshWorkbenchConnections(){
+    const buttons=$$m('[data-vnx-connect]');
+    const snap=await connectionSnapshot();
     for(const b of buttons){
-      const key=b.dataset.vnxConnect,small=b.querySelector('small');let ok=false;
-      if(key==='shopify')ok=shop?.status==='connected';
-      else if(key==='email')ok=conns.some(x=>x.module==='email');
-      else if(key==='whatsapp')ok=conns.some(x=>x.module==='whatsapp')||Boolean(getRealSourcesForChat()?.whatsapp);
-      else if(key==='agenda')ok=conns.some(x=>x.module==='agenda');
-      else if(key==='crm')ok=conns.some(x=>x.module==='crm');
-      else if(key==='orders')ok=Boolean(readyAgent('orders')?.included);
+      const key=b.dataset.vnxConnect,small=b.querySelector('small'),ok=connectionIsOk(key,snap);
       b.classList.toggle('is-connected',ok);b.classList.toggle('needs-connection',!ok);
       if(small)small.textContent=ok?'Conectado':'Falta conectar';
     }
+    await refreshHomeOnboarding(snap);
+  }
+  async function refreshHomeOnboarding(snap){
+    const card=$m('#homeOnboardingCard');if(!card)return;
+    snap=snap||await connectionSnapshot();
+    const keys=['email','shopify','agenda','whatsapp','portal'];
+    const doneCount=keys.filter(k=>connectionIsOk(k,snap)).length;
+    const progress=$m('#homeOnboardingProgress');if(progress)progress.textContent=doneCount+' de '+keys.length+' conectadas';
+    card.querySelectorAll('[data-onboard-connect]').forEach(btn=>{
+      const key=btn.dataset.onboardConnect,ok=connectionIsOk(key,snap);
+      btn.classList.toggle('is-connected',ok);
+      const check=btn.querySelector('.vnx-onboarding-check');if(check)check.textContent=ok?'✓':'○';
+      if(!btn.dataset.vnxBound){btn.dataset.vnxBound='1';btn.onclick=()=>openConnectionsTab(key==='portal'?null:key)}
+    });
+    card.style.display=doneCount<=1?'':'none';
   }
   async function refreshHomeReplenishment(){
     const root=$m('#homeStockRows'),meta=$m('#homeStockMeta'),card=$m('#homeStockCard');
@@ -2020,9 +2044,10 @@ function emailListItem(m,i,selected){
       const groupedActions=Array.isArray(m.emailActionGroups)&&m.emailActionGroups.length?'<div class="vnx-email-action-groups">'+m.emailActionGroups.map((g,gi)=>'<div class="vnx-email-action-group"><b>'+escM(g.label||g.meta?.subject||'Email')+'</b><div class="row">'+(g.meta?.options||[]).filter(a=>['draft_reply','send_reply','archive','mark_read','no_reply_needed'].includes(a.key)).map(a=>'<button class="mini grouped-email-action-btn" data-master-msg="'+msgIndex+'" data-email-group="'+gi+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div></div>').join('')+'</div>':'';
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
       const purchaseActions=(m.purchaseExport||isPurchaseProposal(m.content))?'<div class="vnx-secretary-actions vnx-purchase-actions"><b>Pedido para Compras</b><button data-purchase-excel="'+msgIndex+'">📊 Excel</button><button data-purchase-csv="'+msgIndex+'">⬇ CSV importable</button><button data-purchase-pdf="'+msgIndex+'">📄 PDF</button><button data-purchase-print="'+msgIndex+'">🖨 Imprimir</button></div>':'';
+      const importAction=m.importStockPrompt?'<div class="vnx-secretary-actions"><button data-import-stock-file="'+msgIndex+'">📎 Elegir archivo (Excel o CSV)</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${handoff}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${importAction}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -2070,7 +2095,27 @@ function emailListItem(m,i,selected){
     $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
     $$m('[data-purchase-csv]').forEach(btn=>btn.onclick=()=>exportPurchaseCsv(masterMessages[Number(btn.dataset.purchaseCsv)],btn));
     $$m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
-    $$m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
+    $m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
+    $m('[data-import-stock-file]').forEach(btn=>btn.onclick=async()=>{
+      const msgIndex=Number(btn.dataset.importStockFile),old=btn.textContent;
+      btn.disabled=true;btn.textContent='Leyendo archivo…';
+      try{
+        const summary=await window.vnx.stockImportFile();
+        if(summary?.cancelled){btn.disabled=false;btn.textContent=old;return}
+        if(!summary?.ok)throw new Error('No he podido procesar el archivo.');
+        const sourceLabel=masterMessages[msgIndex]?.stockSourceLabel||'Archivo de stock y ventas';
+        const reply=shopifyStockTable({...summary,sourceLabel});
+        const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0).map(r=>[
+          String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+          Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0),
+          r.urgent?'URGENTE <5 DIAS':'REPOSICION'
+        ]);
+        const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+        masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:masterMessages[msgIndex]?.scopeKey});
+        renderMasterMessages({focusIndex:masterMessages.length-1});
+      }catch(e){alert('No he podido leer el archivo: '+(e.message||e))}
+      finally{if(btn.isConnected){btn.disabled=false;btn.textContent=old}}
+    });
     $$m('.handoff-decline-btn').forEach(btn=>btn.onclick=()=>{
       const card=btn.closest('.vnx-handoff-card');if(card)card.innerHTML='<small>Perfecto. Seguimos solo en modo consulta.</small>';
     });
@@ -2289,12 +2334,20 @@ function emailListItem(m,i,selected){
     await runExecutiveSecretary('day',{automatic:true});
   }
 
-  function isShopifyStockRequest(text='',scope=null){
+  function stockIntentText(text=''){
     const q=String(text||'').toLowerCase();
-    const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q));
-    if(!stockIntent)return false;
+    return (/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q));
+  }
+  function isShopifyStockRequest(text='',scope=null){
+    if(!stockIntentText(text))return false;
     if(scope?.type==='shopify')return true;
     if(scope?.selectedSource?.module==='shopify'||scope?.selectedSource?.type==='shopify')return true;
+    return false;
+  }
+  function isPortalStockRequest(text='',scope=null){
+    if(!stockIntentText(text)||isShopifyStockRequest(text,scope))return false;
+    if(scope?.type==='portal')return true;
+    if(scope?.selectedSource?.module==='portal'||scope?.selectedSource?.type==='portal')return true;
     return false;
   }
   function shopifyStockTable(summary={}){
@@ -2315,10 +2368,11 @@ function emailListItem(m,i,selected){
       if(Number(r.qty||0)>0)return 'Reposición recomendada';
       return 'Stock suficiente';
     };
+    const label=summary.sourceLabel||'Shopify';
     const lines=[
-      '# Stock y reposición · Shopify',
+      '# Stock y reposición · '+label,
       '',
-      '**Cálculo real del programa:** ventas de los últimos '+(summary.windowDays||180)+' días por SKU/EAN. Los pedidos cancelados están excluidos.',
+      '**Cálculo real del programa:** ventas de los últimos '+(summary.windowDays||180)+' días por SKU/EAN'+(summary.fileName?' (archivo '+summary.fileName+')':'')+'. '+(summary.fileName?'Datos tomados del archivo seleccionado.':'Los pedidos cancelados están excluidos.'),
       '',
       '| SKU / EAN | Producto | Stock actual | Ventas 6 meses | Media diaria | Días de cobertura | Cantidad a pedir | Estado |',
       '|---|---|---:|---:|---:|---:|---:|---|'
@@ -2433,6 +2487,13 @@ function emailListItem(m,i,selected){
             rows:purchaseRows
           };
           masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});
+          renderMasterMessages({focusIndex:masterMessages.length-1});
+          btn.disabled=false;btn.textContent='Enviar';
+          return;
+        }
+        if(isPortalStockRequest(text,scope)&&window.vnx?.stockImportFile){
+          const sourceLabel=scope?.selectedSource?.label||scope?.name||'esta conexión';
+          masterMessages.push({role:'assistant',content:'**'+sourceLabel+'** está conectado como portal privado y no ofrece una API de stock/ventas que VentaNexIA pueda leer de forma estructurada. Para no inventar datos, selecciona un Excel o CSV con **SKU o EAN**, **Producto**, **Stock actual** y **Ventas 6 meses**.\n\nEl cálculo será el mismo que en Shopify: ventas sobre 180 días, aviso urgente con menos de 5 días de cobertura y reposición propuesta para cubrir 30 días.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;

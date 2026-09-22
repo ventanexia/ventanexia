@@ -58,6 +58,18 @@
           <button type="button" data-home-document><span>▤</span><b>Crea un documento</b></button>
         </div>
 
+        <div id="homeOnboardingCard" class="vnx-home-onboarding" style="display:none">
+          <div class="vnx-onboarding-head"><h2>Empieza por aquí</h2><small id="homeOnboardingProgress">0 de 5 conectadas</small></div>
+          <div class="vnx-onboarding-list">
+            <button type="button" data-onboard-connect="email"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu correo</b><small>Gmail u otra cuenta compatible, para que Carla lea y organice tus emails</small></div></button>
+            <button type="button" data-onboard-connect="shopify"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu tienda</b><small>Shopify para consultar pedidos, stock, ventas y clientes con datos reales</small></div></button>
+            <button type="button" data-onboard-connect="agenda"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu agenda</b><small>Para reuniones, recordatorios y preparación de citas</small></div></button>
+            <button type="button" data-onboard-connect="whatsapp"><span class="vnx-onboarding-check">○</span><div><b>Conecta WhatsApp Business</b><small>Opcional, mediante tu cuenta autorizada</small></div></button>
+            <button type="button" data-onboard-connect="portal"><span class="vnx-onboarding-check">○</span><div><b>Añade una web o portal privado</b><small>Como Naturdesma, para consultarlo de forma separada y segura</small></div></button>
+          </div>
+          <div class="vnx-onboarding-meanwhile"><b>Mientras terminas de conectar tu empresa, Carla ya puede ayudarte a:</b><div class="vnx-onboarding-chips"><span>✉ Organizar correo</span><span>📦 Revisar pedidos</span><span>🧾 Preparar documentos</span><span>📊 Analizar datos conectados</span></div></div>
+        </div>
+
         <div class="vnx-home-section-head"><h2>Hoy</h2><button type="button" data-tab-jump="chat">Ver mi trabajo →</button></div>
         <div class="vnx-home-today">
           <button type="button" data-home-email class="vnx-today-card blue"><span class="vnx-today-icon">✉</span><strong id="homeEmailCount">0</strong><b>Emails por revisar</b><small>Carla separa lo importante.</small></button>
@@ -80,7 +92,7 @@
             <div class="vnx-stock-head"><div><span class="vnx-stock-icon">◇</span><div><h2>Stock y reposición</h2><p id="homeStockMeta">Comprobando Shopify…</p></div></div><button type="button" data-home-stock-open>Analizar →</button></div>
             <div class="vnx-stock-columns"><span>Producto</span><span>Stock</span><span>Cobertura</span><span>Estado</span></div>
             <div id="homeStockRows" class="vnx-stock-rows"><div class="vnx-home-empty">Calculando previsión con datos reales…</div></div>
-            <div class="vnx-stock-foot">Ventas calculadas por SKU · ventana real de 6 meses · alerta por debajo de 7 días</div>
+            <div class="vnx-stock-foot">Ventas calculadas por SKU · ventana real de 6 meses · alerta por debajo de 5 días</div>
           </article>
         </div>
 

@@ -1306,6 +1306,24 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-home-actions{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:14px 0 22px}
 .vnx-home-actions button{min-height:65px;display:flex;align-items:center;gap:10px;border:1px solid #1b5b8d;border-radius:11px;background:linear-gradient(180deg,#0a294a,#08213d);color:#e9f5ff;padding:11px 13px;cursor:pointer;text-align:left}
 .vnx-home-actions button:hover{border-color:#31a8ff;background:#0b3158}.vnx-home-actions span{width:34px;height:34px;display:grid;place-items:center;border-radius:9px;background:#0b4d8d;color:#6ed9ff;font-size:18px}.vnx-home-actions b{font-size:12px}
+/* Checklist de primera instalación: visible solo mientras hay 0 o 1 conexiones principales. */
+.vnx-home-onboarding{border:1px solid #1b5d86;background:linear-gradient(180deg,#0a2440,#081c34);border-radius:16px;padding:18px 20px;margin-bottom:18px}
+.vnx-onboarding-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px}
+.vnx-onboarding-head h2{margin:0;font-size:16px}
+.vnx-onboarding-head small{color:#9fb4cf;font-size:11px;font-weight:700}
+.vnx-onboarding-list{display:flex;flex-direction:column;gap:6px}
+.vnx-onboarding-list button{display:flex;align-items:center;gap:12px;text-align:left;border:1px solid #164a7b;background:#08203a;border-radius:10px;padding:10px 12px;cursor:pointer;color:#f5f8ff}
+.vnx-onboarding-list button:hover{border-color:#2f7cff}
+.vnx-onboarding-list button b{display:block;font-size:12.5px}
+.vnx-onboarding-list button small{display:block;color:#9fb4cf;font-size:10.5px;margin-top:1px}
+.vnx-onboarding-check{width:20px;height:20px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid #2f7cff;color:#2f7cff;font-size:12px}
+.vnx-onboarding-list button.is-connected{opacity:.58;border-color:#1c5b3f}
+.vnx-onboarding-list button.is-connected .vnx-onboarding-check{background:#36e3a4;border-color:#36e3a4;color:#04121f}
+.vnx-onboarding-meanwhile{margin-top:14px;padding-top:12px;border-top:1px solid #164a7b}
+.vnx-onboarding-meanwhile b{font-size:11.5px;color:#cfe4f5}
+.vnx-onboarding-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.vnx-onboarding-chips span{font-size:10.5px;color:#a9c7d9;background:#0a2740;border:1px solid #1e5a80;border-radius:20px;padding:5px 10px}
+
 .vnx-home-section-head{display:flex;align-items:center;justify-content:space-between;margin:2px 0 10px}.vnx-home-section-head h2{font-size:22px;margin:0}.vnx-home-section-head button{border:0;background:transparent;color:#37aaff;cursor:pointer}
 .vnx-home-today{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
 .vnx-today-card{position:relative;min-height:124px;border:1px solid #1b659e;border-radius:14px;background:linear-gradient(155deg,#0a2c50,#09213d);color:#fff;text-align:left;padding:16px 17px;cursor:pointer;display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto auto;column-gap:12px}

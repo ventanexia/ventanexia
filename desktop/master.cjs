@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,shell,Menu,session}=require('electron');
+const {app,BrowserWindow,ipcMain,shell,Menu,session,dialog}=require('electron');
 const path=require('node:path');
 const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
@@ -131,6 +131,60 @@ ipcMain.handle('shopify:replenishment-summary',async()=>{
   if(!integration)throw new Error('Conecta Shopify para calcular la previsión de stock.');
   const result=await shopifyReplenishmentSummary(integration,{force:false});
   return {shop:integration.shopName||integration.shop,...result};
+});
+
+// Reposición y previsión de rotura desde archivo para conexiones sin API
+// (por ejemplo, portales privados como Naturdesma). Usa exactamente la misma
+// ventana de 180 días, objetivo de 30 días y regla urgente <5 días que Shopify.
+const {readTableBuffer}=require('./order-files.cjs');
+function normStockHeader(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+function findStockColumn(headers,candidates){
+  const normHeaders=headers.map(normStockHeader);
+  for(const c of candidates){const i=normHeaders.findIndex(h=>h===c||h.includes(c));if(i>=0)return i}
+  return -1;
+}
+function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+  return products.map(p=>{
+    const sold=Number(p.soldWindow||0),avgDaily=sold/windowDays,noSalesData=sold===0;
+    const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
+    const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
+    const qty=Math.max(0,targetStock-p.stock);
+    const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
+    return {sku:p.sku,ean:p.ean||'',product:p.title,stock:p.stock,soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
+      daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData};
+  });
+}
+ipcMain.handle('stock:import-file',async()=>{
+  const win=BrowserWindow.getFocusedWindow()||BrowserWindow.getAllWindows()[0]||null;
+  const picked=await dialog.showOpenDialog(win,{title:'Archivo de stock y ventas de los últimos 6 meses',properties:['openFile'],
+    filters:[{name:'Excel o CSV',extensions:['xlsx','csv']}]});
+  if(picked.canceled||!picked.filePaths?.length)return {ok:false,cancelled:true};
+  const filePath=picked.filePaths[0],name=path.basename(filePath);
+  const buffer=await fs.readFile(filePath);
+  let rows;
+  try{rows=await readTableBuffer(name,buffer)}
+  catch(e){throw new Error('No he podido leer ese archivo: '+String(e?.message||e))}
+  if(!rows.length)throw new Error('El archivo está vacío.');
+  const headers=rows[0].map(String);
+  const iSku=findStockColumn(headers,['sku','referencia','ref']);
+  const iEan=findStockColumn(headers,['ean','codigo de barras','barcode']);
+  const iName=findStockColumn(headers,['producto','nombre del producto','nombre','descripcion']);
+  const iStock=findStockColumn(headers,['stock actual','stock']);
+  const iSold=findStockColumn(headers,['ventas 6 meses','unidades vendidas','ventas periodo','ventas','vendido','vendidas']);
+  if(iName<0||iStock<0||iSold<0||(iSku<0&&iEan<0)){
+    throw new Error('No reconozco las columnas necesarias. Hacen falta: SKU o EAN, Producto, Stock actual y Ventas 6 meses. Cabeceras encontradas: '+headers.join(', '));
+  }
+  const products=rows.slice(1).filter(r=>r&&(r[iName]||r[iSku]||r[iEan])).map(r=>({
+    sku:iSku>=0?String(r[iSku]||'').trim():'',
+    ean:iEan>=0?String(r[iEan]||'').trim():'',
+    title:String(r[iName]||'').trim(),
+    stock:Number(String(r[iStock]||'0').replace(',','.'))||0,
+    soldWindow:Number(String(r[iSold]||'0').replace(',','.'))||0
+  })).filter(p=>p.title&&(p.sku||p.ean));
+  if(!products.length)throw new Error('No encuentro filas válidas con producto y SKU/EAN.');
+  const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
+  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows:replen,productsSeen:products.length,
+    urgent:replen.filter(r=>r.urgent),withSales:replen.filter(r=>!r.noSalesData).length,truncated:false,catalogTruncated:false};
 });
 
 async function collectShopifyContext(integration,question=''){
