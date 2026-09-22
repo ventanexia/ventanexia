@@ -1167,3 +1167,43 @@ body{
 .vnx-email-action-group{border:1px solid rgba(75,151,196,.32);background:rgba(9,42,66,.72);border-radius:10px;padding:9px 10px}
 .vnx-email-action-group>b{display:block;color:#e8f6ff;font-size:11px;margin-bottom:7px}
 .vnx-email-action-group .row{display:flex;gap:6px;flex-wrap:wrap}
+
+
+/* 0.6.91 — Carla compacta y bandeja de correo legible en ventana */
+.vnx-carla-window:has(.email-dashboard-mode) .guided-card-head{padding:7px 12px 5px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .vnx-carla-controls{padding:3px 12px 4px!important}
+.vnx-carla-window:has(.email-dashboard-mode) #chatSourceGlobal{display:none!important}
+.vnx-carla-window:has(.email-dashboard-mode) #guidedModePanel{display:block!important;flex:1!important;min-height:0!important;overflow:hidden!important}
+.vnx-carla-window:has(.email-dashboard-mode) #freeModePanel{display:none!important}
+.vnx-carla-window:has(.email-dashboard-mode) .guided-main-card{height:100%!important;display:flex!important;flex-direction:column!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-dashboard{height:100%!important;box-sizing:border-box!important;padding:8px 10px!important;display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-toolbar{margin-bottom:7px!important;gap:10px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-toolbar h3{font-size:18px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-toolbar p{display:none!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-work-icon{font-size:20px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-toolbar-controls{gap:7px!important;flex-wrap:nowrap!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-account-select{min-width:205px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-search{min-width:260px!important;padding:7px 10px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-metric-grid{grid-template-columns:repeat(4,1fr)!important;gap:7px!important;margin-bottom:7px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-metric-grid article{grid-template-columns:30px auto 1fr!important;padding:7px 9px!important;border-radius:10px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .metric-ico{width:28px!important;height:28px!important;font-size:13px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-metric-grid b{font-size:17px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-metric-grid small{display:none!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-workspace{flex:1!important;min-height:0!important;height:auto!important;grid-template-columns:minmax(390px,.88fr) minmax(520px,1.12fr)!important;gap:8px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-list-panel,
+.vnx-carla-window:has(.email-dashboard-mode) .email-detail-panel{min-height:0!important;height:100%!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-list{height:calc(100% - 42px)!important;max-height:none!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-list-tabs button{padding:8px 6px!important;font-size:9px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-list-row{grid-template-columns:34px minmax(0,1fr) auto!important;padding:8px 9px!important;gap:7px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-avatar{width:30px!important;height:30px!important;font-size:10px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-detail-panel{padding:10px 12px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-detail-panel>h3{font-size:16px!important;margin:9px 0 6px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-original-body{max-height:110px!important;font-size:11px!important;line-height:1.42!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-reply-tabs{margin-top:8px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-suggestion textarea{min-height:92px!important;max-height:125px!important;padding:9px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-action-bar{margin-top:7px!important;gap:5px!important}
+.vnx-carla-window:has(.email-dashboard-mode) .email-action-bar .btn{padding:7px 8px!important;font-size:9px!important}
+@media(max-width:1050px){
+  .vnx-carla-window:has(.email-dashboard-mode) .email-workspace{grid-template-columns:minmax(320px,.8fr) minmax(430px,1.2fr)!important}
+  .vnx-carla-window:has(.email-dashboard-mode) .email-search{min-width:190px!important}
+}
