@@ -37,8 +37,7 @@
     let s=String(raw||'').replace(/\r/g,'').replace(/\u00a0/g,' ');
     s=s.replace(/Preparar y revisar respuestas|Revisar y enviar|Resolver decisiones|Ver Excel|Ver PDF/gi,'');
 
-    // Protege primero las fichas ya bien estructuradas "Campo: valor | Campo: valor".
-    // Las reglas heredadas de separación solo deben actuar sobre texto libre.
+    // Preserve complete structured records before applying legacy text splitting.
     const protectedRecords=[];
     s=s.split('\n').map(line=>{
       if(!looksLikeStructuredRecord(line))return line;
@@ -48,10 +47,6 @@
     }).join('\n');
 
     for(const title of SECTION_TITLES){
-      const x=title.replace(/[.*+?^$()|[\]\\]/g,'\\  function injectBreaks(raw){
-    let s=String(raw||'').replace(/\r/g,'').replace(/\u00a0/g,' ');
-    s=s.replace(/Preparar y revisar respuestas|Revisar y enviar|Resolver decisiones|Ver Excel|Ver PDF/gi,'');
-    for(const title of SECTION_TITLES){
       const x=title.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
       s=s.replace(new RegExp('\\s*#{0,3}\\s*'+x+'\\s*:?[\\s]*','gi'),'\n## '+title+'\n');
     }
@@ -60,7 +55,6 @@
       s=s.replace(new RegExp('\\s*(?='+x+'\\s*(?:[:·]|$))','gi'),'\n');
     }
 
-    // Etiquetas que suelen llegar pegadas desde respuestas de IA/render markdown.
     const labels=[
       'Total pedidos','Total','Listos','Falta datos','Faltan datos','Para revisar','Bloqueos detectados','Pedidos bloqueados',
       'Total productos','Productos consultados','Últimos productos consultados','Stock total','Stock','Conexión activa',
@@ -70,113 +64,15 @@
     const labelRx=labels.map(x=>x.replace(/[.*+?^$()|[\]\\]/g,'\\$&')).join('|');
     s=s.replace(new RegExp('\\s*(?=(?:'+labelRx+')\\s*:)','gi'),'\n');
 
-    // IDs de pedido: cada pedido empieza línea nueva aunque venga pegado al anterior.
-    s=s.replace(/\s*(?=(?:VNX-PED-|PED-|ORD-)[A-Z0-9_-]{3,})/gi,'\n');
-
-    // Emojis de estado/alerta también crean línea.
-    s=s.replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️|❌))/g,'\n');
-
-    // Solo separar listas numeradas cuando hay un marcador completo; no fragmentar referencias ni frases.
-    s=s.replace(/\s+(?=\d+[.)]\s+(?:Prioridad|Área|Cuenta|Decisión|Fuente|[A-ZÁÉÍÓÚÑ¿][a-záéíóúñ]))/g,'\n');
-
-    return s.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-  }');
-      s=s.replace(new RegExp('\\s*#{0,3}\\s*'+x+'\\s*:?[\\s]*','gi'),'\n## '+title+'\n');
-    }
-    for(const area of AREAS){
-      const x=area.replace(/[.*+?^$()|[\]\\]/g,'\\  function injectBreaks(raw){
-    let s=String(raw||'').replace(/\r/g,'').replace(/\u00a0/g,' ');
-    s=s.replace(/Preparar y revisar respuestas|Revisar y enviar|Resolver decisiones|Ver Excel|Ver PDF/gi,'');
-    for(const title of SECTION_TITLES){
-      const x=title.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
-      s=s.replace(new RegExp('\\s*#{0,3}\\s*'+x+'\\s*:?[\\s]*','gi'),'\n## '+title+'\n');
-    }
-    for(const area of AREAS){
-      const x=area.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
-      s=s.replace(new RegExp('\\s*(?='+x+'\\s*(?:[:·]|$))','gi'),'\n');
-    }
-
-    // Etiquetas que suelen llegar pegadas desde respuestas de IA/render markdown.
-    const labels=[
-      'Total pedidos','Total','Listos','Falta datos','Faltan datos','Para revisar','Bloqueos detectados','Pedidos bloqueados',
-      'Total productos','Productos consultados','Últimos productos consultados','Stock total','Stock','Conexión activa',
-      'Estado','Pendientes','En revisión','Para autorizar','Solucionado','No conectada','Cuota excedida',
-      'Prioridad','Acción','Siguiente paso','Recomendación','Motivo','Cliente','Pedido','Referencia','Cantidad','Proveedor'
-    ];
-    const labelRx=labels.map(x=>x.replace(/[.*+?^$()|[\]\\]/g,'\\$&')).join('|');
-    s=s.replace(new RegExp('\\s*(?=(?:'+labelRx+')\\s*:)','gi'),'\n');
-
-    // IDs de pedido: cada pedido empieza línea nueva aunque venga pegado al anterior.
-    s=s.replace(/\s*(?=(?:VNX-PED-|PED-|ORD-)[A-Z0-9_-]{3,})/gi,'\n');
-
-    // Emojis de estado/alerta también crean línea.
-    s=s.replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️|❌))/g,'\n');
-
-    // Solo separar listas numeradas cuando hay un marcador completo; no fragmentar referencias ni frases.
-    s=s.replace(/\s+(?=\d+[.)]\s+(?:Prioridad|Área|Cuenta|Decisión|Fuente|[A-ZÁÉÍÓÚÑ¿][a-záéíóúñ]))/g,'\n');
-
-    return s.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-  }');
-      s=s.replace(new RegExp('\\s*(?='+x+'\\s*(?:[:·]|$))','gi'),'\n');
-    }
-
-    // Etiquetas heredadas: solo sirven para texto libre antiguo, nunca para fichas protegidas.
-    const labels=[
-      'Total pedidos','Total','Listos','Falta datos','Faltan datos','Para revisar','Bloqueos detectados','Pedidos bloqueados',
-      'Total productos','Productos consultados','Últimos productos consultados','Stock total','Stock','Conexión activa',
-      'Estado','Pendientes','En revisión','Para autorizar','Solucionado','No conectada','Cuota excedida',
-      'Prioridad','Acción','Siguiente paso','Recomendación','Motivo','Cliente','Pedido','Referencia','Cantidad','Proveedor'
-    ];
-    const labelRx=labels.map(x=>x.replace(/[.*+?^$()|[\]\\]/g,'\\  function injectBreaks(raw){
-    let s=String(raw||'').replace(/\r/g,'').replace(/\u00a0/g,' ');
-    s=s.replace(/Preparar y revisar respuestas|Revisar y enviar|Resolver decisiones|Ver Excel|Ver PDF/gi,'');
-    for(const title of SECTION_TITLES){
-      const x=title.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
-      s=s.replace(new RegExp('\\s*#{0,3}\\s*'+x+'\\s*:?[\\s]*','gi'),'\n## '+title+'\n');
-    }
-    for(const area of AREAS){
-      const x=area.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
-      s=s.replace(new RegExp('\\s*(?='+x+'\\s*(?:[:·]|$))','gi'),'\n');
-    }
-
-    // Etiquetas que suelen llegar pegadas desde respuestas de IA/render markdown.
-    const labels=[
-      'Total pedidos','Total','Listos','Falta datos','Faltan datos','Para revisar','Bloqueos detectados','Pedidos bloqueados',
-      'Total productos','Productos consultados','Últimos productos consultados','Stock total','Stock','Conexión activa',
-      'Estado','Pendientes','En revisión','Para autorizar','Solucionado','No conectada','Cuota excedida',
-      'Prioridad','Acción','Siguiente paso','Recomendación','Motivo','Cliente','Pedido','Referencia','Cantidad','Proveedor'
-    ];
-    const labelRx=labels.map(x=>x.replace(/[.*+?^$()|[\]\\]/g,'\\$&')).join('|');
-    s=s.replace(new RegExp('\\s*(?=(?:'+labelRx+')\\s*:)','gi'),'\n');
-
-    // IDs de pedido: cada pedido empieza línea nueva aunque venga pegado al anterior.
-    s=s.replace(/\s*(?=(?:VNX-PED-|PED-|ORD-)[A-Z0-9_-]{3,})/gi,'\n');
-
-    // Emojis de estado/alerta también crean línea.
-    s=s.replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️|❌))/g,'\n');
-
-    // Solo separar listas numeradas cuando hay un marcador completo; no fragmentar referencias ni frases.
-    s=s.replace(/\s+(?=\d+[.)]\s+(?:Prioridad|Área|Cuenta|Decisión|Fuente|[A-ZÁÉÍÓÚÑ¿][a-záéíóúñ]))/g,'\n');
-
-    return s.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
-  }')).join('|');
-    s=s.replace(new RegExp('\\s*(?=(?:'+labelRx+')\\s*:)','gi'),'\n');
-
-    // IDs pegados en texto libre. PED- no se separa si forma parte de VNX-PED-.
+    // Keep VNX-PED-... intact; only split standalone PED-/ORD- identifiers in free text.
     s=s.replace(/\s*(?=(?:VNX-PED-|(?<!VNX-)PED-|ORD-)[A-Z0-9_-]{3,})/gi,'\n');
 
-    // Emojis de estado/alerta también crean línea solo en texto libre.
     s=s.replace(/\s+(?=(?:🟢|🟡|🔴|📅|📌|✅|⚠️|➡️|❌))/g,'\n');
-
-    // Solo separar listas numeradas cuando hay un marcador completo.
     s=s.replace(/\s+(?=\d+[.)]\s+(?:Prioridad|Área|Cuenta|Decisión|Fuente|[A-ZÁÉÍÓÚÑ¿][a-záéíóúñ]))/g,'\n');
 
-    // Restaura las fichas completas después de todas las reglas heredadas.
     s=s.replace(/§§VNX_RECORD_(\d+)§§/g,(_m,n)=>protectedRecords[Number(n)]||'');
-
     return s.replace(/[ \t]{2,}/g,' ').replace(/\n{3,}/g,'\n\n').trim();
   }
-
   function splitDenseLine(line){
     const clean=String(line||'').trim();
     if(!clean)return[];
