@@ -89,10 +89,10 @@
   },
   "dependencies": {
     "imapflow": "^1.0.195",
-    "nodemailer": "^7.0.6",
+    "nodemailer": "^10.0.10",
     "fflate": "^0.8.2",
     "mailparser": "^3.7.4",
-    "pdfjs-dist": "3.11.174",
+    "pdfjs-dist": "6.3.289",
     "tesseract.js": "^6.0.1",
     "@napi-rs/canvas": "^0.1.80",
     "@tesseract.js-data/eng": "^1.0.0",
