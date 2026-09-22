@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.100",
+  "version": "0.6.102",
   "private": true,
-  "description": "VentaNexIA Desktop · navegación visible en pantalla completa y exportación Excel/PDF/Imprimir junto a cada pedido para Compras · 0.6.100",
+  "description": "VentaNexIA Desktop · inicio ejecutivo profesional + Carla emergente + previsión Shopify por SKU a 6 meses · 0.6.102",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
