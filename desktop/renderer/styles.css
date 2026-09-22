@@ -1207,3 +1207,17 @@ body{
   .vnx-carla-window:has(.email-dashboard-mode) .email-workspace{grid-template-columns:minmax(320px,.8fr) minmax(430px,1.2fr)!important}
   .vnx-carla-window:has(.email-dashboard-mode) .email-search{min-width:190px!important}
 }
+
+
+/* 0.6.93 — mantener navegación en pantalla completa y exportación contextual */
+body.vnx-focus-chat:not(.vnx-detached-workbench) .side{display:flex!important}
+body.vnx-focus-chat:not(.vnx-detached-workbench) .shell{grid-template-columns:248px minmax(0,1fr)!important}
+body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 248px!important}
+.vnx-purchase-actions{align-items:center!important;gap:8px!important;padding:10px 12px!important;margin-top:10px!important;border:1px solid #23658e!important;border-radius:12px!important;background:#071f35!important}
+.vnx-purchase-actions>b{margin-right:4px;color:#dff6ff;font-size:12px}
+.vnx-purchase-actions button{white-space:nowrap}
+@media(max-width:900px){
+ body.vnx-focus-chat:not(.vnx-detached-workbench) .side{display:none!important}
+ body.vnx-focus-chat:not(.vnx-detached-workbench) .shell{grid-template-columns:1fr!important}
+ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0!important}
+}
