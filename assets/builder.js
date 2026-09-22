@@ -29,4 +29,36 @@ if(autoFromPortada){setTimeout(()=>$("#builderForm")?.requestSubmit(),80)}
 function syncTrialButton(){const b=$("#startTrial"),a=$("#trialTermsAck"),n=$("#trialNoChargeAck");if(b)b.disabled=!(a?.checked&&n?.checked)}
 $("#trialTermsAck")?.addEventListener("change",syncTrialButton);$("#trialNoChargeAck")?.addEventListener("change",syncTrialButton);
 const trialBtn=$("#startTrial");
-if(trialBtn)trialBtn.onclick=()=>{const m=$("#trialMsg");if(m)m.innerHTML="<b>La descarga comercial de VentaNexIA todavía no está abierta.</b><br>Tu prueba de 15 días no empieza ahora y no se crea ninguna licencia. Te llevamos a la página donde podrás descargarla cuando esté lista.";setTimeout(()=>{location.href="/descargar.html?trial=15"},650)};
+if(trialBtn)trialBtn.onclick=async()=>{
+  const m=$("#trialMsg");
+  if(!lastRequestId||!lastTrialToken){if(m)m.textContent="Primero prepara tu propuesta.";return}
+  if(!$("#trialTermsAck")?.checked||!$("#trialNoChargeAck")?.checked){if(m)m.textContent="Acepta las dos condiciones de la prueba para continuar.";return}
+  trialBtn.disabled=true;
+  trialBtn.textContent="Activando tu prueba…";
+  if(m)m.textContent="Estamos creando tu ID de cliente y tu licencia de 15 días.";
+  try{
+    const r=await fetch("/api/start-trial",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({
+      solutionId:lastRequestId,
+      trialToken:lastTrialToken,
+      deviceId:getTrialDeviceId(),
+      trialTermsAccepted:true,
+      noChargeAccepted:true,
+      trialTermsVersion:"2026-09-20-v3"
+    })});
+    const j=await readJsonResponse(r);
+    if(!r.ok)throw new Error(j.error||"No hemos podido activar la prueba.");
+    sessionStorage.setItem("vnx_trial_customer_id",j.customerId||"");
+    sessionStorage.setItem("vnx_trial_activation_code",j.activationCode||"");
+    sessionStorage.setItem("vnx_trial_ends_at",j.trialEndsAt||"");
+    sessionStorage.setItem("vnx_trial_download_url",j.downloadUrl||"");
+    const safeId=escapeHtml(j.customerId||"");
+    const safeCode=escapeHtml(j.activationCode||"");
+    const download=j.downloadUrl?'<a class="btn primary" href="'+escapeHtml(j.downloadUrl)+'">Descargar VentaNexIA para Windows →</a>':'<a class="btn primary" href="/descargar.html">Ir a la descarga →</a>';
+    if(m)m.innerHTML='<div class="footerbox"><b>✓ Tus 15 días gratis ya están activos.</b><br>ID de cliente: <strong>'+safeId+'</strong><br>Código de activación: <strong>'+safeCode+'</strong><br><small>También te lo hemos enviado por email. Guarda estos datos.</small><div style="margin-top:12px">'+download+' <a class="btn" href="/portal.html">Entrar en mi zona →</a></div></div>';
+    trialBtn.hidden=true;
+  }catch(err){
+    if(m)m.textContent=err.message||"No hemos podido activar la prueba.";
+    trialBtn.disabled=false;
+    trialBtn.textContent="Activar mis 15 días gratis →";
+  }
+};
