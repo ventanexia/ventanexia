@@ -1076,12 +1076,13 @@ function emailListItem(m,i,selected){
   }
 
   function bindHomeDashboard(){
-    $m('[data-home-carla]')?.addEventListener('click',()=>{selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();$m('#chatInput')?.focus()});
-    $m('[data-home-email]')?.addEventListener('click',()=>runEmailWorkbench('summary'));
-    $m('[data-home-orders]')?.addEventListener('click',()=>{selectAgentKey('orders',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
-    $m('[data-home-clients]')?.addEventListener('click',()=>{selectAgentKey('prospecting',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
-    $m('[data-home-document]')?.addEventListener('click',()=>{selectAgentKey('administration',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Quiero crear un documento';input.focus()}});
-    $m('[data-home-stock-open]')?.addEventListener('click',()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify';input.focus()}});
+    const bindAll=(selector,fn)=>$m(selector).forEach(el=>{if(el.dataset.vnxHomeBound)return;el.dataset.vnxHomeBound='1';el.addEventListener('click',fn)});
+    bindAll('[data-home-carla]',()=>{selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();$m('#chatInput')?.focus()});
+    bindAll('[data-home-email]',()=>runEmailWorkbench('summary'));
+    bindAll('[data-home-orders]',()=>{selectAgentKey('orders',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
+    bindAll('[data-home-clients]',()=>{selectAgentKey('prospecting',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
+    bindAll('[data-home-document]',()=>{selectAgentKey('administration',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Quiero crear un documento';input.focus()}});
+    bindAll('[data-home-stock-open]',()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify';input.focus()}});
     const main=$m('#homeQuickInput'),send=$m('#homeQuickSend');
     const submit=()=>{const text=String(main?.value||'').trim();if(!text)return;selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value=text;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}};
     if(send)send.onclick=submit;
