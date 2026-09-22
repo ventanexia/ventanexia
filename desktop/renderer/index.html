@@ -11,82 +11,89 @@
   </div>
 </div>
 <div class="shell">
-  <aside class="side">
-    <div class="brand"><div class="mark">VN</div><div><b>VentaNexIA</b><small>Tu negocio. Más lejos.</small></div></div>
-    <div class="nav-group-label">TU ESPACIO</div>
-    <button class="nav active" data-tab="home">⌂ <span>Inicio</span></button>
-    <button class="nav" data-tab="chat">💬 <span>Dime qué necesitas</span></button>
-    <button class="nav" data-tab="agents">🔗 <span>Conexiones</span></button>
-    <button class="nav" data-tab="onboarding">👤 <span>Alta de cliente</span></button>
-    <button class="nav" data-tab="webcommerce">🛒 <span>Web y tienda</span></button>
-    <button class="nav" data-tab="permissions">🛡 <span>Permisos</span></button>
-    <button class="nav" data-tab="files">📁 <span>Archivos</span></button>
-    <button class="nav" data-tab="license">▣ <span>Licencia y equipos</span></button>
+  <aside class="side vnx-side-clean">
+    <div class="brand"><div class="mark">V</div><div><b>Venta<span>NexIA</span></b><small>Tu empresa, más simple.</small></div></div>
+    <nav class="vnx-main-nav" aria-label="Navegación principal">
+      <button class="nav active" data-tab="home">⌂ <span>Inicio</span></button>
+      <button class="nav" data-tab="chat">✦ <span>Carla</span></button>
+      <button class="nav" data-tab="agents">⌘ <span>Conexiones</span></button>
+      <button class="nav" data-tab="files">▤ <span>Archivos</span></button>
+      <button class="nav" data-tab="activity">✓ <span>Pendientes y actividad</span></button>
+    </nav>
+    <div class="vnx-side-divider"></div>
+    <button class="nav" data-tab="license">⚙ <span>Configuración</span></button>
     <button class="nav" data-tab="support">? <span>Ayuda</span></button>
-    <button class="nav" data-tab="activity">▥ <span>Actividad</span></button>
-    <button class="nav master-nav" data-tab="master-center">▦ <span>Centro Maestro</span></button>
-    <div class="side-promo"><b>✦ La IA que impulsa <em>tu negocio</em></b><span>Más clientes.<br>Más ventas.<br>Menos complicaciones.</span></div>
-    <div class="sidefoot"><span id="secureDot" class="dot"></span><span>Protección activa</span></div>
+    <div class="vnx-hidden-nav" aria-hidden="true">
+      <button class="nav" data-tab="onboarding">Alta de cliente</button>
+      <button class="nav" data-tab="webcommerce">Web y tienda</button>
+      <button class="nav" data-tab="permissions">Permisos</button>
+      <button class="nav master-nav" data-tab="master-center">Centro Maestro</button>
+    </div>
+    <div class="sidefoot"><span id="secureDot" class="dot"></span><span>Todo listo</span><small>v<span id="appVersion">...</span></small></div>
   </aside>
   <main class="main">
-    <section class="tab active" id="home">
-      <div class="future-hero">
-        <div class="future-copy">
-          <div class="eyebrow">VENTANEXIA DESKTOP <span id="appVersion">...</span></div>
-          <h1>Estás entrando en el futuro<br><span>de tu empresa.</span></h1>
-          <p>Tus clientes, ventas, tareas y herramientas en un solo lugar.<br>Más simple. Más control. Más crecimiento.</p>
-          <div class="future-points"><span>⚡ Trabaja más rápido</span><span>👥 Tu equipo más unido</span><span>▥ Mejores resultados</span></div>
-        </div>
-        <div class="future-visual" aria-hidden="true">
-          <div class="skyline">
-            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
-          </div>
-          <div class="future-logo">VN</div>
-          <div class="future-words">IDEAS<br>EQUIPOS<br>CLIENTES<br>VENTAS<br><b>TU FUTURO</b><hr>TODO EN UN SOLO LUGAR</div>
-          <div class="future-person"><span></span></div>
-        </div>
+    <section class="tab active vnx-home-tab" id="home">
+      <div class="vnx-home-topbar">
+        <div class="vnx-home-hello"><span class="vnx-home-sun">☀</span><div><b id="homeGreeting">Hola</b><small>Carla te muestra solo lo que merece tu atención.</small></div></div>
+        <div class="vnx-home-company"><span>▦</span><div><small>Trabajando con</small><b id="homeCompanyName">Tu empresa</b></div></div>
       </div>
 
-      <div class="home-metrics">
-        <article><div class="metric-icon">▥</div><div><small>Ventas de hoy</small><strong id="homeSales">—</strong><span>Se mostrará con tus datos</span></div></article>
-        <article><div class="metric-icon">👥</div><div><small>Clientes nuevos</small><strong id="homeCustomers">—</strong><span>Se mostrará con tus datos</span></div></article>
-        <article><div class="metric-icon">▣</div><div><small>Pedidos pendientes</small><strong id="homeOrders">—</strong><span>Se mostrará con tus datos</span></div></article>
-        <article><div class="metric-icon">▤</div><div><small>Facturas</small><strong id="homeInvoices">—</strong><span>Se mostrará con tus datos</span></div></article>
-        <article><div class="metric-icon">✓</div><div><small>Estado</small><strong id="homeLicenseState">Sin activar</strong><span>Tu licencia</span></div></article>
-      </div>
-
-      <div class="dark-panel" id="homeAgentsPanel" style="margin-top:18px">
-        <div class="panel-head"><div><h3 style="margin:0">Tu equipo de agentes</h3><small id="homeAgentsSummary">Comprobando agentes disponibles…</small></div><div class="row"><button class="btn outline" data-tab-jump="agents">Conectar agentes</button><button class="btn primary" data-tab-jump="chat">Dime qué necesitas</button></div></div>
-        <div id="homeAgentsList" class="modulegrid" style="margin-top:14px"></div>
-      </div>
-
-      <div class="master-strip">
-        <div class="master-strip-title"><span class="crown">♛</span><div><b>Centro Maestro</b><small>Solo en tu versión maestra</small></div></div>
-        <p>Aquí puedes ver clientes, facturas, pedidos y toda la información real que conectes.</p>
-        <button class="btn master-btn" data-tab-jump="master-center">Ir al Centro Maestro →</button>
-      </div>
-
-      <div id="updatePanel" class="notice" style="display:none;margin-top:14px"><b id="updateTitle">Nueva actualización disponible</b><div id="updateNotes" style="margin-top:8px"></div><div class="row"><button id="updateOpenBtn" class="btn primary">Ver actualización</button></div></div><div class="home-bottom">
-        <div class="dark-panel">
-          <div class="panel-head"><h3>Estado de tu VentaNexIA</h3><span>Datos reales</span></div>
-          <div class="status-grid">
-            <div><small>Carpetas que puede ver</small><strong id="folderCount">0</strong></div>
-            <div><small>Protección</small><strong id="encState">Comprobando…</strong></div>
-            <div><small>Modo</small><strong id="pairState">Datos reales</strong></div>
-            <div><small>Licencia</small><strong id="homeLicenseStateMirror">—</strong></div>
-          </div>
+      <div class="vnx-home-content">
+        <div class="vnx-home-title-row">
+          <div><h1>¿Qué quieres hacer hoy?</h1><p>Pídelo con tus palabras. Carla utilizará únicamente las conexiones que tengas autorizadas.</p></div>
+          <div class="vnx-home-clock"><b id="homeClock">—</b><small id="homeDate">—</small></div>
         </div>
-        <div class="dark-panel quick-panel">
-          <div class="panel-head"><h3>Accesos rápidos</h3></div>
-          <div class="quick-grid">
-            <button data-tab-jump="chat">💬 Dime qué necesitas</button>
-            <button data-tab-jump="agents">◉ Conectar una cuenta</button>
-            <button data-tab-jump="webcommerce">🌐 Abrir web y tienda</button>
-            <button data-tab-jump="activity">▥ Ver actividad</button>
-          </div>
+
+        <div class="vnx-home-command">
+          <span class="vnx-command-spark">✦</span>
+          <textarea id="homeQuickInput" rows="1" placeholder="Escribe lo que necesitas… Ej.: revisa mis emails, prepara un presupuesto, qué pedidos tengo…"></textarea>
+          <button id="homeQuickSend" type="button" aria-label="Enviar a Carla">➤</button>
+        </div>
+
+        <div class="vnx-home-actions">
+          <button type="button" data-secretary-day><span>▣</span><b>Prepárame el día</b></button>
+          <button type="button" data-home-email><span>✉</span><b>Revisa mis emails</b></button>
+          <button type="button" data-home-orders><span>◫</span><b>Ver pedidos</b></button>
+          <button type="button" data-home-clients><span>♙</span><b>Busca clientes</b></button>
+          <button type="button" data-home-document><span>▤</span><b>Crea un documento</b></button>
+        </div>
+
+        <div class="vnx-home-section-head"><h2>Hoy</h2><button type="button" data-tab-jump="chat">Ver mi trabajo →</button></div>
+        <div class="vnx-home-today">
+          <button type="button" data-home-email class="vnx-today-card blue"><span class="vnx-today-icon">✉</span><strong id="homeEmailCount">0</strong><b>Emails por revisar</b><small>Carla separa lo importante.</small></button>
+          <button type="button" data-home-orders class="vnx-today-card amber"><span class="vnx-today-icon">◫</span><strong id="homeAttentionCount">0</strong><b>Asuntos pendientes</b><small>Trabajo que merece atención.</small></button>
+          <button type="button" data-secretary-pending class="vnx-today-card pink"><span class="vnx-today-icon">!</span><strong id="homeDecisionCount">0</strong><b>Necesitan tu decisión</b><small>Carla no decide esto por ti.</small></button>
+          <button type="button" id="homeAgendaCard" data-tab-jump="chat" class="vnx-today-card cyan"><span class="vnx-today-icon">▣</span><strong id="homeAgendaCount">—</strong><b>Reuniones hoy</b><small>Según tu agenda conectada.</small></button>
+        </div>
+
+        <div class="vnx-home-lower">
+          <article class="vnx-home-carla">
+            <div class="vnx-carla-summary-head"><div class="vnx-carla-orb">✦</div><div><h2>Carla</h2><p>Tu secretaria ejecutiva de IA.</p></div><span class="vnx-online"><i></i> En línea</span></div>
+            <div class="vnx-carla-summary-body">
+              <div><b>Lo importante ahora</b><p id="homeCarlaSummary">Estoy revisando tus datos conectados.</p></div>
+              <div class="vnx-carla-trust"><span>⌘</span><div><b>Trabajo separado por conexión</b><small>No mezclo empresas o cuentas si no lo autorizas.</small></div></div>
+            </div>
+            <div class="vnx-carla-summary-actions"><button class="btn primary" type="button" data-home-carla>Habla con Carla</button><button class="btn outline" type="button" data-secretary-day>Prepárame el día</button></div>
+          </article>
+
+          <article class="vnx-home-stock" id="homeStockCard">
+            <div class="vnx-stock-head"><div><span class="vnx-stock-icon">◇</span><div><h2>Stock y reposición</h2><p id="homeStockMeta">Comprobando Shopify…</p></div></div><button type="button" data-home-stock-open>Analizar →</button></div>
+            <div class="vnx-stock-columns"><span>Producto</span><span>Stock</span><span>Cobertura</span><span>Estado</span></div>
+            <div id="homeStockRows" class="vnx-stock-rows"><div class="vnx-home-empty">Calculando previsión con datos reales…</div></div>
+            <div class="vnx-stock-foot">Ventas calculadas por SKU · ventana real de 6 meses · alerta por debajo de 5 días</div>
+          </article>
+        </div>
+
+        <div id="updatePanel" class="notice vnx-home-update" style="display:none"><b id="updateTitle">Nueva actualización disponible</b><div id="updateNotes"></div><button id="updateOpenBtn" class="btn primary">Ver actualización</button></div>
+        <div class="vnx-home-security">▣ Solo usaré las conexiones que tengas autorizadas. <span>Tu información permanece bajo tus permisos.</span></div>
+
+        <div class="vnx-home-hooks" aria-hidden="true">
+          <span id="homeSales">—</span><span id="homeCustomers">—</span><span id="homeOrders">—</span><span id="homeInvoices">—</span>
+          <span id="homeLicenseState">Sin activar</span><span id="homeLicenseStateMirror">—</span><span id="folderCount">0</span><span id="encState">—</span><span id="pairState">Datos reales</span>
+          <div id="homeAgentsPanel"><small id="homeAgentsSummary"></small><div id="homeAgentsList"></div></div>
+          <button id="pairBtn" disabled>Edición maestra</button>
         </div>
       </div>
-      <button id="pairBtn" class="hidden-control" disabled>Edición maestra · modo real</button>
     </section>
 
     <section class="tab" id="master-center">
