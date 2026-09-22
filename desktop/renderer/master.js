@@ -1809,6 +1809,13 @@ function emailListItem(m,i,selected){
     const d=typeof v==='number'?new Date(v*1000):new Date(v);
     return Number.isNaN(d.getTime())?String(v):d.toLocaleString('es-ES');
   }
+  function billingBadge(status=''){
+    const s=String(status||'').toLowerCase();
+    if(['active','paid','trialing','accepted'].includes(s))return '<span class="vnx-billing-badge paid">● Al día</span>';
+    if(['payment_due','past_due','open'].includes(s))return '<span class="vnx-billing-badge due">● Pago pendiente · 24 h</span>';
+    if(['suspended','unpaid','paused','incomplete_expired','canceled','cancelled'].includes(s))return '<span class="vnx-billing-badge blocked">● Bloqueado / revisar pago</span>';
+    return '<span class="vnx-billing-badge neutral">● '+escM(status||'Sin estado')+'</span>';
+  }
   function renderMasterBusiness(kind){
     const root=$m('#masterBusinessResult');if(!root)return;
     const d=masterBusinessData||{};
@@ -1819,17 +1826,17 @@ function emailListItem(m,i,selected){
     }
     if(kind==='contracts'){
       const rows=d.contracts||[];
-      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>'+escM(x.company||x.email||x.contract_id||'Contrato')+'</b><span>'+escM((x.plan_name||x.plan||'Plan')+' · '+(x.status||'aceptado'))+'</span><small>'+escM(x.email||'')+' · Aceptado: '+escM(dateLabel(x.accepted_at))+'</small></div><strong>'+escM(String(x.total_monthly??'—'))+' €/mes</strong></div>').join(''):'<div class="empty">No hay contratos aceptados registrados.</div>';
+      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow vnx-billing-row"><div><b>'+escM(x.company||x.email||x.contract_id||'Contrato')+'</b><span>'+escM(x.plan_name||x.plan||'Plan')+' '+billingBadge(x.status||'accepted')+'</span><small>'+escM(x.email||'')+' · Aceptado: '+escM(dateLabel(x.accepted_at))+'</small></div><strong>'+escM(String(x.total_monthly??'—'))+' €/mes</strong></div>').join(''):'<div class="empty">No hay contratos aceptados registrados.</div>';
       return;
     }
     if(kind==='invoices'){
       const rows=d.invoices||[];
-      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>Factura '+escM(x.number||x.id)+'</b><span>'+escM(x.paid?'Pagada':(x.status||'Pendiente'))+' · '+escM(dateLabel(x.created))+'</span><small>Importe: '+escM(moneyLabel(x.amount_due))+'</small></div>'+(x.invoice_pdf?'<button class="mini" data-master-open-url="'+escM(x.invoice_pdf)+'">PDF</button>':x.hosted_invoice_url?'<button class="mini" data-master-open-url="'+escM(x.hosted_invoice_url)+'">Abrir</button>':'')+'</div>').join(''):'<div class="empty">No hay facturas en Stripe.</div>';
+      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow vnx-billing-row"><div><b>Factura '+escM(x.number||x.id)+'</b><span>'+billingBadge(x.paid?'paid':(x.status||'open'))+' · '+escM(dateLabel(x.created))+'</span><small>Importe: '+escM(moneyLabel(x.amount_due))+'</small></div>'+(x.invoice_pdf?'<button class="mini" data-master-open-url="'+escM(x.invoice_pdf)+'">PDF</button>':x.hosted_invoice_url?'<button class="mini" data-master-open-url="'+escM(x.hosted_invoice_url)+'">Pagar / abrir</button>':'')+'</div>').join(''):'<div class="empty">No hay facturas en Stripe.</div>';
       root.querySelectorAll('[data-master-open-url]').forEach(b=>b.onclick=()=>window.vnx.openExternal(b.dataset.masterOpenUrl));
       return;
     }
     const rows=d.subscriptions||[];
-    root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>'+escM(x.id)+'</b><span>Estado: '+escM(x.status||'—')+'</span><small>'+escM(x.cancel_at_period_end?'Cancelación al final del periodo':'Suscripción activa según estado de Stripe')+'</small></div></div>').join(''):'<div class="empty">No hay suscripciones registradas.</div>';
+    root.innerHTML=rows.length?rows.map(x=>'<div class="listrow vnx-billing-row"><div><b>'+escM(x.id)+'</b><span>'+billingBadge(x.status||'')+'</span><small>'+escM(x.cancel_at_period_end?'Cancelación al final del periodo':'Estado sincronizado con Stripe')+'</small></div></div>').join(''):'<div class="empty">No hay suscripciones registradas.</div>';
   }
   async function refreshMasterBusiness(){
     const root=$m('#masterBusinessResult');if(!root||!window.vnx?.masterDashboard)return;
