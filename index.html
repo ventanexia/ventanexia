@@ -101,69 +101,61 @@ body{background:radial-gradient(circle at 78% 0,#163f73 0,#071d33 34%,#031523 72
 .heygen-video-thumb{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;opacity:.72}
 .heygen-video-preview:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(3,21,35,.08),rgba(3,21,35,.72));pointer-events:none}
 .heygen-play,.heygen-preview-copy,.heygen-avatar{z-index:2}
+
+.vnx-new-product-shot{min-width:0}
+.vnx-site-screen{display:grid;grid-template-columns:120px minmax(0,1fr);min-height:440px;border:1px solid #2187d7;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#06172c,#0a2e55);box-shadow:0 30px 80px #0007}
+.vnx-site-side{background:#04152b;padding:16px 9px;display:grid;align-content:start;gap:5px;border-right:1px solid #15558b}
+.vnx-site-logo{display:flex;gap:6px;align-items:center;padding:6px;color:#fff;margin-bottom:7px;font-size:9px}.vnx-site-logo>b{font-size:10px}.vnx-site-logo span{color:#39baff}
+.vnx-site-side>div:not(.vnx-site-logo){padding:8px;border-radius:8px;font-size:7px;color:#a9c5db}.vnx-site-side>div.active{background:#0b4b8e;color:#fff;border:1px solid #2287ef}.vnx-site-side hr{width:100%;border:0;border-top:1px solid #164a70}.vnx-site-side small{margin-top:80px;padding:8px;color:#76d8b5;font-size:6px}
+.vnx-site-main{padding:14px 15px}.vnx-site-top{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #18547f;padding-bottom:10px}.vnx-site-top b{display:block;font-size:9px}.vnx-site-top small{display:block;color:#83a2bb;font-size:6px;margin-top:2px}.vnx-site-top>span{font-size:7px;border:1px solid #1a5b8c;padding:7px 9px;border-radius:8px}
+.vnx-site-main h3{font-size:18px;margin:14px 0 9px}.vnx-site-command{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;border:1px solid #2c9af3;border-radius:9px;padding:9px;background:#082b50;color:#75d8ff;font-size:7px}.vnx-site-command span{color:#7fa0ba}.vnx-site-command b{background:#177ce9;color:#fff;border-radius:6px;padding:5px}
+.vnx-site-quick{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:8px 0 13px}.vnx-site-quick span{border:1px solid #1a5683;border-radius:7px;padding:7px 5px;font-size:6px;background:#092541;text-align:center}
+.vnx-site-main h4{font-size:11px;margin:8px 0}.vnx-site-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.vnx-site-kpis article{border:1px solid #1a6398;background:#082744;border-radius:8px;padding:8px}.vnx-site-kpis article.warn{border-color:#844d79;background:#2a2147}.vnx-site-kpis b{font-size:17px;display:block}.vnx-site-kpis span{font-size:6px;color:#a7c2d5}
+.vnx-site-lower{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:8px}.vnx-site-lower article{border:1px solid #1a6398;background:#071f39;border-radius:9px;padding:9px;min-height:105px}.vnx-site-lower b{font-size:9px}.vnx-site-lower small{display:block;color:#7496af;font-size:6px}.vnx-site-lower p{font-size:6.5px;color:#a8c5d7}.vnx-site-lower em{color:#ff75a6}.vnx-site-lower button{border:0;background:#167ce8;color:#fff;border-radius:6px;padding:6px 9px;font-size:6px}
+.vnx-popup-showcase{padding:62px 0;background:#04192b;border-top:1px solid #174c70;border-bottom:1px solid #174c70}.vnx-popup-window{max-width:1020px;margin:0 auto;border:1px solid #1b7ec4;border-radius:18px;overflow:hidden;background:linear-gradient(145deg,#061d37,#082c53);box-shadow:0 28px 80px #0007}
+.vnx-popup-title,.vnx-popup-head{display:flex;align-items:center;gap:18px;padding:14px 18px;border-bottom:1px solid #17547e}.vnx-popup-title span{color:#9eb8cd}.vnx-popup-title i{margin-left:auto;color:#8fabc1}.vnx-popup-head{justify-content:space-between}.vnx-popup-head b{display:block;font-size:22px}.vnx-popup-head small{display:block;color:#85a6bf}.vnx-popup-head>span{border:1px solid #1a6396;border-radius:10px;padding:9px 12px;font-size:12px}
+.vnx-popup-actions{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;padding:18px}.vnx-popup-actions button{border:1px solid #1a5b8b;background:#082744;color:#fff;border-radius:10px;padding:13px 8px;font-weight:800}.vnx-popup-chat{margin:0 18px 12px;border:1px solid #238ce0;border-radius:12px;min-height:92px;padding:16px;color:#7498b6}.vnx-popup-chat button{float:right;border:0;border-radius:9px;background:linear-gradient(90deg,#12aef4,#6942ff);color:#fff;padding:10px 16px;font-weight:900}.vnx-popup-safe{display:block;padding:0 18px 16px;color:#7f9fb7}
+@media(max-width:760px){.vnx-site-screen{grid-template-columns:72px 1fr}.vnx-site-quick{grid-template-columns:repeat(2,1fr)}.vnx-site-kpis{grid-template-columns:repeat(2,1fr)}.vnx-site-lower{grid-template-columns:1fr}.vnx-popup-actions{grid-template-columns:repeat(2,1fr)}.vnx-popup-head{align-items:flex-start;flex-direction:column}}
 </style></head><body>
 <header class="top home-top"><div class="wrap nav"><a class="brand home-brand" href="#inicio" aria-label="VentaNexIA - Inicio"><span class="brand-logo" aria-hidden="true"></span><span>VentaNexIA</span></a><nav class="links home-links"><a href="#que-hace">Qué hace</a><a href="#resuelve">Cómo te ayuda</a><a href="/demos-funciones.html">Demos</a><a href="/planes.html">Precios</a><a href="#confianza">Seguridad</a></nav><div class="home-nav-actions"><a class="home-login" href="/app">Entrar</a><a class="btn primary small" href="/planes.html">Ver planes →</a></div></div></header>
 <main id="inicio"><section class="hero home-hero"><div class="wrap home-hero-grid">
   <div class="home-hero-copy">
-    <span class="home-kicker">TU SECRETARIA EJECUTIVA DIGITAL · VENTANEXIA DESKTOP 0.6.100</span>
+    <span class="home-kicker">TU SECRETARIA EJECUTIVA DIGITAL · VENTANEXIA DESKTOP 0.6.103</span>
     <h1>Tu empresa ordenada cada mañana. <span>Carla revisa, organiza y prepara el trabajo contigo.</span></h1>
     <p class="home-lead">VentaNexIA reúne correo, agenda, pedidos, tienda, clientes, documentos y tareas en un solo lugar. Carla separa lo urgente de lo informativo, te dice qué necesita tu decisión y deja respuestas, informes y acciones preparadas.</p>
     <p class="home-simple">No tienes que aprender informática ni saber qué asistente elegir. Escribes lo que necesitas con palabras normales. Carla utiliza la conexión correcta y mantiene separadas las empresas, cuentas y fuentes que tú selecciones.</p>
     <div class="home-actions"><a class="btn primary home-main-cta" href="/planes.html">Probar 15 días gratis →</a><a class="btn home-secondary" href="#que-hace">Ver qué hace</a></div>
     <div class="home-trust-row"><span>✓ 15 días gratis sin tarjeta</span><span>✓ Tus datos y conexiones bajo tu control</span><span>✓ Tú apruebas las acciones sensibles</span></div>
   </div>
-  <div class="home-product-shot" aria-label="Vista de VentaNexIA Desktop 0.6.100">
-    <div class="home-v632-window">
-      <aside class="home-v632-side">
-        <div class="home-v632-brand"><span>VN</span><div><b>VentaNexIA</b><small>v0.6.100</small></div></div>
-        <div>⌂ <span>Inicio</span></div>
-        <div class="active">◯ <span>Secretaria Ejecutiva</span></div>
-        <div>↗ <span>Conexiones</span></div>
-        <div>♙ <span>Alta de cliente</span></div>
-        <div>🛒 <span>Web y tienda</span></div>
-        <div>♢ <span>Permisos</span></div>
-        <div>□ <span>Archivos</span></div>
-        <div>▣ <span>Licencia y equipos</span></div>
-        <div>? <span>Ayuda</span></div>
-        <div>▥ <span>Actividad</span></div>
-        <div>▦ <span>Centro Maestro</span></div>
-        <small class="home-v632-protect">● Protección activa</small>
-      </aside>
-      <div class="home-v632-main">
-        <div class="home-v632-top"><div><small>SECRETARIA EJECUTIVA</small><h3>Buenos días. Ya he revisado tu empresa.</h3><p>Te organizo el día y dejo trabajo preparado.</p></div><b>Equipo IA conectado</b></div>
-        <div class="home-v632-content">
-          <div class="home-v632-agents">
-            <div class="v632-agent selected"><i>🧑‍💼</i><b>Secretaria Ejecutiva</b><span>día, pendientes y aprobaciones</span></div>
-            <div class="v632-agent"><i>✉️</i><b>Email y bandeja</b><span>leer, responder y borradores</span></div>
-            <div class="v632-agent whatsapp"><i class="whatsapp-real" aria-hidden="true"><svg viewBox="0 0 32 32" role="img" focusable="false"><path fill="currentColor" d="M19.11 17.53c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.87 1.22 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.08 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35z"/><path fill="currentColor" d="M16.02 3.2c-7.04 0-12.76 5.66-12.76 12.62 0 2.22.59 4.39 1.71 6.29L3.2 28.8l6.87-1.8a12.85 12.85 0 0 0 5.94 1.46h.01c7.03 0 12.75-5.66 12.75-12.62S23.05 3.2 16.02 3.2zm0 22.99h-.01a10.58 10.58 0 0 1-5.39-1.47l-.39-.23-4.08 1.07 1.09-3.97-.25-.41a10.28 10.28 0 0 1-1.6-5.36c0-5.7 4.77-10.34 10.63-10.34 5.86 0 10.62 4.64 10.62 10.34 0 5.7-4.77 10.37-10.62 10.37z"/></svg></i><b>WhatsApp</b><span>responder clientes y pedir datos</span></div>
-            <div class="v632-agent"><i>🎯</i><b>Captación y prospección</b><span>buscar empresas y oportunidades</span></div>
-            <div class="v632-agent"><i>🤝</i><b>Ventas y clientes</b><span>seguir clientes y cerrar ventas</span></div>
-            <div class="v632-agent"><i>🎧</i><b>Atención al cliente</b><span>responder dudas e incidencias</span></div>
-            <div class="v632-agent"><i>📄</i><b>Presupuestos</b><span>crear ofertas y propuestas</span></div>
-            <div class="v632-agent"><i>📦</i><b>Pedidos</b><span>correo, cliente, referencias y entrada</span></div>
-            <div class="v632-agent"><i>📣</i><b>Redes y publicidad</b><span>publicaciones y campañas</span></div>
-            <div class="v632-agent"><i>🛒</i><b>Web & Ecommerce</b><span>pedidos, productos y tienda</span></div>
-            <div class="v632-agent"><i>📅</i><b>Administración</b><span>tareas, agenda y gestión</span></div>
-            <div class="v632-agent"><i>📊</i><b>Informes</b><span>datos y resultados</span></div>
-            <div class="v632-agent"><i>⚙️</i><b>Automatizaciones</b><span>ahorrar tiempo y repetir tareas</span></div>
-          </div>
-          <aside class="home-v632-detail">
-            <div class="home-v632-detail-title"><i>🧑‍💼</i><div><b>Secretaria Ejecutiva</b><span>Centro de consulta y organización</span></div></div>
-            <p>Revisa lo importante y te dice por dónde empezar sin obligarte a entrar en cada área.</p>
-            <ul>
-              <li>☀️ Prepárame el día</li>
-              <li>✓ Qué tengo pendiente</li>
-              <li>⚡ Qué puedes adelantar por mí</li>
-              <li>📅 Agenda y reuniones próximas</li>
-              <li>🌙 Cierre del día</li>
-            </ul>
-            <button type="button">Prepárame el día →</button>
-          </aside>
-        </div>
-      </div>
+  <div class="home-product-shot vnx-new-product-shot" aria-label="Vista de VentaNexIA Desktop 0.6.103">
+  <div class="vnx-site-screen">
+    <aside class="vnx-site-side">
+      <div class="vnx-site-logo">◇ <b>Venta<span>NexIA</span></b></div>
+      <div class="active">⌂ <span>Inicio</span></div>
+      <div>✦ <span>Carla</span></div>
+      <div>⌘ <span>Conexiones</span></div>
+      <div>▤ <span>Archivos</span></div>
+      <div>✓ <span>Pendientes</span></div>
+      <div>▥ <span>Actividad</span></div>
+      <hr>
+      <div>⚙ <span>Configuración</span></div>
+      <div>? <span>Ayuda</span></div>
+      <small>● Todo listo</small>
+    </aside>
+    <div class="vnx-site-main">
+      <div class="vnx-site-top"><div><b>☀ Hola</b><small>Carla te muestra solo lo que merece tu atención.</small></div><span>▦ Tu empresa⌄</span></div>
+      <h3>¿Qué quieres hacer hoy?</h3>
+      <div class="vnx-site-command">✦ <span>Escribe lo que necesitas… revisa mis emails, prepara un presupuesto…</span><b>➤</b></div>
+      <div class="vnx-site-quick"><span>▣ Prepárame el día</span><span>✉ Revisa mis emails</span><span>◫ Ver pedidos</span><span>♙ Busca clientes</span><span>▤ Crea un documento</span></div>
+      <h4>Hoy</h4>
+      <div class="vnx-site-kpis"><article><b>3</b><span>Emails por revisar</span></article><article><b>5</b><span>Pedidos nuevos</span></article><article class="warn"><b>1</b><span>Necesita tu decisión</span></article><article><b>2</b><span>Reuniones hoy</span></article></div>
+      <div class="vnx-site-lower"><article><div><b>✦ Carla</b><small>Tu secretaria ejecutiva de IA</small></div><p>3 cosas necesitan tu atención hoy. Puedo prepararte el trabajo.</p><button>Habla con Carla</button></article><article><div><b>◇ Stock y reposición</b><small>Ventas reales · últimos 6 meses</small></div><p><strong>SIL-100</strong> · 4 días · <em>Urgente</em></p><p><strong>TAB-045</strong> · 22 días · Correcto</p><p><strong>PEG-030</strong> · 7 días · Revisar</p></article></div>
     </div>
   </div>
+</div>
 </div></section>
+<section class="vnx-popup-showcase"><div class="wrap"><div class="head"><span class="ey">CARLA EN SU PROPIA VENTANA</span><h2>Cuando necesitas concentrarte, desaparece todo lo que sobra.</h2><p>La ventana emergente mantiene solo Carla, la fuente con la que trabajas y el contenido de la tarea. En correo, la cabecera y las categorías quedan fijas y solo se desplaza la lista.</p></div>
+<div class="vnx-popup-window"><div class="vnx-popup-title"><b>VentaNexIA</b><span>Carla · Secretaria ejecutiva</span><i>— □ ×</i></div><div class="vnx-popup-head"><div><b>✦ Carla</b><small>Tu secretaria ejecutiva de IA</small></div><span>Trabajando con: <strong>Tu empresa · Todas las fuentes</strong>⌄</span></div><div class="vnx-popup-actions"><button>Prepárame el día</button><button>Revisa mis emails</button><button>Ver pedidos</button><button>Busca clientes</button><button>Crea un documento</button></div><div class="vnx-popup-chat">Escribe aquí lo que necesitas…<button>➤ Enviar</button></div><small class="vnx-popup-safe">🔒 Solo usaré las conexiones que tengas autorizadas.</small></div></div></section>
 <section class="home-value-strip"><div class="wrap"><div><b>🎯 Encuentra posibles clientes</b><span>Busca empresas reales según lo que vendes y dónde quieres vender.</span></div><div><b>✉️ Ahorra trabajo de oficina</b><span>Prepara correos, presupuestos, respuestas e informes con formularios sencillos.</span></div><div><b>🔐 Todo bajo tu control</b><span>Conectas solo las herramientas que quieras y decides qué acciones necesitan permiso.</span></div></div></section>
 <section class="home-who"><div class="wrap home-who-grid"><div><span class="home-kicker dark">HECHO PARA EMPRESAS REALES</span><h2>Trabaja como una empresa más grande, sin complicarte.</h2><p>VentaNexIA está pensado para pequeñas y medianas empresas que quieren ahorrar tiempo en ventas, atención al cliente, tienda online y tareas de oficina.</p><div class="home-who-tags"><span>Ventas</span><span>Clientes</span><span>Correo</span><span>Tienda online</span><span>Presupuestos</span><span>Informes</span></div><div class="actions"><a class="btn primary" href="#que-hace">Ver qué puede hacer →</a><a class="btn home-light-btn" href="/demos-funciones.html">Ver demos</a></div></div><div class="home-photo-card"><div class="home-photo-copy"><b>Menos tareas repetidas.<br>Más tiempo para vender.</b><small>VentaNexIA</small></div></div></div></section>
 <section class="section devices" id="pc-movil"><div class="wrap"><div class="head"><span class="ey">TU EMPRESA, DONDE ESTÉS</span><h2>Entra desde tu PC o desde tu móvil.</h2><p>Usa VentaNexIA con el mismo ID de cliente y la misma contraseña. Tus funciones disponibles y tus conexiones forman parte de la misma cuenta.</p></div><div class="device-grid"><article class="device-card"><div class="device-icon">💻</div><h3>En tu ordenador</h3><p>Instala VentaNexIA Desktop y trabaja con tus carpetas, programas, clientes, pedidos, correo, tienda online y demás herramientas autorizadas.</p><div class="device-points"><div><b>✓</b> Misma cuenta de VentaNexIA</div><div><b>✓</b> Acceso a las funciones de tu plan</div><div><b>✓</b> Panel de control y actividad según la edición</div></div></article><article class="device-card"><div class="device-icon">📱</div><h3>En tu móvil</h3><p>Abre VentaNexIA desde el móvil y entra con el mismo ID y contraseña. Podrás trabajar desde cualquier lugar sin aprender otra aplicación distinta.</p><div class="device-points"><div><b>✓</b> Mismo usuario que en el PC</div><div><b>✓</b> Diseño adaptado al móvil</div><div><b>✓</b> Opción para mantener la sesión abierta</div></div><div class="device-login"><strong>¿No quieres escribir la contraseña cada vez?</strong><span>En tu móvil puedes marcar “Recordarme en este dispositivo”. VentaNexIA mantendrá tu sesión abierta hasta que cierres sesión.</span></div><div class="actions"><a class="btn primary" href="/app">Abrir VentaNexIA móvil →</a></div></article></div></div></section><section class="section" id="video"><div class="wrap"><div class="head"><span class="ey">PRESENTACIÓN EN 3 MINUTOS</span><h2>Carla te enseña qué puede hacer VentaNexIA.</h2><p>Una explicación sencilla de las principales funciones del software y de cómo puede ayudarte en el trabajo diario.</p></div><div class="video-shell"><div class="video-grid"><a class="video-card heygen-video-link" href="https://app.heygen.com/videos/3b09dea98cedbf764a033e0b23c825ca" target="_blank" rel="noopener" aria-label="Ver presentación de VentaNexIA con Carla"><div class="heygen-video-preview"><img class="heygen-video-thumb" src="https://resource2.heygen.ai/video/3b09dea98cedbf764a033e0b23c825ca/gif.gif" alt="Carla presentando VentaNexIA"><div class="heygen-avatar">C</div><div class="heygen-play">▶</div><div class="heygen-preview-copy"><b>VentaNexIA</b><span>Carla explica todas las funciones · nueva versión</span><small>3 min 43 s · Pulsa para ver el vídeo</small></div></div></a><div class="video-copy"><span class="ey">PRESENTACIÓN OFICIAL</span><h3>Te lo explicamos sin palabras complicadas.</h3><p>Carla te muestra cómo VentaNexIA puede ayudarte con pedidos, clientes, correo, WhatsApp, presupuestos, redes sociales, web, tienda, tareas e informes.</p><div class="checks"><div><b>✓</b><span>Pensado para personas sin conocimientos técnicos.</span></div><div><b>✓</b><span>Tú decides qué cuentas y datos conectas.</span></div><div><b>✓</b><span>VentaNexIA te ayuda a preparar y organizar el trabajo.</span></div><div><b>✓</b><span>Las acciones importantes pueden pedirte permiso antes de realizarse.</span></div></div><div class="actions"><a class="btn primary" href="https://app.heygen.com/videos/3b09dea98cedbf764a033e0b23c825ca" target="_blank" rel="noopener">▶ Ver vídeo de Carla</a><a class="btn" href="/captador-clientes-ia.html">Probar una demo</a></div></div></div></div></div></section>
