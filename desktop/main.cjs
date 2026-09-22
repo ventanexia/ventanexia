@@ -119,8 +119,9 @@ function createWindow(){
     webPreferences:{
       preload:path.join(__dirname,'preload.cjs'),
       contextIsolation:true,nodeIntegration:false,sandbox:true,
+      webSecurity:true,allowRunningInsecureContent:false,
       backgroundThrottling:false,
-      devTools:true
+      devTools:false
     }
   });
   mainWindow.removeMenu();
@@ -156,8 +157,9 @@ ipcMain.handle('ui:open-workbench-window',async()=>{
     webPreferences:{
       preload:path.join(__dirname,'preload.cjs'),
       contextIsolation:true,nodeIntegration:false,sandbox:true,
+      webSecurity:true,allowRunningInsecureContent:false,
       backgroundThrottling:false,
-      devTools:true
+      devTools:false
     }
   });
   workbenchWindow.removeMenu();
