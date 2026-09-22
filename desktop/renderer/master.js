@@ -1844,7 +1844,8 @@ function emailListItem(m,i,selected){
     const d=masterBusinessData||{};
     if(kind==='customers'){
       const rows=d.customers||[];
-      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow"><div><b>'+escM(x.name||x.email||x.id)+'</b><span>'+escM(x.email||'Sin email')+'</span><small>Alta: '+escM(dateLabel(x.created))+'</small></div><small>'+escM(x.id||'')+'</small></div>').join(''):'<div class="empty">No hay clientes en Stripe.</div>';
+      root.innerHTML=rows.length?rows.map(x=>'<div class="listrow vnx-billing-row"><div><b>'+escM(x.name||x.email||x.id)+'</b><span>'+escM(x.email||'Sin email')+' '+billingBadge(x.billingStatus||'')+'</span><small>Alta: '+escM(dateLabel(x.created))+'</small></div><div class="row">'+(x.paymentUrl?'<button class="mini" data-master-open-url="'+escM(x.paymentUrl)+'">Abrir pago</button>':'')+'<small>'+escM(x.id||'')+'</small></div></div>').join(''):'<div class="empty">No hay clientes en Stripe.</div>';
+      root.querySelectorAll('[data-master-open-url]').forEach(b=>b.onclick=()=>window.vnx.openExternal(b.dataset.masterOpenUrl));
       return;
     }
     if(kind==='contracts'){
