@@ -112,10 +112,14 @@ function emailAgentDirectReply(question,localContext=[]){
   const asksSummary=/resumen|resumir|revisa mis correos|revisar correos|preparame el dia|prepárame el dia|prepárame el día|organiza.*correo|que tengo.*correo|qué tengo.*correo/.test(q);
   if(asksSummary){
     const classify=m=>{
-      const t=norm([m.subject,m.snippet,m.from].join(' '));
-      if(/reclamacion|queja|devoluc|roto|defectuos|no ha llegado|problema|incidencia/.test(t))return 'Reclamaciones / problemas';
-      if(/impago|vencimiento|pago pendiente|cobro|payment failed|card declined/.test(t))return 'Cobros / impagos';
-      if(/factura|invoice|recibo/.test(t))return 'Facturas / recibos';
+      const from=norm(m.from||'');
+      // Los avisos automáticos son informativos aunque el asunto mencione pedido o factura.
+      if(/\\b(no[-_. ]?reply|noreply|do[-_. ]?not[-_. ]?reply|donotreply|mailer-daemon|notification[s]?|avisos?)\\b/.test(from))return 'Informativos';
+      const t=norm([m.subject,m.snippet].join(' '));
+      if(/este es un mensaje automatico|no respondas a este (mensaje|correo)|mensaje generado automaticamente/.test(t))return 'Informativos';
+      if(/reclamacion|queja|devoluc|roto|defectuos|no ha llegado|problema|incidencia/.test(t))return 'Reclamaciones y problemas';
+      if(/impago|vencimiento|pago pendiente|cobro|payment failed|card declined/.test(t))return 'Cobros e impagos';
+      if(/factura|invoice|recibo/.test(t))return 'Facturas y recibos';
       if(/pedido|order|compra|entrega|envio|expedicion|presupuesto/.test(t))return 'Pedidos';
       if(needsReplyScore(m)>0)return 'Consultas';
       return 'Informativos';
@@ -124,7 +128,7 @@ function emailAgentDirectReply(question,localContext=[]){
     for(const m of mails){
       const k=classify(m);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(m);
     }
-    const order=['Pedidos','Facturas / recibos','Consultas','Cobros / impagos','Reclamaciones / problemas','Informativos'];
+    const order=['Pedidos','Facturas y recibos','Consultas','Cobros e impagos','Reclamaciones y problemas','Informativos'];
     const totalReply=mails.filter(m=>needsReplyScore(m)>0).length;
     const lines=['# Resumen rápido','- '+mails.length+' correos revisados','- '+totalReply+' parecen requerir respuesta',''];
     for(const k of order){
