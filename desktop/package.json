@@ -2,7 +2,7 @@
   "name": "ventanexia-desktop",
   "version": "0.6.103",
   "private": true,
-  "description": "VentaNexIA Desktop · pedidos exportables e integrables + stock SKU/EAN a 7 días + seguridad reforzada + cobros 24 h · 0.6.103",
+  "description": "VentaNexIA Desktop · pedidos con salida configurable + seguridad reforzada + dashboard ejecutivo · 0.6.103",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
