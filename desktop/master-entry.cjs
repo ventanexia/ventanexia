@@ -40,6 +40,10 @@ try{
   ipcMain.handle=originalHandle;
 }
 
+if(orders?.exportReadyOrders){
+  originalHandle('orders:export-ready',async()=>orders.exportReadyOrders());
+}
+
 const PORTAL_SCOPE_TYPES=new Set(['portal','url','folder','shopify','integration']);
 
 function scopeOf(payload){
