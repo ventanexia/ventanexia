@@ -59,8 +59,7 @@
       "!**/*.pem",
       "!**/*.key",
       "!**/*.p12",
-      "!**/*.pfx",
-      "verify-private-portals.cjs"
+      "!**/*.pfx"
     ],
     "win": {
       "target": [
