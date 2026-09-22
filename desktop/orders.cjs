@@ -3,7 +3,7 @@
 //  - correo: Gmail (API oficial, con renovación automática) y cualquier correo IMAP/SMTP (Yahoo, iCloud, hosting, empresa…)
 //  - IA: /api/orders-extract del servidor de VentaNexIA (solo EXTRAE datos; las decisiones las toma orders-core)
 //  - destino: archivo, webhook (en el núcleo) y borradores de pedido en Shopify (aquí)
-const {app,dialog,Notification,BrowserWindow,safeStorage,ipcMain}=require('electron');
+const {app,dialog,Notification,BrowserWindow,safeStorage}=require('electron');
 const fs=require('node:fs/promises');
 const path=require('node:path');
 const {readState,writeState,audit}=require('./state-store.cjs');
@@ -427,9 +427,6 @@ async function exportReadyOrders(){
     rows.push(...table.rows);
   }
   return {ok:true,count:ready.length,headers:headers||[],rows};
-}
-if(!ipcMain.listenerCount('orders:export-ready')){
-  ipcMain.handle('orders:export-ready',async()=>exportReadyOrders());
 }
 function startScheduler(){
   if(timer)return;
