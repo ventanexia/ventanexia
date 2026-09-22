@@ -11,7 +11,8 @@ need(renderer,/if\(key==='core_ai'\|\|key==='web_ecommerce'\|\|key==='orders'\)[
 need(backend,/scope\?\.selectedSource[\s\S]*src\.module==='portal'\|\|src\.type==='portal'/,'selected private portal must route through strict source isolation');
 need(backend,/if\(!scope\?\.selectedSource\)[\s\S]*hubContext/,'other connection metadata must stay out when one source is selected');
 const hidden=styles.lastIndexOf('.vnx-carla-window #chatSourceHint{display:none!important}');
-const restored=styles.lastIndexOf('.vnx-carla-window:not(:has(.email-dashboard-mode)) #chatSourceHint');
-if(restored<0||restored<hidden){console.error('PRIVATE_PORTAL_VERIFY_FAIL: Carla source isolation hint must be restored after legacy hide rule');process.exit(1)}
-if(!styles.slice(restored).includes('display:block!important')){console.error('PRIVATE_PORTAL_VERIFY_FAIL: restored Carla source hint must be visible');process.exit(1)}
+const restoredBlock=styles.match(/\.vnx-carla-window:not\(:has\(\.email-dashboard-mode\)\) #chatSourceHint\{[\s\S]*?display:block!important;[\s\S]*?\}/);
+if(!restoredBlock){console.error('PRIVATE_PORTAL_VERIFY_FAIL: restored Carla source hint visibility rule missing');process.exit(1)}
+const restored=styles.indexOf(restoredBlock[0]);
+if(restored<hidden){console.error('PRIVATE_PORTAL_VERIFY_FAIL: Carla source isolation hint restore must come after legacy hide rule');process.exit(1)}
 console.log('PRIVATE_PORTAL_VERIFY_OK');
