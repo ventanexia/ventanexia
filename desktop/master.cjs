@@ -6,6 +6,7 @@ const {normalizeChatScope,parseGmailContext,emailAgentDirectReply,scoreMailAtten
 const {AGENT_CATALOG,isAgentIncluded,assertAgentIncluded,isMaster,connectionLimit}=require('./agent-policy.cjs');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall,gmailFetch,friendlyGmailError}=require('./gmail-auth.cjs');
+const {shopifyCall}=require('./shopify-auth.cjs');
 let prospecting=null;
 try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
 
@@ -22,6 +23,39 @@ const PORTAL_MAX_PAGES=4;
 function clean(v,n=500){return String(v||'').trim().slice(0,n)}
 function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function portalId(url){return crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,16)}
+
+function normalizeShopifyHost(value=''){
+  let v=String(value||'').trim().toLowerCase().replace(/^https?:\\/\\//,'').replace(/\\/.*$/,'');
+  if(/^[a-z0-9][a-z0-9-]*$/.test(v))v+='.myshopify.com';
+  return v;
+}
+async function shopifyGraphqlRead(shop,token,query,variables={}){
+  const host=normalizeShopifyHost(shop);
+  if(!/^[a-z0-9][a-z0-9-]*\\.myshopify\\.com$/.test(host))throw new Error('La conexión Shopify no tiene un dominio interno válido.');
+  const r=await fetch('https://'+host+'/admin/api/2026-07/graphql.json',{method:'POST',headers:{'Content-Type':'application/json','X-Shopify-Access-Token':token,'User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({query,variables})});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||j.errors)throw new Error(j?.errors?.[0]?.message||('Shopify respondió '+r.status));
+  return j.data||{};
+}
+async function collectShopifyContext(integration,question=''){
+  if(!integration?.shop)throw new Error('Shopify no está conectado.');
+  const q=norm(question),wantStock=/stock|inventario|reposicion|reponer|compras|producto/.test(q),wantOrders=/pedido|venta|factur|cliente|reposicion|reponer|stock/.test(q);
+  const files=[];
+  if(wantStock||!wantOrders){
+    const query='query VentaNexIAProducts { products(first:100) { nodes { id title status variants(first:100) { nodes { id sku title inventoryQuantity price } } } } }';
+    const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{}));
+    const rows=[];
+    for(const p of data.products?.nodes||[])for(const v of p.variants?.nodes||[])rows.push({product:p.title,productStatus:p.status,variant:v.title,sku:v.sku||'',stock:Number(v.inventoryQuantity||0),price:v.price});
+    files.push({path:'Shopify · '+integration.shop+' · productos y stock',content:'FUENTE EXCLUSIVA SHOPIFY. Estos datos pertenecen únicamente a la tienda '+integration.shop+'. No los mezcles con ERP, portales, Naturdesma ni otras conexiones.\\n'+JSON.stringify(rows)});
+  }
+  if(wantOrders){
+    const query='query VentaNexIAOrders { orders(first:100, sortKey:CREATED_AT, reverse:true) { nodes { name createdAt displayFinancialStatus displayFulfillmentStatus totalPriceSet { shopMoney { amount currencyCode } } lineItems(first:100) { nodes { title sku quantity variant { inventoryQuantity } } } } } }';
+    const data=await shopifyCall(integration,tok=>shopifyGraphqlRead(integration.shop,tok,query,{}));
+    const rows=(data.orders?.nodes||[]).map(o=>({order:o.name,createdAt:o.createdAt,financialStatus:o.displayFinancialStatus,fulfillmentStatus:o.displayFulfillmentStatus,total:o.totalPriceSet?.shopMoney||null,items:(o.lineItems?.nodes||[]).map(x=>({product:x.title,sku:x.sku||'',quantity:x.quantity,currentStock:x.variant?.inventoryQuantity??null}))}));
+    files.push({path:'Shopify · '+integration.shop+' · pedidos recientes',content:'FUENTE EXCLUSIVA SHOPIFY. Pedidos reales de esta tienda; no son pedidos del ERP ni del programa Naturdesma.\\n'+JSON.stringify(rows)});
+  }
+  return files;
+}
 function partitionFor(id){return `persist:vnx-portal-${String(id||'portal').replace(/[^a-z0-9_-]/gi,'')}`}
 function validHttps(url){try{return new URL(url).protocol==='https:'}catch{return false}}
 function isShopifyAdminUrl(url=''){
@@ -696,8 +730,21 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length,emailActions:target?.id?emailActionPayload(target):null,emailActionGroups};
     }
   }else if(scope?.type==='agent'&&scope?.key==='core_ai'){
-    // Asistente central: reúne información de las fuentes permitidas sin ejecutar acciones.
-    localContext=await collectAuthorizedContext();
+    // Una conexión elegida significa aislamiento estricto: Carla no consulta ninguna otra fuente.
+    if(scope?.selectedSource){
+      const src=scope.selectedSource;
+      if(src.module==='shopify'){
+        const integration=s.secret?.integrations?.shopify;
+        if(!integration)throw new Error('La conexión Shopify seleccionada ya no está disponible.');
+        localContext=await collectShopifyContext(integration,question);
+      }else if(src.module==='email'){
+        const all=emailAccountsForState(s),one=Number.isInteger(src.accountIndex)?all[src.accountIndex]:null;
+        if(!one)throw new Error('La cuenta de email seleccionada ya no está disponible.');
+        const mail=await collectGmailContextsFast([one],question);localContext.push(...mail.files);
+        if(!localContext.length)throw new Error('No he podido leer la cuenta de email seleccionada. '+mail.failures.join(' · '));
+      }else throw new Error('Esta conexión todavía no admite consulta aislada desde Carla.');
+    }else{
+      localContext=await collectAuthorizedContext();
     const centralErrors=[];
     if(isAgentIncluded(s.license,'email')){
       const coreMail=await collectGmailContextsFast(emailAccountsForState(s),question);
@@ -713,6 +760,7 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
           localContext.push(...portalAsLocalFiles([pr]));
         }catch(e){centralErrors.push((p.name||'Portal')+': '+String(e?.message||e).slice(0,140))}
       }
+    }
     }
     const extra=Array.isArray(payload?.hubContext)?payload.hubContext:[];
     for(const item of extra.slice(0,12)){
@@ -788,7 +836,9 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   }else if(scope?.type==='folder'&&scope?.folder){
     localContext=await collectAuthorizedContext();
   }else if(scope?.type==='shopify'){
-    throw new Error('La consulta directa de Shopify desde este chat todavía no está preparada.');
+    const integration=s.secret?.integrations?.shopify;
+    if(!integration)throw new Error('La conexión Shopify seleccionada ya no está disponible.');
+    localContext=await collectShopifyContext(integration,question);
   }else if(scope){
     throw new Error('El agente seleccionado no tiene una ruta válida. No se mezclarán datos de otras conexiones.');
   }else{

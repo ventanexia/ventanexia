@@ -12,7 +12,7 @@
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
       emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
-      handoffInternal:Boolean(m.handoffInternal)
+      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null
     }));
   }
   function persistMasterChatState(){
@@ -1845,6 +1845,14 @@
     });
     refreshWorkbenchApprovals();refreshWorkbenchCounters();
   }
+  function chatScopeKey(scope){
+    if(!scope)return 'none';
+    if(scope.selectedSource)return 'source:'+(scope.selectedSource.module||'unknown')+':'+(scope.selectedSource.id||scope.selectedSource.label||scope.selectedSource.accountIndex||'0');
+    if(scope.type==='shopify')return 'shopify:'+(scope.shop||'connected');
+    if(scope.type==='integration')return 'integration:'+scope.key+':'+(Number.isInteger(scope.accountIndex)?scope.accountIndex:'0');
+    if(scope.type==='portal')return 'portal:'+scope.id;
+    return (scope.type||'scope')+':'+(scope.key||scope.id||'default');
+  }
   function redactSensitiveChatText(text,scope){
     if(scope?.key!=='orders')return text;
     return String(text||'')
@@ -2076,12 +2084,13 @@
       if(scope.connected===false){
         masterMessages.push({role:'assistant',content:'Este agente está incluido, pero todavía necesita conectar su herramienta o fuente de datos. Ve a “Conexiones”, actívala y vuelve aquí.'});renderMasterMessages();return;
       }
-      const visibleText=redactSensitiveChatText(text,scope);
-      masterMessages.push({role:'user',content:visibleText});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
+      const visibleText=redactSensitiveChatText(text,scope),activeScopeKey=chatScopeKey(scope);
+      masterMessages.push({role:'user',content:visibleText,scopeKey:activeScopeKey});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
         const enrichedText=enrichBusinessRequest(text,scope);
-        const payload=masterMessages.map(({role,content},i)=>({role,content:i===masterMessages.length-1&&role==='user'?enrichedText:content}));
+        const scopedMessages=masterMessages.filter(m=>m.scopeKey===activeScopeKey||m===masterMessages[masterMessages.length-1]);
+        const payload=scopedMessages.map(({role,content},i)=>({role,content:i===scopedMessages.length-1&&role==='user'?enrichedText:content}));
         const r=scope.separateSources?await sendSeparatedBySources(enrichedText,scope,payload):await window.vnx.sendChat(payload,scope);
         let reply=r.reply||'Sin respuesta';
         if(isProductCountQuestion(text)&&window.vnx.verifiedProductCount){
@@ -2093,8 +2102,8 @@
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai'});renderMasterMessages({focusIndex:masterMessages.length-1});
-      }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`});renderMasterMessages()}
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai',scopeKey:activeScopeKey});renderMasterMessages({focusIndex:masterMessages.length-1});
+      }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`,scopeKey:activeScopeKey});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
   }
