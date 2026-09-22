@@ -2095,8 +2095,8 @@ function emailListItem(m,i,selected){
     $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
     $$m('[data-purchase-csv]').forEach(btn=>btn.onclick=()=>exportPurchaseCsv(masterMessages[Number(btn.dataset.purchaseCsv)],btn));
     $$m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
-    $m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
-    $m('[data-import-stock-file]').forEach(btn=>btn.onclick=async()=>{
+    $$m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
+    $$m('[data-import-stock-file]').forEach(btn=>btn.onclick=async()=>{
       const msgIndex=Number(btn.dataset.importStockFile),old=btn.textContent;
       btn.disabled=true;btn.textContent='Leyendo archivo…';
       try{
