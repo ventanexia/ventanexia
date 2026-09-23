@@ -271,7 +271,7 @@ async function listPortals(){
     s.portals=valid;await writeState(s);
     audit('portal.cleanup','Se eliminaron conexiones Shopify Admin guardadas erróneamente como portal genérico').catch(()=>{});
   }
-  return valid.map(p=>({id:p.id,name:p.name,url:p.url,mode:p.mode||'read',connectedAt:p.connectedAt||null,lastCheckedAt:p.lastCheckedAt||null,lastStatus:p.lastStatus||'not_connected',lastUrl:p.lastUrl||null}));
+  return valid.map(p=>({id:p.id,name:p.name,url:p.url,mode:p.mode||'read',connectedAt:p.connectedAt||null,lastCheckedAt:p.lastCheckedAt||null,lastStatus:(p.lastStatus==='not_connected'&&p.connectedAt&&p.lastUrl&&sameOrigin(p.lastUrl,p.url))?'connected':(p.lastStatus||'not_connected'),lastUrl:p.lastUrl||null}));
 }
 async function savePortal(payload={}){
   const name=clean(payload.name,120),url=clean(payload.url,1000),mode=payload.mode==='write'?'write':'read';
@@ -851,6 +851,24 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
 
 // La lógica de priorización y respuesta directa del Agente Email vive en agent-email.cjs y se prueba de forma aislada.
 
+async function contextForExplicitSource(s,src,question=''){
+  const local=[],portals=[];
+  if(src?.module==='shopify'){
+    const integration=s.secret?.integrations?.shopify;if(!integration)throw new Error('La conexión Shopify seleccionada ya no está disponible.');
+    local.push(...await collectShopifyContext(integration,question));
+  }else if(src?.module==='email'){
+    const all=emailAccountsForState(s),one=Number.isInteger(src.accountIndex)?all[src.accountIndex]:null;
+    if(!one)throw new Error('La cuenta de email seleccionada ya no está disponible.');
+    const mail=await collectGmailContextsFast([one],question);local.push(...mail.files);
+    if(!local.length)throw new Error('No he podido leer la cuenta de email seleccionada. '+mail.failures.join(' · '));
+  }else if(src?.module==='portal'||src?.type==='portal'){
+    const p=await getPortal(clean(src.id,80));if(!p)throw new Error('La página privada seleccionada ya no está disponible.');
+    const pr=await readPortal(p,question);if(pr.status!=='connected')throw new Error('La página privada seleccionada necesita iniciar sesión o revisar la conexión.');
+    portals.push(pr);local.push(...portalAsLocalFiles([pr]));
+  }else throw new Error('Esta conexión todavía no admite consulta aislada desde Carla.');
+  return {local,portals};
+}
+
 ipcMain.removeHandler('chat:send');
 ipcMain.handle('chat:send',async(_e,payload={})=>{
   const messages=Array.isArray(payload)?payload:(Array.isArray(payload?.messages)?payload.messages:[]);
@@ -884,45 +902,20 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       return {reply:direct,source:'desktop-email-direct',route:'agent:email',accounts:localContext.length,emailActions:target?.id?emailActionPayload(target):null,emailActionGroups};
     }
   }else if(scope?.type==='agent'&&scope?.key==='core_ai'){
-    // Una conexión elegida significa aislamiento estricto: Carla no consulta ninguna otra fuente.
-    if(scope?.selectedSource){
-      const src=scope.selectedSource;
-      if(src.module==='shopify'){
-        const integration=s.secret?.integrations?.shopify;
-        if(!integration)throw new Error('La conexión Shopify seleccionada ya no está disponible.');
-        localContext=await collectShopifyContext(integration,question);
-      }else if(src.module==='email'){
-        const all=emailAccountsForState(s),one=Number.isInteger(src.accountIndex)?all[src.accountIndex]:null;
-        if(!one)throw new Error('La cuenta de email seleccionada ya no está disponible.');
-        const mail=await collectGmailContextsFast([one],question);localContext.push(...mail.files);
-        if(!localContext.length)throw new Error('No he podido leer la cuenta de email seleccionada. '+mail.failures.join(' · '));
-      }else if(src.module==='portal'||src.type==='portal'){
-        const p=await getPortal(clean(src.id,80));
-        if(!p)throw new Error('La página privada seleccionada ya no está disponible.');
-        const pr=await readPortal(p,question);portalContext=[pr];portalFiles=portalAsLocalFiles([pr]);localContext=portalFiles;
-        if(pr.status!=='connected')throw new Error('La página privada seleccionada necesita iniciar sesión o revisar la conexión.');
-      }else throw new Error('Esta conexión todavía no admite consulta aislada desde Carla.');
-    }else{
-      localContext=await collectAuthorizedContext();
-    if(isAgentIncluded(s.license,'email')){
-      const coreMail=await collectGmailContextsFast(emailAccountsForState(s),question);
-      localContext.push(...coreMail.files);
-      centralErrors.push(...coreMail.failures.map(x=>'Email: '+x.slice(0,140)));
-    }
-    if(isAgentIncluded(s.license,'web_ecommerce')){
-      const portals=(Array.isArray(s.portals)?s.portals:[]).filter(p=>p&&p.url&&!isShopifyAdminUrl(p.url)&&['read','write'].includes(p.mode)).slice(0,4);
-      for(const p of portals){
-        try{
-          const pr=await readPortal(p,question);
-          portalContext.push(pr);
-          localContext.push(...portalAsLocalFiles([pr]));
-        }catch(e){centralErrors.push((p.name||'Portal')+': '+String(e?.message||e).slice(0,140))}
+    // Aislamiento estricto: una fuente por defecto; dos solo si el usuario las combina expresamente.
+    const explicit=Array.isArray(scope?.selectedSources)&&scope.selectedSources.length?scope.selectedSources:(scope?.selectedSource?[scope.selectedSource]:[]);
+    if(explicit.length){
+      for(const src of explicit.slice(0,2)){
+        const ctx=await contextForExplicitSource(s,src,question);
+        localContext.push(...ctx.local);portalContext.push(...ctx.portals);
       }
-    }
+      portalFiles=portalAsLocalFiles(portalContext);
+    }else{
+      throw new Error('Elige la conexión que quieres consultar. Carla no mezclará empresas automáticamente.');
     }
     // Con una fuente concreta seleccionada, no mezclar ni siquiera metadatos/estado de otras conexiones.
     // hubContext solo es útil en la vista agregada de Carla.
-    if(!scope?.selectedSource){
+    if(!explicit.length){
       const extra=Array.isArray(payload?.hubContext)?payload.hubContext:[];
       for(const item of extra.slice(0,12)){
         const p=String(item?.path||'').trim(),content=String(item?.content||'').slice(0,24000);
@@ -932,11 +925,13 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     }
     if(centralErrors.length)localContext.push({path:'ESTADO conexiones no disponibles',content:centralErrors.join('\n')});
   }else if(scope?.type==='agent'&&scope?.key==='web_ecommerce'){
-    const src=scope?.source||{};
-    if(src.type==='portal'&&src.id){
-      const p=await getPortal(clean(src.id,80));if(!p)throw new Error('La conexión Web & Ecommerce ya no está disponible.');
-      portalContext=[await readPortal(p,question)];portalFiles=portalAsLocalFiles(portalContext);localContext=portalFiles;
-    }else throw new Error('Conecta primero tu web, tienda o portal para usar el agente Web & Ecommerce.');
+    const explicit=Array.isArray(scope?.selectedSources)&&scope.selectedSources.length?scope.selectedSources:(scope?.selectedSource?[scope.selectedSource]:[]);
+    if(!explicit.length)throw new Error('Elige Shopify o la conexión privada que quieres consultar.');
+    for(const src of explicit.slice(0,2)){
+      const ctx=await contextForExplicitSource(s,src,question);
+      localContext.push(...ctx.local);portalContext.push(...ctx.portals);
+    }
+    portalFiles=portalAsLocalFiles(portalContext);
   }else if(scope?.type==='agent'&&scope?.key==='crm'){
     const integration=s.secret?.integrations?.crm;if(!integration)throw new Error('Conecta primero tu CRM para usar el agente CRM y clientes.');
     localContext=await collectAuthorizedContext();
