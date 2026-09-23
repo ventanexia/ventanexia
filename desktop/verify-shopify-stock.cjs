@@ -10,8 +10,8 @@ need(backend,/orders\(first:100, after:\$cursor[\s\S]*created_at:>=\$\{since\}/,
 need(backend,/if\(o\.cancelledAt\)\{cancelledSkipped\+\+;continue\}/,'cancelled orders must be excluded');
 need(renderer,/function isShopifyStockRequest/,'renderer must detect Shopify stock requests');
 need(renderer,/shopifyReplenishmentSummary\(\)/,'renderer must use calculated stock summary directly');
-need(renderer,/\| SKU \/ EAN \| Producto \| Stock actual \| Ventas 6 meses \| Media diaria \| Días de cobertura \| Cantidad a pedir \| Estado \|/,'deterministic stock table must be present');
-need(renderer,/Menos de 5 días de cobertura/,'visible urgent rule must stay at 5 days');
+need(renderer,/\| Código \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must be present');
+need(renderer,/menos de 5 días de cobertura/i,'visible urgent rule must stay at 5 days');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
 need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');
