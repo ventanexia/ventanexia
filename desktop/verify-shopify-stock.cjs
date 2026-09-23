@@ -27,6 +27,13 @@ need(renderer,/\| Código \| Producto \| Stock \| Ventas 6 meses \| Media diaria
 need(renderer,/menos de 5 días de cobertura/i,'visible urgent rule must stay at 5 days');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
+need(backend,/const PORTAL_MAX_PAGES=12;/,'private portal stock scan must explore enough relevant pages');
+need(backend,/\[role="grid"\],\[role="table"\],\.ag-root,\.MuiDataGrid-root,\.dx-datagrid/,'private portal reader must extract modern ERP grids');
+need(backend,/choosePortalActions/,'private portal reader must navigate safe dynamic menus');
+need(backend,/stockUrl:stockExtract\.sourceUrl/,'private portal reader must learn the verified stock route');
+need(backend,/portal\.stockUrl\|\|null/,'private portal stock route must be reused on later reads');
+need(backend,/pagesScanned/,'private portal stock failure must expose scan diagnostics');
+
 need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');
 need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep SKU and EAN separate and stable');
 const exportCode=fs.readFileSync(path.join(__dirname,'export.cjs'),'utf8');
