@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.129",
+  "version": "0.6.130",
   "private": true,
-  "description": "VentaNexIA Desktop · stock completo separado de reposición + exportación de inventario · 0.6.129",
+  "description": "VentaNexIA Desktop · Naturdesma en ventana viva + lectura ERP reforzada · 0.6.130",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",

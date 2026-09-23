@@ -57,6 +57,9 @@ need(backend,/choosePortalActions/,'private portal reader must navigate safe dyn
 need(backend,/stockUrl:stockExtract\.sourceUrl/,'private portal reader must learn the verified stock route');
 need(backend,/portal\.stockUrl\|\|null/,'private portal stock route must be reused on later reads');
 need(backend,/pagesScanned/,'private portal stock failure must expose scan diagnostics');
+need(backend,/liveWindowChecked/,'private portal stock diagnostics must say whether the live portal was checked');
+need(renderer,/ventana real abierta de/,'user-facing stock failure must distinguish live-window reading from hidden navigation');
+
 
 need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');
 need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep SKU and EAN separate and stable');
