@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.128",
+  "version": "0.6.129",
   "private": true,
-  "description": "VentaNexIA Desktop · detección corregida de comprar/compras + pedido persistente por conexión · 0.6.128",
+  "description": "VentaNexIA Desktop · stock completo separado de reposición + exportación de inventario · 0.6.129",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
