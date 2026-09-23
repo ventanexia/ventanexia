@@ -2,6 +2,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const backend=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
+const preload=fs.readFileSync(path.join(__dirname,'preload.cjs'),'utf8');
 const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8');
 function need(src,re,msg){if(!re.test(src)){console.error('SHOPIFY_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
 need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'sales window must stay at 180 days');
