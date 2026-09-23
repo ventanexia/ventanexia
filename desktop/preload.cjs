@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('vnx',{
   connectOwnedShopify:(payload)=>ipcRenderer.invoke('shopify:connect-owned',payload),
   shopifyStatus:()=>ipcRenderer.invoke('shopify:status'),
   shopifyReplenishmentSummary:()=>ipcRenderer.invoke('shopify:replenishment-summary'),
+  portalReplenishmentSummary:(id)=>ipcRenderer.invoke('portal:replenishment-summary',id),
   stockImportFile:()=>ipcRenderer.invoke('stock:import-file'),
   analyzeDocument:()=>ipcRenderer.invoke('document:analyze-select'),
   disconnectShopify:()=>ipcRenderer.invoke('shopify:disconnect'),
