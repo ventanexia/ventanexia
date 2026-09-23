@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.125",
+  "version": "0.6.126",
   "private": true,
-  "description": "VentaNexIA Desktop · Carla central + IA empresarial + conexiones aisladas + portales privados + stock y compras + captación · 0.6.123",
+  "description": "VentaNexIA Desktop · pedido de compras persistente por conexión + fecha de análisis + aviso de antigüedad · 0.6.126",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
