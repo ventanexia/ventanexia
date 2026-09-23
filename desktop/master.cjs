@@ -859,7 +859,7 @@ async function contextForExplicitSource(s,src,question=''){
   }else if(src?.module==='email'){
     const all=emailAccountsForState(s),one=Number.isInteger(src.accountIndex)?all[src.accountIndex]:null;
     if(!one)throw new Error('La cuenta de email seleccionada ya no está disponible.');
-    const mail=await collectGmailContextsFast([one],question);local.push(...mail.files);
+    const mail=await collectGmailContextsFast([one],question);local.push(...mail.files); // collectGmailContextsFast(emailAccountsForState(s),question) is intentionally narrowed to the explicitly selected account
     if(!local.length)throw new Error('No he podido leer la cuenta de email seleccionada. '+mail.failures.join(' · '));
   }else if(src?.module==='portal'||src?.type==='portal'){
     const p=await getPortal(clean(src.id,80));if(!p)throw new Error('La página privada seleccionada ya no está disponible.');
