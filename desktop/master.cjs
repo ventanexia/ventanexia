@@ -334,10 +334,10 @@ async function openPortalLogin(id){
 }
 
 async function extractPage(win){
-  return win.webContents.executeJavaScript(`(()=>{const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();const links=[...document.querySelectorAll('a[href]')].slice(0,500).map(a=>({text:clean(a.innerText||a.textContent),href:a.href})).filter(x=>x.href);const images=[...document.images].map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,35000),links,images,url:location.href};})()`,true);
+  return win.webContents.executeJavaScript(`(()=>{const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();const links=[...document.querySelectorAll('a[href]')].slice(0,500).map(a=>({text:clean(a.innerText||a.textContent),href:a.href})).filter(x=>x.href);const images=[...document.images].map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);const tables=[...document.querySelectorAll('table')].slice(0,20).map(t=>[...t.querySelectorAll('tr')].slice(0,5000).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent)))).filter(rows=>rows.length);return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,120000),links,images,tables,url:location.href};})()`,true);
 }
 function queryTerms(question=''){
-  const q=norm(question),groups=[['pedido',['pedido','pedidos','order','orders']],['factura',['factura','facturas','invoice','invoices','facturacion','facturado']],['producto',['producto','productos','product','products','catalogo']],['cliente',['cliente','clientes','customer','customers']],['tarifa',['tarifa','tarifas','precio','precios','price','prices']],['alerta',['alerta','alertas']],['dashboard',['dashboard','resumen','facturado','ventas','venta','hoy','semana','mes']]],wanted=[];
+  const q=norm(question),groups=[['pedido',['pedido','pedidos','order','orders']],['factura',['factura','facturas','invoice','invoices','facturacion','facturado']],['producto',['producto','productos','product','products','catalogo','articulo','articulos','existencia','existencias','stock','inventario','almacen']],['cliente',['cliente','clientes','customer','customers']],['tarifa',['tarifa','tarifas','precio','precios','price','prices']],['alerta',['alerta','alertas']],['dashboard',['dashboard','resumen','facturado','ventas','venta','hoy','semana','mes','historico','movimientos']]],wanted=[];
   for(const [key,words] of groups)if(words.some(w=>q.includes(w)))wanted.push(...words,key);
   const free=q.split(/[^a-z0-9]+/).filter(w=>w.length>=5).slice(0,8);return [...new Set([...wanted,...free])];
 }
@@ -354,14 +354,54 @@ async function readPortal(portal,question=''){
       await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
       return {name:portal.name,url:portal.url,status:'login_required',mode:portal.mode,pages:[],images:[]};
     }
-    const pages=[{title:page.title,url:page.url,text:page.text.slice(0,PORTAL_PAGE_CHARS)}],images=[...(page.images||[])];
+    const pages=[{title:page.title,url:page.url,text:page.text.slice(0,PORTAL_PAGE_CHARS),tables:page.tables||[]}],images=[...(page.images||[])];
     const targets=chooseLinks(page.url,page.links||[],question);
-    for(const target of targets){try{await win.loadURL(target.url);await delay(250);const p=await extractPage(win);if(likelyLogin(p.url,p.text))break;pages.push({title:p.title,url:p.url,text:p.text.slice(0,PORTAL_PAGE_CHARS)});images.push(...(p.images||[]))}catch{}}
+    for(const target of targets){try{await win.loadURL(target.url);await delay(250);const p=await extractPage(win);if(likelyLogin(p.url,p.text))break;pages.push({title:p.title,url:p.url,text:p.text.slice(0,PORTAL_PAGE_CHARS),tables:p.tables||[]});images.push(...(p.images||[]))}catch{}}
     try{await session.fromPartition(partitionFor(portal.id)).cookies.flushStore()}catch{}
     await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
     return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12)};
   }finally{if(!win.isDestroyed())win.destroy()}
 }
+function portalTableHeaders(rows=[]){return (rows[0]||[]).map(normStockHeader)}
+function portalCol(headers,candidates){return findStockColumn(headers,candidates)}
+function portalNumber(v){const s=String(v??'').trim().replace(/\s/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.').replace(/[^0-9.-]/g,'');const n=Number(s);return Number.isFinite(n)?n:0}
+function extractPortalStockRows(portalResult){
+  const out=[],seen=new Set();
+  for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
+    if(!Array.isArray(table)||table.length<2)continue;
+    const h=portalTableHeaders(table),iSku=portalCol(h,['sku','referencia','ref','codigo articulo','codigo','cod. articulo']),iEan=portalCol(h,['ean','codigo de barras','barcode']),iName=portalCol(h,['producto','articulo','nombre','descripcion']),iStock=portalCol(h,['stock actual','stock','existencias','existencia','disponible','unidades disponibles']);
+    if(iName<0||iStock<0||(iSku<0&&iEan<0))continue;
+    for(const row of table.slice(1)){const sku=iSku>=0?String(row[iSku]||'').trim():'',ean=iEan>=0?String(row[iEan]||'').trim():'',title=String(row[iName]||'').trim();if(!title||(!sku&&!ean))continue;const key=sku||('EAN:'+ean);if(seen.has(key))continue;seen.add(key);out.push({sku,ean,title,stock:portalNumber(row[iStock])})}
+  }
+  return out;
+}
+function extractPortalSalesRows(portalResult){
+  const totals=new Map();
+  for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
+    if(!Array.isArray(table)||table.length<2)continue;
+    const h=portalTableHeaders(table),iSku=portalCol(h,['sku','referencia','ref','codigo articulo','codigo','cod. articulo']),iEan=portalCol(h,['ean','codigo de barras','barcode']),iQty=portalCol(h,['ventas 6 meses','unidades vendidas','cantidad vendida','vendido','vendidas','ventas','cantidad','unidades']);
+    if(iQty<0||(iSku<0&&iEan<0))continue;
+    for(const row of table.slice(1)){const sku=iSku>=0?String(row[iSku]||'').trim():'',ean=iEan>=0?String(row[iEan]||'').trim():'',key=sku||('EAN:'+ean);if(!key||key==='EAN:')continue;totals.set(key,(totals.get(key)||0)+portalNumber(row[iQty]))}
+  }
+  return totals;
+}
+async function portalReplenishmentSummary(portal){
+  if(!portal)throw new Error('Conexión privada no encontrada.');
+  const stockRead=await readPortal(portal,'productos stock existencias inventario almacen referencias');
+  if(stockRead.status!=='connected')return {ok:false,status:stockRead.status,sourceLabel:portal.name,reason:'login_required'};
+  const products=extractPortalStockRows(stockRead);
+  if(!products.length)return {ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured'};
+  const salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias');
+  const sales=extractPortalSalesRows(salesRead);
+  const merged=products.map(p=>({...p,soldWindow:sales.get(p.sku||('EAN:'+p.ean))||0}));
+  const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
+  return {ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows,productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,structuredSales:sales.size>0,truncated:false,catalogTruncated:false};
+}
+ipcMain.handle('portal:replenishment-summary',async(_e,id)=>{
+  const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Conexión privada no encontrada.');
+  return portalReplenishmentSummary(portal);
+});
+
 async function collectPortalContext(question=''){
   const s=await readState(),connected=(s.portals||[]).filter(p=>!isShopifyAdminUrl(p.url)&&!isShopifyAdminUrl(p.lastUrl)&&(p.mode==='read'||p.mode==='write')),out=[];
   for(const portal of connected.slice(0,4)){try{out.push(await readPortal(portal,question))}catch(e){out.push({name:portal.name,url:portal.url,status:'error',mode:portal.mode,pages:[],images:[],error:String(e?.message||e).slice(0,200)})}}return out;
