@@ -105,6 +105,6 @@ jobs:
           must(terms.includes('no cedible')&&terms.includes('no transferible')&&terms.includes('15 días de demo completa, gratis'),'Trial terms missing licence restrictions');
           must(terms.includes('secretos empresariales')&&terms.includes('Prohibición de copia')&&terms.includes('interoperabilidad'),'Trial anti-copy/confidentiality clauses missing');
           must(contract.includes('16 bis. Confidencialidad')&&contract.includes('ipAck'),'Paid contract anti-copy/confidentiality acceptance missing');
-          must(accept.includes('ipConfidentialityAccepted')&&accept.includes('2026-09-22-v12'),'Server must enforce current IP/confidentiality acceptance');
+          must(accept.includes('ipConfidentialityAccepted')&&accept.includes('2026-09-23-v13'),'Server must enforce current IP/confidentiality acceptance');
           console.log('VentaNexIA commercial model verification OK: current prices, measurable limits, active no-card trial and contracts synchronized.');
           NODE
