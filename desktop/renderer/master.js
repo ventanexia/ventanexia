@@ -45,7 +45,7 @@
     core_ai:'Ej.: prepárame el día · ¿qué tengo pendiente? · dime por dónde empiezo · ¿qué puedes adelantar por mí?',
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
     whatsapp:'Ej.: prepara una respuesta para este cliente y déjamela lista para autorizar antes de enviarla',
-    prospecting:'Ej.: busca 10 clínicas en Barcelona que puedan comprar portasueros · después: prepara los emails · envía los emails · seguimiento',
+    prospecting:'Ej.: promociona Lactolerance: cada día busca 10 farmacias, analiza cada una y deja en borradores un email profesional con solo la información que pueda interesarle',
     crm:'Ej.: qué oportunidades debo seguir hoy, prepara un plan comercial o revisa los clientes conectados',
     customer_service:'Ej.: qué consultas necesitan respuesta, prepara una respuesta o crea un guion para atender una llamada',
     quotes:'Ej.: prepara una propuesta para una clínica con 5 portasueros y 2 mesas Mayo',
@@ -97,22 +97,29 @@
       steps:['Entender','Preparar','Autorizar / responder']
     },
     prospecting:{
-      subtitle:'Encuentra nuevas oportunidades de negocio y llega a más clientes.',
-      primary:'✨ Buscar oportunidades reales',
+      subtitle:'Tu comercial digital: busca empresas, estudia qué necesita cada una y prepara una presentación distinta para cada posible cliente.',
+      primary:'✨ Preparar campaña de captación',
       consent:true,catalog:true,
       fields:[
-        {key:'company',label:'EMPRESA',type:'text',placeholder:'Nombre de tu empresa',required:true},
-        {key:'email',label:'EMAIL DE ENVÍO',type:'email',placeholder:'tu@email.com'},
-        {key:'offer',label:'¿QUÉ VENDES?',type:'text',wide:true,placeholder:'Ej. portasueros, camillas eléctricas, software de gestión',required:true},
-        {key:'buyer',label:'¿QUIÉN PODRÍA COMPRARLO?',type:'text',placeholder:'Ej. clínicas privadas, hospitales, residencias',required:true},
+        {key:'company',label:'TU EMPRESA',type:'text',placeholder:'Nombre de tu empresa',required:true},
+        {key:'brand',label:'MARCA QUE QUIERES PROMOCIONAR',type:'text',wide:true,placeholder:'Ej. Lactolerance, PROEXEL o VentaNexIA',required:true},
+        {key:'offer',label:'PRODUCTOS / SERVICIOS DE ESA MARCA',type:'textarea',wide:true,placeholder:'Describe qué quieres presentar o indica que Carla use la web, catálogo o documentos conectados',required:true},
+        {key:'brandSource',label:'DE DÓNDE DEBE APRENDER LA MARCA',type:'select',options:['Web o tienda conectada','Catálogo / documentos autorizados','Web + catálogo / documentos','Información que escribo aquí']},
+        {key:'buyer',label:'¿A QUÉ TIPO DE CLIENTE BUSCAMOS?',type:'text',placeholder:'Ej. farmacias, clínicas, hospitales, distribuidores',required:true},
         {key:'zone',label:'¿DÓNDE?',type:'text',placeholder:'Ej. Barcelona, Cataluña, toda España',required:true},
-        {key:'condition',label:'¿QUIERES AÑADIR ALGUNA CONDICIÓN?',type:'textarea',wide:true,placeholder:'Opcional. Ej. que sean empresas privadas, con varias sedes o de un sector concreto'},
-        {key:'count',label:'NÚMERO DE EMPRESAS',type:'number',placeholder:'10',value:'10'},
+        {key:'condition',label:'CONDICIONES DEL CLIENTE IDEAL',type:'textarea',wide:true,placeholder:'Ej. farmacia independiente, clínica con varias sedes, distribuidor especializado…'},
+        {key:'count',label:'CUÁNTOS CLIENTES POR EJECUCIÓN',type:'number',placeholder:'10',value:'10'},
+        {key:'frequency',label:'CUÁNDO QUIERES QUE LO PREPARE',type:'select',options:['Ahora','Cada día','De lunes a viernes','Cada semana','Cuando yo lo pida']},
+        {key:'delivery',label:'QUÉ HACER CON LOS EMAILS',type:'select',wide:true,options:['Prepararlos para revisar','Dejarlos como borradores en mi correo','Enviar automáticamente según mis reglas']},
+        {key:'personalization',label:'PERSONALIZACIÓN',type:'select',wide:true,options:['Analizar cada empresa y enviar solo lo que realmente le pueda interesar','Presentación general de la marca']},
+        {key:'email',label:'EMAIL DE ENVÍO',type:'email',placeholder:'tu@email.com'},
         {key:'signature',label:'FIRMA COMERCIAL',type:'text',placeholder:'Ej. Javier'},
-        {key:'web',label:'WEB',type:'text',wide:true,placeholder:'Ej. mobiliariosanitario.com'}
+        {key:'web',label:'WEB DE LA MARCA',type:'text',wide:true,placeholder:'Ej. lactolerance.es'},
+        {key:'logo',label:'LOGO / IDENTIDAD',type:'text',wide:true,placeholder:'Usar logo de la web o indicar el archivo/carpeta autorizada'},
+        {key:'instruction',label:'REGLAS PARA CARLA',type:'textarea',wide:true,placeholder:'Ej. no repetir contactos, no enviar a emails genéricos, destacar solo productos adecuados para cada empresa'}
       ],
-      capabilities:['Buscar empresas reales con datos públicos','Localizar web, teléfono y email corporativo cuando estén publicados','Ordenar resultados por encaje comercial','Preparar emails personalizados','Adjuntar catálogo autorizado automáticamente','Hacer seguimiento evitando duplicados'],
-      steps:['Buscar','Preparar emails','Enviar','Seguimiento']
+      capabilities:['Elegir qué marca o línea comercial quieres promocionar','Buscar empresas reales y localizar datos corporativos públicos','Analizar la web y el perfil de cada posible cliente antes de escribirle','Elegir qué producto, servicio o argumento de la marca puede interesar realmente a cada empresa','Crear un email diferente y profesional para cada posible cliente','Usar logo, firma, web, catálogo e información autorizada de la marca','Dejar los emails preparados para revisar o como borradores en el correo conectado','Enviar automáticamente solo si el cliente activa expresamente ese modo y define sus reglas','Preparar campañas ahora, diariamente, de lunes a viernes o semanalmente','Guardar historial para evitar duplicados y preparar seguimientos'],
+      steps:['Elegir marca','Buscar clientes','Analizar uno a uno','Personalizar','Borrador o envío','Seguimiento']
     },
     crm:{
       subtitle:'Organiza tus posibles ventas y te dice a qué clientes debes seguir.',
