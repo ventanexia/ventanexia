@@ -20,6 +20,21 @@ if(/compras\?/.test(renderer)){console.error('SHOPIFY_STOCK_VERIFY_FAIL: legacy 
   if(!fn('dime qué tengo que comprar')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "dime qué tengo que comprar" must trigger stock analysis');process.exit(1)}
 }
 
+need(renderer,/function isStockListingRequest\(text=''\)/,'stock listing intent must be separated from replenishment');
+need(renderer,/function stockInventoryTable\(summary=\{\}\)/,'full stock table renderer must exist');
+need(renderer,/function stockExportData\(summary=\{\}\)/,'full stock export data must exist');
+need(renderer,/data-stock-excel/,'full stock Excel action must exist');
+need(renderer,/stockListing\?stockInventoryTable\(summary\):shopifyStockTable\(summary\)/,'Shopify must route plain stock requests to the full inventory table');
+need(renderer,/stockListing\?stockInventoryTable\(portalSummary\):shopifyStockTable\(portalSummary\)/,'private portals must route plain stock requests to the full inventory table');
+{
+  const m=renderer.match(/function isStockListingRequest\(text=''\)\{[\s\S]*?\n  \}/);
+  if(!m){console.error('SHOPIFY_STOCK_VERIFY_FAIL: isStockListingRequest function could not be extracted');process.exit(1)}
+  const fn=(0,eval)('('+m[0]+')');
+  if(!fn('mírame el stock')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "mírame el stock" must request the full stock list');process.exit(1)}
+  if(!fn('dime el stock')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "dime el stock" must request the full stock list');process.exit(1)}
+  if(fn('analiza el stock')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "analiza el stock" must stay in replenishment analysis, not plain listing');process.exit(1)}
+  if(fn('dime qué tengo que comprar')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: purchase intent must not be treated as a plain stock listing');process.exit(1)}
+}
 need(renderer,/async function latestPurchaseAnalysis\(scopeKey\)/,'purchase analysis loader must support persisted cache');
 need(renderer,/purchaseAnalysisGet\?\.\(scopeKey\)/,'purchase order must restore persisted analysis');
 need(renderer,/rememberPurchaseAnalysis/,'verified purchase analysis must be persisted');
