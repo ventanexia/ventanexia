@@ -12,7 +12,7 @@
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
       emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
-      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
+      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,securityCard:m.securityCard||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
     }));
   }
   function persistMasterChatState(){
@@ -2118,6 +2118,7 @@ function emailListItem(m,i,selected){
       const actions=m.emailActions?.options?.length?'<div class="row" style="flex-wrap:wrap;margin-top:10px;gap:8px">'+m.emailActions.options.map(a=>'<button class="mini email-action-btn" data-msg-id="'+escM(m.emailActions.messageId||'')+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div>':'';
       const groupedActions=Array.isArray(m.emailActionGroups)&&m.emailActionGroups.length?'<div class="vnx-email-action-groups">'+m.emailActionGroups.map((g,gi)=>'<div class="vnx-email-action-group"><b>'+escM(g.label||g.meta?.subject||'Email')+'</b><div class="row">'+(g.meta?.options||[]).filter(a=>['draft_reply','send_reply','archive','mark_read','no_reply_needed'].includes(a.key)).map(a=>'<button class="mini grouped-email-action-btn" data-master-msg="'+msgIndex+'" data-email-group="'+gi+'" data-action="'+escM(a.key)+'">'+escM(a.label)+'</button>').join('')+'</div></div>').join('')+'</div>':'';
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
+      const securityCard=m.securityCard?.type==='portal_login'?'<div class="vnx-handoff-card"><b>🔐 '+escM(m.securityCard.title||'Conexión privada')+'</b><span>'+escM(m.securityCard.status||'Requiere iniciar sesión')+'</span><small>Las credenciales se introducen únicamente en la ventana segura de Conexiones. Nunca en el chat.</small><div class="row" style="gap:8px;margin-top:10px"><button class="mini" data-open-secure-connections>🔌 Abrir Conexiones</button></div></div>':'';
       const purchaseActions=(m.purchaseExport||isPurchaseProposal(m.content))?'<div class="vnx-secretary-actions vnx-purchase-actions"><b>Pedido para Compras</b><button data-purchase-excel="'+msgIndex+'">📊 Excel</button><button data-purchase-csv="'+msgIndex+'">⬇ CSV importable</button><button data-purchase-pdf="'+msgIndex+'">📄 PDF</button><button data-purchase-print="'+msgIndex+'">🖨 Imprimir</button></div>':'';
       const importAction=m.importStockPrompt?'<div class="vnx-secretary-actions"><button data-import-stock-file="'+msgIndex+'">📎 Elegir archivo (Excel o CSV)</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
@@ -2169,7 +2170,8 @@ function emailListItem(m,i,selected){
     $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
     $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
     $$m('[data-purchase-csv]').forEach(btn=>btn.onclick=()=>exportPurchaseCsv(masterMessages[Number(btn.dataset.purchaseCsv)],btn));
-    $$m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
+    $m('[data-open-secure-connections]').forEach(btn=>btn.onclick=()=>openConnectionsTab());
+    $m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
     $$m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
     $$m('[data-import-stock-file]').forEach(btn=>btn.onclick=async()=>{
       const msgIndex=Number(btn.dataset.importStockFile),old=btn.textContent;
