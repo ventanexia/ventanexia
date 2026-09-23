@@ -1456,3 +1456,14 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
     padding:0 0 2px!important;
   }
 }
+
+/* 0.6.114 · Inicio simplificado: seis áreas, especialistas dentro */
+.vnx-home-actions button{display:grid;grid-template-columns:34px 1fr;grid-template-rows:auto auto;column-gap:10px}
+.vnx-home-actions button>span{grid-row:1/3}.vnx-home-actions button>b{align-self:end}.vnx-home-actions button>small{font-size:9.5px;color:#82a5c1;line-height:1.25}
+.vnx-home-team{margin:4px 0 20px}.vnx-home-team .vnx-home-section-head>div p{margin:3px 0 0;color:#7fa0bb;font-size:10px}
+.vnx-team-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.vnx-team-grid>button{display:flex;align-items:flex-start;gap:12px;min-height:104px;padding:15px;border:1px solid #195b8b;border-radius:13px;background:linear-gradient(155deg,#092a4b,#071f39);color:#edf7ff;text-align:left;cursor:pointer}
+.vnx-team-grid>button:hover{border-color:#35aaff;transform:translateY(-1px)}
+.vnx-team-grid>button>span{width:42px;height:42px;flex:0 0 auto;display:grid;place-items:center;border-radius:11px;background:#0a4d8a;color:#69d4ff;font-size:20px}
+.vnx-team-grid b{display:block;font-size:13px}.vnx-team-grid small{display:block;color:#92aec4;font-size:10px;line-height:1.4;margin-top:4px}.vnx-team-grid em{display:block;color:#50bfff;font-size:9px;font-style:normal;margin-top:8px}
+@media(max-width:1150px){.vnx-team-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.vnx-team-grid{grid-template-columns:1fr}}
