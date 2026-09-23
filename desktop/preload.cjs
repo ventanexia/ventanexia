@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('vnx',{
   shopifyStatus:()=>ipcRenderer.invoke('shopify:status'),
   shopifyReplenishmentSummary:()=>ipcRenderer.invoke('shopify:replenishment-summary'),
   stockImportFile:()=>ipcRenderer.invoke('stock:import-file'),
+  analyzeDocument:()=>ipcRenderer.invoke('document:analyze-select'),
   disconnectShopify:()=>ipcRenderer.invoke('shopify:disconnect'),
   connectIntegration:(payload)=>ipcRenderer.invoke('integration:connect',payload),
   integrationStatus:(module)=>ipcRenderer.invoke('integration:status',module),
