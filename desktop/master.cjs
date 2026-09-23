@@ -334,7 +334,7 @@ async function openPortalLogin(id){
 }
 
 async function extractPage(win){
-  return win.webContents.executeJavaScript(\`(()=>{const clean=s=>String(s||'').replace(/\\\\s+/g,' ').trim();
+  return win.webContents.executeJavaScript(`(()=>{const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();
     const tableRows=t=>[...t.querySelectorAll('tr')].slice(0,5000).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent))).filter(r=>r.length);
     const tables=[...document.querySelectorAll('table')].slice(0,30).map(tableRows).filter(rows=>rows.length);
     const semantic=[];
@@ -370,7 +370,7 @@ async function extractPage(win){
     }
     const images=[...document.images].map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);
     return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,120000),links,actions,images,tables:allTables,url:location.href};
-  })()\`,true);
+  })()`,true);
 }
 function queryTerms(question=''){
   const q=norm(question),groups=[
@@ -410,7 +410,7 @@ function choosePortalActions(actions=[],question='',allowPaging=false){
   const terms=queryTerms(question),ranked=[];
   for(const a of actions){
     if(a.disabled||portalActionDangerous(a.text))continue;
-    const hay=norm(a.text),paging=/^(siguiente|next|sig\\.?|>+|›|→)$/.test(hay)||/pagina siguiente|next page/.test(hay);
+    const hay=norm(a.text),paging=/^(siguiente|next|sig\.?|>+|›|→)$/.test(hay)||/pagina siguiente|next page/.test(hay);
     let score=paging&&allowPaging?7:0;
     for(const term of terms)if(hay.includes(term))score+=4;
     if(/producto|articulo|referencia|stock|existencia|inventario|almacen/.test(hay)&&terms.some(t=>['producto','productos','articulo','articulos','referencia','referencias','stock','existencia','existencias','inventario','almacen'].includes(t)))score+=5;
@@ -419,13 +419,7 @@ function choosePortalActions(actions=[],question='',allowPaging=false){
   }
   return ranked.sort((a,b)=>b.score-a.score);
 }
-async function clickPortalAction(win,action){
-  if(!action?.id)return false;
-  try{
-    return Boolean(await win.webContents.executeJavaScript(\`(()=>{const el=document.querySelector('[data-vnx-read-action="\${String(action.id).replace(/["\\\\]/g,'')}"]');if(!el||el.disabled||el.getAttribute('aria-disabled')==='true')return false;el.click();return true})()\`,true));
-  }catch{return false}
-}
-function portalPageFingerprint(page){
+async function clickPortalAction(win,action){\n  if(!action?.id)return false;\n  try{\n    const safeId=String(action.id).replace(/[^a-zA-Z0-9_-]/g,'');\n    return Boolean(await win.webContents.executeJavaScript(`(()=>{const el=document.querySelector('[data-vnx-read-action="${safeId}"]');if(!el||el.disabled||el.getAttribute('aria-disabled')==='true')return false;el.click();return true})()`,true));\n  }catch{return false}\n}\nfunction portalPageFingerprint(page){
   const first=(page?.tables||[])[0]||[];
   return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))).digest('hex').slice(0,16);
 }
