@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.127",
+  "version": "0.6.128",
   "private": true,
-  "description": "VentaNexIA Desktop · pedido de compras persistente por conexión + fecha de análisis + aviso de antigüedad · 0.6.126",
+  "description": "VentaNexIA Desktop · detección corregida de comprar/compras + pedido persistente por conexión · 0.6.128",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
