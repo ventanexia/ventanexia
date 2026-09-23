@@ -1720,7 +1720,8 @@ function emailListItem(m,i,selected){
     }));
     // Los portales privados son fuentes de empresa independientes. Se ofrecen a los
     // especialistas que pueden consultar datos operativos, nunca se mezclan solos.
-    if(key==='core_ai'||key==='web_ecommerce'||key==='orders'||['crm','customer_service','quotes','reports','administration','automation'].includes(key)){
+    if(key==='core_ai'||key==='web_ecommerce'||key==='orders'){
+      // Carla, Web y Pedidos muestran explícitamente los portales privados conectados.
       for(const p of masterPortals||[])if(p&&p.id&&['read','write'].includes(p.mode)&&p.lastStatus==='connected')mapped.push({id:p.id,module:'portal',type:'portal',label:p.name||p.url,url:p.url,raw:p});
     }
     const seen=new Set();
