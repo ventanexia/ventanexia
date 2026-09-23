@@ -2,6 +2,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const backend=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
+const desktopMain=fs.readFileSync(path.join(__dirname,'main.cjs'),'utf8');
 const preload=fs.readFileSync(path.join(__dirname,'preload.cjs'),'utf8');
 const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8');
 function need(src,re,msg){if(!re.test(src)){console.error('SHOPIFY_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
@@ -18,8 +19,8 @@ need(renderer,/Basado en análisis verificado/,'purchase order must show analysi
 need(renderer,/ageHours>=24/,'stale analysis must be visibly flagged without being discarded');
 need(preload,/purchaseAnalysisGet:\(scopeKey\)=>ipcRenderer\.invoke\('purchase-analysis:get',scopeKey\)/,'preload must expose purchase analysis read');
 need(preload,/purchaseAnalysisSet:\(payload\)=>ipcRenderer\.invoke\('purchase-analysis:set',payload\)/,'preload must expose purchase analysis write');
-need(backend,/ipcMain\.handle\('purchase-analysis:get'/,'backend must expose encrypted purchase analysis read');
-need(backend,/ipcMain\.handle\('purchase-analysis:set'/,'backend must expose encrypted purchase analysis write');
+need(desktopMain,/ipcMain\.handle\('purchase-analysis:get'/,'desktop main must expose encrypted purchase analysis read');
+need(desktopMain,/ipcMain\.handle\('purchase-analysis:set'/,'desktop main must expose encrypted purchase analysis write');
 need(renderer,/const direct=\/\\b\(haz/,'direct "hazme el pedido" intent must be detected before stock analysis');
 need(renderer,/shopifyReplenishmentSummary\(\)/,'renderer must use calculated stock summary directly');
 need(renderer,/\| Código \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must be present');
