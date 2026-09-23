@@ -2415,7 +2415,7 @@ function emailListItem(m,i,selected){
 
   function stockIntentText(text=''){
     const q=String(text||'').toLowerCase();
-    return (/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q));
+    return (/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compr\w*|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q));
   }
   function isShopifyStockRequest(text='',scope=null){
     if(!stockIntentText(text))return false;
@@ -2508,7 +2508,7 @@ function emailListItem(m,i,selected){
   }
   function enrichBusinessRequest(text,scope){
     const raw=String(text||'').trim(),q=raw.toLowerCase();
-    const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q))&&(/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock|rotura|previsi[oó]n|d[ií]as)\b/.test(q)||/agot/.test(q));
+    const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compr\w*|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q))&&(/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock|rotura|previsi[oó]n|d[ií]as)\b/.test(q)||/agot/.test(q));
     const meetingIntent=/\b(reuni[oó]n|visita|cita)\b/.test(q)&&/\b(prepar|informe|dossier|cliente|agenda|datos|revis)\b/.test(q);
     if(stockIntent){
       return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK, REPOSICIÓN Y RIESGO DE ROTURA: Si hay una fuente con path que empiece por "Shopify" y contenga "reposición y previsión de rotura", esos números YA están calculados por el programa a partir de ventas reales de los últimos 6 meses (180 días) por cada SKU o EAN por separado. No recalcules nada ni inventes cifras: explica y prioriza exactamente los valores recibidos. Si la consulta alcanzó el límite de seguridad, indícalo. FORMATO OBLIGATORIO: # Resumen rápido; ## Riesgo de rotura en menos de 5 días — una línea por producto con urgent=true, aunque todavía tenga stock; ## Reposición propuesta para cubrir 30 días — una línea por producto con qty>0 e incluye SKU/EAN, producto, stock actual, ventas 6 meses, media diaria, días de cobertura y cantidad a pedir; ## Productos sin ventas registradas — no propongas cantidad para ellos salvo que el stock ya esté agotado; ## Acción para Compras. Si Compras o un ERP está conectado, no hagas el pedido sin permiso: deja "Listo para enviar a Compras" y pide autorización. El resultado debe poder exportarse directamente a Excel y PDF.';
