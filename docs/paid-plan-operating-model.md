@@ -159,7 +159,7 @@ Las ampliaciones públicas actuales deben limitarse a conceptos realmente operat
 - Canal adicional de pedidos online compatible: 29 €/mes + IVA.
 - WhatsApp u otros servicios de terceros: únicamente cuando exista una integración operativa y se indiquen claramente los cargos de Meta/proveedor o del servicio correspondiente.
 
-Vídeo, voz, imágenes u otras bolsas de coste variable no deben mostrarse como incluidas ni venderse públicamente hasta verificar el flujo completo de extremo a extremo.
+Vídeo y voz no forman parte del precio base: se ofrecen mediante créditos de uso claramente separados cuando el flujo correspondiente esté operativo. WhatsApp/Meta, telefonía, CRM de pago y otras APIs o licencias de terceros usan la cuenta propia del cliente o un coste externo informado antes de activarse. Ningún coste variable de tercero se incorpora silenciosamente a la cuota base.
 
 ### Pedidos y canales
 
