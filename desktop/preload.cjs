@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('vnx',{
   savePortal:(payload)=>ipcRenderer.invoke('portal:save',payload),
   connectPortal:(id)=>ipcRenderer.invoke('portal:connect',id),
   checkPortal:(id)=>ipcRenderer.invoke('portal:check',id),
+  disconnectPortal:(id)=>ipcRenderer.invoke('portal:disconnect',id),
   calibratePortal:(id)=>ipcRenderer.invoke('portal:calibrate',id),
   getPortalProfile:(id)=>ipcRenderer.invoke('portal:profile',id),
   adaptivePortalQuery:(id,question)=>ipcRenderer.invoke('portal:adaptive-query',id,question),
