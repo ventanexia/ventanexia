@@ -10,6 +10,15 @@ need(renderer,/async function renderMasterPortals\(\)[\s\S]*listPortals\(\)[\s\S
 need(renderer,/if\(key==='core_ai'\|\|key==='web_ecommerce'\|\|key==='orders'\)[\s\S]*module:'portal'/,'Carla/Web/Pedidos must expose connected private portals as sources');
 need(backend,/scope\?\.selectedSources[\s\S]*scope\?\.selectedSource[\s\S]*src\?\.module==='portal'\|\|src\?\.type==='portal'/,'selected private portal must route through strict source isolation');
 need(backend,/if\(!explicit\.length\)[\s\S]*hubContext/,'other connection metadata must stay out when an explicit source is selected');
+need(backend,/const livePortalWindows=new Map\(\)/,'private portals must keep a live authenticated window registry');
+need(backend,/function livePortalWindow\(id\)/,'live private portal window lookup must exist');
+need(backend,/function registerLivePortalWindow\(portal,win\)/,'private portal windows must be registered');
+need(backend,/event\.preventDefault\(\);[\s\S]*win\.hide\(\)/,'closing a private portal must hide it instead of destroying authenticated state');
+need(backend,/async function readLivePortal\(portal\)/,'Carla must be able to read the live private portal view');
+need(backend,/const liveRead=await readLivePortal\(portal\)/,'stock analysis must inspect the live portal before hidden navigation');
+need(backend,/usedLiveWindow/,'stock result must report when the live portal supplied the data');
+need(backend,/\.ant-table,[\s\S]*\.el-table,[\s\S]*\.p-datatable,[\s\S]*\.k-grid/,'private portal reader must support common ERP grid frameworks');
+
 const hidden=styles.lastIndexOf('.vnx-carla-window #chatSourceHint{display:none!important}');
 const restoredBlock=styles.match(/\.vnx-carla-window:not\(:has\(\.email-dashboard-mode\)\) #chatSourceHint\{[\s\S]*?display:block!important;[\s\S]*?\}/);
 if(!restoredBlock){console.error('PRIVATE_PORTAL_VERIFY_FAIL: restored Carla source hint visibility rule missing');process.exit(1)}
