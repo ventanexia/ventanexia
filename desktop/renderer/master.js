@@ -2448,6 +2448,33 @@ function emailListItem(m,i,selected){
     lines.push('','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
+  function isPurchaseOrderRequest(text=''){
+    const q=String(text||'').toLowerCase();
+    return /\b(pedido|orden)\b/.test(q)&&/\b(compra|compras|reponer|reposici[oó]n|proveedor)\b/.test(q);
+  }
+  function latestPurchaseAnalysis(scopeKey){
+    for(let i=masterMessages.length-1;i>=0;i--){
+      const m=masterMessages[i];
+      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
+    }
+    return null;
+  }
+  function purchaseTableFromData(data={},sourceLabel='Fuente seleccionada'){
+    const headers=Array.isArray(data.headers)?data.headers:[];
+    const rows=Array.isArray(data.rows)?data.rows:[];
+    const idx=n=>headers.indexOf(n),at=(r,n)=>{const i=idx(n);return i>=0?r[i]:''};
+    const fmt=n=>{const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):String(n??'—')};
+    const lines=['# Pedido para Compras · '+sourceLabel,'','**Preparado a partir del último análisis verificado de esta misma fuente.**','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
+    let units=0;
+    for(const r of rows){
+      const sku=at(r,'sku')||at(r,'ean')||'—',product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
+      if(Number.isFinite(Number(qty)))units+=Math.max(0,Number(qty));
+      lines.push('| '+sku+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
+    }
+    if(!rows.length)lines.push('| — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
+    lines.push('','**Resumen del pedido:** '+rows.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 30 días cuando existe histórico suficiente.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
+    return lines.join('\n');
+  }
   function enrichBusinessRequest(text,scope){
     const raw=String(text||'').trim(),q=raw.toLowerCase();
     const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compras?|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q))&&(/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock|rotura|previsi[oó]n|d[ií]as)\b/.test(q)||/agot/.test(q));
@@ -2531,6 +2558,19 @@ function emailListItem(m,i,selected){
       masterMessages.push({role:'user',content:visibleText,scopeKey:activeScopeKey});input.value='';try{localStorage.removeItem(CHAT_DRAFT_KEY)}catch{}renderMasterMessages();
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
+        if(isPurchaseOrderRequest(text)){
+          const previous=latestPurchaseAnalysis(activeScopeKey);
+          if(previous){
+            const src=scope?.selectedSource||scope?.source||scope;
+            const sourceLabel=previous.stockSourceLabel||src?.label||src?.name||scope?.shop||scope?.name||'Fuente seleccionada';
+            const content=purchaseTableFromData(previous.purchaseData,sourceLabel);
+            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData:previous.purchaseData,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+            window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+            renderMasterMessages({focusIndex:masterMessages.length-1});
+            btn.disabled=false;btn.textContent='Enviar';
+            return;
+          }
+        }
         if(isShopifyStockRequest(text,scope)&&window.vnx?.shopifyReplenishmentSummary){
           const summary=await window.vnx.shopifyReplenishmentSummary();
           const reply=shopifyStockTable(summary);
@@ -2549,7 +2589,7 @@ function emailListItem(m,i,selected){
             headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
             rows:purchaseRows
           };
-          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
+          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:summary.sourceLabel||summary.shop||scope?.name||'Shopify',scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
@@ -2574,7 +2614,7 @@ function emailListItem(m,i,selected){
               const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
-              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
               const reason=summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** necesita volver a iniciarse.'
