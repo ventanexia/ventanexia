@@ -1,6 +1,6 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.126",
+  "version": "0.6.127",
   "private": true,
   "description": "VentaNexIA Desktop · pedido de compras persistente por conexión + fecha de análisis + aviso de antigüedad · 0.6.126",
   "main": "master-entry.cjs",

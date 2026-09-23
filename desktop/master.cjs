@@ -18,7 +18,7 @@ const MAX_CONTEXT_FILES=80;
 const MAX_CONTEXT_CHARS=120000;
 const MAX_FILE_CHARS=20000;
 const PORTAL_PAGE_CHARS=20000;
-const PORTAL_MAX_PAGES=4;
+const PORTAL_MAX_PAGES=12;
 
 function clean(v,n=500){return String(v||'').trim().slice(0,n)}
 function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
@@ -334,68 +334,267 @@ async function openPortalLogin(id){
 }
 
 async function extractPage(win){
-  return win.webContents.executeJavaScript(`(()=>{const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();const links=[...document.querySelectorAll('a[href]')].slice(0,500).map(a=>({text:clean(a.innerText||a.textContent),href:a.href})).filter(x=>x.href);const images=[...document.images].map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);const tables=[...document.querySelectorAll('table')].slice(0,20).map(t=>[...t.querySelectorAll('tr')].slice(0,5000).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent)))).filter(rows=>rows.length);return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,120000),links,images,tables,url:location.href};})()`,true);
+  return win.webContents.executeJavaScript(`(()=>{const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();
+    const tableRows=t=>[...t.querySelectorAll('tr')].slice(0,5000).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent))).filter(r=>r.length);
+    const tables=[...document.querySelectorAll('table')].slice(0,30).map(tableRows).filter(rows=>rows.length);
+    const semantic=[];
+    for(const root of [...document.querySelectorAll('[role="grid"],[role="table"],.ag-root,.MuiDataGrid-root,.dx-datagrid')].slice(0,30)){
+      let rows=[...root.querySelectorAll('[role="row"]')].slice(0,5000).map(r=>[...r.querySelectorAll('[role="columnheader"],[role="gridcell"],[role="cell"]')].map(c=>clean(c.innerText||c.textContent))).filter(r=>r.length);
+      if(rows.length<2&&root.matches('.ag-root')){
+        const header=[...root.querySelectorAll('.ag-header-cell')].map(c=>clean(c.innerText||c.textContent)).filter(Boolean);
+        const body=[...root.querySelectorAll('.ag-row')].slice(0,5000).map(r=>[...r.querySelectorAll('.ag-cell')].map(c=>clean(c.innerText||c.textContent))).filter(r=>r.length);
+        rows=header.length?[header,...body]:body;
+      }
+      if(rows.length>=2)semantic.push(rows);
+    }
+    const seenTables=new Set(),allTables=[];
+    for(const rows of [...tables,...semantic]){
+      const sig=JSON.stringify(rows.slice(0,3));
+      if(!sig||seenTables.has(sig))continue;
+      seenTables.add(sig);allTables.push(rows);
+    }
+    const links=[];
+    for(const el of [...document.querySelectorAll('a[href],[data-href],[data-url],[routerlink]')].slice(0,800)){
+      const raw=el.href||el.getAttribute('data-href')||el.getAttribute('data-url')||el.getAttribute('routerlink')||'';
+      if(!raw)continue;
+      try{links.push({text:clean(el.innerText||el.textContent||el.getAttribute('aria-label')||el.title),href:new URL(raw,location.href).href})}catch{}
+    }
+    const actions=[];
+    let ai=0;
+    for(const el of [...document.querySelectorAll('button,[role="button"],[role="menuitem"],[role="tab"],[role="treeitem"],a')].slice(0,800)){
+      const text=clean(el.innerText||el.textContent||el.getAttribute('aria-label')||el.getAttribute('title'));
+      if(!text||text.length>140)continue;
+      const cs=getComputedStyle(el);if(cs.display==='none'||cs.visibility==='hidden')continue;
+      const id='vnx_read_'+(++ai);try{el.setAttribute('data-vnx-read-action',id)}catch{}
+      actions.push({id,text,disabled:Boolean(el.disabled||el.getAttribute('aria-disabled')==='true'),href:el.href||''});
+    }
+    const images=[...document.images].map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);
+    return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,120000),links,actions,images,tables:allTables,url:location.href};
+  })()`,true);
 }
 function queryTerms(question=''){
-  const q=norm(question),groups=[['pedido',['pedido','pedidos','order','orders']],['factura',['factura','facturas','invoice','invoices','facturacion','facturado']],['producto',['producto','productos','product','products','catalogo','articulo','articulos','existencia','existencias','stock','inventario','almacen']],['cliente',['cliente','clientes','customer','customers']],['tarifa',['tarifa','tarifas','precio','precios','price','prices']],['alerta',['alerta','alertas']],['dashboard',['dashboard','resumen','facturado','ventas','venta','hoy','semana','mes','historico','movimientos']]],wanted=[];
+  const q=norm(question),groups=[
+    ['pedido',['pedido','pedidos','order','orders']],
+    ['factura',['factura','facturas','invoice','invoices','facturacion','facturado']],
+    ['producto',['producto','productos','product','products','catalogo','articulo','articulos','referencia','referencias']],
+    ['stock',['stock','existencia','existencias','inventario','almacen','disponible','disponibilidad']],
+    ['cliente',['cliente','clientes','customer','customers']],
+    ['tarifa',['tarifa','tarifas','precio','precios','price','prices']],
+    ['venta',['venta','ventas','historico','historial','movimientos']],
+    ['dashboard',['dashboard','resumen','hoy','semana','mes']]
+  ],wanted=[];
   for(const [key,words] of groups)if(words.some(w=>q.includes(w)))wanted.push(...words,key);
-  const free=q.split(/[^a-z0-9]+/).filter(w=>w.length>=5).slice(0,8);return [...new Set([...wanted,...free])];
+  const free=q.split(/[^a-z0-9]+/).filter(w=>w.length>=5).slice(0,10);
+  return [...new Set([...wanted,...free])];
+}
+function portalActionDangerous(text=''){
+  return /logout|cerrar sesion|delete|eliminar|borrar|remove|cancel|anular|editar|edit|nuevo|new|crear|create|guardar|save|confirmar|confirm|pagar|pay|enviar|send|comprar|checkout|tramitar/.test(norm(text));
 }
 function chooseLinks(baseUrl,links=[],question=''){
   const terms=queryTerms(question),origin=new URL(baseUrl).origin,ranked=[];
-  for(const l of links){try{const u=new URL(l.href,baseUrl);if(u.origin!==origin||!['http:','https:'].includes(u.protocol))continue;const hay=norm(`${l.text} ${u.pathname} ${u.search}`);let score=0;for(const term of terms)if(hay.includes(term))score+=3;if(/logout|cerrar sesion|delete|eliminar|borrar|remove|cancel|anular|editar|edit|nuevo|new|crear|create/.test(hay))score-=12;if(score>0)ranked.push({url:u.href,text:l.text,score})}catch{}}
-  ranked.sort((a,b)=>b.score-a.score);const seen=new Set(),out=[];for(const x of ranked){if(seen.has(x.url))continue;seen.add(x.url);out.push(x);if(out.length>=PORTAL_MAX_PAGES-1)break}return out;
+  for(const l of links){
+    try{
+      const u=new URL(l.href,baseUrl);if(u.origin!==origin||!['http:','https:'].includes(u.protocol))continue;
+      const hay=norm(String(l.text||'')+' '+u.pathname+' '+u.search);let score=0;
+      for(const term of terms)if(hay.includes(term))score+=3;
+      if(portalActionDangerous(hay))score-=30;
+      if(score>0)ranked.push({url:u.href,text:l.text,score});
+    }catch{}
+  }
+  ranked.sort((a,b)=>b.score-a.score);
+  const seen=new Set(),out=[];
+  for(const x of ranked){if(seen.has(x.url))continue;seen.add(x.url);out.push(x);if(out.length>=8)break}
+  return out;
 }
-async function readPortal(portal,question=''){
+function choosePortalActions(actions=[],question='',allowPaging=false){
+  const terms=queryTerms(question),ranked=[];
+  for(const a of actions){
+    if(a.disabled||portalActionDangerous(a.text))continue;
+    const hay=norm(a.text),paging=/^(siguiente|next|sig\.?|>+|›|→)$/.test(hay)||/pagina siguiente|next page/.test(hay);
+    let score=paging&&allowPaging?7:0;
+    for(const term of terms)if(hay.includes(term))score+=4;
+    if(/producto|articulo|referencia|stock|existencia|inventario|almacen/.test(hay)&&terms.some(t=>['producto','productos','articulo','articulos','referencia','referencias','stock','existencia','existencias','inventario','almacen'].includes(t)))score+=5;
+    if(/venta|historico|historial|movimiento/.test(hay)&&terms.some(t=>['venta','ventas','historico','historial','movimientos'].includes(t)))score+=5;
+    if(score>0)ranked.push({...a,score,paging});
+  }
+  return ranked.sort((a,b)=>b.score-a.score);
+}
+async function clickPortalAction(win,action){
+  if(!action?.id)return false;
+  try{
+    const safeId=String(action.id).replace(/[^a-zA-Z0-9_-]/g,'');
+    return Boolean(await win.webContents.executeJavaScript(`(()=>{const el=document.querySelector('[data-vnx-read-action="${safeId}"]');if(!el||el.disabled||el.getAttribute('aria-disabled')==='true')return false;el.click();return true})()`,true));
+  }catch{return false}
+}
+function portalPageFingerprint(page){
+  const first=(page?.tables||[])[0]||[];
+  return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))).digest('hex').slice(0,16);
+}
+async function readPortal(portal,question='',preferredUrl=null){
   const win=new BrowserWindow(portalWindowOptions(portal,{show:false}));win.removeMenu();
   try{
-    const start=portalStartUrl(portal);await win.loadURL(start);await delay(350);let page=await extractPage(win);
-    if(likelyLogin(page.url,page.text)){
-      await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
+    const preferred=preferredUrl&&sameOrigin(preferredUrl,portal.url)?preferredUrl:null;
+    const start=preferred||portalStartUrl(portal);
+    await win.loadURL(start);await delay(650);
+    let first=await extractPage(win);
+    if(likelyLogin(first.url,first.text)){
+      await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:first.url});
       return {name:portal.name,url:portal.url,status:'login_required',mode:portal.mode,pages:[],images:[]};
     }
-    const pages=[{title:page.title,url:page.url,text:page.text.slice(0,PORTAL_PAGE_CHARS),tables:page.tables||[]}],images=[...(page.images||[])];
-    const targets=chooseLinks(page.url,page.links||[],question);
-    for(const target of targets){try{await win.loadURL(target.url);await delay(250);const p=await extractPage(win);if(likelyLogin(p.url,p.text))break;pages.push({title:p.title,url:p.url,text:p.text.slice(0,PORTAL_PAGE_CHARS),tables:p.tables||[]});images.push(...(p.images||[]))}catch{}}
+    const pages=[],images=[],seenPages=new Set(),seenUrls=new Set(),queuedUrls=[],usedActions=new Set();
+    const addPage=p=>{
+      const fp=portalPageFingerprint(p);if(seenPages.has(fp))return false;seenPages.add(fp);
+      pages.push({title:p.title,url:p.url,text:p.text.slice(0,PORTAL_PAGE_CHARS),tables:p.tables||[]});
+      images.push(...(p.images||[]));return true;
+    };
+    const queueLinks=p=>{
+      for(const target of chooseLinks(p.url,p.links||[],question)){
+        if(seenUrls.has(target.url)||queuedUrls.some(x=>x.url===target.url))continue;
+        queuedUrls.push(target);
+      }
+    };
+    const exploreActions=async(p,depth=0)=>{
+      if(depth>=6||pages.length>=PORTAL_MAX_PAGES)return;
+      const allowPaging=(p.tables||[]).some(t=>Array.isArray(t)&&t.length>=2);
+      const ranked=choosePortalActions(p.actions||[],question,allowPaging);
+      for(const action of ranked.slice(0,4)){
+        const key=portalPageFingerprint(p)+'|'+norm(action.text);
+        if(usedActions.has(key))continue;usedActions.add(key);
+        if(action.href&&sameOrigin(action.href,portal.url)&&!portalActionDangerous(action.text)){
+          if(!seenUrls.has(action.href)&&!queuedUrls.some(x=>x.url===action.href))queuedUrls.unshift({url:action.href,text:action.text,score:action.score});
+          continue;
+        }
+        const before=portalPageFingerprint(p);
+        if(!await clickPortalAction(win,action))continue;
+        await delay(650);
+        const next=await extractPage(win);
+        if(likelyLogin(next.url,next.text))return;
+        const after=portalPageFingerprint(next);
+        if(after===before)continue;
+        addPage(next);queueLinks(next);
+        await exploreActions(next,depth+1);
+        break;
+      }
+    };
+    addPage(first);seenUrls.add(first.url);queueLinks(first);await exploreActions(first,0);
+    while(queuedUrls.length&&pages.length<PORTAL_MAX_PAGES){
+      const target=queuedUrls.shift();if(!target?.url||seenUrls.has(target.url))continue;
+      seenUrls.add(target.url);
+      try{
+        await win.loadURL(target.url);await delay(650);
+        const p=await extractPage(win);if(likelyLogin(p.url,p.text))continue;
+        addPage(p);queueLinks(p);await exploreActions(p,0);
+      }catch{}
+    }
     try{await session.fromPartition(partitionFor(portal.id)).cookies.flushStore()}catch{}
-    await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
-    return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12)};
+    const best=pages.find(p=>(p.tables||[]).some(t=>Array.isArray(t)&&t.length>=2))||pages[0]||first;
+    await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:best.url||first.url});
+    return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0)};
   }finally{if(!win.isDestroyed())win.destroy()}
 }
 function portalTableHeaders(rows=[]){return (rows[0]||[]).map(normStockHeader)}
-function portalCol(headers,candidates){return findStockColumn(headers,candidates)}
-function portalNumber(v){const s=String(v??'').trim().replace(/\s/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.').replace(/[^0-9.-]/g,'');const n=Number(s);return Number.isFinite(n)?n:0}
+function portalCol(headers,candidates){
+  const hs=(headers||[]).map(normStockHeader),cs=(candidates||[]).map(normStockHeader);
+  for(const c of cs){const i=hs.findIndex(h=>h===c);if(i>=0)return i}
+  for(const c of cs){const i=hs.findIndex(h=>h.startsWith(c)||h.endsWith(c));if(i>=0)return i}
+  for(const c of cs){const i=hs.findIndex(h=>h.includes(c));if(i>=0)return i}
+  return -1;
+}
+function portalNumber(v){
+  const raw=String(v??'').trim();if(!raw||!/[0-9]/.test(raw))return null;
+  const cleaned=raw.replace(/\s/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.').replace(/[^0-9.-]/g,'');
+  if(!cleaned||cleaned==='-'||cleaned==='.'||cleaned==='-.')return null;
+  const n=Number(cleaned);return Number.isFinite(n)?n:null;
+}
+const PORTAL_STOCK_COLUMNS={
+  sku:['sku','referencia','ref','codigo articulo','cod articulo','codigo de articulo','codigo producto','cod producto','codigo','cod. articulo'],
+  ean:['ean','ean13','codigo de barras','cod barras','barcode','gtin'],
+  name:['producto','articulo','nombre','descripcion','denominacion','descripcion articulo','nombre articulo'],
+  stock:['stock actual','existencias actuales','existencia actual','stock disponible','existencias','existencia','disponible','unidades disponibles','uds disponibles','cantidad disponible','stock']
+};
+const PORTAL_SALES_COLUMNS={
+  sku:PORTAL_STOCK_COLUMNS.sku,ean:PORTAL_STOCK_COLUMNS.ean,
+  qty:['ventas 6 meses','ventas 180 dias','unidades vendidas','cantidad vendida','unidades venta','vendido','vendidas','ventas','cantidad']
+};
+function portalHeaderInfo(table,kind='stock'){
+  if(!Array.isArray(table)||!table.length)return null;
+  let best=null;
+  for(let rowIndex=0;rowIndex<Math.min(6,table.length);rowIndex++){
+    const headers=(table[rowIndex]||[]).map(normStockHeader);if(!headers.length)continue;
+    if(kind==='stock'){
+      const sku=portalCol(headers,PORTAL_STOCK_COLUMNS.sku),ean=portalCol(headers,PORTAL_STOCK_COLUMNS.ean),name=portalCol(headers,PORTAL_STOCK_COLUMNS.name),stock=portalCol(headers,PORTAL_STOCK_COLUMNS.stock);
+      const valid=stock>=0&&(sku>=0||ean>=0);
+      const score=(stock>=0?5:0)+(sku>=0||ean>=0?4:0)+(name>=0?2:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,name,stock,score};
+    }else{
+      const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty);
+      const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,qty,score};
+    }
+  }
+  return best;
+}
 function extractPortalStockRows(portalResult){
-  const out=[],seen=new Set();
+  const rows=[],seen=new Set();let sourceUrl=null,structuredTables=0;
   for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
     if(!Array.isArray(table)||table.length<2)continue;
-    const h=portalTableHeaders(table),iSku=portalCol(h,['sku','referencia','ref','codigo articulo','codigo','cod. articulo']),iEan=portalCol(h,['ean','codigo de barras','barcode']),iName=portalCol(h,['producto','articulo','nombre','descripcion']),iStock=portalCol(h,['stock actual','stock','existencias','existencia','disponible','unidades disponibles']);
-    if(iName<0||iStock<0||(iSku<0&&iEan<0))continue;
-    for(const row of table.slice(1)){const sku=iSku>=0?String(row[iSku]||'').trim():'',ean=iEan>=0?String(row[iEan]||'').trim():'',title=String(row[iName]||'').trim();if(!title||(!sku&&!ean))continue;const key=sku||('EAN:'+ean);if(seen.has(key))continue;seen.add(key);out.push({sku,ean,title,stock:portalNumber(row[iStock])})}
+    const info=portalHeaderInfo(table,'stock');if(!info)continue;structuredTables++;
+    for(const row of table.slice(info.rowIndex+1)){
+      const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'';
+      const stock=portalNumber(row[info.stock]);if(stock===null||(!sku&&!ean))continue;
+      const title=info.name>=0?String(row[info.name]||'').trim():(sku||ean);
+      if(!title)continue;
+      const key=sku||('EAN:'+ean);if(seen.has(key))continue;seen.add(key);
+      if(!sourceUrl)sourceUrl=page.url||null;
+      rows.push({sku,ean,title,stock});
+    }
   }
-  return out;
+  return {rows,sourceUrl,structuredTables};
 }
 function extractPortalSalesRows(portalResult){
-  const totals=new Map();
+  const totals=new Map();let sourceUrl=null,structuredTables=0;
   for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
     if(!Array.isArray(table)||table.length<2)continue;
-    const h=portalTableHeaders(table),iSku=portalCol(h,['sku','referencia','ref','codigo articulo','codigo','cod. articulo']),iEan=portalCol(h,['ean','codigo de barras','barcode']),iQty=portalCol(h,['ventas 6 meses','unidades vendidas','cantidad vendida','vendido','vendidas','ventas','cantidad','unidades']);
-    if(iQty<0||(iSku<0&&iEan<0))continue;
-    for(const row of table.slice(1)){const sku=iSku>=0?String(row[iSku]||'').trim():'',ean=iEan>=0?String(row[iEan]||'').trim():'',key=sku||('EAN:'+ean);if(!key||key==='EAN:')continue;totals.set(key,(totals.get(key)||0)+portalNumber(row[iQty]))}
+    const info=portalHeaderInfo(table,'sales');if(!info)continue;structuredTables++;
+    for(const row of table.slice(info.rowIndex+1)){
+      const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'',key=sku||('EAN:'+ean);
+      if(!key||key==='EAN:')continue;
+      const qty=portalNumber(row[info.qty]);if(qty===null)continue;
+      if(!sourceUrl)sourceUrl=page.url||null;
+      totals.set(key,(totals.get(key)||0)+qty);
+    }
   }
-  return totals;
+  return {totals,sourceUrl,structuredTables};
 }
 async function portalReplenishmentSummary(portal){
   if(!portal)throw new Error('Conexión privada no encontrada.');
-  const stockRead=await readPortal(portal,'productos stock existencias inventario almacen referencias');
+  const stockRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||null);
   if(stockRead.status!=='connected')return {ok:false,status:stockRead.status,sourceLabel:portal.name,reason:'login_required'};
-  const products=extractPortalStockRows(stockRead);
-  if(!products.length)return {ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured'};
-  const salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias');
-  const sales=extractPortalSalesRows(salesRead);
+  const stockExtract=extractPortalStockRows(stockRead),products=stockExtract.rows;
+  if(!products.length)return {
+    ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured',
+    pagesScanned:stockRead.pagesScanned||stockRead.pages?.length||0,
+    tablesSeen:stockRead.tablesSeen||0,
+    structuredTables:stockExtract.structuredTables||0
+  };
+  if(stockExtract.sourceUrl&&sameOrigin(stockExtract.sourceUrl,portal.url)){
+    await patchPortal(portal.id,{stockUrl:stockExtract.sourceUrl});
+    portal={...portal,stockUrl:stockExtract.sourceUrl};
+  }
+  const salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias',portal.salesUrl||null);
+  const salesExtract=extractPortalSalesRows(salesRead),sales=salesExtract.totals;
+  if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
   const merged=products.map(p=>({...p,soldWindow:sales.get(p.sku||('EAN:'+p.ean))||0}));
   const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
-  return {ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows,productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,structuredSales:sales.size>0,truncated:false,catalogTruncated:false};
+  return {
+    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows,
+    productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
+    structuredSales:sales.size>0,truncated:false,catalogTruncated:false,
+    generatedAt:new Date().toISOString(),
+    pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
+    tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
+    learnedStockRoute:Boolean(stockExtract.sourceUrl)
+  };
 }
 ipcMain.handle('portal:replenishment-summary',async(_e,id)=>{
   const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Conexión privada no encontrada.');
