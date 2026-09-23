@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.111",
+  "version": "0.6.112",
   "private": true,
-  "description": "VentaNexIA Desktop · onboarding + reposición Shopify/portal + exportación importable + aislamiento estricto · 0.6.111",
+  "description": "VentaNexIA Desktop · onboarding + reposición Shopify/portal + exportación importable + aislamiento estricto · 0.6.112",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
