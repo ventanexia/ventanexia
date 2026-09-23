@@ -2173,10 +2173,10 @@ function emailListItem(m,i,selected){
         if(!summary?.ok)throw new Error('No he podido procesar el archivo.');
         const sourceLabel=masterMessages[msgIndex]?.stockSourceLabel||'Archivo de stock y ventas';
         const reply=shopifyStockTable({...summary,sourceLabel});
-        const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0).map(r=>[
+        const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
           String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
-          Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0),
-          r.urgent?'URGENTE <5 DIAS':'REPOSICION'
+          Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
+          Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
         ]);
         const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
         masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:masterMessages[msgIndex]?.scopeKey});
@@ -2420,46 +2420,23 @@ function emailListItem(m,i,selected){
   }
   function shopifyStockTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const sorted=[...rows].sort((a,b)=>
-      Number(Boolean(b.urgent))-Number(Boolean(a.urgent)) ||
-      Number(b.qty||0)-Number(a.qty||0) ||
-      Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999) ||
-      String(a.product||'').localeCompare(String(b.product||''))
-    );
+    const urgent=[...rows].filter(r=>r.urgent).sort((a,b)=>Number(a.stock||0)-Number(b.stock||0)||Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999)||String(a.product||'').localeCompare(String(b.product||'')));
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
     const ref=r=>r.sku||r.ean||'—';
-    const coverage=r=>r.daysRemaining==null?'Sin ventas registradas':String(r.daysRemaining);
-    const status=r=>{
-      if(r.urgent&&Number(r.stock||0)<=0)return 'Stock 0, rotura inmediata';
-      if(r.urgent)return '⚠️ Menos de 5 días de cobertura';
-      if(r.noSalesData)return Number(r.stock||0)<=0?'Stock 0, sin ventas registradas':'Sin ventas registradas';
-      if(Number(r.qty||0)>0)return 'Reposición recomendada';
-      return 'Stock suficiente';
-    };
-    const label=summary.sourceLabel||'Shopify';
-    const lines=[
-      '# Stock y reposición · '+label,
-      '',
-      '**Cálculo real del programa:** ventas de los últimos '+(summary.windowDays||180)+' días por SKU/EAN'+(summary.fileName?' (archivo '+summary.fileName+')':'')+'. '+(summary.fileName?'Datos tomados del archivo seleccionado.':'Los pedidos cancelados están excluidos.'),
-      '',
-      '| SKU / EAN | Producto | Stock actual | Ventas 6 meses | Media diaria | Días de cobertura | Cantidad a pedir | Estado |',
-      '|---|---|---:|---:|---:|---:|---:|---|'
-    ];
-    const maxRows=1000;
-    for(const r of sorted.slice(0,maxRows)){
-      const product=String(r.product||'').replace(/\|/g,'/');
-      lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+fmt(r.qty)+' | '+status(r)+' |');
-    }
-    lines.push('');
-    lines.push('**Resumen:** '+rows.length+' referencias analizadas · '+sorted.filter(r=>r.urgent).length+' con riesgo urgente · '+sorted.filter(r=>Number(r.qty||0)>0).length+' con reposición propuesta.');
-    if(summary.truncated)lines.push('⚠️ La consulta alcanzó el límite de seguridad de pedidos; no presento el periodo como exhaustivo.');
-    if(summary.catalogTruncated)lines.push('⚠️ El catálogo alcanzó el límite de seguridad; pueden faltar referencias.');
-    if(rows.length>maxRows)lines.push('Se muestran las primeras '+maxRows+' referencias, priorizando urgentes y reposición. Total calculado: '+rows.length+'.');
-    lines.push('');
-    lines.push('**Regla urgente:** menos de 5 días de cobertura, aunque todavía quede stock.');
-    lines.push('**Objetivo de reposición:** cubrir 30 días al ritmo real de venta. Los cálculos los hace VentaNexIA, no la IA.');
-    lines.push('');
-    lines.push('Listo para enviar a Compras cuando lo autorices.');
+    const coverage=r=>r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
+    const qtyLabel=r=>Number(r.qty||0)>0?fmt(r.qty):(Number(r.stock||0)<=0&&r.noSalesData?'Revisar':'0');
+    const status=r=>Number(r.stock||0)<=0?(r.noSalesData?'🔴 SIN STOCK · sin ventas para calcular cantidad':'🔴 SIN STOCK'):'🟠 ROTURA < 5 DÍAS';
+    const label=summary.sourceLabel||summary.shop||'Shopify';
+    const lines=['# Pedido para Compras · '+label,'','**Solo aparecen productos sin stock o con menos de 5 días de cobertura.** Datos actualizados al solicitar el análisis.','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
+    for(const r of urgent){const product=String(r.product||'').replace(/\|/g,'/');lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |')}
+    if(!urgent.length)lines.push('| — | No hay referencias con stock 0 ni riesgo de rotura en menos de 5 días | — | — | — | — | — | 🟢 Correcto |');
+    const units=urgent.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=urgent.filter(r=>Number(r.stock||0)<=0).length,under5=urgent.filter(r=>Number(r.stock||0)>0).length;
+    lines.push('','**Resumen del pedido:** '+urgent.length+' referencias · '+zero+' sin stock · '+under5+' con rotura prevista en menos de 5 días · '+fmt(units)+' unidades calculadas para pedir.');
+    lines.push('**Criterio:** ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN y reposición hasta aproximadamente 30 días de cobertura.');
+    if(urgent.some(r=>Number(r.stock||0)<=0&&r.noSalesData))lines.push('⚠️ Las referencias agotadas sin ventas registradas aparecen igualmente, pero su cantidad queda en **Revisar** porque VentaNexIA no inventará una compra sin histórico.');
+    if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar pedidos; el histórico puede no ser exhaustivo.');
+    if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
+    lines.push('','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
   function enrichBusinessRequest(text,scope){
@@ -2539,7 +2516,7 @@ function emailListItem(m,i,selected){
         if(isShopifyStockRequest(text,scope)&&window.vnx?.shopifyReplenishmentSummary){
           const summary=await window.vnx.shopifyReplenishmentSummary();
           const reply=shopifyStockTable(summary);
-          const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0).map(r=>[
+          const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
             String(r.sku||''),
             String(r.ean||''),
             String(r.product||''),
@@ -2561,7 +2538,7 @@ function emailListItem(m,i,selected){
         }
         if(isPortalStockRequest(text,scope)&&window.vnx?.stockImportFile){
           const sourceLabel=scope?.selectedSource?.label||scope?.name||'esta conexión';
-          masterMessages.push({role:'assistant',content:'**'+sourceLabel+'** está conectado como portal privado y no ofrece una API de stock/ventas que VentaNexIA pueda leer de forma estructurada. Para no inventar datos, selecciona un Excel o CSV con **SKU o EAN**, **Producto**, **Stock actual** y **Ventas 6 meses**.\n\nEl cálculo será el mismo que en Shopify: ventas sobre 180 días, aviso urgente con menos de 5 días de cobertura y reposición propuesta para cubrir 30 días.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+          masterMessages.push({role:'assistant',content:'**'+sourceLabel+' está conectado**, pero esa conexión todavía no proporciona a VentaNexIA existencias y ventas en un formato estructurado fiable. Estar conectado no significa que pueda calcular stock 0 o rotura <5 días.\n\nPara obtener un pedido correcto sin inventar datos, importa un Excel o CSV con **SKU o EAN**, **Producto**, **Stock actual** y **Ventas 6 meses**. Te devolveré directamente el **Pedido para Compras**, mostrando solo productos sin stock o con menos de 5 días de cobertura.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
