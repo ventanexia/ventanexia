@@ -11,6 +11,15 @@ need(backend,/const SHOPIFY_URGENT_DAYS=5;/,'urgent threshold must stay at 5 day
 need(backend,/orders\(first:100, after:\$cursor[\s\S]*created_at:>=\$\{since\}/,'sales query must paginate by date');
 need(backend,/if\(o\.cancelledAt\)\{cancelledSkipped\+\+;continue\}/,'cancelled orders must be excluded');
 need(renderer,/function isShopifyStockRequest/,'renderer must detect Shopify stock requests');
+if((renderer.match(/compr\\w\*/g)||[]).length<2){console.error('SHOPIFY_STOCK_VERIFY_FAIL: comprar stem must be applied in both stock-intent regexes');process.exit(1)}
+if(/compras\?/.test(renderer)){console.error('SHOPIFY_STOCK_VERIFY_FAIL: legacy compras? detector must not remain');process.exit(1)}
+{
+  const m=renderer.match(/function stockIntentText\(text=''\)\{[\s\S]*?\n  \}/);
+  if(!m){console.error('SHOPIFY_STOCK_VERIFY_FAIL: stockIntentText function could not be extracted');process.exit(1)}
+  const fn=(0,eval)('('+m[0]+')');
+  if(!fn('dime qué tengo que comprar')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "dime qué tengo que comprar" must trigger stock analysis');process.exit(1)}
+}
+
 need(renderer,/async function latestPurchaseAnalysis\(scopeKey\)/,'purchase analysis loader must support persisted cache');
 need(renderer,/purchaseAnalysisGet\?\.\(scopeKey\)/,'purchase order must restore persisted analysis');
 need(renderer,/rememberPurchaseAnalysis/,'verified purchase analysis must be persisted');
