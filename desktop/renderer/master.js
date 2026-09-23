@@ -2106,6 +2106,16 @@ function emailListItem(m,i,selected){
     w.document.write('<!doctype html><meta charset="utf-8"><title>Reposición Shopify</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1{font-size:22px}p{color:#555}table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #bbb;padding:6px;vertical-align:top}th{background:#eee;white-space:nowrap}@media print{button{display:none}}</style><h1>Reposición Shopify</h1><p>Preparado por VentaNexIA con datos calculados por SKU/EAN. Revisar las cantidades antes de importar o enviar a Compras.</p><table><thead><tr>'+data.headers.map(x=>'<th>'+esc(x)+'</th>').join('')+'</tr></thead><tbody>'+data.rows.map(row=>'<tr>'+data.headers.map((_,i)=>'<td>'+esc(row[i]??'')+'</td>').join('')+'</tr>').join('')+'</tbody></table><p><button onclick="window.print()">Imprimir</button></p>');w.document.close();setTimeout(()=>w.print(),250);
   }
 
+  async function exportStockData(msg,format,btn){
+    const data=msg?.stockData;
+    if(!data?.headers?.length||!Array.isArray(data.rows)||!data.rows.length){alert('No encuentro datos de stock para exportar.');return}
+    const labels={excel:'Excel',csv:'CSV',pdf:'PDF'},old=btn.textContent;btn.disabled=true;btn.textContent='Preparando '+(labels[format]||format)+'…';
+    try{
+      const r=await window.vnx.exportData({format,title:'Stock actual - '+(msg.stockSourceLabel||'VentaNexIA'),headers:data.headers,rows:data.rows});
+      if(r?.ok)btn.textContent=(labels[format]||format)+' guardado ✓';else btn.textContent=old;
+    }catch(e){alert('No he podido guardar el archivo: '+(e.message||e));btn.textContent=old}
+    finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(/guardado ✓$/.test(btn.textContent))btn.textContent=old}},1600)}
+  }
   function renderMasterMessages({focusIndex=null,persist=true,forceBottom=false}={}){
     if(persist)persistMasterChatState();
     const root=$m('#messages');if(!root)return;
@@ -2120,10 +2130,11 @@ function emailListItem(m,i,selected){
       const secretaryActions=m.secretaryActions?'<div class="vnx-secretary-actions"><button data-secretary-workqueue="review">Preparar y revisar respuestas</button><button data-secretary-workqueue="review">Revisar y enviar</button><button data-secretary-workqueue="decision">Resolver decisiones</button></div>':'';
       const securityCard=m.securityCard?.type==='portal_login'?'<div class="vnx-handoff-card"><b>🔐 '+escM(m.securityCard.title||'Conexión privada')+'</b><span>'+escM(m.securityCard.status||'Requiere iniciar sesión')+'</span><small>Las credenciales se introducen únicamente en la ventana segura de Conexiones. Nunca en el chat.</small><div class="row" style="gap:8px;margin-top:10px"><button class="mini" data-open-secure-connections>🔌 Abrir Conexiones</button></div></div>':'';
       const purchaseActions=(m.purchaseExport||isPurchaseProposal(m.content))?'<div class="vnx-secretary-actions vnx-purchase-actions"><b>Pedido para Compras</b><button data-purchase-excel="'+msgIndex+'">📊 Excel</button><button data-purchase-csv="'+msgIndex+'">⬇ CSV importable</button><button data-purchase-pdf="'+msgIndex+'">📄 PDF</button><button data-purchase-print="'+msgIndex+'">🖨 Imprimir</button></div>':'';
+      const stockActions=m.stockExport?'<div class="vnx-secretary-actions"><b>Stock completo</b><button data-stock-excel="'+msgIndex+'">📊 Excel</button><button data-stock-csv="'+msgIndex+'">⬇ CSV</button><button data-stock-pdf="'+msgIndex+'">📄 PDF</button></div>':'';
       const importAction=m.importStockPrompt?'<div class="vnx-secretary-actions"><button data-import-stock-file="'+msgIndex+'">📎 Elegir archivo (Excel o CSV)</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
       const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
-      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${importAction}${handoff}</div>`;
+      return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${stockActions}${importAction}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{
       const msg=masterMessages.find(x=>x.emailActions?.messageId===btn.dataset.msgId);if(!msg)return;
@@ -2168,7 +2179,10 @@ function emailListItem(m,i,selected){
       finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
     });
     $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
-    $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
+    $m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
+    $m('[data-stock-excel]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockExcel)]||{},'excel',btn));
+    $m('[data-stock-csv]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockCsv)]||{},'csv',btn));
+    $m('[data-stock-pdf]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockPdf)]||{},'pdf',btn));
     $$m('[data-purchase-csv]').forEach(btn=>btn.onclick=()=>exportPurchaseCsv(masterMessages[Number(btn.dataset.purchaseCsv)],btn));
     $$m('[data-open-secure-connections]').forEach(btn=>btn.onclick=()=>openConnectionsTab());
     $$m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
@@ -2417,6 +2431,13 @@ function emailListItem(m,i,selected){
     const q=String(text||'').toLowerCase();
     return (/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compr\w*|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q));
   }
+  function isStockListingRequest(text=''){
+    const q=String(text||'').toLowerCase();
+    const asksStock=/\b(stock|inventario|existencias?)\b/.test(q);
+    if(!asksStock)return false;
+    const asksAnalysis=/\b(analiz\w*|reponer|reposici[oó]n|compr\w*|pedido|rotura|previsi[oó]n)\b/.test(q)||/agot/.test(q)||/sin stock/.test(q)||/se me acaba/.test(q)||/quedar(?:me|nos)? sin/.test(q);
+    return !asksAnalysis;
+  }
   function isShopifyStockRequest(text='',scope=null){
     if(!stockIntentText(text))return false;
     if(scope?.type==='shopify')return true;
@@ -2449,6 +2470,40 @@ function emailListItem(m,i,selected){
     if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
     lines.push('','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
+  }
+  function stockInventoryTable(summary={}){
+    const rows=Array.isArray(summary.rows)?summary.rows:[];
+    const ordered=[...rows].sort((a,b)=>Number(a.stock||0)-Number(b.stock||0)||String(a.product||'').localeCompare(String(b.product||'')));
+    const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
+    const label=summary.sourceLabel||summary.shop||'Fuente seleccionada';
+    const hasStructuredSales=summary.structuredSales!==false;
+    const visible=ordered.slice(0,250);
+    const lines=['# Stock actual · '+label,'','**Referencias leídas:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Código | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---:|---:|---:|---|'];
+    for(const r of visible){
+      const code=r.sku||r.ean||'—',product=String(r.product||'').replace(/\|/g,'/');
+      const sold=hasStructuredSales?fmt(r.soldWindow):'—';
+      const coverage=hasStructuredSales?(r.daysRemaining==null?'Sin ventas':String(r.daysRemaining)):'—';
+      const state=Number(r.stock||0)<=0?'🔴 Sin stock':r.urgent?'🟠 Menos de 5 días':'🟢 Disponible';
+      lines.push('| '+code+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
+    }
+    if(!visible.length)lines.push('| — | No se han recibido referencias de stock | — | — | — | — |');
+    if(rows.length>visible.length)lines.push('','**Mostrando '+visible.length+' de '+rows.length+' referencias en pantalla.** El Excel/CSV incluye el listado completo.');
+    const zero=rows.filter(r=>Number(r.stock||0)<=0).length,urgent=rows.filter(r=>r.urgent&&Number(r.stock||0)>0).length;
+    lines.push('','**Resumen:** '+zero+' sin stock · '+urgent+' con menos de 5 días de cobertura · '+Math.max(0,rows.length-zero-urgent)+' con stock sin alerta.');
+    if(!hasStructuredSales)lines.push('⚠️ Esta conexión ha proporcionado existencias, pero no un histórico de ventas estructurado suficiente; por eso Ventas 6 meses y Cobertura aparecen como “—”.');
+    return lines.join('\n');
+  }
+  function stockExportData(summary={}){
+    const hasStructuredSales=summary.structuredSales!==false;
+    return {
+      headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
+      rows:(summary.rows||[]).map(r=>[
+        String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),
+        hasStructuredSales?Number(r.soldWindow||0):'',hasStructuredSales?Number(r.avgDaily||0):'',
+        hasStructuredSales?(r.daysRemaining==null?'':Number(r.daysRemaining)):'',
+        Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <5 DIAS':'DISPONIBLE'
+      ])
+    };
   }
   function isPurchaseOrderRequest(text=''){
     const q=String(text||'').toLowerCase().trim();
@@ -2608,7 +2663,8 @@ function emailListItem(m,i,selected){
         }
         if(isShopifyStockRequest(text,scope)&&window.vnx?.shopifyReplenishmentSummary){
           const summary=await window.vnx.shopifyReplenishmentSummary();
-          const reply=shopifyStockTable(summary);
+          const stockListing=isStockListingRequest(text);
+          const reply=stockListing?stockInventoryTable(summary):shopifyStockTable(summary);
           const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
             String(r.sku||''),
             String(r.ean||''),
@@ -2625,9 +2681,10 @@ function emailListItem(m,i,selected){
             rows:purchaseRows
           };
           const sourceLabel=summary.sourceLabel||summary.shop||scope?.name||'Shopify',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
-          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
+          const stockData=stockListing?stockExportData(summary):null;
+          masterMessages.push({role:'assistant',content:reply,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
           await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
-          window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
+          window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
@@ -2643,7 +2700,9 @@ function emailListItem(m,i,selected){
             const summary=await window.vnx.portalReplenishmentSummary(portalId);
             if(summary?.status==='login_required'){await renderMasterPortals();await refreshChatConnections();}
             if(summary?.ok){
-              const reply=shopifyStockTable({...summary,sourceLabel});
+              const stockListing=isStockListingRequest(text);
+              const portalSummary={...summary,sourceLabel};
+              const reply=stockListing?stockInventoryTable(portalSummary):shopifyStockTable(portalSummary);
               const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
                 String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
                 Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
@@ -2653,9 +2712,10 @@ function emailListItem(m,i,selected){
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
               const purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
-              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
+              const stockData=stockListing?stockExportData(portalSummary):null;
+              masterMessages.push({role:'assistant',content,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
               await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
-              window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
               const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0);
               const reason=summary?.reason==='login_required'
