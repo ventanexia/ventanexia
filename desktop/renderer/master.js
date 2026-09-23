@@ -956,7 +956,14 @@ function emailListItem(m,i,selected){
       if(scope.key==='prospecting'){
         const profile=['mi empresa: '+data.company,'vendemos: '+data.offer,data.web?'web: '+data.web:'',data.signature?'firma: '+data.signature:''].filter(Boolean).join('; ');
         await window.vnx.sendChat([{role:'user',content:profile}],scope);
-        const search='busca '+(data.count||10)+' '+data.buyer+' en '+data.zone+(data.condition?'. Condición: '+data.condition:'');
+        const frequency=String(data.frequency||'Ahora'),delivery=String(data.delivery||'Prepararlos para revisar');
+        if(frequency!=='Ahora'&&frequency!=='Cuando yo lo pida'){
+          const freq=/lunes a viernes/i.test(frequency)?'de lunes a viernes':/semana/i.test(frequency)?'cada semana':'cada día';
+          const mode=/Enviar automáticamente/i.test(delivery)?'envía automáticamente':/borradores/i.test(delivery)?'deja como borradores':'prepara para revisar';
+          const campaign=['configura campaña de captación '+freq,'marca: '+data.brand,'productos: '+data.offer,'cliente: '+data.buyer,'zona: '+data.zone,data.condition?'condición: '+data.condition:'',data.instruction?'reglas: '+data.instruction:'',data.web?'web: '+data.web:'',data.logo?'logo: '+data.logo:'','busca '+(data.count||10)+' empresas',mode].filter(Boolean).join('; ');
+          await window.vnx.sendChat([{role:'user',content:campaign}],scope);
+        }
+        const search='busca '+(data.count||10)+' '+data.buyer+' en '+data.zone+'. Marca a promocionar: '+data.brand+'. Oferta: '+data.offer+(data.condition?'. Condición: '+data.condition:'')+(data.instruction?'. Reglas: '+data.instruction:'');
         r=await window.vnx.sendChat([{role:'user',content:search}],scope);
       }else{
         const prompt=guidedPrompt(scope.key,data);
