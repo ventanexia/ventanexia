@@ -678,7 +678,7 @@ function emailListItem(m,i,selected){
     if(consent)consent.style.display='flex';
     if(cat)cat.style.display='flex';
     if(summary)summary.style.display='none';
-    $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+    $$m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
     const email=$m('[data-guided-field="email"]');if(email&&!email.value){const e=(runtimeConnections||[]).find(x=>(x.module||x.key)==='email');if(e)email.value=e.label||''}
     refreshGuidedCatalog();
   }
