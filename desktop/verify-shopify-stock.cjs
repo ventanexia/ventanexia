@@ -51,6 +51,10 @@ need(renderer,/\| Código \| Producto \| Stock \| Ventas 6 meses \| Media diaria
 need(renderer,/menos de 5 días de cobertura/i,'visible urgent rule must stay at 5 days');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
+need(renderer,/function purchasePanelHtml\(msg=\{\}\)/,'visual Stock and Compras panel renderer must exist');
+need(renderer,/m\.purchaseExport&&m\.purchaseData\?\.headers\?\.length\?purchasePanelHtml\(m\)/,'structured purchase data must render through the visual purchase panel');
+need(renderer,/Qué necesitas comprar ahora/,'visual purchase panel title must stay present');
+
 need(backend,/const PORTAL_MAX_PAGES=12;/,'private portal stock scan must explore enough relevant pages');
 need(backend,/\[role="grid"\],\[role="table"\],\.ag-root,\.MuiDataGrid-root,\.dx-datagrid/,'private portal reader must extract modern ERP grids');
 need(backend,/choosePortalActions/,'private portal reader must navigate safe dynamic menus');
