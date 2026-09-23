@@ -1675,26 +1675,34 @@ function emailListItem(m,i,selected){
     const key=String(agent.key||'');
     if(agent.external)return[];
     const all=(runtimeConnections||[]).map(x=>({...x,module:connectionModule(x)}));
-    let wanted=[];
-    if(key==='email')wanted=all.filter(x=>x.module==='email');
-    else if(key==='web_ecommerce')wanted=all.filter(x=>['shopify','wordpress','web_ecommerce'].includes(x.module));
-    else if(['crm','whatsapp','social'].includes(key))wanted=all.filter(x=>x.module===key);
-    else if(key==='customer_service')wanted=all.filter(x=>['email','whatsapp'].includes(x.module));
-    else if(key==='orders')wanted=all.filter(x=>['email','shopify'].includes(x.module));
-    else if(key==='administration')wanted=all.filter(x=>['agenda','email'].includes(x.module));
-    else if(key==='quotes')wanted=all.filter(x=>['email','crm','shopify'].includes(x.module));
-    else if(key==='reports')wanted=all.filter(x=>['crm','shopify','email'].includes(x.module));
-    else if(key==='automation')wanted=all.filter(x=>['email','whatsapp','social','crm','shopify','agenda'].includes(x.module));
-    else if(key==='prospecting')wanted=all.filter(x=>x.module==='email');
-    else if(key==='core_ai')wanted=all.filter(x=>['email','whatsapp','social','crm','shopify','agenda'].includes(x.module));
+    const compatibility={
+      email:['email'],
+      web_ecommerce:['shopify','wordpress','web_ecommerce'],
+      crm:['crm','shopify','email'],
+      whatsapp:['whatsapp'],
+      social:['social','shopify','wordpress','web_ecommerce'],
+      customer_service:['email','whatsapp','crm','shopify'],
+      orders:['email','shopify','crm'],
+      administration:['agenda','email','crm'],
+      quotes:['email','crm','shopify'],
+      reports:['crm','shopify','email'],
+      automation:['email','whatsapp','social','crm','shopify','agenda'],
+      prospecting:['email','crm'],
+      core_ai:['email','whatsapp','social','crm','shopify','agenda','wordpress','web_ecommerce']
+    };
+    const allowed=new Set(compatibility[key]||[]);
+    const wanted=all.filter(x=>allowed.has(x.module));
     const mapped=wanted.map((x,i)=>({
       id:x.key||('source:'+i),module:x.module,label:x.label||x.account||x.shop||x.module,
       accountIndex:Number.isInteger(x.accountIndex)?x.accountIndex:null,provider:x.provider||'',raw:x
     }));
-    if(key==='core_ai'||key==='web_ecommerce'||key==='orders'){
+    // Los portales privados son fuentes de empresa independientes. Se ofrecen a los
+    // especialistas que pueden consultar datos operativos, nunca se mezclan solos.
+    if(['core_ai','web_ecommerce','orders','crm','customer_service','quotes','reports','administration','automation'].includes(key)){
       for(const p of masterPortals||[])if(p&&p.id&&['read','write'].includes(p.mode)&&p.lastStatus==='connected')mapped.push({id:p.id,module:'portal',type:'portal',label:p.name||p.url,url:p.url,raw:p});
     }
-    return mapped;
+    const seen=new Set();
+    return mapped.filter(x=>{const k=(x.module||x.type)+':'+(x.id||x.accountIndex||x.label);if(seen.has(k))return false;seen.add(k);return true});
   }
   function chatConnections(){
     const out=[];
@@ -1719,8 +1727,8 @@ function emailListItem(m,i,selected){
     const x=source.raw||source,module=String(source.module||x.module||x.key||'');
     if(module==='email')return {type:'integration',key:'email',name:'Email · '+source.label,accountIndex:source.accountIndex,connectionKey:x.key||null};
     if(module==='shopify')return {type:'shopify',key:'shopify',name:'Shopify · '+source.label,shop:x.shop||x.label||null};
-    if(['crm','whatsapp','social'].includes(module))return {type:'integration',key:module,name:source.label,connectionKey:x.key||null};
-    if(module==='agenda')return {type:'agent',key:'administration',name:'Administración y agenda',included:true,connected:true,ready:true};
+    if(['crm','whatsapp','social','agenda','wordpress','web_ecommerce'].includes(module))return {type:'integration',key:module,module,name:source.label,connectionKey:x.key||null};
+    if(module==='portal')return {type:'portal',id:source.id,name:source.label,url:source.url};
     return null;
   }
   function refreshAgentSourceSelector(agent){
