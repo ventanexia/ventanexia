@@ -567,15 +567,33 @@ function extractPortalSalesRows(portalResult){
 }
 async function portalReplenishmentSummary(portal){
   if(!portal)throw new Error('Conexión privada no encontrada.');
-  const stockRead=await readPortal(portal,'productos stock existencias inventario almacen referencias');
+  const stockRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||null);
   if(stockRead.status!=='connected')return {ok:false,status:stockRead.status,sourceLabel:portal.name,reason:'login_required'};
-  const products=extractPortalStockRows(stockRead);
-  if(!products.length)return {ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured'};
-  const salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias');
-  const sales=extractPortalSalesRows(salesRead);
+  const stockExtract=extractPortalStockRows(stockRead),products=stockExtract.rows;
+  if(!products.length)return {
+    ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured',
+    pagesScanned:stockRead.pagesScanned||stockRead.pages?.length||0,
+    tablesSeen:stockRead.tablesSeen||0,
+    structuredTables:stockExtract.structuredTables||0
+  };
+  if(stockExtract.sourceUrl&&sameOrigin(stockExtract.sourceUrl,portal.url)){
+    await patchPortal(portal.id,{stockUrl:stockExtract.sourceUrl});
+    portal={...portal,stockUrl:stockExtract.sourceUrl};
+  }
+  const salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias',portal.salesUrl||null);
+  const salesExtract=extractPortalSalesRows(salesRead),sales=salesExtract.totals;
+  if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
   const merged=products.map(p=>({...p,soldWindow:sales.get(p.sku||('EAN:'+p.ean))||0}));
   const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
-  return {ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows,productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,structuredSales:sales.size>0,truncated:false,catalogTruncated:false};
+  return {
+    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows,
+    productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
+    structuredSales:sales.size>0,truncated:false,catalogTruncated:false,
+    generatedAt:new Date().toISOString(),
+    pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
+    tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
+    learnedStockRoute:Boolean(stockExtract.sourceUrl)
+  };
 }
 ipcMain.handle('portal:replenishment-summary',async(_e,id)=>{
   const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Conexión privada no encontrada.');
