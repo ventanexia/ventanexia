@@ -129,7 +129,9 @@ async function shopifyReplenishmentSummary(integration,{force=false}={}){
 ipcMain.handle('shopify:replenishment-summary',async()=>{
   const s=await readState(),integration=s.secret?.integrations?.shopify;
   if(!integration)throw new Error('Conecta Shopify para calcular la previsión de stock.');
-  const result=await shopifyReplenishmentSummary(integration,{force:false});
+  // Una petición explícita de stock debe leer existencias y ventas actuales.
+  // No reutilizar la caché de 10 minutos: Compras necesita el dato vivo.
+  const result=await shopifyReplenishmentSummary(integration,{force:true});
   return {shop:integration.shopName||integration.shop,...result};
 });
 
