@@ -55,7 +55,7 @@ need(backend,/const PORTAL_MAX_PAGES=12;/,'private portal stock scan must explor
 need(backend,/\[role="grid"\],\[role="table"\],\.ag-root,\.MuiDataGrid-root,\.dx-datagrid/,'private portal reader must extract modern ERP grids');
 need(backend,/choosePortalActions/,'private portal reader must navigate safe dynamic menus');
 need(backend,/stockUrl:stockExtract\.sourceUrl/,'private portal reader must learn the verified stock route');
-need(backend,/portal\.stockUrl\|\|null/,'private portal stock route must be reused on later reads');
+need(backend,/portal\.stockUrl\|\|portal\.lastUrl\|\|null/,'private portal stock route or last live portal URL must be reused on later reads');
 need(backend,/pagesScanned/,'private portal stock failure must expose scan diagnostics');
 need(backend,/liveWindowChecked/,'private portal stock diagnostics must say whether the live portal was checked');
 need(renderer,/ventana real abierta de/,'user-facing stock failure must distinguish live-window reading from hidden navigation');
