@@ -1,3 +1,21 @@
+
+// VentaNexIA BETA Demo: entorno aislado de evaluación con datos ficticios.
+const VNX_BETA_DEMO = true;
+const VNX_DEMO_DATA = Object.freeze({
+ company:'Empresa Demo Mediterránea S.L.', evaluator:'Invitado Beta',
+ kpis:{emails:7,orders:5,decisions:1,meetings:2},
+ stock:[
+  {sku:'DEMO-101',product:'Producto Profesional A',stock:0,sales180:84,order:15,status:'PEDIR'},
+  {sku:'DEMO-205',product:'Producto Profesional B',stock:4,sales180:96,order:13,status:'PEDIR'},
+  {sku:'DEMO-318',product:'Producto Profesional C',stock:12,sales180:72,order:0,status:'REVISAR'},
+  {sku:'DEMO-422',product:'Producto Profesional D',stock:38,sales180:61,order:0,status:'OK'}
+ ],
+ emails:[
+  {from:'Clínica Mediterránea',subject:'Solicitud de información y presupuesto',priority:'Alta'},
+  {from:'Distribuciones Delta',subject:'Confirmación pedido DEMO-1842',priority:'Normal'},
+  {from:'Centro Médico Litoral',subject:'Reunión comercial',priority:'Normal'}
+ ]
+});
 // VentaNexIA Desktop 0.6.80 · Gmail quota-safe · OCR local
 (()=>{
   const $m=s=>document.querySelector(s),$$m=s=>[...document.querySelectorAll(s)];
