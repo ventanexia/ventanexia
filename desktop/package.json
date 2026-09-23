@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.130",
+  "version": "0.6.131",
   "private": true,
-  "description": "VentaNexIA Desktop · Naturdesma en ventana viva + lectura ERP reforzada · 0.6.130",
+  "description": "VentaNexIA Desktop · Captación dedicada + panel visual Stock y Compras · 0.6.131",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",

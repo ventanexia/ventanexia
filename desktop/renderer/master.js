@@ -12,7 +12,7 @@
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
       emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
-      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,securityCard:m.securityCard||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
+      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,securityCard:m.securityCard||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,purchaseAnalyzedAt:m.purchaseAnalyzedAt||null,stockExport:Boolean(m.stockExport),stockData:m.stockData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
     }));
   }
   function persistMasterChatState(){
@@ -641,15 +641,58 @@ function emailListItem(m,i,selected){
     }
   }
 
+
+  function renderProspectingDashboard(chosen){
+    const layout=$m('.guided-layout'),host=$m('#guidedFormHost'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),result=$m('#guidedResult'),cat=$m('#guidedCatalogRow'),consent=$m('#guidedConsentRow'),help=document.querySelector('.guided-help-card'),switcher=document.querySelector('.guided-card-head .mode-switch'),summary=$m('#guidedConnectionSummary');
+    layout?.classList.add('prospecting-dashboard-mode');
+    if(help)help.style.display='none';if(switcher)switcher.style.display='none';
+    if(result)result.style.display='none';
+    const cfg=guidedConfig('prospecting'),saved=guidedSaved('prospecting');
+    const byKey=Object.fromEntries((cfg.fields||[]).map(f=>[f.key,f]));
+    const field=k=>byKey[k]?guidedFieldHtml(byKey[k],saved[k]||''):'';
+    if(host)host.innerHTML=
+      '<div class="prospecting-dashboard">'
+      +'<section class="prospecting-hero">'
+      +'<div class="prospecting-hero-copy"><span class="prospecting-badge">CAPTACIÓN DE CLIENTES</span><h3>Encuentra empresas y prepara el contacto comercial</h3><p>Define qué quieres vender, a quién buscas y cómo quieres que VentaNexIA prepare cada oportunidad.</p></div>'
+      +'<div class="prospecting-live-state"><span>●</span><div><b>'+escM(chosen.ready?'Agente listo':'Falta una conexión')+'</b><small>'+escM((guidedConnectedLabels('prospecting').join(' · ')||'IA + información pública autorizada'))+'</small></div></div>'
+      +'</section>'
+      +'<div class="prospecting-flow">'
+      +'<section class="prospecting-step-card"><div class="prospecting-step-head"><span>1</span><div><b>Qué quieres promocionar</b><small>La marca y la oferta que debe entender Carla.</small></div></div><div class="prospecting-step-grid">'
+      +field('company')+field('brand')+field('offer')+field('brandSource')+field('web')+field('logo')
+      +'</div></section>'
+      +'<section class="prospecting-step-card"><div class="prospecting-step-head"><span>2</span><div><b>A quién quieres encontrar</b><small>Define el cliente ideal y la zona.</small></div></div><div class="prospecting-step-grid">'
+      +field('buyer')+field('zone')+field('condition')+field('count')
+      +'</div></section>'
+      +'<section class="prospecting-step-card"><div class="prospecting-step-head"><span>3</span><div><b>Cómo quieres trabajar las oportunidades</b><small>Decide la frecuencia, el nivel de personalización y qué hacer con los emails.</small></div></div><div class="prospecting-step-grid">'
+      +field('frequency')+field('delivery')+field('personalization')+field('email')+field('signature')+field('instruction')
+      +'</div></section>'
+      +'</div>'
+      +'<div class="prospecting-promise">'
+      +'<div><span>✓</span><p><b>Busca empresas reales</b><small>Usa información pública y evita inventar datos.</small></p></div>'
+      +'<div><span>✓</span><p><b>Analiza una a una</b><small>Adapta el enfoque según la actividad de cada empresa.</small></p></div>'
+      +'<div><span>✓</span><p><b>Prepara el contacto</b><small>Deja emails listos para revisar o en borradores, según tus reglas.</small></p></div>'
+      +'</div>'
+      +'</div>';
+    if(primary){primary.style.display='block';primary.textContent='✦ Buscar oportunidades y preparar captación';primary.dataset.agentKey='prospecting'}
+    if(steps){steps.style.display='none'}
+    if(consent)consent.style.display='flex';
+    if(cat)cat.style.display='flex';
+    if(summary)summary.style.display='none';
+    $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+    const email=$m('[data-guided-field="email"]');if(email&&!email.value){const e=(runtimeConnections||[]).find(x=>(x.module||x.key)==='email');if(e)email.value=e.label||''}
+    refreshGuidedCatalog();
+  }
+
   function renderGuidedWorkspace(chosen){
     if(!chosen)return;
     const layout=$m('.guided-layout'),help=document.querySelector('.guided-help-card'),switcher=document.querySelector('.guided-card-head .mode-switch'),primaryEl=$m('#guidedPrimaryAction'),stepsEl=$m('#guidedSteps');
-    layout?.classList.remove('email-dashboard-mode');if(help)help.style.display='';if(switcher)switcher.style.display='';if(primaryEl)primaryEl.style.display='';if(stepsEl)stepsEl.style.display='';
+    layout?.classList.remove('email-dashboard-mode','prospecting-dashboard-mode');if(help)help.style.display='';if(switcher)switcher.style.display='';if(primaryEl)primaryEl.style.display='';if(stepsEl)stepsEl.style.display='';
     const cfg=guidedConfig(chosen.key),saved=guidedSaved(chosen.key);
     const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
     if(title)title.textContent=chosen.key==='core_ai'?'👩‍💼 Carla · Secretaria ejecutiva':(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
     if(chosen.key==='email'){renderEmailDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
+    if(chosen.key==='prospecting'){renderProspectingDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div data-whatsapp-workspace-metrics></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(chosen.key==='whatsapp')refreshWhatsAppWorkspaceMetrics();
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
@@ -2116,6 +2159,41 @@ function emailListItem(m,i,selected){
     }catch(e){alert('No he podido guardar el archivo: '+(e.message||e));btn.textContent=old}
     finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(/guardado ✓$/.test(btn.textContent))btn.textContent=old}},1600)}
   }
+
+  function purchasePanelHtml(msg={}){
+    const data=msg.purchaseData||{},headers=Array.isArray(data.headers)?data.headers:[],rows=Array.isArray(data.rows)?data.rows:[];
+    if(!headers.length)return '';
+    const idx=name=>headers.indexOf(name);
+    const get=(row,name)=>{const i=idx(name);return i>=0?row[i]:''};
+    const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
+    const fmt=v=>n(v).toLocaleString('es-ES',{maximumFractionDigits:2});
+    const totalUnits=rows.reduce((sum,row)=>sum+(typeof get(row,'cantidad_a_pedir')==='number'?n(get(row,'cantidad_a_pedir')):n(get(row,'cantidad_a_pedir'))),0);
+    const noStock=rows.filter(row=>/SIN STOCK/i.test(String(get(row,'estado')||''))||n(get(row,'stock_actual'))<=0).length;
+    const risk=Math.max(0,rows.length-noStock);
+    const source=msg.stockSourceLabel||'Conexión seleccionada';
+    const date=msg.purchaseAnalyzedAt?purchaseAnalysisDateLabel(msg.purchaseAnalyzedAt):'Ahora';
+    const tableRows=rows.slice(0,200).map(row=>{
+      const code=String(get(row,'sku')||get(row,'ean')||'—'),product=String(get(row,'producto')||'Producto');
+      const stock=get(row,'stock_actual'),sold=get(row,'ventas_180_dias'),coverage=get(row,'dias_cobertura'),qty=get(row,'cantidad_a_pedir'),state=String(get(row,'estado')||'REVISAR');
+      const cls=/SIN STOCK/i.test(state)?'danger':/ROTURA|REVISAR/i.test(state)?'warning':'ok';
+      const qtyText=typeof qty==='number'||/^\d+(?:[.,]\d+)?$/.test(String(qty))?fmt(qty):escM(qty||'—');
+      return '<tr><td><strong>'+escM(product)+'</strong><small>'+escM(code)+'</small></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
+    }).join('');
+    return '<div class="vnx-purchase-panel">'
+      +'<div class="vnx-purchase-head"><div><span class="vnx-purchase-kicker">STOCK Y COMPRAS</span><h3>Qué necesitas comprar ahora</h3><p>Fuente: <b>'+escM(source)+'</b> · análisis: '+escM(date)+'</p></div><span class="vnx-purchase-source">● Datos verificados</span></div>'
+      +'<div class="vnx-purchase-metrics">'
+      +'<article><span>Productos a comprar</span><b>'+rows.length+'</b><small>referencias</small></article>'
+      +'<article><span>Sin stock</span><b>'+noStock+'</b><small>acción inmediata</small></article>'
+      +'<article><span>Riesgo de rotura</span><b>'+risk+'</b><small>menos de 5 días / revisar</small></article>'
+      +'<article><span>Unidades propuestas</span><b>'+fmt(totalUnits)+'</b><small>según el análisis</small></article>'
+      +'</div>'
+      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +(tableRows||'<tr><td colspan="6" class="purchase-empty">No hay referencias que necesiten compra ahora.</td></tr>')
+      +'</tbody></table></div>'
+      +(rows.length>200?'<div class="vnx-purchase-foot">Mostrando 200 de '+rows.length+' referencias. El Excel y CSV incluyen el pedido completo.</div>':'')
+      +'</div>';
+  }
+
   function renderMasterMessages({focusIndex=null,persist=true,forceBottom=false}={}){
     if(persist)persistMasterChatState();
     const root=$m('#messages');if(!root)return;
@@ -2133,7 +2211,7 @@ function emailListItem(m,i,selected){
       const stockActions=m.stockExport?'<div class="vnx-secretary-actions"><b>Stock completo</b><button data-stock-excel="'+msgIndex+'">📊 Excel</button><button data-stock-csv="'+msgIndex+'">⬇ CSV</button><button data-stock-pdf="'+msgIndex+'">📄 PDF</button></div>':'';
       const importAction=m.importStockPrompt?'<div class="vnx-secretary-actions"><button data-import-stock-file="'+msgIndex+'">📎 Elegir archivo (Excel o CSV)</button></div>':'';
       const handoff=m.handoff?'<div class="vnx-handoff-card"><b>'+escM((m.handoff.icon||'🤖')+' '+(m.handoff.prompt||'¿Quieres que conecte con el empleado adecuado?'))+'</b><div class="row" style="gap:8px;margin-top:10px"><button class="mini handoff-accept-btn" data-agent="'+escM(m.handoff.agentKey||'')+'">Sí, que se encargue</button><button class="mini handoff-decline-btn">No, solo consultar</button></div></div>':'';
-      const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):documentHtmlFromMarkdown(m.content);
+      const body=m.role==='user'?escM(m.content).replace(/\n/g,'<br>'):(m.purchaseExport&&m.purchaseData?.headers?.length?purchasePanelHtml(m):documentHtmlFromMarkdown(m.content));
       return `<div class="msg ${m.role==='user'?'user':'ai'}" data-master-index="${msgIndex}"><div class="${m.role==='user'?'':'vnx-rich-result'}">${body}</div>${imgs?`<div>${imgs}</div>`:''}${actions}${groupedActions}${secretaryActions}${purchaseActions}${stockActions}${importAction}${handoff}</div>`;
     }).join('');
     $m('#messages')&&$$m('.email-action-btn').forEach(btn=>btn.onclick=async()=>{

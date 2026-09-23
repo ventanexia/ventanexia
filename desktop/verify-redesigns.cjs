@@ -10,4 +10,10 @@ need(css,/\.vnx-carla-window:has\(\.email-dashboard-mode\) \.email-workspace\{[\
 need(css,/\.vnx-carla-window:has\(\.email-dashboard-mode\) \.email-category-panel/,'Email category tabs layout missing');
 need(css,/\.vnx-carla-window:has\(\.email-dashboard-mode\) \.email-list\{[\s\S]*overflow-y:auto/,'Email list must remain independently scrollable');
 need(js,/email-dashboard-mode/,'Email dashboard renderer mode missing');
+need(js,/function renderProspectingDashboard\(chosen\)/,'Dedicated Captacion dashboard renderer missing');
+need(js,/chosen\.key==='prospecting'\)\{renderProspectingDashboard\(chosen\)/,'Prospecting must route to its dedicated dashboard');
+need(css,/\.guided-layout\.prospecting-dashboard-mode/,'Dedicated Captacion full-width layout missing');
+need(css,/\.prospecting-hero/,'Captacion hero layout missing');
+need(css,/\.prospecting-flow/,'Captacion workflow cards missing');
+
 console.log('REDESIGN_VERIFY_OK');
