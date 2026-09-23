@@ -2657,10 +2657,14 @@ function emailListItem(m,i,selected){
               await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
               window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
+              const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0);
               const reason=summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** necesita volver a iniciarse.'
-                :'He entrado en **'+sourceLabel+'**, pero no he encontrado todavía una tabla estructurada que relacione referencia/producto con existencias. No voy a usar Shopify ni mezclar otra empresa.';
-              masterMessages.push({role:'assistant',content:reason+'\n\nAbre la conexión privada y deja accesible la pantalla de **Productos / Stock / Existencias**; después vuelve a pedirme el análisis. Como alternativa puedes importar un Excel/CSV si ese programa permite exportarlo.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+                :'La sesión de **'+sourceLabel+'** está conectada. He buscado automáticamente por **Productos / Stock / Existencias / Inventario**'+(scanPages?' y he revisado '+scanPages+' pantallas internas':'')+(scanTables?' con '+scanTables+' tablas o rejillas detectadas':'')+', pero todavía no aparece una combinación verificable de **referencia + existencias**. No voy a inventar cantidades ni mezclar Shopify u otra empresa.';
+              const next=summary?.reason==='login_required'
+                ?'Vuelve a conectar **'+sourceLabel+'** y repite la consulta.'
+                :'Si el programa solo muestra el stock después de entrar en una pantalla o aplicar un filtro, abre **'+sourceLabel+'** una vez, deja visible esa pantalla y vuelve a pedirme **“dime el stock”**. VentaNexIA aprenderá esa ruta cuando la encuentre. También puedes importar un Excel/CSV si el programa permite exportarlo.';
+              masterMessages.push({role:'assistant',content:reason+'\n\n'+next,importStockPrompt:summary?.reason!=='login_required',stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
             }
           }catch(e){
             masterMessages.push({role:'assistant',content:'No he podido leer el stock de **'+sourceLabel+'**: '+String(e?.message||e)+'. No he usado Shopify ni ninguna otra conexión.',scopeKey:activeScopeKey});
