@@ -2188,7 +2188,9 @@ function emailListItem(m,i,selected){
           Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
         ]);
         const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
-        masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:masterMessages[msgIndex]?.scopeKey});
+        const importScopeKey=masterMessages[msgIndex]?.scopeKey||'stock-import',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
+        masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:importScopeKey});
+        await rememberPurchaseAnalysis(importScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
         renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(e){alert('No he podido leer el archivo: '+(e.message||e))}
       finally{if(btn.isConnected){btn.disabled=false;btn.textContent=old}}
@@ -2449,22 +2451,51 @@ function emailListItem(m,i,selected){
     return lines.join('\n');
   }
   function isPurchaseOrderRequest(text=''){
-    const q=String(text||'').toLowerCase();
-    return /\b(pedido|orden)\b/.test(q)&&/\b(compra|compras|reponer|reposici[oó]n|proveedor)\b/.test(q);
+    const q=String(text||'').toLowerCase().trim();
+    const mentionsOrder=/\b(pedido|orden(?:\s+de)?\s+compra)\b/.test(q);
+    if(!mentionsOrder)return false;
+    const direct=/\b(haz(?:me)?|prepara(?:me)?|prep[aá]rame|p[aá]same|genera(?:me)?|crea(?:me)?|dame|s[aá]came|quiero|necesito)\b/.test(q);
+    const context=/\b(compra|compras|reponer|reposici[oó]n|proveedor|stock)\b/.test(q);
+    return direct||context||q==='pedido';
   }
-  function latestPurchaseAnalysis(scopeKey){
+  async function latestPurchaseAnalysis(scopeKey){
     for(let i=masterMessages.length-1;i>=0;i--){
       const m=masterMessages[i];
       if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
     }
+    try{
+      const saved=await window.vnx?.purchaseAnalysisGet?.(scopeKey);
+      if(saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)){
+        return {role:'assistant',scopeKey,purchaseExport:true,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
+      }
+    }catch{}
     return null;
   }
-  function purchaseTableFromData(data={},sourceLabel='Fuente seleccionada'){
+  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString()){
+    const payload={scopeKey,purchaseData,sourceLabel,analyzedAt};
+    try{await window.vnx?.purchaseAnalysisSet?.(payload)}catch{}
+    return payload;
+  }
+  function purchaseAnalysisDateLabel(value){
+    if(!value)return 'fecha no disponible';
+    const d=new Date(value);if(Number.isNaN(d.getTime()))return 'fecha no disponible';
+    return d.toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});
+  }
+  function purchaseTableFromData(data={},sourceLabel='Fuente seleccionada',analyzedAt=null){
     const headers=Array.isArray(data.headers)?data.headers:[];
     const rows=Array.isArray(data.rows)?data.rows:[];
     const idx=n=>headers.indexOf(n),at=(r,n)=>{const i=idx(n);return i>=0?r[i]:''};
     const fmt=n=>{const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):String(n??'—')};
-    const lines=['# Pedido para Compras · '+sourceLabel,'','**Preparado a partir del último análisis verificado de esta misma fuente.**','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
+    const lines=['# Pedido para Compras · '+sourceLabel,'','**Preparado a partir del último análisis verificado de esta misma fuente.**','**Basado en análisis verificado:** '+purchaseAnalysisDateLabel(analyzedAt)+'.'];
+    const stamp=analyzedAt?new Date(analyzedAt):null;
+    if(stamp&&!Number.isNaN(stamp.getTime())){
+      const ageHours=Math.max(0,Math.floor((Date.now()-stamp.getTime())/3600000));
+      if(ageHours>=24){
+        const ageLabel=ageHours<48?ageHours+' horas':Math.floor(ageHours/24)+' días';
+        lines.push('⚠️ **Este análisis tiene '+ageLabel+'.** El pedido sigue disponible, pero puedes pedirme **“actualiza el stock”** antes de enviarlo si quieres trabajar con existencias más recientes.');
+      }
+    }
+    lines.push('','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|');
     let units=0;
     for(const r of rows){
       const sku=at(r,'sku')||at(r,'ean')||'—',product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
@@ -2559,17 +2590,21 @@ function emailListItem(m,i,selected){
       const btn=e.submitter||form.querySelector('button');btn.disabled=true;btn.textContent='Mirándolo…';
       try{
         if(isPurchaseOrderRequest(text)){
-          const previous=latestPurchaseAnalysis(activeScopeKey);
+          const previous=await latestPurchaseAnalysis(activeScopeKey);
+          const src=scope?.selectedSource||scope?.source||scope;
+          const sourceLabel=previous?.stockSourceLabel||src?.label||src?.name||scope?.shop||scope?.name||'Fuente seleccionada';
           if(previous){
-            const src=scope?.selectedSource||scope?.source||scope;
-            const sourceLabel=previous.stockSourceLabel||src?.label||src?.name||scope?.shop||scope?.name||'Fuente seleccionada';
-            const content=purchaseTableFromData(previous.purchaseData,sourceLabel);
-            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData:previous.purchaseData,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+            const content=purchaseTableFromData(previous.purchaseData,sourceLabel,previous.purchaseAnalyzedAt||null);
+            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData:previous.purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt:previous.purchaseAnalyzedAt||null,scopeKey:activeScopeKey});
             window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             renderMasterMessages({focusIndex:masterMessages.length-1});
             btn.disabled=false;btn.textContent='Enviar';
             return;
           }
+          masterMessages.push({role:'assistant',content:'No tengo todavía un análisis de stock guardado para **'+sourceLabel+'**. No voy a inventar cantidades ni reutilizar datos de otra conexión. Pídeme **“analiza el stock”** en esta misma fuente y, cuando termine, podrás decir simplemente **“hazme el pedido”** aunque cierres y vuelvas a abrir VentaNexIA.',scopeKey:activeScopeKey});
+          renderMasterMessages({focusIndex:masterMessages.length-1});
+          btn.disabled=false;btn.textContent='Enviar';
+          return;
         }
         if(isShopifyStockRequest(text,scope)&&window.vnx?.shopifyReplenishmentSummary){
           const summary=await window.vnx.shopifyReplenishmentSummary();
@@ -2589,7 +2624,10 @@ function emailListItem(m,i,selected){
             headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
             rows:purchaseRows
           };
-          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:summary.sourceLabel||summary.shop||scope?.name||'Shopify',scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
+          const sourceLabel=summary.sourceLabel||summary.shop||scope?.name||'Shopify',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
+          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
+          await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+          window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
@@ -2614,7 +2652,10 @@ function emailListItem(m,i,selected){
               const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
-              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              const purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
+              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
+              await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+              window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
               const reason=summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** necesita volver a iniciarse.'

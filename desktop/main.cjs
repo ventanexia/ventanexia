@@ -974,6 +974,41 @@ ipcMain.handle('connection:list',async()=>{
   return out;
 });
 
+function purchaseAnalysisCacheKey(scopeKey){
+  return crypto.createHash('sha256').update(String(scopeKey||'')).digest('hex');
+}
+function sanitizePurchaseAnalysis(payload={}){
+  const scopeKey=String(payload.scopeKey||'').trim().slice(0,400);
+  if(!scopeKey)throw new Error('Falta la conexión del análisis de stock.');
+  const sourceLabel=String(payload.sourceLabel||'Fuente seleccionada').trim().slice(0,180)||'Fuente seleccionada';
+  const raw=payload.purchaseData||{},headers=Array.isArray(raw.headers)?raw.headers.slice(0,32).map(x=>String(x??'').slice(0,120)):[];
+  const rows=Array.isArray(raw.rows)?raw.rows.slice(0,5000).map(row=>Array.isArray(row)?row.slice(0,32).map(cell=>{
+    if(cell===null||cell===undefined)return '';
+    if(typeof cell==='number'||typeof cell==='boolean')return cell;
+    return String(cell).slice(0,500);
+  }):[]):[];
+  const parsed=new Date(payload.analyzedAt||Date.now()),analyzedAt=Number.isNaN(parsed.getTime())?new Date().toISOString():parsed.toISOString();
+  return {scopeKey,sourceLabel,purchaseData:{headers,rows},analyzedAt,savedAt:new Date().toISOString()};
+}
+ipcMain.handle('purchase-analysis:get',async(_e,scopeKey)=>{
+  const rawKey=String(scopeKey||'').trim().slice(0,400);if(!rawKey)return null;
+  const s=await readState(),cache=s.secret?.purchaseAnalyses||{};
+  const hit=cache[purchaseAnalysisCacheKey(rawKey)];
+  return hit&&hit.scopeKey===rawKey?hit:null;
+});
+ipcMain.handle('purchase-analysis:set',async(_e,payload={})=>{
+  const record=sanitizePurchaseAnalysis(payload),cacheKey=purchaseAnalysisCacheKey(record.scopeKey);
+  await updateState(s=>{
+    s.secret=s.secret||{};
+    const cache=s.secret.purchaseAnalyses&&typeof s.secret.purchaseAnalyses==='object'?s.secret.purchaseAnalyses:{};
+    cache[cacheKey]=record;
+    const newest=Object.entries(cache).sort((a,b)=>String(b[1]?.savedAt||'').localeCompare(String(a[1]?.savedAt||''))).slice(0,20);
+    s.secret.purchaseAnalyses=Object.fromEntries(newest);
+    return s;
+  });
+  return {ok:true,...record};
+});
+
 // chat:send se registra únicamente en master.cjs. No existe fallback paralelo en main.cjs.
 
 ipcMain.handle('device:pair-demo',async()=>{const s=await readState();s.secret=s.secret||{};s.secret.deviceToken=crypto.randomBytes(32).toString('base64url');await writeState(s);await audit('device.paired','Equipo vinculado en modo de prueba local');return {ok:true,deviceId:crypto.createHash('sha256').update(os.hostname()).digest('hex').slice(0,12)}});

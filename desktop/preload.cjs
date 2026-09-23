@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('vnx',{
   ensureWorkspace:()=>ipcRenderer.invoke('workspace:ensure'),
   saveWorkspaceItem:(payload)=>ipcRenderer.invoke('workspace:save',payload),
   workspaceHistory:()=>ipcRenderer.invoke('workspace:history'),
+  purchaseAnalysisGet:(scopeKey)=>ipcRenderer.invoke('purchase-analysis:get',scopeKey),
+  purchaseAnalysisSet:(payload)=>ipcRenderer.invoke('purchase-analysis:set',payload),
   chooseFolder:()=>ipcRenderer.invoke('folder:choose'),
   revokeFolder:(folder)=>ipcRenderer.invoke('folder:revoke',folder),
   listFolder:(folder)=>ipcRenderer.invoke('folder:list',folder),
