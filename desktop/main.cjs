@@ -365,6 +365,31 @@ ipcMain.handle('license:status',async()=>{
   }
 });
 
+const VNX_WORK_FOLDERS=['Clientes','Pedidos','Compras','Informes','Documentos','Captacion','Exportaciones','Historial'];
+async function ensureVentaNexiaWorkspace(){
+  const root=path.join(app.getPath('documents'),'VentaNexIA');
+  await fs.mkdir(root,{recursive:true});
+  for(const name of VNX_WORK_FOLDERS)await fs.mkdir(path.join(root,name),{recursive:true});
+  const s=await readState();s.permissions=s.permissions||{folders:[]};
+  if(!s.permissions.folders.includes(root))s.permissions.folders.push(root);
+  s.workspace={...(s.workspace||{}),root,createdAt:s.workspace?.createdAt||new Date().toISOString()};
+  await writeState(s);return {root,folders:VNX_WORK_FOLDERS.map(name=>({name,path:path.join(root,name)}))};
+}
+function safeWorkText(v=''){return String(v||'').replace(/\b(?:password|contrase(?:n|ñ)a|token|secret|api[_ -]?key|authorization|cookie|credencial(?:es)?)\b\s*[:=]?\s*[^\s,;]+/gi,'[DATO SEGURO OMITIDO]')}
+function safeWorkName(v='trabajo'){return String(v||'trabajo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._ -]+/g,'').trim().replace(/\s+/g,'-').slice(0,70)||'trabajo'}
+async function uniqueWorkFile(dir,base,ext='.md'){
+  let file=path.join(dir,base+ext),n=2;while(true){try{await fs.access(file);file=path.join(dir,base+'-'+n+++ext)}catch{return file}}
+}
+ipcMain.handle('workspace:ensure',async()=>ensureVentaNexiaWorkspace());
+ipcMain.handle('workspace:save',async(_e,payload={})=>{
+  const ws=await ensureVentaNexiaWorkspace(),category=VNX_WORK_FOLDERS.includes(payload.category)?payload.category:'Documentos';
+  const dir=path.join(ws.root,category),stamp=new Date().toISOString().replace(/[:.]/g,'-'),base=safeWorkName(payload.name||category+'-'+stamp);
+  const file=await uniqueWorkFile(dir,base,'.md'),content=safeWorkText(payload.content||'');await fs.writeFile(file,content,'utf8');await audit('workspace.saved',category+' · '+path.basename(file));return {ok:true,file,category};
+});
+ipcMain.handle('workspace:history',async()=>{
+  const ws=await ensureVentaNexiaWorkspace(),out=[];for(const f of ws.folders){let names=[];try{names=await fs.readdir(f.path)}catch{}for(const name of names.slice(-100)){const full=path.join(f.path,name);try{const st=await fs.stat(full);if(st.isFile())out.push({category:f.name,name,path:full,updatedAt:st.mtime.toISOString()})}catch{}}}return out.sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0,250);
+});
+
 ipcMain.handle('folder:choose',async()=>{
   const r=await dialog.showOpenDialog(mainWindow,{properties:['openDirectory'],title:'Autorizar carpeta para VentaNexIA'});
   if(r.canceled||!r.filePaths[0])return null;
