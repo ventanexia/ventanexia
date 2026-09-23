@@ -2179,10 +2179,10 @@ function emailListItem(m,i,selected){
       finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(btn.textContent==='Hecho ✓')btn.textContent=old}},1000)}
     });
     $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
-    $m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
-    $m('[data-stock-excel]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockExcel)]||{},'excel',btn));
-    $m('[data-stock-csv]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockCsv)]||{},'csv',btn));
-    $m('[data-stock-pdf]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockPdf)]||{},'pdf',btn));
+    $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
+    $$m('[data-stock-excel]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockExcel)]||{},'excel',btn));
+    $$m('[data-stock-csv]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockCsv)]||{},'csv',btn));
+    $$m('[data-stock-pdf]').forEach(btn=>btn.onclick=()=>exportStockData(masterMessages[Number(btn.dataset.stockPdf)]||{},'pdf',btn));
     $$m('[data-purchase-csv]').forEach(btn=>btn.onclick=()=>exportPurchaseCsv(masterMessages[Number(btn.dataset.purchaseCsv)],btn));
     $$m('[data-open-secure-connections]').forEach(btn=>btn.onclick=()=>openConnectionsTab());
     $$m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
