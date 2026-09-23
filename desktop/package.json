@@ -1,6 +1,6 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.118",
+  "version": "0.6.119",
   "private": true,
   "description": "VentaNexIA Desktop · Carla central + captación automática por marca + borradores Gmail + conexiones aisladas · 0.6.115",
   "main": "master-entry.cjs",
