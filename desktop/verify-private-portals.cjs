@@ -8,8 +8,8 @@ function need(source,re,msg){if(!re.test(source)){console.error('PRIVATE_PORTAL_
 need(renderer,/async function refreshRuntimeConnections\(\)[\s\S]*listPortals\(\)/,'refreshRuntimeConnections must refresh private portals');
 need(renderer,/async function renderMasterPortals\(\)[\s\S]*listPortals\(\)[\s\S]*if\(!root\)return masterPortals/,'portal state must load even when Connections UI is absent');
 need(renderer,/if\(key==='core_ai'\|\|key==='web_ecommerce'\|\|key==='orders'\)[\s\S]*module:'portal'/,'Carla/Web/Pedidos must expose connected private portals as sources');
-need(backend,/scope\?\.selectedSource[\s\S]*src\.module==='portal'\|\|src\.type==='portal'/,'selected private portal must route through strict source isolation');
-need(backend,/if\(!scope\?\.selectedSource\)[\s\S]*hubContext/,'other connection metadata must stay out when one source is selected');
+need(backend,/scope\?\.selectedSources[\s\S]*scope\?\.selectedSource[\s\S]*src\?\.module==='portal'\|\|src\?\.type==='portal'/,'selected private portal must route through strict source isolation');
+need(backend,/if\(!explicit\.length\)[\s\S]*hubContext/,'other connection metadata must stay out when an explicit source is selected');
 const hidden=styles.lastIndexOf('.vnx-carla-window #chatSourceHint{display:none!important}');
 const restoredBlock=styles.match(/\.vnx-carla-window:not\(:has\(\.email-dashboard-mode\)\) #chatSourceHint\{[\s\S]*?display:block!important;[\s\S]*?\}/);
 if(!restoredBlock){console.error('PRIVATE_PORTAL_VERIFY_FAIL: restored Carla source hint visibility rule missing');process.exit(1)}
