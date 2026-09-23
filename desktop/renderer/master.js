@@ -2462,9 +2462,18 @@ function emailListItem(m,i,selected){
   }
   function setupMasterChat(){
     const form=$m('#chatForm');if(!form)return;
-    restoringChatState=true;loadMasterChatState();restoringChatState=false;
+    restoringChatState=true;
+    try{
+      const previous=JSON.parse(localStorage.getItem(CHAT_STATE_KEY)||'null');
+      if(previous&&Array.isArray(previous.messages)&&previous.messages.length&&window.vnx?.saveWorkspaceItem){
+        const lines=previous.messages.map(m=>(m.role==='user'?'Usuario':'Carla')+': '+String(m.content||'')).join('\n\n');
+        window.vnx.saveWorkspaceItem({category:'Historial',name:'Conversacion-'+new Date(previous.at||Date.now()).toISOString().slice(0,19).replace(/[:T]/g,'-'),content:lines}).catch(()=>{});
+      }
+    }catch{}
+    masterMessages=[];clearPersistedChat();restoringChatState=false;
+    window.vnx?.ensureWorkspace?.().catch(()=>{});
     const chatInput=ensureChatInputEditable();
-    loadChatDraft();
+    if(chatInput)chatInput.value='';
     if(chatInput){
       ['pointerdown','mousedown','click'].forEach(ev=>chatInput.addEventListener(ev,()=>keepChatComposerUsable({focus:true}),true));
       chatInput.addEventListener('focus',()=>keepChatComposerUsable(),true);
@@ -2540,7 +2549,7 @@ function emailListItem(m,i,selected){
             headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
             rows:purchaseRows
           };
-          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});
+          masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
@@ -2565,7 +2574,7 @@ function emailListItem(m,i,selected){
               const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
-              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});
+              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
               const reason=summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** necesita volver a iniciarse.'
