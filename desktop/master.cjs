@@ -1086,6 +1086,12 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
 
   const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
+  // Safety invariant: credentials for private portals are entered only in the secure connection window, never in chat.
+  const credentialRequest=/\b(?:dame|dime|escribe|envia|pasa|facilita|comparte|introduce|pega|necesito)\b[^.\n]{0,100}\b(?:usuario|contrasena|contraseña|password|credenciales?)\b|\b(?:usuario|contrasena|contraseña|password|credenciales?)\b[^.\n]{0,100}\b(?:chat|aqui|aquí)\b/i;
+  if(typeof j.reply==='string'&&credentialRequest.test(j.reply)){
+    j.reply='La sesión de la conexión privada no está disponible. Por seguridad, no escribas usuarios, contraseñas ni credenciales en el chat. Ve a **Conexiones**, pulsa **Desconectar** si aparece y después **Conectar** para iniciar sesión en la ventana segura de VentaNexIA. Cuando quede conectada, vuelve aquí y repetiré la consulta.';
+    j.securityCard={type:'portal_login',title:'Conexión privada',status:'Requiere iniciar sesión',action:'Abrir Conexiones'};
+  }
   const images=[],seen=new Set();for(const p of portalContext)for(const img of p.images||[]){if(!img?.src||seen.has(img.src))continue;seen.add(img.src);images.push({src:img.src,alt:img.alt||p.name});if(images.length>=8)break}
   j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));j.route=scope?.type==='agent'?'agent:'+scope.key:(scope?.type||null);
   await audit('ai.chat',`Consulta con ${localContext.length} fuente(s) autorizada(s)`);return j;
