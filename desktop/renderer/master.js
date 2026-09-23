@@ -1146,10 +1146,10 @@ function emailListItem(m,i,selected){
       const btn=e.currentTarget,oldText=btn.innerHTML;btn.disabled=true;
       try{
         const doc=await window.vnx.analyzeDocument();if(!doc?.ok)return;
-        selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();
+        selectAgentKey('administration',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();
         const prompt='ANALÍZAME. El usuario ha subido el archivo "'+doc.fileName+'" ('+doc.kind+'). Analiza SOLO el contenido incluido abajo. Explica primero qué contiene en lenguaje sencillo. Después destaca datos, problemas, oportunidades o puntos importantes que realmente estén en el archivo. Termina con una sección "Qué puedo hacer con este documento" con acciones concretas que VentaNexIA puede preparar a continuación. No inventes información que no aparezca en el archivo.\n\nCONTENIDO DEL DOCUMENTO:\n'+doc.text;
         masterMessages.push({role:'user',content:'▤ Analízame · '+doc.fileName});renderMasterMessages();
-        const ai=await window.vnx.sendChat([{role:'user',content:prompt}],{type:'agent',key:'core_ai',name:'Carla · Asistente IA',included:true,connected:true,ready:true});
+        const ai=await window.vnx.sendChat([{role:'user',content:prompt}],{type:'agent',key:'administration',name:'Documentos e IA',included:true,connected:true,ready:true});
         masterMessages.push({role:'assistant',content:ai.reply||'He leído el documento, pero no he podido preparar el análisis.'});renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(err){masterMessages.push({role:'assistant',content:'No he podido analizar el documento: '+(err.message||err)});document.querySelector('[data-tab="chat"]')?.click();renderMasterMessages()}
       finally{btn.disabled=false;if(btn.innerHTML!==oldText&&btn.isConnected)btn.innerHTML=oldText}
