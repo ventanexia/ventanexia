@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.123",
+  "version": "0.6.123-beta.1",
   "private": true,
-  "description": "VentaNexIA Desktop · Carla central + IA empresarial + conexiones aisladas + portales privados + stock y compras + captación · 0.6.123",
+  "description": "VentaNexIA BETA DE EVALUACIÓN — entorno demostrativo aislado con datos ficticios.",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
@@ -100,5 +100,6 @@
     "@napi-rs/canvas": "^0.1.80",
     "@tesseract.js-data/eng": "^1.0.0",
     "@tesseract.js-data/spa": "^1.0.0"
-  }
+  },
+  "productName": "VentaNexIA BETA Demo"
 }
