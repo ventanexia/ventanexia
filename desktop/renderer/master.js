@@ -1129,8 +1129,22 @@ function emailListItem(m,i,selected){
     bindAll('[data-home-carla]',()=>{selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();$m('#chatInput')?.focus()});
     bindAll('[data-home-email]',()=>runEmailWorkbench('summary'));
     bindAll('[data-home-orders]',()=>{selectAgentKey('orders',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
-    bindAll('[data-home-clients]',()=>{selectAgentKey('prospecting',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
-    bindAll('[data-home-document]',()=>{selectAgentKey('administration',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Quiero crear un documento';input.focus()}});
+    bindAll('[data-home-clients]',()=>{selectAgentKey('crm',{preserve:true})||selectAgentKey('prospecting',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click()});
+    bindAll('[data-home-marketing]',()=>{selectAgentKey('social',{preserve:true});setWorkspaceMode('guided');document.querySelector('[data-tab="chat"]')?.click()});
+    bindAll('[data-team-agent]',e=>{const key=e.currentTarget.dataset.teamAgent;selectAgentKey(key,{preserve:true});setWorkspaceMode('guided');document.querySelector('[data-tab="chat"]')?.click()});
+    bindAll('[data-home-all-specialists]',()=>{document.querySelector('[data-tab="chat"]')?.click();setWorkspaceMode('guided')});
+    bindAll('[data-home-analyze]',async e=>{
+      const btn=e.currentTarget,oldText=btn.innerHTML;btn.disabled=true;
+      try{
+        const doc=await window.vnx.analyzeDocument();if(!doc?.ok)return;
+        selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();
+        const prompt='ANALÍZAME. El usuario ha subido el archivo "'+doc.fileName+'" ('+doc.kind+'). Analiza SOLO el contenido incluido abajo. Explica primero qué contiene en lenguaje sencillo. Después destaca datos, problemas, oportunidades o puntos importantes que realmente estén en el archivo. Termina con una sección "Qué puedo hacer con este documento" con acciones concretas que VentaNexIA puede preparar a continuación. No inventes información que no aparezca en el archivo.\n\nCONTENIDO DEL DOCUMENTO:\n'+doc.text;
+        masterMessages.push({role:'user',content:'▤ Analízame · '+doc.fileName});renderMasterMessages();
+        const ai=await window.vnx.sendChat([{role:'user',content:prompt}],{type:'agent',key:'core_ai',name:'Carla · Asistente IA',included:true,connected:true,ready:true});
+        masterMessages.push({role:'assistant',content:ai.reply||'He leído el documento, pero no he podido preparar el análisis.'});renderMasterMessages({focusIndex:masterMessages.length-1});
+      }catch(err){masterMessages.push({role:'assistant',content:'No he podido analizar el documento: '+(err.message||err)});document.querySelector('[data-tab="chat"]')?.click();renderMasterMessages()}
+      finally{btn.disabled=false;if(btn.innerHTML!==oldText&&btn.isConnected)btn.innerHTML=oldText}
+    });
     bindAll('[data-home-stock-open]',()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify';input.focus()}});
     const main=$m('#homeQuickInput'),send=$m('#homeQuickSend');
     const submit=()=>{const text=String(main?.value||'').trim();if(!text)return;selectAgentKey('core_ai',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value=text;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}};
