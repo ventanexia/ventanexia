@@ -136,7 +136,7 @@ ipcMain.handle('shopify:replenishment-summary',async()=>{
 // Reposición y previsión de rotura desde archivo para conexiones sin API
 // (por ejemplo, portales privados como Naturdesma). Usa exactamente la misma
 // ventana de 180 días, objetivo de 30 días y regla urgente <5 días que Shopify.
-const {readTableBuffer}=require('./order-files.cjs');
+const {readTableBuffer,extractText}=require('./order-files.cjs');
 function normStockHeader(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findStockColumn(headers,candidates){
   const normHeaders=headers.map(normStockHeader);
@@ -154,6 +154,18 @@ function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DA
       daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData};
   });
 }
+ipcMain.handle('document:analyze-select',async()=>{
+  const win=BrowserWindow.getFocusedWindow()||BrowserWindow.getAllWindows()[0]||null;
+  const picked=await dialog.showOpenDialog(win,{title:'Analízame · selecciona un documento',properties:['openFile'],
+    filters:[{name:'Documentos compatibles',extensions:['pdf','xlsx','csv','docx','txt','md','json','xml','html','png','jpg','jpeg','webp']}]});
+  if(picked.canceled||!picked.filePaths?.length)return {ok:false,cancelled:true};
+  const filePath=picked.filePaths[0],name=path.basename(filePath),buffer=await fs.readFile(filePath);
+  const extracted=await extractText({name,mime:'',buffer});
+  if(extracted.issue||!String(extracted.text||'').trim())throw new Error('No he podido analizar '+name+': '+(extracted.issue||'no contiene texto o datos legibles.'));
+  return {ok:true,fileName:name,kind:extracted.kind,text:String(extracted.text||'').slice(0,60000),
+    rows:Array.isArray(extracted.rows)?extracted.rows.length:null};
+});
+
 ipcMain.handle('stock:import-file',async()=>{
   const win=BrowserWindow.getFocusedWindow()||BrowserWindow.getAllWindows()[0]||null;
   const picked=await dialog.showOpenDialog(win,{title:'Archivo de stock y ventas de los últimos 6 meses',properties:['openFile'],
