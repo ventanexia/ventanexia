@@ -2536,9 +2536,35 @@ function emailListItem(m,i,selected){
           btn.disabled=false;btn.textContent='Enviar';
           return;
         }
-        if(isPortalStockRequest(text,scope)&&window.vnx?.stockImportFile){
-          const sourceLabel=scope?.selectedSource?.label||scope?.name||'esta conexión';
-          masterMessages.push({role:'assistant',content:'**'+sourceLabel+' está conectado**, pero esa conexión todavía no proporciona a VentaNexIA existencias y ventas en un formato estructurado fiable. Estar conectado no significa que pueda calcular stock 0 o rotura <5 días.\n\nPara obtener un pedido correcto sin inventar datos, importa un Excel o CSV con **SKU o EAN**, **Producto**, **Stock actual** y **Ventas 6 meses**. Te devolveré directamente el **Pedido para Compras**, mostrando solo productos sin stock o con menos de 5 días de cobertura.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+        if(isPortalStockRequest(text,scope)&&window.vnx?.portalReplenishmentSummary){
+          const src=scope?.selectedSource||scope?.source||scope;
+          const portalId=src?.id||null,sourceLabel=src?.label||src?.name||scope?.name||'Conexión privada';
+          if(!portalId){
+            masterMessages.push({role:'assistant',content:'No puedo identificar qué conexión privada debo consultar. Selecciona una sola fuente en **Trabajar con** y vuelve a pedir el análisis.',scopeKey:activeScopeKey});
+            renderMasterMessages({focusIndex:masterMessages.length-1});btn.disabled=false;btn.textContent='Enviar';return;
+          }
+          try{
+            const summary=await window.vnx.portalReplenishmentSummary(portalId);
+            if(summary?.ok){
+              const reply=shopifyStockTable({...summary,sourceLabel});
+              const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
+                String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+                Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
+                Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
+              ]);
+              const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+              let content=reply;
+              if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
+              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,scopeKey:activeScopeKey});
+            }else{
+              const reason=summary?.reason==='login_required'
+                ?'La sesión de **'+sourceLabel+'** necesita volver a iniciarse.'
+                :'He entrado en **'+sourceLabel+'**, pero no he encontrado todavía una tabla estructurada que relacione referencia/producto con existencias. No voy a usar Shopify ni mezclar otra empresa.';
+              masterMessages.push({role:'assistant',content:reason+'\n\nAbre la conexión privada y deja accesible la pantalla de **Productos / Stock / Existencias**; después vuelve a pedirme el análisis. Como alternativa puedes importar un Excel/CSV si ese programa permite exportarlo.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+            }
+          }catch(e){
+            masterMessages.push({role:'assistant',content:'No he podido leer el stock de **'+sourceLabel+'**: '+String(e?.message||e)+'. No he usado Shopify ni ninguna otra conexión.',scopeKey:activeScopeKey});
+          }
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
