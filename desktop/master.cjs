@@ -374,12 +374,17 @@ async function extractPage(win){
     const tableRows=t=>[...t.querySelectorAll('tr')].slice(0,5000).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent))).filter(r=>r.length);
     const tables=[...document.querySelectorAll('table')].slice(0,30).map(tableRows).filter(rows=>rows.length);
     const semantic=[];
-    for(const root of [...document.querySelectorAll('[role="grid"],[role="table"],.ag-root,.MuiDataGrid-root,.dx-datagrid')].slice(0,30)){
+    for(const root of [...document.querySelectorAll('[role="grid"],[role="table"],.ag-root,.MuiDataGrid-root,.dx-datagrid,.ant-table,.el-table,.v-data-table,.p-datatable,.k-grid,.handsontable')].slice(0,30)){
       let rows=[...root.querySelectorAll('[role="row"]')].slice(0,5000).map(r=>[...r.querySelectorAll('[role="columnheader"],[role="gridcell"],[role="cell"]')].map(c=>clean(c.innerText||c.textContent))).filter(r=>r.length);
       if(rows.length<2&&root.matches('.ag-root')){
         const header=[...root.querySelectorAll('.ag-header-cell')].map(c=>clean(c.innerText||c.textContent)).filter(Boolean);
         const body=[...root.querySelectorAll('.ag-row')].slice(0,5000).map(r=>[...r.querySelectorAll('.ag-cell')].map(c=>clean(c.innerText||c.textContent))).filter(r=>r.length);
         rows=header.length?[header,...body]:body;
+      }
+      if(rows.length<2){
+        const header=[...root.querySelectorAll('thead th,.ant-table-thead th,.el-table__header th,.v-data-table-header th,.p-datatable-thead th,.k-grid-header th')].map(c=>clean(c.innerText||c.textContent)).filter(Boolean);
+        const body=[...root.querySelectorAll('tbody tr,.ant-table-tbody tr,.el-table__body tr,.v-data-table__tr,.p-datatable-tbody tr,.k-grid-content tr,[data-rowindex]')].slice(0,5000).map(r=>[...r.querySelectorAll('td,[role="gridcell"],.ant-table-cell,.el-table__cell,.v-data-table__td,.p-datatable-td,.k-table-td')].map(c=>clean(c.innerText||c.textContent))).filter(r=>r.length);
+        rows=header.length&&body.length?[header,...body]:body;
       }
       if(rows.length>=2)semantic.push(rows);
     }
@@ -572,7 +577,7 @@ const PORTAL_STOCK_COLUMNS={
   sku:['sku','referencia','ref','codigo articulo','cod articulo','codigo de articulo','codigo producto','cod producto','codigo','cod. articulo'],
   ean:['ean','ean13','codigo de barras','cod barras','barcode','gtin'],
   name:['producto','articulo','nombre','descripcion','denominacion','descripcion articulo','nombre articulo'],
-  stock:['stock actual','existencias actuales','existencia actual','stock disponible','existencias','existencia','disponible','unidades disponibles','uds disponibles','cantidad disponible','stock']
+  stock:['stock actual','existencias actuales','existencia actual','stock disponible','existencias disponibles','existencia disponible','existencias','existencia','disponible','disponibilidad','stock fisico','stock físico','existencia fisica','existencia física','unidades disponibles','uds disponibles','cantidad disponible','cantidad actual','unidades','uds','saldo','stock']
 };
 const PORTAL_SALES_COLUMNS={
   sku:PORTAL_STOCK_COLUMNS.sku,ean:PORTAL_STOCK_COLUMNS.ean,
