@@ -863,20 +863,36 @@ ipcMain.handle('email:action',async(_e,payload={})=>{
 
 // La lógica de priorización y respuesta directa del Agente Email vive en agent-email.cjs y se prueba de forma aislada.
 
+function safeIntegrationDescriptor(moduleKey,integration={}){
+  const blocked=/token|secret|password|key|credential|authorization|cookie/i;
+  const safe={};
+  for(const [k,v] of Object.entries(integration||{})){
+    if(blocked.test(k)||v==null||typeof v==='object')continue;
+    if(['string','number','boolean'].includes(typeof v))safe[k]=String(v).slice(0,300);
+  }
+  return {path:'CONEXIÓN '+moduleKey,content:'FUENTE: conexión autorizada por el usuario.\nTIPO: '+moduleKey+'\nESTADO: conectada\nDATOS DE CONEXIÓN SEGUROS: '+JSON.stringify(safe)+'\nUsa esta fuente solo para identificar la conexión y enrutar la tarea. No inventes datos remotos que no estén presentes.'};
+}
 async function contextForExplicitSource(s,src,question=''){
   const local=[],portals=[];
-  if(src?.module==='shopify'){
+  const moduleKey=String(src?.module||src?.key||src?.type||'').toLowerCase();
+  if(moduleKey==='shopify'){
     const integration=s.secret?.integrations?.shopify;if(!integration)throw new Error('La conexión Shopify seleccionada ya no está disponible.');
     local.push(...await collectShopifyContext(integration,question));
-  }else if(src?.module==='email'){
+  }else if(moduleKey==='email'){
     const all=emailAccountsForState(s),one=Number.isInteger(src.accountIndex)?all[src.accountIndex]:null;
     if(!one)throw new Error('La cuenta de email seleccionada ya no está disponible.');
     const mail=await collectGmailContextsFast([one],question);local.push(...mail.files); // collectGmailContextsFast(emailAccountsForState(s),question) is intentionally narrowed to the explicitly selected account
     if(!local.length)throw new Error('No he podido leer la cuenta de email seleccionada. '+mail.failures.join(' · '));
-  }else if(src?.module==='portal'||src?.type==='portal'){
+  }else if(moduleKey==='portal'){
     const p=await getPortal(clean(src.id,80));if(!p)throw new Error('La página privada seleccionada ya no está disponible.');
     const pr=await readPortal(p,question);if(pr.status!=='connected')throw new Error('La página privada seleccionada necesita iniciar sesión o revisar la conexión.');
     portals.push(pr);local.push(...portalAsLocalFiles([pr]));
+  }else if(moduleKey==='folder'){
+    local.push(...await collectAuthorizedContext());
+  }else if(['crm','whatsapp','social','agenda','wordpress','web_ecommerce'].includes(moduleKey)){
+    const integration=s.secret?.integrations?.[moduleKey];
+    if(!integration)throw new Error('La conexión '+moduleKey+' seleccionada ya no está disponible.');
+    local.push(safeIntegrationDescriptor(moduleKey,integration));
   }else throw new Error('Esta conexión todavía no admite consulta aislada desde Carla.');
   return {local,portals};
 }
@@ -889,7 +905,16 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   if(scope?.type==='agent')assertAgentIncluded(s.license,scope.key);
   let localContext=[],portalContext=[],portalFiles=[],centralErrors=[];
 
-  if(scope?.type==='agent'&&scope?.key==='email'){
+  const explicitSources=Array.isArray(scope?.selectedSources)&&scope.selectedSources.length?scope.selectedSources:(scope?.selectedSource?[scope.selectedSource]:[]);
+  if(scope?.type==='agent'&&scope?.key!=='email'&&explicitSources.length){
+    // Cualquier especialista puede trabajar con las conexiones compatibles elegidas en la UI.
+    // Nunca se añaden otras empresas o conexiones de forma implícita.
+    for(const src of explicitSources.slice(0,2)){
+      const ctx=await contextForExplicitSource(s,src,question);
+      localContext.push(...ctx.local);portalContext.push(...ctx.portals);
+    }
+    portalFiles=portalAsLocalFiles(portalContext);
+  }else if(scope?.type==='agent'&&scope?.key==='email'){
     const allIntegrations=emailAccountsForState(s);
     const integrations=Number.isInteger(scope?.accountIndex)?[allIntegrations[scope.accountIndex]].filter(Boolean):allIntegrations;
     if(!integrations.length)throw new Error('El agente Email todavía no tiene ninguna cuenta conectada.');
