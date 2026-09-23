@@ -1500,3 +1500,138 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-home-stock-hidden{display:none!important}
 .vnx-home-security{margin:13px 2px 0;padding:9px 12px;border:1px solid rgba(22,74,123,.6);border-radius:10px;background:rgba(5,24,45,.45)}
 @media(max-width:1180px){.vnx-home-lower-redesign{grid-template-columns:1fr}.vnx-home-title-row h1{font-size:33px}}
+
+
+/* VNX 0.6.131 — CAPTACIÓN DEDICADA */
+.guided-layout.prospecting-dashboard-mode{grid-template-columns:1fr!important}
+.prospecting-dashboard-mode .guided-main-card{padding:0!important;overflow:hidden}
+.prospecting-dashboard-mode .guided-card-head{padding:18px 20px 14px;margin:0;border-bottom:1px solid #174e72}
+.prospecting-dashboard-mode #guidedModePanel{padding:0}
+.prospecting-dashboard{
+  padding:18px 20px 20px;
+  background:
+    radial-gradient(circle at 85% 0%,rgba(88,70,255,.11),transparent 30%),
+    linear-gradient(180deg,#061b2e 0%,#041522 100%);
+}
+.prospecting-hero{
+  display:flex;justify-content:space-between;gap:22px;align-items:center;
+  padding:4px 2px 18px;border-bottom:1px solid rgba(33,103,145,.45)
+}
+.prospecting-hero-copy{max-width:840px}
+.prospecting-badge{
+  display:inline-flex;align-items:center;border:1px solid #2a76a6;background:#082c49;
+  color:#55dfff;border-radius:999px;padding:5px 10px;font-size:10px;font-weight:950;
+  letter-spacing:.1em
+}
+.prospecting-hero h3{font-size:27px;color:#fff;margin:9px 0 5px;letter-spacing:-.02em}
+.prospecting-hero p{margin:0;color:#9fc1d3;font-size:12px;line-height:1.55}
+.prospecting-live-state{
+  min-width:220px;display:flex;align-items:center;gap:10px;border:1px solid #1d668b;
+  background:#08253d;border-radius:12px;padding:11px 13px
+}
+.prospecting-live-state>span{color:#49e4ad;font-size:18px}.prospecting-live-state div{display:grid;gap:2px}
+.prospecting-live-state b{font-size:12px;color:#effaff}.prospecting-live-state small{font-size:9px;color:#88aabd;line-height:1.3}
+.prospecting-flow{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:15px}
+.prospecting-step-card{
+  border:1px solid #165f88;border-radius:15px;background:linear-gradient(180deg,#08243d,#061c31);
+  padding:15px;box-shadow:0 10px 28px rgba(0,0,0,.11)
+}
+.prospecting-step-card:nth-child(3){grid-column:1/-1}
+.prospecting-step-head{display:flex;align-items:center;gap:10px;margin-bottom:13px}
+.prospecting-step-head>span{
+  width:31px;height:31px;display:grid;place-items:center;border-radius:10px;
+  color:#fff;font-weight:950;background:linear-gradient(135deg,#1ea9ed,#714cff);
+  box-shadow:0 5px 14px rgba(60,89,255,.24)
+}
+.prospecting-step-head div{display:grid;gap:2px}.prospecting-step-head b{font-size:14px;color:#fff}
+.prospecting-step-head small{font-size:9px;color:#86aabd}
+.prospecting-step-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.prospecting-step-grid .guided-field.wide{grid-column:1/-1}
+.prospecting-step-grid .guided-field input,
+.prospecting-step-grid .guided-field select,
+.prospecting-step-grid .guided-field textarea{
+  background:#041729!important;border-color:#1b567e!important;border-radius:9px!important;
+  padding:10px 11px!important;font-size:11px!important
+}
+.prospecting-step-grid .guided-field textarea{min-height:70px}
+.prospecting-step-grid .guided-field>span{font-size:9px!important;color:#bcd7e7!important}
+.prospecting-promise{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:13px}
+.prospecting-promise>div{
+  display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;border:1px solid #165370;
+  border-radius:11px;background:#061e33;padding:10px 11px
+}
+.prospecting-promise>div>span{
+  width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:#0c594a;color:#65efbe;font-weight:950
+}
+.prospecting-promise p{margin:0;display:grid;gap:2px}.prospecting-promise b{font-size:10px;color:#f1fbff}
+.prospecting-promise small{font-size:9px;color:#86a9bb;line-height:1.35}
+.prospecting-dashboard-mode #guidedCatalogRow,
+.prospecting-dashboard-mode #guidedConsentRow{margin-left:20px;margin-right:20px}
+.prospecting-dashboard-mode #guidedPrimaryAction{
+  width:calc(100% - 40px)!important;margin:12px 20px 0!important;
+  min-height:48px!important;font-size:14px!important
+}
+.prospecting-dashboard-mode #guidedResult{margin:14px 20px 20px}
+.prospecting-dashboard-mode #guidedConnectionSummary{display:none!important}
+@media(max-width:980px){
+  .prospecting-flow{grid-template-columns:1fr}.prospecting-step-card:nth-child(3){grid-column:auto}
+  .prospecting-promise{grid-template-columns:1fr}.prospecting-hero{align-items:flex-start;flex-direction:column}
+  .prospecting-live-state{width:100%;box-sizing:border-box}
+}
+@media(max-width:640px){.prospecting-step-grid{grid-template-columns:1fr}.prospecting-step-grid .guided-field.wide{grid-column:auto}}
+
+/* VNX 0.6.131 — STOCK Y COMPRAS VISUAL */
+.vnx-purchase-panel{
+  border:1px solid #1c628d;border-radius:16px;overflow:hidden;
+  background:linear-gradient(180deg,#071f36 0%,#05192d 100%);
+  box-shadow:0 14px 34px rgba(0,0,0,.16)
+}
+.vnx-purchase-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:17px 18px 14px;border-bottom:1px solid #184d70;
+  background:linear-gradient(135deg,#082945,#071e36)
+}
+.vnx-purchase-kicker{
+  display:inline-flex;border:1px solid #2b80ad;border-radius:999px;background:#082e4c;
+  color:#59dcff;padding:4px 9px;font-size:9px;font-weight:950;letter-spacing:.1em
+}
+.vnx-purchase-head h3{margin:8px 0 4px;color:#fff;font-size:23px;letter-spacing:-.02em}
+.vnx-purchase-head p{margin:0;color:#93b5c8;font-size:10px}.vnx-purchase-head p b{color:#dff5ff}
+.vnx-purchase-source{
+  display:inline-flex;align-items:center;gap:5px;border:1px solid #236c63;background:#0b3b35;
+  border-radius:999px;padding:6px 9px;color:#6df0c2;font-size:9px;font-weight:850;white-space:nowrap
+}
+.vnx-purchase-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:13px 14px 4px}
+.vnx-purchase-metrics article{
+  border:1px solid #175979;border-radius:11px;background:#08233b;padding:11px 12px;
+  display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;column-gap:8px
+}
+.vnx-purchase-metrics span{font-size:9px;color:#89adbf;font-weight:800}
+.vnx-purchase-metrics b{grid-row:1/3;grid-column:2;font-size:23px;color:#fff;align-self:center}
+.vnx-purchase-metrics small{font-size:8px;color:#68899d;margin-top:3px}
+.vnx-purchase-table-wrap{margin:10px 14px 14px;border:1px solid #175a82;border-radius:12px;overflow:auto;background:#061c31}
+.vnx-purchase-table{width:100%;border-collapse:collapse;min-width:780px}
+.vnx-purchase-table th{
+  position:sticky;top:0;z-index:1;background:#0a3150;color:#a9d6e8;text-align:left;
+  font-size:9px;text-transform:uppercase;letter-spacing:.055em;padding:10px 11px;border-bottom:1px solid #1d6a94
+}
+.vnx-purchase-table td{padding:11px;color:#d5e8f2;font-size:10px;border-bottom:1px solid rgba(32,94,131,.38);vertical-align:middle}
+.vnx-purchase-table tbody tr:hover{background:#082741}.vnx-purchase-table tbody tr:last-child td{border-bottom:0}
+.vnx-purchase-table td:first-child{min-width:190px}.vnx-purchase-table td strong{display:block;color:#fff;font-size:11px}
+.vnx-purchase-table td small{display:block;color:#6f9bb3;font-size:8px;margin-top:3px}
+.vnx-purchase-table .purchase-qty{font-size:15px;font-weight:950;color:#5fe1ff}
+.purchase-status{display:inline-flex;border-radius:999px;padding:5px 8px;font-size:8px;font-weight:950;white-space:nowrap}
+.purchase-status.danger{background:#52232d;color:#ff9aa6;border:1px solid #7f3947}
+.purchase-status.warning{background:#51401d;color:#ffd56c;border:1px solid #80682b}
+.purchase-status.ok{background:#103d36;color:#79edc8;border:1px solid #2c6c60}
+.purchase-empty{text-align:center;color:#85a8bb!important;padding:25px!important}
+.vnx-purchase-foot{margin:-3px 14px 13px;color:#7f9eb1;font-size:9px}
+.vnx-purchase-actions{
+  margin-top:10px!important;border:1px solid #1c628d!important;border-radius:12px!important;
+  background:#07213a!important;padding:10px!important
+}
+.vnx-purchase-actions>b{margin-right:auto;color:#eaf8ff}
+.vnx-purchase-actions button{border-radius:8px!important}
+.vnx-message-canvas .msg.ai:has(.vnx-purchase-panel){max-width:100%!important;width:100%!important;background:transparent!important;border:0!important;padding:0!important}
+@media(max-width:920px){.vnx-purchase-metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.vnx-purchase-metrics{grid-template-columns:1fr}.vnx-purchase-head{flex-direction:column}.vnx-purchase-source{align-self:flex-start}}
