@@ -458,6 +458,7 @@ ipcMain.handle('portal:list',async()=>listPortals());
 ipcMain.handle('portal:save',async(_e,payload)=>savePortal(payload));
 ipcMain.handle('portal:connect',async(_e,id)=>openPortalLogin(clean(id,80)));
 ipcMain.handle('portal:check',async(_e,id)=>{const p=await getPortal(clean(id,80));if(!p)throw new Error('Portal no encontrado');const result=await readPortal(p,'dashboard estado conexión');await audit('portal.checked',`${p.name} · ${result.status}`);return result});
+ipcMain.handle('portal:disconnect',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Portal no encontrado');try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await patchPortal(portal.id,{lastStatus:'disconnected',connectedAt:null,lastUrl:portal.url,lastCheckedAt:new Date().toISOString()});await audit('portal.disconnected',portal.name);return {ok:true,status:'disconnected'};});
 ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)return true;const s=await readState();s.portals=(s.portals||[]).filter(p=>p.id!==portal.id);await writeState(s);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await audit('portal.removed',portal.name);return true});
 
 
