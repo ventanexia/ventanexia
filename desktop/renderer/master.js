@@ -418,8 +418,17 @@
   }
   function renderGuidedAgentTabs(items,selected){
     const root=$m('#guidedAgentTabs');if(!root)return;
-    root.innerHTML=items.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'</button>').join('');
-    $$m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
+    const groups=[
+      {key:'core_ai',name:'Carla',icon:'✦',desc:'organiza y coordina'},
+      {key:'email',name:'Correo y atención',icon:'✉',desc:'email, WhatsApp y atención'},
+      {key:'crm',fallback:'prospecting',name:'Ventas y clientes',icon:'♙',desc:'clientes, ofertas y prospección'},
+      {key:'web_ecommerce',fallback:'orders',name:'Pedidos, stock y compras',icon:'◫',desc:'pedidos, tienda y reposición'},
+      {key:'social',name:'Marketing y redes',icon:'◎',desc:'contenido, redes y campañas'},
+      {key:'administration',fallback:'reports',name:'Documentos e IA',icon:'▤',desc:'documentos, datos e informes'}
+    ];
+    const visible=groups.map(g=>{const a=items.find(x=>x.key===g.key)||items.find(x=>x.key===g.fallback);return a?{...a,groupName:g.name,groupIcon:g.icon,groupDesc:g.desc}:null}).filter(Boolean);
+    root.innerHTML=visible.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.groupIcon||a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.groupName||a.name)+'</b><small>'+escM(a.groupDesc||agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'</button>').join('');
+    $m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
   }
   function renderGuidedOtherCards(items,selected){
     const root=$m('#guidedOtherCards');if(!root)return;
