@@ -906,6 +906,8 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   let localContext=[],portalContext=[],portalFiles=[],centralErrors=[];
 
   const explicitSources=Array.isArray(scope?.selectedSources)&&scope.selectedSources.length?scope.selectedSources:(scope?.selectedSource?[scope.selectedSource]:[]);
+  // selected private portal must route through strict source isolation:
+  // scope?.selectedSources -> scope?.selectedSource -> src?.module==='portal'||src?.type==='portal'.
   if(scope?.type==='agent'&&scope?.key!=='email'&&explicitSources.length){
     // Cualquier especialista puede trabajar con las conexiones compatibles elegidas en la UI.
     // Nunca se añaden otras empresas o conexiones de forma implícita.
