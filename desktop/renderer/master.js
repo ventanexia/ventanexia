@@ -777,7 +777,15 @@ function emailListItem(m,i,selected){
     if(prep)prep.onclick=async()=>{
       const old=prep.textContent;prep.disabled=true;prep.textContent='Preparando emails…';
       try{
-        const rr=await window.vnx.sendChat([{role:'user',content:'prepara los emails'}],scope);
+        const campaign=[
+          'Prepara los emails comerciales para estas oportunidades usando el contexto de la campaña de captación.',
+          'No uses un correo genérico: analiza individualmente cada empresa, su actividad y los datos públicos encontrados.',
+          'Selecciona únicamente los productos, servicios o argumentos que razonablemente puedan interesarle.',
+          'Mantén un tono profesional y breve. Usa la identidad, firma, web, logo y catálogo autorizados cuando estén disponibles.',
+          'No inventes necesidades, cargos, nombres, productos, precios ni datos.',
+          'No envíes nada todavía salvo que el usuario haya activado expresamente el modo de envío automático; si no, prepara borradores para revisar.'
+        ].join(' ');
+        const rr=await window.vnx.sendChat([{role:'user',content:campaign}],scope);
         setWorkspaceMode('free');
         masterMessages=[
           {role:'assistant',content:r.reply||('He encontrado '+leads.length+' oportunidades.')},
