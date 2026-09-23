@@ -1701,16 +1701,21 @@ function emailListItem(m,i,selected){
     return null;
   }
   function refreshAgentSourceSelector(agent){
-    const wrap=$m('#chatSourceWrap'),sel=$m('#chatSourceSelect'),hint=$m('#chatSourceHint');if(!wrap||!sel)return;
+    const wrap=$m('#chatSourceWrap'),sel=$m('#chatSourceSelect'),secondWrap=$m('#chatSourceSecondWrap'),second=$m('#chatSourceSecondSelect'),hint=$m('#chatSourceHint');if(!wrap||!sel)return;
     const sources=sourcesForAgent(agent);
-    if(!sources.length){wrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
+    if(!sources.length){wrap.style.display='none';if(secondWrap)secondWrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
     wrap.style.display='grid';if(hint)hint.style.display='block';
-    const prev=sel.dataset.agent===agent.key?sel.value:'';
-    sel.innerHTML='<option value="">Elige una conexión…</option>'+(sources.length>1?'<option value="__all__">Todas, separadas</option>':'')+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
+    const prev=sel.dataset.agent===agent.key?sel.value:'',prevSecond=second&&second.dataset.agent===agent.key?second.value:'';
+    sel.innerHTML='<option value="">Elige una conexión…</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
     sel.dataset.agent=agent.key;
-    if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;
-    else sel.value='';
-    if(hint)hint.textContent=sources.length>1?'Tienes '+sources.length+' conexiones para este empleado. Elige una o “Todas, separadas”.':'Elige esta conexión para mantener sus datos separados del resto.';
+    if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;else sel.value='';
+    if(second&&secondWrap){
+      secondWrap.style.display=sources.length>1?'grid':'none';
+      second.innerHTML='<option value="">No combinar</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
+      second.dataset.agent=agent.key;
+      if(prevSecond&&[...second.options].some(o=>o.value===prevSecond))second.value=prevSecond;else second.value='';
+    }
+    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré únicamente esta conexión.';
   }
   function agentStatusText(x){
     if(x?.external)return '🟢 Agente propio conectado';
@@ -1810,7 +1815,9 @@ function emailListItem(m,i,selected){
     updateWorkbenchAgent(selectedAgent);
     refreshWorkbenchConnections();
     refreshAgentSourceSelector(selectedAgent);
-    const sourceSelect=$m('#chatSourceSelect');if(sourceSelect)sourceSelect.onchange=()=>{const hint2=$m('#chatSourceHint');if(hint2&&sourceSelect.value)hint2.textContent=sourceSelect.value==='__all__'?'Mostraré cada conexión en un bloque separado. Para enviar o modificar algo, deberás elegir una sola conexión.':'Usaré únicamente esta conexión.';keepChatComposerUsable({focus:true})};
+    const sourceSelect=$m('#chatSourceSelect'),sourceSecond=$m('#chatSourceSecondSelect');
+    const updateSourceHint=()=>{const hint2=$m('#chatSourceHint');if(!hint2)return;const combined=sourceSelect?.value!==''&&sourceSecond?.value!==''&&sourceSelect?.value!==sourceSecond?.value;hint2.textContent=combined?'Combinaré únicamente estas dos conexiones porque tú lo has indicado. No usaré ninguna otra.':'Usaré únicamente la conexión seleccionada.';keepChatComposerUsable({focus:true})};
+    if(sourceSelect)sourceSelect.onchange=updateSourceHint;if(sourceSecond)sourceSecond.onchange=updateSourceHint;
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -1820,12 +1827,19 @@ function emailListItem(m,i,selected){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
     const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
     if(item.external)return {type:'external_agent',id:item.externalId,key:item.key,name:agentDisplayName(item),included:true,connected:true,ready:true};
-    const sources=sourcesForAgent(item),sourceSel=$m('#chatSourceSelect'),choice=sourceSel&&sourceSel.dataset.agent===item.key?sourceSel.value:'';
+    const sources=sourcesForAgent(item),sourceSel=$m('#chatSourceSelect'),secondSel=$m('#chatSourceSecondSelect'),choice=sourceSel&&sourceSel.dataset.agent===item.key?sourceSel.value:'',secondChoice=secondSel&&secondSel.dataset.agent===item.key?secondSel.value:'';
     const base={type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
     if(sources.length>0){
       if(!choice)return {...base,needsSourceChoice:true,sources};
-      if(choice==='__all__')return {...base,separateSources:true,sources};
-      const src=sources[Number(choice)];if(src){base.selectedSource=src;if(item.key==='email')base.accountIndex=src.accountIndex;if(item.key==='web_ecommerce'&&src.module==='shopify')base.source={type:'shopify',key:'shopify',name:'Shopify · '+src.label,shop:src.raw?.shop||src.label}}
+      const src=sources[Number(choice)];
+      if(src){
+        base.selectedSource=src;
+        const second=secondChoice!==''?sources[Number(secondChoice)]:null;
+        if(second&&second.id!==src.id)base.selectedSources=[src,second];
+        if(item.key==='email')base.accountIndex=src.accountIndex;
+        if(item.key==='web_ecommerce'&&src.module==='shopify')base.source={type:'shopify',key:'shopify',name:'Shopify · '+src.label,shop:src.raw?.shop||src.label};
+        if(item.key==='web_ecommerce'&&(src.module==='portal'||src.type==='portal'))base.source={type:'portal',id:src.id,name:src.label,url:src.url};
+      }
     }
     return base;
   }
