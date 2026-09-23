@@ -1617,7 +1617,7 @@ function emailListItem(m,i,selected){
     // donde no existe #portalList. El selector de fuentes depende de masterPortals.
     try{masterPortals=await window.vnx.listPortals()||[]}catch{masterPortals=[]}
     if(!root)return masterPortals;
-    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
+    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-disconnect" data-id="${escM(p.id)}" style="${p.lastStatus==='connected'?'':'display:none'}">Desconectar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
     $$m('.master-portal-connect').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Abriendo…';
       try{await window.vnx.connectPortal(b.dataset.id);$m('#portalMsg').textContent='Se ha abierto una ventana segura de VentaNexIA. Inicia sesión ahí una sola vez; la sesión quedará guardada localmente en este ordenador.';}
@@ -1630,7 +1630,14 @@ function emailListItem(m,i,selected){
       catch(e){$m('#portalMsg').textContent=e.message||'No se pudo comprobar el portal'}
       finally{b.disabled=false;b.textContent='Revisar';await renderMasterPortals();refreshChatConnections()}
     });
-    $$m('.master-portal-remove').forEach(b=>b.onclick=async()=>{
+    $m('.master-portal-disconnect').forEach(b=>b.onclick=async()=>{
+      if(!confirm('¿Desconectar esta sesión de forma segura? La conexión seguirá configurada para que puedas volver a entrar.'))return;
+      b.disabled=true;b.textContent='Desconectando…';
+      try{await window.vnx.disconnectPortal(b.dataset.id);if($m('#portalMsg'))$m('#portalMsg').textContent='Sesión desconectada. Ya puedes volver a conectar e iniciar sesión desde cero.';}
+      catch(e){if($m('#portalMsg'))$m('#portalMsg').textContent=e.message||'No se pudo desconectar';}
+      finally{await renderMasterPortals();await refreshChatConnections();}
+    });
+    $m('.master-portal-remove').forEach(b=>b.onclick=async()=>{
       if(!confirm('¿Quitar esta conexión y borrar su sesión guardada de este ordenador?'))return;
       await window.vnx.removePortal(b.dataset.id);await renderMasterPortals();refreshChatConnections();
     });
@@ -2545,6 +2552,7 @@ function emailListItem(m,i,selected){
           }
           try{
             const summary=await window.vnx.portalReplenishmentSummary(portalId);
+            if(summary?.status==='login_required'){await renderMasterPortals();await refreshChatConnections();}
             if(summary?.ok){
               const reply=shopifyStockTable({...summary,sourceLabel});
               const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
