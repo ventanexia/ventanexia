@@ -1630,14 +1630,14 @@ function emailListItem(m,i,selected){
       catch(e){$m('#portalMsg').textContent=e.message||'No se pudo comprobar el portal'}
       finally{b.disabled=false;b.textContent='Revisar';await renderMasterPortals();refreshChatConnections()}
     });
-    $m('.master-portal-disconnect').forEach(b=>b.onclick=async()=>{
+    $$m('.master-portal-disconnect').forEach(b=>b.onclick=async()=>{
       if(!confirm('¿Desconectar esta sesión de forma segura? La conexión seguirá configurada para que puedas volver a entrar.'))return;
       b.disabled=true;b.textContent='Desconectando…';
       try{await window.vnx.disconnectPortal(b.dataset.id);if($m('#portalMsg'))$m('#portalMsg').textContent='Sesión desconectada. Ya puedes volver a conectar e iniciar sesión desde cero.';}
       catch(e){if($m('#portalMsg'))$m('#portalMsg').textContent=e.message||'No se pudo desconectar';}
       finally{await renderMasterPortals();await refreshChatConnections();}
     });
-    $m('.master-portal-remove').forEach(b=>b.onclick=async()=>{
+    $$m('.master-portal-remove').forEach(b=>b.onclick=async()=>{
       if(!confirm('¿Quitar esta conexión y borrar su sesión guardada de este ordenador?'))return;
       await window.vnx.removePortal(b.dataset.id);await renderMasterPortals();refreshChatConnections();
     });
@@ -2170,8 +2170,8 @@ function emailListItem(m,i,selected){
     $$m('[data-secretary-workqueue]').forEach(btn=>btn.onclick=()=>openWorkQueue(btn.dataset.secretaryWorkqueue||'review'));
     $$m('[data-purchase-excel]').forEach(btn=>btn.onclick=()=>exportPurchaseExcel(masterMessages[Number(btn.dataset.purchaseExcel)],btn));
     $$m('[data-purchase-csv]').forEach(btn=>btn.onclick=()=>exportPurchaseCsv(masterMessages[Number(btn.dataset.purchaseCsv)],btn));
-    $m('[data-open-secure-connections]').forEach(btn=>btn.onclick=()=>openConnectionsTab());
-    $m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
+    $$m('[data-open-secure-connections]').forEach(btn=>btn.onclick=()=>openConnectionsTab());
+    $$m('[data-purchase-pdf]').forEach(btn=>btn.onclick=()=>exportPurchasePdf(masterMessages[Number(btn.dataset.purchasePdf)],btn));
     $$m('[data-purchase-print]').forEach(btn=>btn.onclick=()=>printPurchaseProposal(masterMessages[Number(btn.dataset.purchasePrint)]));
     $$m('[data-import-stock-file]').forEach(btn=>btn.onclick=async()=>{
       const msgIndex=Number(btn.dataset.importStockFile),old=btn.textContent;
