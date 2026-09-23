@@ -309,6 +309,20 @@ async function patchPortal(id,patch){
 }
 async function getPortal(id){return (await readState()).portals?.find(p=>p.id===id)||null}
 
+const livePortalWindows=new Map();
+function livePortalWindow(id){
+  const key=String(id||'');
+  const win=livePortalWindows.get(key);
+  if(!win||win.isDestroyed()){livePortalWindows.delete(key);return null}
+  return win;
+}
+function registerLivePortalWindow(portal,win){
+  const key=String(portal?.id||'');
+  if(!key||!win)return win;
+  livePortalWindows.set(key,win);
+  win.on('closed',()=>{if(livePortalWindows.get(key)===win)livePortalWindows.delete(key)});
+  return win;
+}
 function portalWindowOptions(portal,{show=true}={}){
   return {width:1180,height:820,minWidth:900,minHeight:650,show,title:`VentaNexIA · ${portal.name}`,backgroundColor:'#ffffff',webPreferences:{partition:partitionFor(portal.id),contextIsolation:true,nodeIntegration:false,sandbox:true,devTools:false}};
 }
@@ -325,12 +339,18 @@ async function markConnectedIfAuthenticated(portal,win,url){
 }
 async function openPortalLogin(id){
   const portal=await getPortal(id);if(!portal)throw new Error('Portal no encontrado');
-  const win=new BrowserWindow(portalWindowOptions(portal,{show:true}));installEditing(win);win.removeMenu();
+  const existing=livePortalWindow(portal.id);
+  if(existing){
+    try{if(existing.isMinimized())existing.restore();existing.show();existing.focus()}catch{}
+    return {ok:true,id:portal.id,reused:true,message:'Conexión abierta. Deja visible la pantalla que quieras que Carla lea y vuelve a la consulta.'};
+  }
+  const win=registerLivePortalWindow(portal,new BrowserWindow(portalWindowOptions(portal,{show:true})));installEditing(win);win.removeMenu();
   win.webContents.setWindowOpenHandler(({url})=>{if(sameOrigin(url,portal.url)){win.loadURL(url);return {action:'deny'}}if(/^https:\/\//i.test(url))shell.openExternal(url);return {action:'deny'}});
   win.webContents.on('did-navigate',(_e,url)=>markConnectedIfAuthenticated(portal,win,url));
   win.webContents.on('did-navigate-in-page',(_e,url)=>markConnectedIfAuthenticated(portal,win,url));
+  win.webContents.on('did-finish-load',()=>{const url=win.webContents.getURL();if(url)markConnectedIfAuthenticated(portal,win,url)});
   await win.loadURL(portalStartUrl(portal,{forLogin:portal.lastStatus!=='connected'}));
-  return {ok:true,id:portal.id,message:'Ventana de conexión abierta. Inicia sesión y vuelve a VentaNexIA cuando termines.'};
+  return {ok:true,id:portal.id,message:'Ventana de conexión abierta. Entra en la pantalla que quieras que Carla lea; mientras la dejes abierta, Carla leerá esa misma vista.'};
 }
 
 async function extractPage(win){
@@ -372,6 +392,32 @@ async function extractPage(win){
     return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,120000),links,actions,images,tables:allTables,url:location.href};
   })()`,true);
 }
+async function extractLivePortalPage(portal){
+  const win=livePortalWindow(portal?.id);if(!win)return null;
+  try{
+    await delay(250);
+    const page=await extractPage(win);
+    if(!page||!sameOrigin(page.url,portal.url))return null;
+    return page;
+  }catch{return null}
+}
+async function readLivePortal(portal){
+  const page=await extractLivePortalPage(portal);
+  if(!page)return null;
+  if(likelyLogin(page.url,page.text)){
+    await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
+    return {name:portal.name,url:portal.url,status:'login_required',mode:portal.mode,pages:[],images:[],fromLiveWindow:true};
+  }
+  try{await session.fromPartition(partitionFor(portal.id)).cookies.flushStore()}catch{}
+  await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
+  return {
+    name:portal.name,url:portal.url,status:'connected',mode:portal.mode,
+    pages:[{title:page.title,url:page.url,text:page.text.slice(0,PORTAL_PAGE_CHARS),tables:page.tables||[]}],
+    images:(page.images||[]).slice(0,12),pagesScanned:1,tablesSeen:(page.tables||[]).length,
+    fromLiveWindow:true,liveUrl:page.url
+  };
+}
+
 function queryTerms(question=''){
   const q=norm(question),groups=[
     ['pedido',['pedido','pedidos','order','orders']],
@@ -568,14 +614,24 @@ function extractPortalSalesRows(portalResult){
 }
 async function portalReplenishmentSummary(portal){
   if(!portal)throw new Error('Conexión privada no encontrada.');
-  const stockRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||null);
-  if(stockRead.status!=='connected')return {ok:false,status:stockRead.status,sourceLabel:portal.name,reason:'login_required'};
-  const stockExtract=extractPortalStockRows(stockRead),products=stockExtract.rows;
+  const liveRead=await readLivePortal(portal);
+  if(liveRead?.status==='login_required')return {ok:false,status:'login_required',sourceLabel:portal.name,reason:'login_required',liveWindowChecked:true};
+  let stockRead=liveRead&&liveRead.status==='connected'?liveRead:null;
+  let stockExtract=stockRead?extractPortalStockRows(stockRead):{rows:[],sourceUrl:null,structuredTables:0};
+  let products=stockExtract.rows;
+  let usedLiveWindow=products.length>0;
+  if(!products.length){
+    const autoRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||portal.lastUrl||null);
+    if(autoRead.status!=='connected')return {ok:false,status:autoRead.status,sourceLabel:portal.name,reason:'login_required',liveWindowChecked:Boolean(liveRead)};
+    stockRead=autoRead;
+    stockExtract=extractPortalStockRows(stockRead);products=stockExtract.rows;
+  }
   if(!products.length)return {
     ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured',
-    pagesScanned:stockRead.pagesScanned||stockRead.pages?.length||0,
-    tablesSeen:stockRead.tablesSeen||0,
-    structuredTables:stockExtract.structuredTables||0
+    pagesScanned:stockRead?.pagesScanned||stockRead?.pages?.length||0,
+    tablesSeen:stockRead?.tablesSeen||0,
+    structuredTables:stockExtract.structuredTables||0,
+    liveWindowChecked:Boolean(liveRead),liveWindowUrl:liveRead?.liveUrl||null
   };
   if(stockExtract.sourceUrl&&sameOrigin(stockExtract.sourceUrl,portal.url)){
     await patchPortal(portal.id,{stockUrl:stockExtract.sourceUrl});
@@ -593,7 +649,8 @@ async function portalReplenishmentSummary(portal){
     generatedAt:new Date().toISOString(),
     pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
     tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
-    learnedStockRoute:Boolean(stockExtract.sourceUrl)
+    learnedStockRoute:Boolean(stockExtract.sourceUrl),
+    usedLiveWindow,liveWindowChecked:Boolean(liveRead)
   };
 }
 ipcMain.handle('portal:replenishment-summary',async(_e,id)=>{
