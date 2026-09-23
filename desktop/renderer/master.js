@@ -2602,7 +2602,7 @@ function emailListItem(m,i,selected){
         }
         const expired=(r.portalStatus||[]).filter(x=>x.status==='login_required');
         if(expired.length)reply+=`\n\n⚠️ La conexión con ${expired.map(x=>x.name).join(', ')} se ha cerrado. Vuelve a conectarla.`;
-        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,secretaryActions:scope?.key==='core_ai',purchaseExport:isPurchaseProposal(reply),scopeKey:activeScopeKey});renderMasterMessages({focusIndex:masterMessages.length-1});
+        masterMessages.push({role:'assistant',content:reply,images:r.images||[],emailActions:r.emailActions||null,emailActionGroups:r.emailActionGroups||[],handoff:r.handoff||null,securityCard:r.securityCard||null,secretaryActions:scope?.key==='core_ai',purchaseExport:isPurchaseProposal(reply),scopeKey:activeScopeKey});renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(err){masterMessages.push({role:'assistant',content:`No he podido conectar: ${err.message||err}`,scopeKey:activeScopeKey});renderMasterMessages()}
       finally{btn.disabled=false;btn.textContent='Enviar'}
     };
