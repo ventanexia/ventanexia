@@ -309,6 +309,8 @@ async function patchPortal(id,patch){
 }
 async function getPortal(id){return (await readState()).portals?.find(p=>p.id===id)||null}
 
+let appClosingForPortals=false;
+app.on('before-quit',()=>{appClosingForPortals=true});
 const livePortalWindows=new Map();
 function livePortalWindow(id){
   const key=String(id||'');
@@ -320,8 +322,22 @@ function registerLivePortalWindow(portal,win){
   const key=String(portal?.id||'');
   if(!key||!win)return win;
   livePortalWindows.set(key,win);
+  win.on('close',event=>{
+    if(appClosingForPortals)return;
+    event.preventDefault();
+    try{win.hide()}catch{}
+    try{
+      const url=win.webContents.getURL();
+      if(url&&sameOrigin(url,portal.url))patchPortal(portal.id,{lastUrl:url,lastStatus:'connected',lastCheckedAt:new Date().toISOString()}).catch(()=>{});
+    }catch{}
+  });
   win.on('closed',()=>{if(livePortalWindows.get(key)===win)livePortalWindows.delete(key)});
   return win;
+}
+function destroyLivePortalWindow(id){
+  const key=String(id||''),win=livePortalWindow(key);
+  livePortalWindows.delete(key);
+  if(win)try{win.destroy()}catch{}
 }
 function portalWindowOptions(portal,{show=true}={}){
   return {width:1180,height:820,minWidth:900,minHeight:650,show,title:`VentaNexIA · ${portal.name}`,backgroundColor:'#ffffff',webPreferences:{partition:partitionFor(portal.id),contextIsolation:true,nodeIntegration:false,sandbox:true,devTools:false}};
@@ -714,8 +730,8 @@ ipcMain.handle('portal:list',async()=>listPortals());
 ipcMain.handle('portal:save',async(_e,payload)=>savePortal(payload));
 ipcMain.handle('portal:connect',async(_e,id)=>openPortalLogin(clean(id,80)));
 ipcMain.handle('portal:check',async(_e,id)=>{const p=await getPortal(clean(id,80));if(!p)throw new Error('Portal no encontrado');const result=await readPortal(p,'dashboard estado conexión');await audit('portal.checked',`${p.name} · ${result.status}`);return result});
-ipcMain.handle('portal:disconnect',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Portal no encontrado');try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await patchPortal(portal.id,{lastStatus:'disconnected',connectedAt:null,lastUrl:portal.url,lastCheckedAt:new Date().toISOString()});await audit('portal.disconnected',portal.name);return {ok:true,status:'disconnected'};});
-ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)return true;const s=await readState();s.portals=(s.portals||[]).filter(p=>p.id!==portal.id);await writeState(s);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await audit('portal.removed',portal.name);return true});
+ipcMain.handle('portal:disconnect',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Portal no encontrado');destroyLivePortalWindow(portal.id);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await patchPortal(portal.id,{lastStatus:'disconnected',connectedAt:null,lastUrl:portal.url,lastCheckedAt:new Date().toISOString()});await audit('portal.disconnected',portal.name);return {ok:true,status:'disconnected'};});
+ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)return true;destroyLivePortalWindow(portal.id);const s=await readState();s.portals=(s.portals||[]).filter(p=>p.id!==portal.id);await writeState(s);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await audit('portal.removed',portal.name);return true});
 
 
 async function gmailApi(token,pathAndQuery){
