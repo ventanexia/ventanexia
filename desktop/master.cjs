@@ -419,7 +419,14 @@ function choosePortalActions(actions=[],question='',allowPaging=false){
   }
   return ranked.sort((a,b)=>b.score-a.score);
 }
-async function clickPortalAction(win,action){\n  if(!action?.id)return false;\n  try{\n    const safeId=String(action.id).replace(/[^a-zA-Z0-9_-]/g,'');\n    return Boolean(await win.webContents.executeJavaScript(`(()=>{const el=document.querySelector('[data-vnx-read-action="${safeId}"]');if(!el||el.disabled||el.getAttribute('aria-disabled')==='true')return false;el.click();return true})()`,true));\n  }catch{return false}\n}\nfunction portalPageFingerprint(page){
+async function clickPortalAction(win,action){
+  if(!action?.id)return false;
+  try{
+    const safeId=String(action.id).replace(/[^a-zA-Z0-9_-]/g,'');
+    return Boolean(await win.webContents.executeJavaScript(`(()=>{const el=document.querySelector('[data-vnx-read-action="${safeId}"]');if(!el||el.disabled||el.getAttribute('aria-disabled')==='true')return false;el.click();return true})()`,true));
+  }catch{return false}
+}
+function portalPageFingerprint(page){
   const first=(page?.tables||[])[0]||[];
   return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))).digest('hex').slice(0,16);
 }
