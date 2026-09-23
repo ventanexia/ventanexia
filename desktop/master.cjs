@@ -492,27 +492,78 @@ async function readPortal(portal,question='',preferredUrl=null){
   }finally{if(!win.isDestroyed())win.destroy()}
 }
 function portalTableHeaders(rows=[]){return (rows[0]||[]).map(normStockHeader)}
-function portalCol(headers,candidates){return findStockColumn(headers,candidates)}
-function portalNumber(v){const s=String(v??'').trim().replace(/\s/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.').replace(/[^0-9.-]/g,'');const n=Number(s);return Number.isFinite(n)?n:0}
+function portalCol(headers,candidates){
+  const hs=(headers||[]).map(normStockHeader),cs=(candidates||[]).map(normStockHeader);
+  for(const c of cs){const i=hs.findIndex(h=>h===c);if(i>=0)return i}
+  for(const c of cs){const i=hs.findIndex(h=>h.startsWith(c)||h.endsWith(c));if(i>=0)return i}
+  for(const c of cs){const i=hs.findIndex(h=>h.includes(c));if(i>=0)return i}
+  return -1;
+}
+function portalNumber(v){
+  const raw=String(v??'').trim();if(!raw||!/[0-9]/.test(raw))return null;
+  const cleaned=raw.replace(/\s/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.').replace(/[^0-9.-]/g,'');
+  if(!cleaned||cleaned==='-'||cleaned==='.'||cleaned==='-.')return null;
+  const n=Number(cleaned);return Number.isFinite(n)?n:null;
+}
+const PORTAL_STOCK_COLUMNS={
+  sku:['sku','referencia','ref','codigo articulo','cod articulo','codigo de articulo','codigo producto','cod producto','codigo','cod. articulo'],
+  ean:['ean','ean13','codigo de barras','cod barras','barcode','gtin'],
+  name:['producto','articulo','nombre','descripcion','denominacion','descripcion articulo','nombre articulo'],
+  stock:['stock actual','existencias actuales','existencia actual','stock disponible','existencias','existencia','disponible','unidades disponibles','uds disponibles','cantidad disponible','stock']
+};
+const PORTAL_SALES_COLUMNS={
+  sku:PORTAL_STOCK_COLUMNS.sku,ean:PORTAL_STOCK_COLUMNS.ean,
+  qty:['ventas 6 meses','ventas 180 dias','unidades vendidas','cantidad vendida','unidades venta','vendido','vendidas','ventas','cantidad']
+};
+function portalHeaderInfo(table,kind='stock'){
+  if(!Array.isArray(table)||!table.length)return null;
+  let best=null;
+  for(let rowIndex=0;rowIndex<Math.min(6,table.length);rowIndex++){
+    const headers=(table[rowIndex]||[]).map(normStockHeader);if(!headers.length)continue;
+    if(kind==='stock'){
+      const sku=portalCol(headers,PORTAL_STOCK_COLUMNS.sku),ean=portalCol(headers,PORTAL_STOCK_COLUMNS.ean),name=portalCol(headers,PORTAL_STOCK_COLUMNS.name),stock=portalCol(headers,PORTAL_STOCK_COLUMNS.stock);
+      const valid=stock>=0&&(sku>=0||ean>=0);
+      const score=(stock>=0?5:0)+(sku>=0||ean>=0?4:0)+(name>=0?2:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,name,stock,score};
+    }else{
+      const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty);
+      const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,qty,score};
+    }
+  }
+  return best;
+}
 function extractPortalStockRows(portalResult){
-  const out=[],seen=new Set();
+  const rows=[],seen=new Set();let sourceUrl=null,structuredTables=0;
   for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
     if(!Array.isArray(table)||table.length<2)continue;
-    const h=portalTableHeaders(table),iSku=portalCol(h,['sku','referencia','ref','codigo articulo','codigo','cod. articulo']),iEan=portalCol(h,['ean','codigo de barras','barcode']),iName=portalCol(h,['producto','articulo','nombre','descripcion']),iStock=portalCol(h,['stock actual','stock','existencias','existencia','disponible','unidades disponibles']);
-    if(iName<0||iStock<0||(iSku<0&&iEan<0))continue;
-    for(const row of table.slice(1)){const sku=iSku>=0?String(row[iSku]||'').trim():'',ean=iEan>=0?String(row[iEan]||'').trim():'',title=String(row[iName]||'').trim();if(!title||(!sku&&!ean))continue;const key=sku||('EAN:'+ean);if(seen.has(key))continue;seen.add(key);out.push({sku,ean,title,stock:portalNumber(row[iStock])})}
+    const info=portalHeaderInfo(table,'stock');if(!info)continue;structuredTables++;
+    for(const row of table.slice(info.rowIndex+1)){
+      const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'';
+      const stock=portalNumber(row[info.stock]);if(stock===null||(!sku&&!ean))continue;
+      const title=info.name>=0?String(row[info.name]||'').trim():(sku||ean);
+      if(!title)continue;
+      const key=sku||('EAN:'+ean);if(seen.has(key))continue;seen.add(key);
+      if(!sourceUrl)sourceUrl=page.url||null;
+      rows.push({sku,ean,title,stock});
+    }
   }
-  return out;
+  return {rows,sourceUrl,structuredTables};
 }
 function extractPortalSalesRows(portalResult){
-  const totals=new Map();
+  const totals=new Map();let sourceUrl=null,structuredTables=0;
   for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
     if(!Array.isArray(table)||table.length<2)continue;
-    const h=portalTableHeaders(table),iSku=portalCol(h,['sku','referencia','ref','codigo articulo','codigo','cod. articulo']),iEan=portalCol(h,['ean','codigo de barras','barcode']),iQty=portalCol(h,['ventas 6 meses','unidades vendidas','cantidad vendida','vendido','vendidas','ventas','cantidad','unidades']);
-    if(iQty<0||(iSku<0&&iEan<0))continue;
-    for(const row of table.slice(1)){const sku=iSku>=0?String(row[iSku]||'').trim():'',ean=iEan>=0?String(row[iEan]||'').trim():'',key=sku||('EAN:'+ean);if(!key||key==='EAN:')continue;totals.set(key,(totals.get(key)||0)+portalNumber(row[iQty]))}
+    const info=portalHeaderInfo(table,'sales');if(!info)continue;structuredTables++;
+    for(const row of table.slice(info.rowIndex+1)){
+      const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'',key=sku||('EAN:'+ean);
+      if(!key||key==='EAN:')continue;
+      const qty=portalNumber(row[info.qty]);if(qty===null)continue;
+      if(!sourceUrl)sourceUrl=page.url||null;
+      totals.set(key,(totals.get(key)||0)+qty);
+    }
   }
-  return totals;
+  return {totals,sourceUrl,structuredTables};
 }
 async function portalReplenishmentSummary(portal){
   if(!portal)throw new Error('Conexión privada no encontrada.');
