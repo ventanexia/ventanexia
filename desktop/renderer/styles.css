@@ -1467,3 +1467,36 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-team-grid>button>span{width:42px;height:42px;flex:0 0 auto;display:grid;place-items:center;border-radius:11px;background:#0a4d8a;color:#69d4ff;font-size:20px}
 .vnx-team-grid b{display:block;font-size:13px}.vnx-team-grid small{display:block;color:#92aec4;font-size:10px;line-height:1.4;margin-top:4px}.vnx-team-grid em{display:block;color:#50bfff;font-size:9px;font-style:normal;margin-top:8px}
 @media(max-width:1150px){.vnx-team-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:720px){.vnx-team-grid{grid-template-columns:1fr}}
+
+
+/* 0.6.124 — Dashboard oficial inspirado en la referencia Investor Demo */
+.vnx-home-ai-label{font-size:10px;font-weight:900;letter-spacing:.14em;color:#16d7ff;margin:0 0 8px}
+.vnx-home-title-row{align-items:center;margin:4px 0 18px}
+.vnx-home-title-row h1{font-size:38px;letter-spacing:-.045em}
+.vnx-home-title-row p{max-width:760px;font-size:12.5px;line-height:1.5;color:#91abc2}
+.vnx-home-command{height:72px;border-radius:16px;border-color:#2f7cff;background:linear-gradient(180deg,#0b2b50,#071e39);box-shadow:0 16px 44px rgba(0,56,160,.22),0 0 0 2px rgba(22,215,255,.04)}
+.vnx-home-command button{background:linear-gradient(135deg,#16d7ff,#2f7cff);border-color:#6ce9ff}
+.vnx-home-actions{margin:13px 0 30px}
+.vnx-home-actions button{min-height:78px;border-radius:14px;background:linear-gradient(155deg,#0a294a,#071d36);border-color:#174f7d;box-shadow:0 8px 20px rgba(0,0,0,.10)}
+.vnx-home-actions button:hover{border-color:#16d7ff;transform:translateY(-1px);box-shadow:0 10px 26px rgba(0,90,180,.18)}
+.vnx-home-actions button>span{background:linear-gradient(145deg,#0b4f91,#0a3565);color:#7be6ff;border:1px solid #17659c}
+.vnx-home-section-head{margin:0 0 12px}
+.vnx-home-section-head>div p{margin:4px 0 0;color:#789ab6;font-size:10px}
+.vnx-home-today{gap:13px}
+.vnx-today-card{min-height:116px;border-radius:16px;background:linear-gradient(155deg,#0a294a,#071d36);box-shadow:0 10px 24px rgba(0,0,0,.11)}
+.vnx-today-card strong{font-size:31px}
+.vnx-home-lower-redesign{grid-template-columns:minmax(0,1.25fr) minmax(390px,.75fr);gap:14px;margin-top:16px}
+.vnx-home-activity{border:1px solid #17639b;border-radius:16px;background:linear-gradient(155deg,#082846,#071d36);overflow:hidden;box-shadow:0 16px 36px rgba(0,0,0,.13)}
+.vnx-activity-head{display:flex;align-items:center;justify-content:space-between;padding:17px 18px 12px;border-bottom:1px solid #164f79}
+.vnx-activity-head h2{font-size:18px;margin:0}.vnx-activity-head p{font-size:10px;color:#7f9fb8;margin:3px 0 0}.vnx-activity-head button{border:0;background:transparent;color:#43b9ff;font-size:10px;cursor:pointer}
+.vnx-activity-list{display:grid}
+.vnx-activity-list>button{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:12px;min-height:68px;padding:10px 16px;border:0;border-bottom:1px solid #103f63;background:transparent;color:#eaf6ff;text-align:left;cursor:pointer}
+.vnx-activity-list>button:last-child{border-bottom:0}.vnx-activity-list>button:hover{background:#092945}
+.vnx-activity-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:11px;background:#0a4d8a;color:#69d4ff;font-size:18px}
+.vnx-activity-list b{display:block;font-size:11px}.vnx-activity-list small{display:block;color:#809fb8;font-size:9.5px;margin-top:3px;line-height:1.35}.vnx-activity-list em{font-style:normal;font-size:9px;font-weight:900;color:#36e3a4;border:1px solid #1d7155;background:#083b32;border-radius:999px;padding:5px 8px}
+.vnx-home-carla-focus{padding:17px;background:radial-gradient(circle at 20% 0%,rgba(47,124,255,.18),transparent 35%),linear-gradient(155deg,#082846,#071d36)}
+.vnx-home-carla-focus .vnx-carla-summary-body{grid-template-columns:1fr;margin-top:13px}
+.vnx-home-carla-focus .vnx-carla-trust{border-left:0;border-top:1px solid #174f75;padding:11px 0 0}
+.vnx-home-stock-hidden{display:none!important}
+.vnx-home-security{margin:13px 2px 0;padding:9px 12px;border:1px solid rgba(22,74,123,.6);border-radius:10px;background:rgba(5,24,45,.45)}
+@media(max-width:1180px){.vnx-home-lower-redesign{grid-template-columns:1fr}.vnx-home-title-row h1{font-size:33px}}
