@@ -376,6 +376,25 @@
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
+  function prospectingCompanyOptions(savedValue=''){
+    const values=[];
+    for(const src of connectedDataSources()){
+      const name=String(src?.name||'').trim();
+      if(name)values.push(name);
+    }
+    const saved=String(savedValue||'').trim();
+    if(saved)values.push(saved);
+    return [...new Set(values)];
+  }
+  function prospectingCompanyFieldHtml(field={},value=''){
+    const options=prospectingCompanyOptions(value);
+    const req=field.required?' <em>obligatorio</em>':'';
+    return '<label class="guided-field"><span>'+escM(field.label||'TU EMPRESA')+req+'</span><select data-guided-field="company">'
+      +'<option value="">Elige una empresa o conexión…</option>'
+      +options.map(x=>'<option value="'+escM(x)+'"'+(String(value)===x?' selected':'')+'>'+escM(x)+'</option>').join('')
+      +'</select><small class="guided-field-note">'+(options.length?'Opciones obtenidas de las conexiones reales activas.':'No hay conexiones de empresa activas. Ve a Conexiones para añadir una.')+'</small></label>';
+  }
+
   function agentMetricHtml(key){
     const m=agentMetrics[key];if(!m||!m.connected)return '';
     return '<div class="agent-live-metrics">'
@@ -416,11 +435,27 @@
       automation:'ahorrar tiempo y repetir tareas'
     }[key]||'ayuda para tu negocio';
   }
-  function selectAgentKey(key,{preserve=false}={}){
-    const sel=$m('#chatConnectionSelect');if(!sel)return false;    const value=String(key||'').startsWith('external:')?String(key):'agent:'+key;
-    if(![...sel.options].some(o=>o.value===value))return false;
+  function normalizeAgentSelectorValue(value=''){
+    const v=String(value||'').trim();
+    const m=v.match(/^agent:([^:]+)(?::\d+)?$/);
+    return m?'agent:'+m[1]:v;
+  }
+  function resolveAgentByValue(items=[],value=''){
+    const normalized=normalizeAgentSelectorValue(value);
+    return items.find(x=>chatConnectionValue(x)===normalized)
+      ||(normalized.startsWith('agent:')?items.find(x=>String(x.key||'')===normalized.slice(6)):null)
+      ||(normalized.startsWith('external:')?items.find(x=>x.external&&('external:'+x.externalId)===normalized):null)
+      ||null;
+  }
+  function selectAgentKey(key,{preserve=false,showGuided=true}={}){
+    const sel=$m('#chatConnectionSelect');if(!sel)return false;
+    const wanted=String(key||'').startsWith('external:')?String(key):'agent:'+String(key||'');
+    const option=[...sel.options].find(o=>normalizeAgentSelectorValue(o.value)===normalizeAgentSelectorValue(wanted));
+    if(!option)return false;
     if(preserve)handoffAgentChange=true;
-    sel.value=value;sel.dispatchEvent(new Event('change',{bubbles:true}));
+    sel.value=option.value;
+    sel.dispatchEvent(new Event('change',{bubbles:true}));
+    if(showGuided&&!document.body.classList.contains('vnx-carla-window'))setWorkspaceMode('guided');
     return true;
   }
   function renderGuidedAgentTabs(items,selected){
@@ -649,7 +684,7 @@ function emailListItem(m,i,selected){
     if(result)result.style.display='none';
     const cfg=guidedConfig('prospecting'),saved=guidedSaved('prospecting');
     const byKey=Object.fromEntries((cfg.fields||[]).map(f=>[f.key,f]));
-    const field=k=>byKey[k]?guidedFieldHtml(byKey[k],saved[k]||''):'';
+    const field=k=>!byKey[k]?'':(k==='company'?prospectingCompanyFieldHtml(byKey[k],saved[k]||''):guidedFieldHtml(byKey[k],saved[k]||''));
     if(host)host.innerHTML=
       '<div class="prospecting-dashboard">'
       +'<section class="prospecting-hero">'
@@ -1537,10 +1572,9 @@ function emailListItem(m,i,selected){
       document.body.classList.add('vnx-detached-workbench','vnx-carla-window','vnx-focus-chat');
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       $m('#chat')?.classList.add('active');
-      localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
-      const savedAgent=localStorage.getItem('vnx_master_chat_agent')||'agent:core_ai';
-      if(!savedAgent)localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
-      setTimeout(()=>{setWorkspaceMode(savedAgent==='agent:email'?'guided':'free');},0);
+      const savedAgent=normalizeAgentSelectorValue(localStorage.getItem('vnx_master_chat_agent')||'agent:core_ai');
+      if(!localStorage.getItem('vnx_master_chat_agent'))localStorage.setItem('vnx_master_chat_agent',savedAgent);
+      setTimeout(()=>{setWorkspaceMode('free');},0);
     }
     const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
     setUiZoom(detached?Math.max(1.1,stored):stored);
@@ -1728,7 +1762,7 @@ function emailListItem(m,i,selected){
     for(const p of masterPortals||[]){
       const url=String(p.url||p.lastUrl||'').toLowerCase();
       const shopifyAdmin=/^https:\/\/admin\.shopify\.com\//.test(url)||(/\.myshopify\.com\//.test(url)&&(/\/admin(?:\/|$)/.test(url)||/\/settings(?:\/|$)/.test(url)));
-      if(!shopifyAdmin&&['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});
+      if(!shopifyAdmin&&['read','write'].includes(p.mode)&&p.lastStatus==='connected')out.push({type:'portal',id:p.id,name:p.name,url:p.url});
     }
     const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Buscar clientes',crm:'Ventas y clientes',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
     for(const x of runtimeConnections||[]){
@@ -1799,7 +1833,6 @@ function emailListItem(m,i,selected){
   function chatConnectionValue(x){
     if(!x?.key)return '';
     if(x.external)return 'external:'+x.externalId;
-    if(x.key==='email'&&Number.isInteger(x.accountIndex))return 'agent:email:'+x.accountIndex;
     return 'agent:'+x.key;
   }
   function sourceScope(source){
@@ -1814,19 +1847,24 @@ function emailListItem(m,i,selected){
   function refreshAgentSourceSelector(agent){
     const wrap=$m('#chatSourceWrap'),sel=$m('#chatSourceSelect'),secondWrap=$m('#chatSourceSecondWrap'),second=$m('#chatSourceSecondSelect'),hint=$m('#chatSourceHint');if(!wrap||!sel)return;
     const sources=sourcesForAgent(agent);
-    if(!sources.length){wrap.style.display='none';if(secondWrap)secondWrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
+    if(!sources.length){wrap.style.display='none';if(secondWrap)secondWrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';sel.dataset.sourceId='';return}
     wrap.style.display='grid';if(hint)hint.style.display='block';
-    const prev=sel.dataset.agent===agent.key?sel.value:'',prevSecond=second&&second.dataset.agent===agent.key?second.value:'';
+    const prevId=sel.dataset.agent===agent.key?sel.dataset.sourceId:'',prevSecondId=second&&second.dataset.agent===agent.key?second.dataset.sourceId:'';
     sel.innerHTML='<option value="">Elige una conexión…</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
     sel.dataset.agent=agent.key;
-    if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;else sel.value='';
+    let firstIndex=prevId?sources.findIndex(x=>String(x.id||x.label)===prevId):-1;
+    if(firstIndex<0&&sources.length===1)firstIndex=0;
+    sel.value=firstIndex>=0?String(firstIndex):'';
+    sel.dataset.sourceId=firstIndex>=0?String(sources[firstIndex].id||sources[firstIndex].label):'';
     if(second&&secondWrap){
       secondWrap.style.display=sources.length>1?'grid':'none';
       second.innerHTML='<option value="">No combinar</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
       second.dataset.agent=agent.key;
-      if(prevSecond&&[...second.options].some(o=>o.value===prevSecond))second.value=prevSecond;else second.value='';
+      const secondIndex=prevSecondId?sources.findIndex(x=>String(x.id||x.label)===prevSecondId):-1;
+      second.value=secondIndex>=0?String(secondIndex):'';
+      second.dataset.sourceId=secondIndex>=0?String(sources[secondIndex].id||sources[secondIndex].label):'';
     }
-    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré únicamente esta conexión.';
+    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré automáticamente esta única conexión: '+sources[0].label+'.';
   }
   function agentStatusText(x){
     if(x?.external)return '🟢 Agente propio conectado';
@@ -1882,7 +1920,7 @@ function emailListItem(m,i,selected){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
     await refreshRuntimeConnections();
     await refreshAgentMetrics();
-    const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
+    const items=chatConnections(),previous=normalizeAgentSelectorValue(sel.value),saved=normalizeAgentSelectorValue(localStorage.getItem('vnx_master_chat_agent')||'');
     sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(agentDisplayName(x)+' — '+agentStatusText(x))+'</option>').join('');
     const values=[...sel.options].map(o=>o.value);
     if(previous&&values.includes(previous))sel.value=previous;
@@ -1907,7 +1945,7 @@ function emailListItem(m,i,selected){
       handoffAgentChange=false;
       activeAgentValue=nextValue;
       if(nextValue)localStorage.setItem('vnx_master_chat_agent',nextValue);
-      const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
+      const chosen=resolveAgentByValue(chatConnections(),nextValue);
       updateAgentHint(chosen,hint);
       updateAgentInputExample(chosen);
       renderGuidedAgentTabs(items,chosen);
@@ -1917,7 +1955,7 @@ function emailListItem(m,i,selected){
       refreshAgentSourceSelector(chosen);
       if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>keepChatComposerUsable({focus:true}),30);
     };
-    const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
+    const selectedAgent=resolveAgentByValue(items,sel.value);
     keepChatComposerUsable();
     updateAgentHint(selectedAgent,hint);
     updateAgentInputExample(selectedAgent);
@@ -1937,8 +1975,18 @@ function emailListItem(m,i,selected){
       hint2.textContent=combined?'Combinaré únicamente estas dos conexiones porque tú lo has indicado. No usaré ninguna otra.':'Usaré únicamente la conexión seleccionada.';
       keepChatComposerUsable({focus:true});
     };
-    if(sourceSelect)sourceSelect.onchange=()=>updateSourceHint('first');
-    if(sourceSecond)sourceSecond.onchange=()=>updateSourceHint('second');
+    if(sourceSelect)sourceSelect.onchange=()=>{
+      const chosen=resolveAgentByValue(chatConnections(),$m('#chatConnectionSelect')?.value||'');
+      const sources=sourcesForAgent(chosen),src=sourceSelect.value!==''?sources[Number(sourceSelect.value)]:null;
+      sourceSelect.dataset.sourceId=src?String(src.id||src.label):'';
+      updateSourceHint('first');
+    };
+    if(sourceSecond)sourceSecond.onchange=()=>{
+      const chosen=resolveAgentByValue(chatConnections(),$m('#chatConnectionSelect')?.value||'');
+      const sources=sourcesForAgent(chosen),src=sourceSecond.value!==''?sources[Number(sourceSecond.value)]:null;
+      sourceSecond.dataset.sourceId=src?String(src.id||src.label):'';
+      updateSourceHint('second');
+    };
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -1946,7 +1994,7 @@ function emailListItem(m,i,selected){
   window.vnxRefreshAgentUi=refreshChatConnections;
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
-    const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
+    const item=resolveAgentByValue(items,sel.value);if(!item)return null;
     if(item.external)return {type:'external_agent',id:item.externalId,key:item.key,name:agentDisplayName(item),included:true,connected:true,ready:true};
     const sources=sourcesForAgent(item),sourceSel=$m('#chatSourceSelect'),secondSel=$m('#chatSourceSecondSelect'),choice=sourceSel&&sourceSel.dataset.agent===item.key?sourceSel.value:'',secondChoice=secondSel&&secondSel.dataset.agent===item.key?secondSel.value:'';
     const base={type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
