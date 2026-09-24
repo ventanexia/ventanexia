@@ -769,12 +769,23 @@ ipcMain.handle('integration:status',async(_e,module)=>{
   const key=normalizeProviderKey(module),s=await readState();
   if(key==='email'){
     const accounts=emailAccountsFromState(s);
-    if(!accounts.length)return {connected:false,module:key,accounts:[]};
-    return {connected:true,module:key,provider:accounts[0].provider,label:accounts.length===1?(accounts[0].label||accounts[0].account||accounts[0].provider):(accounts.length+' cuentas de correo'),mode:'write',meta:accounts[0].meta||{},connectedAt:accounts[0].connectedAt||null,accounts:accounts.map(x=>({label:x.label||x.meta?.email||x.account||'Correo',provider:x.provider,connectedAt:x.connectedAt||null}))};
+    if(!accounts.length)return {connected:false,configured:false,state:'disconnected',module:key,accounts:[]};
+    const checked=await Promise.all(accounts.map(async(x,i)=>{
+      const h=await liveIntegrationHealth('email',x,i);
+      return {label:x.label||x.meta?.email||x.account||('Correo '+(i+1)),account:x.meta?.email||x.account||x.username||x.label||'',provider:x.provider,connectedAt:x.connectedAt||null,mode:x.mode||'write',...h};
+    }));
+    const live=checked.filter(x=>x.connected);
+    return {
+      connected:live.length>0,configured:true,state:live.length===checked.length?'connected':live.length?'partial':'reconnect',module:key,
+      provider:live[0]?.provider||checked[0]?.provider||null,
+      label:live.length===1?live[0].label:(live.length?live.length+' cuentas de correo verificadas':'Correo necesita reconexión'),
+      mode:'write',accounts:checked
+    };
   }
   const x=s.secret?.integrations?.[key];
-  if(!x)return {connected:false,module:key};
-  return {connected:true,module:key,provider:x.provider,label:x.label||x.account||x.provider,mode:x.mode||'read',meta:x.meta||{},connectedAt:x.connectedAt||null};
+  if(!x)return {connected:false,configured:false,state:'disconnected',module:key};
+  const h=await liveIntegrationHealth(key,x,0);
+  return {configured:true,module:key,provider:x.provider,label:x.label||x.account||x.provider,mode:x.mode||'read',meta:x.meta||{},connectedAt:x.connectedAt||null,...h};
 });
 ipcMain.handle('agenda:today',async()=>{
   const s=await readState();assertModuleIncluded(s.license,'agenda');return calendar.today();
@@ -787,7 +798,24 @@ ipcMain.handle('integration:disconnect',async(_e,module)=>{
   const key=normalizeProviderKey(module),s=await readState();
   if(key==='email'){if(s.secret?.integrations?.email)delete s.secret.integrations.email;s.secret.emailAccounts=[];}
   else if(s.secret?.integrations?.[key])delete s.secret.integrations[key];
-  await writeState(s);await audit('integration.disconnected',key);return true;
+  await writeState(s);clearConnectionHealth();await audit('integration.disconnected',key);return true;
+});
+ipcMain.handle('email:disconnect-account',async(_e,account)=>{
+  const target=String(account||'').trim().toLowerCase(),s=await readState();
+  if(!target)return {ok:false};
+  s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
+  const all=emailAccountsFromState(s);
+  const kept=all.filter(x=>integrationAccountKey(x)!==target);
+  if(isMaster(s.license)){
+    s.secret.emailAccounts=kept;
+    if(kept.length)s.secret.integrations.email=kept[0];else delete s.secret.integrations.email;
+  }else{
+    const primary=s.secret.integrations.email;
+    if(primary&&integrationAccountKey(primary)===target)delete s.secret.integrations.email;
+    s.secret.emailAccounts=[];
+  }
+  await writeState(s);clearConnectionHealth();await audit('integration.email_account_disconnected',target);
+  return {ok:true,remaining:emailAccountsFromState(s).length};
 });
 
 ipcMain.handle('whatsapp:runtime',async(_e,payload={})=>{
