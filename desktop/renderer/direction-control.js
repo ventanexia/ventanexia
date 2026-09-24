@@ -1,0 +1,174 @@
+'use strict';
+(()=>{
+  const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+  let snapshot=null,employees=[],settings=null,currentFilter='all';
+
+  function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function businessId(){try{return String(window.vnxBusiness?.activeProfile?.()?.id||'')}catch{return ''}}
+  function fmtDate(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
+  function fmtMinutes(n=0){n=Math.max(0,Math.round(Number(n)||0));if(n<60)return n+' min';const h=Math.floor(n/60),m=n%60;return h+' h'+(m?' '+m+' min':'')}
+  function statusLabel(t){
+    if(t.status==='done')return t.completedBy==='ai'?'✦ Resuelta por IA':'● Completada';
+    if(t.status==='blocked')return '⛔ Bloqueada';
+    if(t.status==='in_progress')return 'En curso';
+    if(t.status==='cancelled')return 'Cancelada';
+    const overdue=t.dueAt&&new Date(t.dueAt)<new Date();return overdue?'⚠ Fuera de plazo':'Pendiente';
+  }
+  function taskIsOverdue(t){return !['done','cancelled'].includes(t.status)&&t.dueAt&&new Date(t.dueAt)<new Date()}
+  function taskFilter(t){
+    if(currentFilter==='open')return !['done','cancelled'].includes(t.status);
+    if(currentFilter==='overdue')return taskIsOverdue(t);
+    if(currentFilter==='ai')return t.status==='done'&&t.completedBy==='ai';
+    if(currentFilter==='done')return t.status==='done';
+    return true;
+  }
+  function defaultDue(){
+    const d=new Date(Date.now()+8*60*60000),pad=n=>String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+
+  async function load(){
+    try{
+      const opts={businessId:businessId()};
+      [snapshot,employees,settings]=await Promise.all([
+        window.vnx.directionSummary(opts),
+        window.vnx.directionEmployees(opts),
+        window.vnx.directionSettings()
+      ]);
+      render();
+    }catch(e){
+      const rows=$('#vnxDirTaskRows');if(rows)rows.innerHTML='<tr><td colspan="8">No se ha podido cargar el control de dirección: '+esc(e.message||e)+'</td></tr>';
+    }
+  }
+
+  function renderKpis(){
+    const cards=$$('#vnxDirKpis article'),v=[
+      snapshot?.totals?.employees||0,snapshot?.totals?.open||0,snapshot?.totals?.overdue||0,
+      snapshot?.totals?.doneByAI||0,snapshot?.totals?.aiTakeoverDue||0
+    ];
+    cards.forEach((c,i)=>{const s=c.querySelector('strong');if(s)s.textContent=String(v[i]||0)});
+  }
+  function renderEmployees(){
+    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee');
+    if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
+    if(sel){
+      const keep=sel.value;
+      sel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
+      if(employees.some(e=>e.id===keep))sel.value=keep;
+    }
+  }
+  function renderEmployeeRows(){
+    const body=$('#vnxDirEmployeeRows');if(!body)return;
+    const rows=snapshot?.employees||[];
+    body.innerHTML=rows.length?rows.map(e=>{
+      const inactive=e.pending||e.inProgress||e.blocked?fmtMinutes(e.minutesSinceLastRecordedActivity):'—';
+      return '<tr class="'+(e.overdue?'vnx-dir-risk':'')+'"><td><b>'+esc(e.name)+'</b><small>'+esc(e.role||'')+'</small></td><td>'+e.assigned+'</td><td>'+e.done+'</td><td>'+e.pending+'</td><td>'+(e.overdue?'<b class="vnx-dir-red">'+e.overdue+'</b>':'0')+'</td><td>'+(e.doneAI?'<b class="vnx-dir-ai">'+e.doneAI+'</b>':'0')+'</td><td>'+inactive+'</td><td>'+fmtMinutes(e.overdueMinutesTotal)+'</td></tr>';
+    }).join(''):'<tr><td colspan="8">Todavía no hay actividad asignada.</td></tr>';
+  }
+  function actionButtons(t){
+    if(t.status==='done'||t.status==='cancelled')return '<button class="btn mini outline" data-dir-event="'+esc(t.id)+'">Añadir evidencia</button>';
+    let html='<button class="btn mini outline" data-dir-progress="'+esc(t.id)+'">Actividad</button><button class="btn mini primary" data-dir-human="'+esc(t.id)+'">Marcar hecha</button>';
+    if(t.aiTakeoverEligible)html+='<button class="btn mini outline" data-dir-carla="'+esc(t.id)+'">Abrir en Carla</button><button class="btn mini outline" data-dir-ai="'+esc(t.id)+'">IA la resolvió</button>';
+    return html;
+  }
+  function renderTasks(){
+    const body=$('#vnxDirTaskRows');if(!body)return;
+    const tasks=(snapshot?.tasks||[]).filter(taskFilter);
+    body.innerHTML=tasks.length?tasks.map(t=>{
+      const cls=taskIsOverdue(t)?'vnx-dir-risk':'';
+      return '<tr class="'+cls+'"><td><b>'+esc(t.title)+'</b><small>'+esc(t.description||'')+'</small></td><td>'+esc(t.assigneeName||'—')+'</td><td>'+esc(t.module||'—')+'</td><td>'+fmtDate(t.dueAt)+'</td><td>'+statusLabel(t)+'</td><td>'+fmtDate(t.lastActivityAt)+'</td><td>'+esc(t.outcome||t.evidence||'—')+'</td><td><div class="vnx-dir-row-actions">'+actionButtons(t)+'</div></td></tr>';
+    }).join(''):'<tr><td colspan="8">No hay tareas en este filtro.</td></tr>';
+    bindTaskActions();
+  }
+  function renderSettings(){
+    if(!settings)return;
+    const a=$('#vnxDirDefaultSla'),b=$('#vnxDirAiGrace'),c=$('#vnxDirAiGlobal');
+    if(a)a.value=String(settings.defaultSlaMinutes||480);
+    if(b)b.value=String(settings.aiTakeoverGraceMinutes??60);
+    if(c)c.checked=Boolean(settings.aiTakeoverEnabled);
+  }
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings()}
+
+  async function promptEvent(taskId,kind){
+    const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task)return;
+    const detail=window.prompt(kind==='done'?'Resultado o evidencia de que la tarea se hizo:':'Describe brevemente la actividad realizada:','')||'';
+    if(!detail.trim())return;
+    if(kind==='done')await window.vnx.directionResolveTask(taskId,{actor:'human',detail,outcome:detail});
+    else await window.vnx.directionAddEvent(taskId,{actor:'human',type:'activity',detail,status:'in_progress'});
+    await load();
+  }
+  async function markAi(taskId){
+    const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task)return;
+    const detail=window.prompt('Indica qué hizo VentaNexIA y qué evidencia quedó preparada:','VentaNexIA completó la tarea tras vencer el plazo asignado.')||'';
+    if(!detail.trim())return;
+    await window.vnx.directionResolveTask(taskId,{actor:'ai',detail,outcome:detail,evidence:detail});
+    await load();
+  }
+  async function addEvidence(taskId){
+    const detail=window.prompt('Añade una evidencia o anotación a esta tarea:','')||'';if(!detail.trim())return;
+    await window.vnx.directionAddEvent(taskId,{actor:'human',type:'evidence',detail});
+    await load();
+  }
+  function openInCarla(taskId){
+    const t=snapshot?.tasks?.find(x=>x.id===taskId);if(!t)return;
+    document.querySelector('[data-tab="chat"]')?.click();
+    setTimeout(()=>{
+      const input=$('#chatInput');if(!input)return;
+      input.value='La tarea «'+t.title+'» asignada a '+(t.assigneeName||'un responsable')+' ha vencido sin constancia de finalización. Ayúdame a resolverla con las fuentes autorizadas. Contexto: '+(t.description||'sin detalle adicional')+'. No ejecutes acciones sensibles sin mi aprobación.';
+      input.focus();
+    },80);
+  }
+  function bindTaskActions(){
+    $$('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
+    $$('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
+    $$('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
+    $$('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
+    $$('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
+  }
+
+  function bind(){
+    const refresh=$('#vnxDirRefresh');if(refresh)refresh.onclick=load;
+    const add=$('#vnxDirAddEmployeeBtn'),form=$('#vnxDirEmployeeForm'),cancel=$('#vnxDirEmpCancel');
+    if(add)add.onclick=()=>{form.hidden=false;$('#vnxDirEmpName')?.focus()};
+    if(cancel)cancel.onclick=()=>{form.hidden=true;form.reset()};
+    if(form)form.onsubmit=async e=>{
+      e.preventDefault();
+      await window.vnx.directionSaveEmployee({businessId:businessId(),name:$('#vnxDirEmpName').value,role:$('#vnxDirEmpRole').value,email:$('#vnxDirEmpEmail').value});
+      form.reset();form.hidden=true;await load();
+    };
+    const tf=$('#vnxDirTaskForm');if(tf){
+      const due=$('#vnxDirTaskDue');if(due&&!due.value)due.value=defaultDue();
+      tf.onsubmit=async e=>{
+        e.preventDefault();
+        const employee=employees.find(x=>x.id===$('#vnxDirTaskEmployee').value);if(!employee)return;
+        await window.vnx.directionCreateTask({
+          businessId:businessId(),assigneeId:employee.id,assigneeName:employee.name,
+          title:$('#vnxDirTaskTitle').value,description:$('#vnxDirTaskDesc').value,module:$('#vnxDirTaskModule').value,
+          priority:$('#vnxDirTaskPriority').value,dueAt:new Date($('#vnxDirTaskDue').value).toISOString(),
+          aiTakeoverEligible:true,aiTakeoverEnabled:$('#vnxDirTaskAi').checked
+        });
+        tf.reset();$('#vnxDirTaskDue').value=defaultDue();await load();
+      };
+    }
+    const filter=$('#vnxDirFilter');if(filter)filter.onchange=()=>{currentFilter=filter.value;renderTasks()};
+    const sf=$('#vnxDirSettingsForm');if(sf)sf.onsubmit=async e=>{
+      e.preventDefault();settings=await window.vnx.directionSettings({
+        defaultSlaMinutes:Number($('#vnxDirDefaultSla').value)||480,
+        aiTakeoverGraceMinutes:Number($('#vnxDirAiGrace').value)||0,
+        aiTakeoverEnabled:$('#vnxDirAiGlobal').checked
+      });await load();
+    };
+    const exportBtn=$('#vnxDirExport');if(exportBtn)exportBtn.onclick=async()=>{
+      const rows=(snapshot?.tasks||[]).map(t=>[t.title,t.assigneeName||'',t.module||'',fmtDate(t.assignedAt),fmtDate(t.dueAt),statusLabel(t),fmtDate(t.lastActivityAt),t.completedBy||'',t.outcome||'',t.evidence||'']);
+      if(!rows.length){alert('Todavía no hay tareas para exportar.');return}
+      exportBtn.disabled=true;const old=exportBtn.textContent;exportBtn.textContent='Preparando Excel…';
+      try{await window.vnx.exportData({format:'excel',title:'Control Operativo de Dirección',headers:['Tarea','Responsable','Área','Asignada','Plazo','Estado','Última actividad','Resuelta por','Resultado','Evidencia'],rows});exportBtn.textContent='Excel guardado ✓'}
+      catch(e){alert('No se pudo exportar: '+(e.message||e));exportBtn.textContent=old}
+      finally{setTimeout(()=>{if(exportBtn.isConnected){exportBtn.disabled=false;exportBtn.textContent=old}},1500)}
+    };
+    document.querySelector('[data-tab="direction"]')?.addEventListener('click',()=>setTimeout(load,40));
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{bind();load()});
+  window.vnxDirection={refresh:load};
+})();
