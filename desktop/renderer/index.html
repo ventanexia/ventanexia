@@ -14,11 +14,29 @@
   <aside class="side vnx-side-clean">
     <div class="brand"><div class="mark">V</div><div><b>Venta<span>NexIA</span></b><small>Tu empresa, más simple.</small></div></div>
     <nav class="vnx-main-nav" aria-label="Navegación principal">
-      <button class="nav active" data-tab="home">⌂ <span>Inicio</span></button>
-      <button class="nav" data-tab="chat">✦ <span>Carla</span></button>
-      <button class="nav" data-tab="agents">⌘ <span>Conexiones</span></button>
-      <button class="nav" data-tab="files">▤ <span>Archivos</span></button>
-      <button class="nav" data-tab="activity">✓ <span>Pendientes y actividad</span></button>
+      <button class="nav active" data-tab="home"><span class="vnx-nav-icon">⌂</span><span>Inicio</span></button>
+      <button class="nav" data-tab="chat"><span class="vnx-nav-icon">✦</span><span>Carla</span></button>
+      <button class="nav" data-tab="agents"><span class="vnx-nav-icon">⌘</span><span>Conexiones</span></button>
+
+      <div class="vnx-nav-business">
+        <button class="vnx-agent-side-btn" data-agent-home="email"><span class="vnx-nav-icon">✉</span><span>Correo</span></button>
+        <button class="vnx-agent-side-btn" data-agent-home="orders"><span class="vnx-nav-icon">▣</span><span>Pedidos</span></button>
+        <button class="vnx-agent-side-btn" data-agent-home="web_ecommerce"><span class="vnx-nav-icon">◫</span><span>Stock y compras</span></button>
+        <button class="vnx-agent-side-btn" data-agent-home="crm"><span class="vnx-nav-icon">♙</span><span>Ventas y clientes</span></button>
+
+        <div class="vnx-side-group"><div class="vnx-side-group-title"><span class="vnx-nav-icon">⌁</span><span>Marketing y redes</span></div>
+          <button class="vnx-agent-side-btn sub" data-agent-home="prospecting"><span>◎</span><span>Captación de clientes</span></button>
+          <button class="vnx-agent-side-btn sub" data-agent-home="content"><span>✎</span><span>Producción de contenidos</span></button>
+          <button class="vnx-agent-side-btn sub" data-agent-home="social"><span>◈</span><span>Redes sociales</span></button>
+          <button class="vnx-agent-side-btn sub" data-agent-home="campaigns"><span>⌁</span><span>Campañas</span></button>
+        </div>
+
+        <button class="vnx-agent-side-btn" data-agent-home="administration"><span class="vnx-nav-icon">▤</span><span>Documentos e IA</span></button>
+        <button class="vnx-agent-side-btn" data-agent-home="agenda"><span class="vnx-nav-icon">▦</span><span>Agenda</span></button>
+        <button class="nav" data-tab="files"><span class="vnx-nav-icon">▧</span><span>Archivos</span></button>
+        <button class="vnx-agent-side-btn" data-agent-home="reports"><span class="vnx-nav-icon">▥</span><span>Informes</span></button>
+        <button class="vnx-agent-side-btn" data-agent-home="automation"><span class="vnx-nav-icon">↻</span><span>Automatizaciones</span></button>
+      </div>
     </nav>
     <div class="vnx-side-divider"></div>
     <button class="nav" data-tab="license">⚙ <span>Configuración</span></button>
@@ -32,75 +50,118 @@
     <div class="sidefoot"><span id="secureDot" class="dot"></span><span>Todo listo</span><small>v<span id="appVersion">...</span></small></div>
   </aside>
   <main class="main">
-    <section class="tab active vnx-home-tab" id="home">
-      <div class="vnx-home-topbar">
-        <div class="vnx-home-hello"><span class="vnx-home-sun">☀</span><div><b id="homeGreeting">Hola</b><small>Tu empresa, organizada por Carla.</small></div></div>
-        <div class="vnx-home-company"><span>▦</span><div><small>Trabajando con</small><b id="homeCompanyName">Tu empresa</b></div></div>
-      </div>
-
-      <div class="vnx-home-content">
-        <div class="vnx-home-title-row">
-          <div><div class="vnx-home-ai-label">CARLA · IA DE VENTANEXIA</div><h1>¿Qué quieres hacer hoy?</h1><p>Dímelo con tus palabras. Carla entiende la tarea, usa solo tus fuentes autorizadas y te deja el trabajo preparado.</p></div>
-          <div class="vnx-home-clock"><b id="homeClock">—</b><small id="homeDate">—</small></div>
-        </div>
-
-        <div class="vnx-home-command">
-          <span class="vnx-command-spark">✦</span>
-          <textarea id="homeQuickInput" rows="1" placeholder="Pregúntale a la IA… Ej.: analiza mi stock y prepara el pedido de reposición"></textarea>
-          <button id="homeQuickSend" type="button" aria-label="Enviar a Carla">➤</button>
-        </div>
-
-        <div class="vnx-home-actions">
-          <button type="button" data-secretary-day><span>✦</span><b>IA · Prepárame el día</b><small>Prioridades y trabajo preparado</small></button>
-          <button type="button" data-home-email><span>✉</span><b>IA · Analiza emails</b><small>Prioriza y prepara respuestas</small></button>
-          <button type="button" data-home-orders><span>◫</span><b>IA · Revisa stock</b><small>Ventas, cobertura y reposición</small></button>
-          <button type="button" data-home-clients><span>♙</span><b>IA · Busca clientes</b><small>Oportunidades y captación</small></button>
-          <button type="button" data-home-analyze><span>▤</span><b>IA · Analiza documentos</b><small>PDF, Excel, Word e imágenes</small></button>
-        </div>
-
-        
-
-        <div id="homeOnboardingCard" class="vnx-home-onboarding" style="display:none">
-          <div class="vnx-onboarding-head"><h2>Empieza por aquí</h2><small id="homeOnboardingProgress">0 de 5 conectadas</small></div>
-          <div class="vnx-onboarding-list">
-            <button type="button" data-onboard-connect="email"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu correo</b><small>Gmail u otra cuenta compatible, para que Carla lea y organice tus emails</small></div></button>
-            <button type="button" data-onboard-connect="shopify"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu tienda</b><small>Shopify para consultar pedidos, stock, ventas y clientes con datos reales</small></div></button>
-            <button type="button" data-onboard-connect="agenda"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu agenda</b><small>Para reuniones, recordatorios y preparación de citas</small></div></button>
-            <button type="button" data-onboard-connect="whatsapp"><span class="vnx-onboarding-check">○</span><div><b>Conecta WhatsApp Business</b><small>Opcional, mediante tu cuenta autorizada</small></div></button>
-            <button type="button" data-onboard-connect="portal"><span class="vnx-onboarding-check">○</span><div><b>Añade una web o portal privado</b><small>Como Naturdesma, para consultarlo de forma separada y segura</small></div></button>
+    <section class="tab active vnx-agent-home-tab" id="home">
+      <div class="vnx-ah-page">
+        <header class="vnx-ah-topbar">
+          <div class="vnx-ah-global-search">
+            <span>⌕</span>
+            <textarea id="homeQuickInput" rows="1" placeholder='Dime qué necesitas, por ejemplo: "envía los correos de captación de hoy"…'></textarea>
+            <button id="homeQuickSend" type="button" aria-label="Enviar">➤</button>
           </div>
-          <div class="vnx-onboarding-meanwhile"><b>Mientras terminas de conectar tu empresa, Carla ya puede ayudarte a:</b><div class="vnx-onboarding-chips"><span>✉ Organizar correo</span><span>📦 Revisar pedidos</span><span>🧾 Preparar documentos</span><span>📊 Analizar datos conectados</span></div></div>
-        </div>
+          <button id="vnxAhCompanyBtn" class="vnx-ah-company" type="button"><i></i><b id="vnxAhCompanyName">Tu empresa</b><span>⌄</span></button>
+          <button id="vnxAhBell" class="vnx-ah-bell" type="button" aria-label="Actividad">♧<em>3</em></button>
+          <button id="vnxAhAccount" class="vnx-ah-account" type="button"><span>VN</span><p><b>Mi cuenta</b><small>Configuración</small></p><i>⌄</i></button>
+        </header>
 
-        <div class="vnx-home-section-head"><div><h2>Hoy</h2><p>Lo que merece tu atención, sin ruido.</p></div><button type="button" data-tab-jump="chat">Ver mi trabajo →</button></div>
-        <div class="vnx-home-today">
-          <button type="button" data-home-email class="vnx-today-card blue"><span class="vnx-today-icon">✉</span><strong id="homeEmailCount">0</strong><b>Emails analizados por IA</b><small>Carla separa lo importante.</small></button>
-          <button type="button" data-home-orders class="vnx-today-card amber"><span class="vnx-today-icon">◫</span><strong id="homeAttentionCount">0</strong><b>Pedidos detectados</b><small>Según tus fuentes conectadas.</small></button>
-          <button type="button" data-secretary-pending class="vnx-today-card pink"><span class="vnx-today-icon">!</span><strong id="homeDecisionCount">0</strong><b>Necesita tu decisión</b><small>La IA no decide esto por ti.</small></button>
-          <button type="button" id="homeAgendaCard" data-tab-jump="chat" class="vnx-today-card cyan"><span class="vnx-today-icon">▣</span><strong id="homeAgendaCount">—</strong><b>Reuniones hoy</b><small>Según tu agenda conectada.</small></button>
-        </div>
+        <div class="vnx-ah-body">
+          <div id="vnxAhBreadcrumb" class="vnx-ah-breadcrumb">Marketing y redes › Captación de clientes</div>
 
-        <div class="vnx-home-lower vnx-home-lower-redesign">
-          <article class="vnx-home-activity">
-            <div class="vnx-activity-head"><div><h2>Actividad reciente</h2><p>Lo último que Carla ha preparado para ti.</p></div><button type="button" data-tab-jump="activity">Ver toda la actividad →</button></div>
-            <div class="vnx-activity-list">
-              <button type="button" data-home-email><span class="vnx-activity-icon">✉</span><div><b>Correo revisado</b><small>Carla prioriza los mensajes que necesitan atención.</small></div><em>Ahora</em></button>
-              <button type="button" data-home-orders><span class="vnx-activity-icon">◫</span><div><b>Stock y pedidos</b><small>Consulta ventas, cobertura y reposición desde la fuente elegida.</small></div><em>IA</em></button>
-              <button type="button" data-home-analyze><span class="vnx-activity-icon">▤</span><div><b>Documentos</b><small>Analiza archivos y convierte información en trabajo utilizable.</small></div><em>IA</em></button>
+          <section class="vnx-ah-hero">
+            <div class="vnx-ah-agent-id">
+              <div id="vnxAhAgentIcon" class="vnx-ah-agent-icon">◎</div>
+              <div><div class="vnx-ah-agent-title-line"><h1 id="vnxAhAgentTitle">Agente de Captación de Clientes</h1><span>✦ Con IA</span></div><p id="vnxAhAgentSubtitle">Encuentra, analiza y contacta con nuevos clientes de forma automática y personalizada.</p></div>
             </div>
-          </article>
-          <article class="vnx-home-carla vnx-home-carla-focus">
-            <div class="vnx-carla-summary-head"><div class="vnx-carla-orb">✦</div><div><h2>Carla</h2><p>Tu asistente de IA empresarial.</p></div><span class="vnx-online"><i></i> En línea</span></div>
-            <div class="vnx-carla-summary-body"><div><b>Lo importante ahora</b><p id="homeCarlaSummary">Estoy revisando tus datos conectados.</p></div><div class="vnx-carla-trust"><span>⌘</span><div><b>Datos bajo tu control</b><small>No mezclo empresas o cuentas si no lo autorizas.</small></div></div></div>
-            <div class="vnx-carla-summary-actions"><button class="btn primary" type="button" data-home-carla>Habla con Carla</button><button class="btn outline" type="button" data-secretary-day>Prepárame el día</button></div>
-          </article>
-          <article class="vnx-home-stock vnx-home-stock-hidden" id="homeStockCard" aria-hidden="true"><div id="homeStockMeta"></div><div id="homeStockRows"></div><div class="vnx-stock-foot">Ventas calculadas por SKU · ventana real de 6 meses · alerta por debajo de 5 días</div></article>
+            <div class="vnx-ah-carla-card">
+              <div class="vnx-ah-avatar">C</div>
+              <div><b>Carla te ayuda</b><p id="vnxAhCarlaHelp">Me encargo de buscar y preparar la captación para que tú solo te centres en tu negocio.</p></div>
+            </div>
+            <ul id="vnxAhCapabilities" class="vnx-ah-capabilities"></ul>
+          </section>
+
+          <div id="vnxAhTabs" class="vnx-ah-tabs"></div>
+
+          <div class="vnx-ah-workgrid">
+            <aside class="vnx-ah-config vnx-ah-panel">
+              <div class="vnx-ah-step-title"><b>1. Configura tu estrategia</b><small>Define qué, a quién y cómo quieres trabajar.</small></div>
+
+              <div class="vnx-ah-field">
+                <label id="vnxAhObjectiveLabel">Tipo de clientes objetivo</label>
+                <div id="vnxAhChips" class="vnx-ah-chips"></div>
+              </div>
+
+              <div class="vnx-ah-field">
+                <label id="vnxAhItemLabel">Productos o servicios a promocionar</label>
+                <div id="vnxAhItems" class="vnx-ah-tags"><span class="vnx-ah-tag">Tu producto o servicio <button type="button" onclick="this.parentElement.remove()">×</button></span></div>
+                <div class="vnx-ah-add-row"><input id="vnxAhItemInput" placeholder="Ej.: tu producto o servicio"><button id="vnxAhAddItem" type="button">＋ Añadir</button></div>
+              </div>
+
+              <div class="vnx-ah-field"><label>Estilo del trabajo</label><select><option>Profesional y cercano</option><option>Directo y comercial</option><option>Formal</option><option>Breve y claro</option></select></div>
+              <div class="vnx-ah-field"><label>Idioma</label><select><option>Español</option><option>Català</option><option>English</option><option>Français</option><option>Deutsch</option></select></div>
+              <label class="vnx-ah-toggle"><span>Incluir firma y estilo de marca</span><input type="checkbox" checked><i></i></label>
+              <div class="vnx-ah-brand-preview"><div class="vnx-ah-mini-logo"><span>V</span><b>Venta<span>NexIA</span></b></div><button type="button">Cambiar identidad</button></div>
+              <div class="vnx-ah-field"><label>Frecuencia</label><select><option>Cada día (recomendado)</option><option>Una vez</option><option>Cada semana</option><option>Personalizada</option></select></div>
+              <div class="vnx-ah-field"><label>Qué hacer con el trabajo preparado</label>
+                <div class="vnx-ah-radios">
+                  <label><input type="radio" name="ahAction" checked> Dejarlo preparado para revisar</label>
+                  <label><input type="radio" name="ahAction"> Ejecutar solo lo que tenga autorización</label>
+                  <label><input type="radio" name="ahAction"> Preparar y avisarme</label>
+                  <label><input type="radio" name="ahAction"> Solo generar, sin ejecutar</label>
+                </div>
+              </div>
+            </aside>
+
+            <main class="vnx-ah-center">
+              <section class="vnx-ah-source vnx-ah-panel">
+                <div class="vnx-ah-step-title"><b id="vnxAhSearchTitle">2. Selecciona o genera la lista de contactos</b><small id="vnxAhSearchSub">Puedes usar tus propias listas o pedir a Carla que busque nuevas empresas.</small></div>
+                <div class="vnx-ah-source-tabs"><button type="button">▧ Mis listas</button><button class="active" type="button">✦ Buscar con IA</button><button type="button">▤ Desde archivo (Excel/CSV)</button></div>
+                <div class="vnx-ah-search-row"><span>⌕</span><input id="vnxAhSearchInput" placeholder="Ej.: farmacias en Barcelona"><button id="vnxAhSearchBtn" type="button">Buscar</button></div>
+                <div class="vnx-ah-filters"><label><small>Ubicación</small><select><option>Toda España</option><option>Barcelona</option><option>Madrid</option><option>Valencia</option></select></label><label><small>Sector</small><select><option>Todos</option><option>Farmacias</option><option>Clínicas</option><option>Distribuidores</option></select></label><label><small>Tamaño</small><select><option>Todos</option><option>Pequeña</option><option>Mediana</option><option>Grande</option></select></label><button type="button">✦ Más filtros</button></div>
+              </section>
+
+              <section class="vnx-ah-preview-panel vnx-ah-panel">
+                <div class="vnx-ah-step-title"><b id="vnxAhPreviewTitle">3. Genera los correos con IA</b><small id="vnxAhPreviewSub">Carla analiza cada empresa y crea un mensaje adaptado a sus necesidades.</small></div>
+                <div id="vnxAhPreview" class="vnx-ah-preview"></div>
+                <div class="vnx-ah-preview-actions"><button type="button">↻ Regenerar con otro enfoque</button><button type="button">✦ Ajustar para este caso</button><button type="button">▧ Guardar como plantilla</button></div>
+              </section>
+            </main>
+
+            <aside class="vnx-ah-rail">
+              <section class="vnx-ah-metric-card">
+                <small id="vnxAhMetricLabel">Empresas encontradas</small><strong id="vnxAhMetricValue">—</strong><button id="vnxAhPrimary" type="button">Ver y revisar correos</button>
+              </section>
+              <section class="vnx-ah-review-card vnx-ah-panel">
+                <div class="vnx-ah-ready"><span>✓</span><div><b id="vnxAhReviewValue">—</b><small id="vnxAhReviewLabel">Correos preparados</small></div></div>
+                <button id="vnxAhPrimaryMirror" type="button">Revisar trabajo preparado</button>
+                <div class="vnx-ah-switches"><label><span>Ejecutar hoy</span><input type="checkbox"><i></i></label><label><span>Programar</span><input type="checkbox"><i></i></label><label><span>Dejar en borrador</span><input type="checkbox" checked><i></i></label></div>
+                <div class="vnx-ah-recipient-title">Vista previa</div>
+                <div id="vnxAhRecipients" class="vnx-ah-recipients"></div>
+                <button class="vnx-ah-see-all" type="button">Ver todo →</button>
+              </section>
+              <section class="vnx-ah-automation">
+                <div><span>⚡</span><p><b id="vnxAhCtaTitle">Automatiza tu captación</b><small id="vnxAhCtaText">Haz que Carla prepare el trabajo cada día.</small></p></div>
+                <button id="vnxAhCtaBtn" type="button">Activar automatización</button>
+              </section>
+            </aside>
+          </div>
+
+          <div id="homeOnboardingCard" class="vnx-home-onboarding vnx-ah-onboarding" style="display:none">
+            <div class="vnx-onboarding-head"><h2>Empieza por aquí</h2><small id="homeOnboardingProgress">0 de 5 conectadas</small></div>
+            <div class="vnx-onboarding-list">
+              <button type="button" data-onboard-connect="email"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu correo</b><small>Gmail u otra cuenta compatible</small></div></button>
+              <button type="button" data-onboard-connect="shopify"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu tienda</b><small>Shopify para pedidos, stock y ventas</small></div></button>
+              <button type="button" data-onboard-connect="agenda"><span class="vnx-onboarding-check">○</span><div><b>Conecta tu agenda</b><small>Reuniones y recordatorios</small></div></button>
+              <button type="button" data-onboard-connect="whatsapp"><span class="vnx-onboarding-check">○</span><div><b>Conecta WhatsApp Business</b><small>Opcional</small></div></button>
+              <button type="button" data-onboard-connect="portal"><span class="vnx-onboarding-check">○</span><div><b>Añade una web o portal privado</b><small>Para consultar sus datos por separado</small></div></button>
+            </div>
+          </div>
+
+          <div id="updatePanel" class="notice vnx-home-update vnx-ah-update" style="display:none"><b id="updateTitle">Nueva actualización disponible</b><div id="updateNotes"></div><button id="updateOpenBtn" class="btn primary">Ver actualización</button></div>
         </div>
 
-        <div id="updatePanel" class="notice vnx-home-update" style="display:none"><b id="updateTitle">Nueva actualización disponible</b><div id="updateNotes"></div><button id="updateOpenBtn" class="btn primary">Ver actualización</button></div>
-        <div class="vnx-home-security">▣ Solo usaré las conexiones que tengas autorizadas. <span>Tu información permanece bajo tus permisos.</span></div>
-
-        <div class="vnx-home-hooks" aria-hidden="true">
+        <div class="vnx-ah-hooks" aria-hidden="true">
+          <span id="homeCompanyName">Tu empresa</span><span id="homeGreeting">Hola</span><span id="homeClock">—</span><span id="homeDate">—</span>
+          <span id="homeEmailCount">0</span><span id="homeAttentionCount">0</span><span id="homeDecisionCount">0</span><span id="homeAgendaCount">—</span><span id="homeCarlaSummary">Estoy revisando tus datos conectados.</span>
+          <article id="homeStockCard"><div id="homeStockMeta"></div><div id="homeStockRows"></div></article>
           <span id="homeSales">—</span><span id="homeCustomers">—</span><span id="homeOrders">—</span><span id="homeInvoices">—</span>
           <span id="homeLicenseState">Sin activar</span><span id="homeLicenseStateMirror">—</span><span id="folderCount">0</span><span id="encState">—</span><span id="pairState">Datos reales</span>
           <div id="homeAgentsPanel"><small id="homeAgentsSummary"></small><div id="homeAgentsList"></div></div>
@@ -451,4 +512,5 @@
 </div>
 <script src="app.js"></script>
 <script src="master.js"></script>
+<script src="agent-home.js"></script>
 </body></html>
