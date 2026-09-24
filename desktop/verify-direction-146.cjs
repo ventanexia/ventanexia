@@ -24,13 +24,23 @@ ok(s.totals.doneByAI===1,'Debe contar trabajo recuperado por IA');
 ok(s.totals.overdue===0,'Una tarea resuelta por IA ya no debe seguir vencida');
 ok(s.employees[0].doneAI===1,'Debe atribuir la recuperación por IA al responsable original');
 ok(d.events.some(e=>e.type==='resolved_by_ai'&&e.taskId===t1.id),'Debe conservar evidencia del takeover IA');
+const report=dir.operationalReport(d,{businessId:'biz1',now});
+ok(report.totals.employees===1,'El informe debe incluir al empleado');
+ok(report.totals.assigned===2,'El informe debe analizar todas las tareas del periodo');
+ok(report.totals.doneAI===1,'El informe debe contar las recuperaciones por IA');
+ok(report.employees[0].doneAI===1,'El informe individual debe reflejar trabajo recuperado por IA');
+ok(report.employees[0].findings.some(x=>/VentaNexIA|recuperada/i.test(x)),'El informe debe explicar la recuperación por IA');
+ok(report.employees[0].areas.some(x=>x.module==='email'&&x.deviations>=1),'El informe debe localizar desviaciones por área');
+ok(/hechos operativos registrados/i.test(report.note),'El informe debe explicar sus límites de interpretación');
 
 const preload=read('preload.cjs'),main=read('main.cjs'),html=read('renderer/index.html'),ui=read('renderer/direction-control.js'),health=read('runtime-health.cjs');
-for(const name of ['directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue'])ok(preload.includes(name+':'),'Preload no expone '+name);
-for(const ch of ['direction:access-status','direction:set-pin','direction:unlock','direction:lock','direction:summary','direction:employees','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
-for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
+for(const name of ['directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'])ok(preload.includes(name+':'),'Preload no expone '+name);
+for(const ch of ['direction:access-status','direction:set-pin','direction:unlock','direction:lock','direction:summary','direction:employees','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue','direction:report'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
+for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm','vnxDirReportForm','vnxDirReportEmployee','vnxDirReportPeriod','vnxDirReportRows','vnxDirReportExcel','vnxDirReportPdf'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
 ok(html.includes('data-tab="direction"')&&html.includes('Agente privado protegido por PIN'),'Falta acceso privado de Dirección en menú');
 ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&html.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
+ok(ui.includes('directionReport')&&ui.includes('generateEmployeeReport')&&ui.includes('exportEmployeeReport'),'La UI no genera/exporta informes de empleados');
+ok(html.includes('Qué está fallando y dónde')&&html.includes('No genera rankings ni sanciones automáticas'),'El informe debe explicar su finalidad y límites');
 ok(ui.includes("let directionToken=''")&&!/localStorage\s*\.\s*setItem\s*\(|sessionStorage\s*\.\s*setItem\s*\(/.test(ui),'El token privado de Dirección no debe persistirse en el navegador');
 ok(ui.includes('directionAccessStatus')&&ui.includes('directionUnlock')&&ui.includes('directionLock'),'La UI no aplica bloqueo/desbloqueo privado');
 ok(main.includes('DIRECTION_PIN_ITERATIONS=210000')&&main.includes('pbkdf2Sync('),'El PIN de Dirección debe almacenarse mediante hash robusto');
@@ -41,4 +51,4 @@ ok(!/pinHash\s*:\s*pin\b/.test(main),'El PIN de Dirección no puede guardarse en
 ok(health.includes('Agente privado de Dirección')&&health.includes('directionControl')&&health.includes('protección privada de Dirección'),'Autoreparación no cubre Dirección privada');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN hash, sesión temporal, bloqueo, responsables, SLA, vencimiento, recuperación IA, evidencia y autoreparación verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN hash, sesión temporal, bloqueo, responsables, SLA, informes por empleado, recuperación IA, evidencia y autoreparación verificados.');
