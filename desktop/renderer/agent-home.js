@@ -513,10 +513,12 @@
     return sources;
   }
   function stockPolicyFromForm(src){
-    const stored=stockPolicyForSource(src||{}),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin');
+    const stored=stockPolicyForSource(src||{}),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),windowDays=$('#vnxAhSalesWindowDays'),urgent=$('#vnxAhUrgentDays');
     return {
       targetDays:Math.max(1,Math.min(365,Math.round(Number(days?.value)||stored.targetDays||25))),
-      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(min?.value)||stored.noHistoryMin||0)))
+      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(min?.value)||stored.noHistoryMin||0))),
+      windowDays:Math.max(30,Math.min(730,Math.round(Number(windowDays?.value)||stored.windowDays||180))),
+      urgentDays:Math.max(0,Math.min(90,Math.round(Number(urgent?.value)||stored.urgentDays||0)))
     };
   }
   async function resolveStockSource(){
@@ -525,7 +527,6 @@
     if(!src&&sources.length===1){
       src=sources[0];
       try{localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src))}catch{}
-      const m=$('#vnxAhCompanyName');if(m)m.textContent=src.label;
     }
     if(!src){
       if(!sources.length)throw new Error('No hay ninguna conexión de stock disponible. Conecta Shopify o un portal privado primero.');
@@ -543,55 +544,123 @@
   }
   function stockFmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):'—'}
   function stockQtyLabel(r,summary){
+    if(summary?.salesLookReliable===false)return '—';
     if(Number(r?.qty||0)>0)return stockFmt(r.qty);
     if(r?.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r?.stock||0)<=0)return 'REVISAR';
     return '0';
   }
-  function stockSalesLabel(r){return r?.noSalesData?'Sin histórico':stockFmt(r?.soldWindow||0)}
-  function stockCoverageLabel(r){return r?.noSalesData?'—':r?.daysRemaining==null?'Sin ventas':String(r.daysRemaining)}
+  function stockSalesLabel(r,summary){
+    if(summary?.salesLookReliable===false)return 'No verificado';
+    return r?.noSalesData?'Sin histórico':stockFmt(r?.soldWindow||0);
+  }
+  function stockCoverageLabel(r,summary){
+    if(summary?.salesLookReliable===false)return '—';
+    return r?.noSalesData?'—':r?.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
+  }
   function stockStateLabel(r,summary){
+    if(summary?.salesLookReliable===false)return 'HISTÓRICO NO LEÍDO';
     if(r?.noSalesData){
       if(Number(summary?.noHistoryMin||0)>0)return Number(r?.qty||0)>0?'MÍNIMO SIN HISTÓRICO':'MÍNIMO CUBIERTO';
       return Number(r?.stock||0)<=0?'REVISAR · SIN HISTÓRICO':'SIN HISTÓRICO';
     }
     if(Number(r?.stock||0)<=0)return 'SIN STOCK';
-    if(r?.urgent)return 'ROTURA < 5 DÍAS';
+    if(r?.urgent)return 'ROTURA < '+Number(summary?.urgentDays||autoUrgentDaysForPolicy(summary?.targetDays||25))+' DÍAS';
     if(Number(r?.qty||0)>0)return 'REPONER';
     return 'CORRECTO';
   }
   function stockRowsForView(summary,question='',orderMode=false){
     const rows=Array.isArray(summary?.rows)?summary.rows:[],q=normalizedText(question);
+    if(summary?.salesLookReliable===false)return rows;
     if(orderMode)return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     if(/sin stock|stock 0|agotad/.test(q))return rows.filter(r=>Number(r.stock||0)<=0);
-    if(/menos de 5|< ?5|rotura/.test(q))return rows.filter(r=>r.urgent);
+    if(/menos de \d+|rotura/.test(q))return rows.filter(r=>r.urgent);
     if(/reponer|comprar|compra|pedido/.test(q))return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     return rows;
   }
+  function stockExportDataForHome(summary,orderMode=false){
+    const reliable=summary?.salesLookReliable!==false,all=Array.isArray(summary?.rows)?summary.rows:[];
+    const rows=orderMode&&reliable?all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0)):all;
+    return {
+      headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
+      rows:stockSortRows(rows).map(r=>[
+        r.sku||'',r.ean||'',r.manufacturer||'',r.product||'',Number(r.stock||0),
+        reliable&&!r.noSalesData?Number(r.soldWindow||0):'',
+        reliable&&!r.noSalesData?Number(r.avgDaily||0):'',
+        reliable&&!r.noSalesData&&r.daysRemaining!=null?Number(r.daysRemaining):'',
+        reliable?(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0?'REVISAR':Number(r.qty||0)):'',
+        stockStateLabel(r,summary)
+      ])
+    };
+  }
+  async function exportHomeStock(summary,orderMode,format,btn){
+    const data=stockExportDataForHome(summary,orderMode);
+    if(!data.rows.length){alert('No hay filas para exportar.');return}
+    const labels={excel:'Excel',csv:'CSV',pdf:'PDF'},old=btn.textContent;btn.disabled=true;btn.textContent='Preparando '+(labels[format]||format)+'…';
+    const reliable=summary?.salesLookReliable!==false;
+    const kind=orderMode&&reliable?'Pedido de compra':'Stock actual';
+    try{
+      const r=await window.vnx.exportData({format,title:kind+' - '+(summary?.sourceLabel||'VentaNexIA'),headers:data.headers,rows:data.rows});
+      btn.textContent=r?.ok?(labels[format]||format)+' guardado ✓':old;
+    }catch(e){alert('No he podido guardar el archivo: '+(e.message||e));btn.textContent=old}
+    finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(/guardado ✓$/.test(btn.textContent))btn.textContent=old}},1600)}
+  }
+  function bindHomeStockExports(preview,summary,orderMode){
+    preview.querySelectorAll('[data-home-stock-export]').forEach(btn=>btn.onclick=()=>exportHomeStock(summary,orderMode,btn.dataset.homeStockExport,btn));
+    const importBtn=preview.querySelector('[data-home-stock-import]');
+    if(importBtn)importBtn.onclick=async()=>{
+      const old=importBtn.textContent;importBtn.disabled=true;importBtn.textContent='Seleccionando archivo…';
+      try{
+        const policy=stockPolicyFromForm(selectedHomeSource()||{});
+        const imported=await window.vnx.stockImportFile(policy);
+        if(imported?.cancelled)return;
+        if(!imported?.rows?.length)throw new Error('El archivo no ha devuelto datos válidos.');
+        const src=selectedHomeSource();
+        const summary={...imported,sourceLabel:(src?.label||'Empresa')+' · archivo importado',salesLookReliable:true};
+        lastStockRun={src,policy,summary,at:Date.now()};
+        renderStockResult(summary,'',false);
+      }catch(e){alert('No he podido importar el histórico: '+(e.message||e))}
+      finally{if(importBtn.isConnected){importBtn.disabled=false;importBtn.textContent=old}}
+    };
+  }
+  function stockDownloadHtml(){
+    return '<div class="vnx-stock-downloads"><div><b>Descargar resultado</b><small>Excel para trabajar, CSV importable y PDF para compartir.</small></div><div><button type="button" data-home-stock-export="excel">📊 Excel</button><button type="button" data-home-stock-export="csv">⬇ CSV importable</button><button type="button" data-home-stock-export="pdf">📄 PDF</button></div></div>';
+  }
+  function stockHistoryWarningHtml(summary){
+    const products=Number(summary?.productsSeen||summary?.rows?.length||0),pages=Number(summary?.salesPagesScanned||0),tables=Number(summary?.salesTablesSeen||0),rows=Number(summary?.salesRowsSeen||0);
+    return '<div class="vnx-stock-history-warning"><div class="vnx-stock-history-warning-icon">!</div><div><b>No he podido verificar el histórico de ventas</b><p>El stock sí se ha leído ('+products+' referencias), pero ninguna ha podido cruzarse de forma fiable con ventas del periodo. No voy a presentar un pedido calculado con un mínimo por defecto como si fuera rotación real.</p><small>Diagnóstico: '+pages+' páginas de ventas revisadas · '+tables+' tablas detectadas · '+rows+' filas candidatas. Puedes descargar el stock actual o importar un Excel/CSV con stock y ventas.</small></div><button type="button" data-home-stock-import>Importar ventas Excel/CSV</button></div>';
+  }
   function renderStockResult(summary,question='',orderMode=false){
     const preview=$('#vnxAhPreview');if(!preview)return;
+    const unreliable=summary?.salesLookReliable===false;
     const rows=stockSortRows(stockRowsForView(summary,question,orderMode));
-    const all=Array.isArray(summary?.rows)?summary.rows:[],toBuy=all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
+    const all=Array.isArray(summary?.rows)?summary.rows:[];
+    const toBuy=unreliable?[]:all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     const totalUnits=toBuy.reduce((n,r)=>n+Math.max(0,Number(r.qty||0)),0);
     const source=esc(summary?.sourceLabel||'Fuente seleccionada'),target=Number(summary?.targetDays||25),min=Number(summary?.noHistoryMin||0);
-    const title=orderMode?'Pedido propuesto':'Análisis de stock';
-    const note=min>0?'Sin histórico: mínimo configurado de '+min+' uds.':'Sin histórico: se marca REVISAR y no se inventa cantidad.';
-    preview.innerHTML='<div class="vnx-stock-live">'
-      +'<div class="vnx-stock-live-head"><div><small>'+esc(title.toUpperCase())+'</small><b>'+source+'</b><span>Objetivo '+target+' días · '+esc(note)+'</span></div><div><strong>'+stockFmt(orderMode?totalUnits:all.length)+'</strong><small>'+(orderMode?'unidades propuestas':'productos analizados')+'</small></div></div>'
-      +'<div class="vnx-stock-live-table"><table><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
-      +(rows.length?rows.map(r=>'<tr class="'+(Number(r.stock||0)<=0?'loss':'')+'"><td>'+esc(String(r.manufacturer||'—'))+'</td><td>'+esc(String(r.sku||'—'))+'</td><td>'+esc(String(r.ean||'—'))+'</td><td><b>'+esc(String(r.product||''))+'</b></td><td>'+stockFmt(r.stock)+'</td><td>'+esc(stockSalesLabel(r))+'</td><td>'+esc(stockCoverageLabel(r))+'</td><td><strong>'+esc(stockQtyLabel(r,summary))+'</strong></td><td>'+esc(stockStateLabel(r,summary))+'</td></tr>').join(''):'<tr><td colspan="9">No hay referencias que cumplan este filtro.</td></tr>')
+    const windowDays=Number(summary?.windowDays||180),urgentDays=Number(summary?.urgentDays||autoUrgentDaysForPolicy(target));
+    const title=unreliable?'Stock leído · histórico no verificado':orderMode?'Pedido propuesto':'Análisis de stock';
+    const note=unreliable?'No se ha generado ningún pedido.':'Ventas: últimos '+windowDays+' días · objetivo '+target+' días · urgente < '+urgentDays+' días · '+(min>0?'sin histórico: mínimo '+min+' uds.':'sin histórico: revisar sin inventar cantidad.');
+    preview.innerHTML='<div class="vnx-stock-live'+(unreliable?' history-failed':'')+'">'
+      +(unreliable?stockHistoryWarningHtml(summary):'')
+      +'<div class="vnx-stock-live-head"><div><small>'+esc(title.toUpperCase())+'</small><b>'+source+'</b><span>'+esc(note)+'</span></div><div><strong>'+stockFmt(unreliable?all.length:(orderMode?totalUnits:all.length))+'</strong><small>'+(unreliable?'productos con stock leído':orderMode?'unidades propuestas':'productos analizados')+'</small></div></div>'
+      +'<div class="vnx-stock-live-table"><table><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas del periodo ('+windowDays+' días)</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +(rows.length?rows.map(r=>'<tr class="'+(Number(r.stock||0)<=0?'loss':'')+'"><td>'+esc(String(r.manufacturer||'—'))+'</td><td>'+esc(String(r.sku||'—'))+'</td><td>'+esc(String(r.ean||'—'))+'</td><td><b>'+esc(String(r.product||''))+'</b></td><td>'+stockFmt(r.stock)+'</td><td>'+esc(stockSalesLabel(r,summary))+'</td><td>'+esc(stockCoverageLabel(r,summary))+'</td><td><strong>'+esc(stockQtyLabel(r,summary))+'</strong></td><td>'+esc(stockStateLabel(r,summary))+'</td></tr>').join(''):'<tr><td colspan="9">No hay referencias que cumplan este filtro.</td></tr>')
       +'</tbody></table></div>'
-      +'<div class="vnx-stock-live-foot"><span>'+rows.length+' referencias mostradas</span><span>'+toBuy.length+' necesitan compra/revisión</span><span>'+stockFmt(totalUnits)+' unidades propuestas</span></div>'
+      +'<div class="vnx-stock-live-foot"><span>'+rows.length+' referencias mostradas</span><span>'+(unreliable?'0 pedidos calculados':toBuy.length+' necesitan compra/revisión')+'</span><span>'+(unreliable?'Histórico pendiente de verificar':stockFmt(totalUnits)+' unidades propuestas')+'</span></div>'
+      +stockDownloadHtml()
       +'</div>';
+    bindHomeStockExports(preview,summary,orderMode&&!unreliable);
     const metric=$('#vnxAhMetricValue'),review=$('#vnxAhReviewValue'),metricLabel=$('#vnxAhMetricLabel'),reviewLabel=$('#vnxAhReviewLabel');
-    if(metric)metric.textContent=String(all.length);if(review)review.textContent=String(toBuy.length);
-    if(metricLabel)metricLabel.textContent='Productos analizados';if(reviewLabel)reviewLabel.textContent='Necesitan compra/revisión';
+    if(metric)metric.textContent=String(all.length);if(review)review.textContent=unreliable?'—':String(toBuy.length);
+    if(metricLabel)metricLabel.textContent='Productos analizados';if(reviewLabel)reviewLabel.textContent=unreliable?'Histórico no verificado':'Necesitan compra/revisión';
     const previewTitle=$('#vnxAhPreviewTitle'),previewSub=$('#vnxAhPreviewSub');
-    if(previewTitle)previewTitle.textContent=orderMode?'3. Pedido de compra calculado':'3. Resultado del análisis real';
-    if(previewSub)previewSub.textContent=orderMode?'Cantidades calculadas con la política de esta empresa.':'Stock y ventas reales de la conexión seleccionada, por SKU/EAN.';
+    if(previewTitle)previewTitle.textContent=unreliable?'3. Stock leído, histórico pendiente':orderMode?'3. Pedido de compra calculado':'3. Resultado del análisis real';
+    if(previewSub)previewSub.textContent=unreliable?'No se calculará un pedido hasta verificar las ventas reales.':orderMode?'Cantidades calculadas con la política de esta empresa.':'Stock y ventas reales de la conexión seleccionada, por SKU/EAN o coincidencia exacta de producto.';
   }
   async function fetchStockSummary(src,policy,force=true){
+    const opts={force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentDays||undefined};
     if(src.type==='portal'||src.module==='portal'){
-      const r=await window.vnx?.portalReplenishmentSummary?.(src.id,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      const r=await window.vnx?.portalReplenishmentSummary?.(src.id,opts);
       if(!r?.ok){
         const why=r?.reason==='login_required'?'La sesión del portal necesita volver a iniciarse.':r?.reason==='catalog_scan_incomplete'?'No he podido verificar el catálogo completo.':r?.reason==='stock_not_structured'?'No encuentro una tabla verificable de stock en el portal.':'No he podido leer los datos de stock.';
         throw new Error(why);
@@ -600,7 +669,7 @@
     }
     if(src.module==='shopify'){
       const shop=src.shop||src.raw?.shop||null;
-      const r=await window.vnx?.shopifyReplenishmentSummary?.(shop,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      const r=await window.vnx?.shopifyReplenishmentSummary?.(shop,opts);
       if(!r?.rows)throw new Error('Shopify no ha devuelto el catálogo de stock.');
       return {...r,sourceLabel:src.label||r.sourceLabel};
     }
@@ -615,11 +684,14 @@
       if(analyze){analyze.disabled=true;analyze.textContent=orderMode?'Calculando…':'Analizando…'}
       if(order){order.disabled=true;order.textContent=orderMode?'Generando…':'Generar pedido'}
       if(preview)preview.innerHTML='<div class="vnx-stock-loading">Leyendo stock y ventas reales de '+esc(src.label)+'…</div>';
-      const sameRun=lastStockRun&&sameHomeSource(lastStockRun.src,src)&&lastStockRun.policy.targetDays===policy.targetDays&&lastStockRun.policy.noHistoryMin===policy.noHistoryMin;
+      const sameRun=lastStockRun&&sameHomeSource(lastStockRun.src,src)
+        &&lastStockRun.policy.targetDays===policy.targetDays&&lastStockRun.policy.noHistoryMin===policy.noHistoryMin
+        &&lastStockRun.policy.windowDays===policy.windowDays&&lastStockRun.policy.urgentDays===policy.urgentDays;
       const summary=orderMode&&sameRun?lastStockRun.summary:await fetchStockSummary(src,policy,true);
       lastStockRun={src,policy,summary,at:Date.now()};
       renderStockResult(summary,question,orderMode);
     }catch(e){
+      lastStockRun=null;
       if(preview)preview.innerHTML='<div class="vnx-stock-error"><b>No se ha podido completar el análisis.</b><span>'+esc(String(e?.message||e))+'</span></div>';
     }finally{
       if(analyze){analyze.disabled=false;analyze.textContent='Analizar'}
