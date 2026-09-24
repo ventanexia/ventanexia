@@ -6,7 +6,7 @@ const CRITICAL_PRELOAD=[
   'listConnections','ordersReview','ordersExportReady','shopifyReplenishmentSummary','portalReplenishmentSummary',
   'erpStatus','erpReplenishmentSummary','stockImportFile','exportData','businessList','businessSaveAll','businessSetActive',
   'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair',
-  'directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue'
+  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue'
 ];
 const RUNTIME_FILES=[
   'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs','direction-control.cjs',
@@ -52,8 +52,9 @@ function staticRuntimeChecks(base=__dirname){
   add('Exportación Stock y Compras',exportOk,exportOk?'Excel, CSV y PDF sobre la vista actual':'Exportación incompleta');
   const erpOk=preload.includes('erpStatus:')&&preload.includes('erpReplenishmentSummary:')&&read(base,'master.cjs').includes("ipcMain.handle('erp:replenishment-summary'");
   add('Stock desde ERP',erpOk,erpOk?'Bridge y backend disponibles':'Integración ERP incompleta');
-  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&read(base,'renderer/direction-control.js').includes('directionSummary');
-  add('Control Operativo de Dirección',directionUi,directionUi?'Panel, responsables, SLA y evidencia disponibles':'Módulo de dirección incompleto');
+  const directionSrc=read(base,'renderer/direction-control.js');
+  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary');
+  add('Agente privado de Dirección',directionUi,directionUi?'PIN, sesión privada, responsables, SLA y evidencia disponibles':'Módulo privado de Dirección incompleto');
   return checks;
 }
 
@@ -103,6 +104,7 @@ function sanitizeState(state){
     if(!Array.isArray(d.tasks)){d.tasks=[];set('Se reparó el registro de tareas de Dirección.')}
     if(!Array.isArray(d.events)){d.events=[];set('Se reparó el historial de evidencias de Dirección.')}
     if(!d.settings||typeof d.settings!=='object'){d.settings={defaultSlaMinutes:480,aiTakeoverGraceMinutes:60,aiTakeoverEnabled:false};set('Se reparó la política de recuperación por IA.')}
+    if(!d.access||typeof d.access!=='object'||Array.isArray(d.access)){d.access={};set('Se reparó la protección privada de Dirección.')}
   }
   if(!s.support||typeof s.support!=='object'){s.support={};set('Se reconstruyó la configuración de asistencia automática.')}
   return {state:s,changed,actions};
