@@ -2866,18 +2866,20 @@ function emailListItem(m,i,selected){
   function sourceLabelOf(src){return src?.label||src?.name||src?.raw?.shopName||src?.raw?.shop||'Conexión'}
   async function stockSummaryForSource(src,text=''){
     const module=String(src?.module||src?.type||''),policy=stockPolicyForSource(src,text);
-    const force=wantsFreshStock(text);
+    const force=wantsFreshStock(text),opts={force:module==='shopify'?true:force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentDays||undefined};
     if(module==='shopify'){
       const shop=src?.raw?.shop||src?.shop||null;
-      const r=await window.vnx.shopifyReplenishmentSummary(shop,{force:true,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      const r=await window.vnx.shopifyReplenishmentSummary(shop,opts);
+      if(r?.salesLookReliable===false)throw new Error(sourceLabelOf(src)+': el stock se ha leído, pero el histórico de ventas no se ha podido verificar. No voy a cruzar ni calcular compras con datos incompletos.');
       return {...r,sourceLabel:'Shopify · '+(src?.label||r?.shop||shop||'Tienda'),sourceModule:'shopify'};
     }
     if(module==='portal'){
-      const r=await window.vnx.portalReplenishmentSummary(src.id,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      const r=await window.vnx.portalReplenishmentSummary(src.id,opts);
       if(!r?.ok){
         const why=r?.reason==='login_required'?'la sesión necesita volver a iniciarse':r?.reason==='read_error'?'la página no se ha podido leer':r?.reason==='stock_not_structured'?'no se ha encontrado una tabla verificable de referencias y existencias':'la lectura no ha terminado correctamente';
         throw new Error(sourceLabelOf(src)+': '+why+(r?.error?' · '+r.error:''));
       }
+      if(r?.salesLookReliable===false)throw new Error(sourceLabelOf(src)+': he leído '+Number(r.productsSeen||r.rows?.length||0)+' referencias de stock, pero 0 han casado con el histórico de ventas. No voy a presentar un cruce parcial.');
       return {...r,sourceLabel:sourceLabelOf(src),sourceModule:'portal'};
     }
     throw new Error(sourceLabelOf(src)+': esta conexión no admite todavía el cruce de stock.');
