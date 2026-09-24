@@ -381,16 +381,23 @@ async function ensureLivePortalWindow(portal,{show=false,focus=false}={}){
     :portalStartUrl(portal,{forLogin:portal.lastStatus!=='connected'});
   await win.loadURL(start);
   await delay(1200);
-  let page=null;
-  try{page=await extractPage(win)}catch{}
-  if(page&&likelyLogin(page.url,page.text)){
-    await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
+  let page=null,error='';
+  try{page=await extractPage(win)}catch(e){error=String(e?.message||e).slice(0,240)}
+  if(!page){
+    await delay(800);
+    try{page=await extractPage(win)}catch(e){error=String(e?.message||e).slice(0,240)}
+  }
+  if(!page){
+    await patchPortal(portal.id,{lastStatus:'read_error',lastCheckedAt:new Date().toISOString()});
+    if(!show&&!focus)try{win.hide()}catch{}
+    return {win,reused:false,status:'read_error',error:error||'No se pudo verificar el contenido del portal.'};
+  }
+  if(likelyLogin(page.url,page.text)){
+    await patchPortal(portal.id,{lastStatus:'login_required',connectedAt:null,lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
     if(show||focus){try{win.show();win.focus()}catch{}}
     return {win,reused:false,status:'login_required'};
   }
-  if(page){
-    await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
-  }
+  await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
   if(!show&&!focus)try{win.hide()}catch{}
   return {win,reused:false,status:'connected'};
 }
@@ -838,6 +845,26 @@ ipcMain.handle('prospecting:catalog-status',async()=>prospecting?.catalogStatus?
 ipcMain.handle('portal:list',async()=>listPortals());
 ipcMain.handle('portal:save',async(_e,payload)=>savePortal(payload));
 ipcMain.handle('portal:connect',async(_e,id)=>openPortalLogin(clean(id,80)));
+ipcMain.handle('portal:health',async(_e,id)=>{
+  const portal=await getPortal(clean(id,80));if(!portal)return {connected:false,state:'disconnected',reason:'Portal no encontrado'};
+  if(portal.lastStatus==='disconnected')return {connected:false,state:'disconnected',reason:'Desconectado',checkedAt:portal.lastCheckedAt||null};
+  try{
+    const ensured=await ensureLivePortalWindow(portal,{show:false,focus:false});
+    if(ensured.status==='login_required')return {connected:false,state:'reconnect',reason:'La sesión ha caducado. Vuelve a iniciar sesión.',checkedAt:new Date().toISOString()};
+    if(ensured.status==='read_error')return {connected:false,state:'reconnect',reason:ensured.error||'No se ha podido verificar la sesión.',checkedAt:new Date().toISOString()};
+    const probe=await safeExtractPage(ensured.win);
+    if(!probe.ok)return {connected:false,state:'reconnect',reason:probe.error||'No se ha podido verificar la sesión.',checkedAt:new Date().toISOString()};
+    if(likelyLogin(probe.page.url,probe.page.text)){
+      await patchPortal(portal.id,{lastStatus:'login_required',connectedAt:null,lastCheckedAt:new Date().toISOString(),lastUrl:probe.page.url});
+      return {connected:false,state:'reconnect',reason:'La sesión ha caducado. Vuelve a iniciar sesión.',checkedAt:new Date().toISOString()};
+    }
+    if(!sameOrigin(probe.page.url,portal.url))return {connected:false,state:'reconnect',reason:'La página abierta no pertenece a este portal.',checkedAt:new Date().toISOString()};
+    await patchPortal(portal.id,{lastStatus:'connected',connectedAt:portal.connectedAt||new Date().toISOString(),lastCheckedAt:new Date().toISOString(),lastUrl:probe.page.url});
+    return {connected:true,state:'connected',reason:'Sesión verificada',checkedAt:new Date().toISOString(),url:probe.page.url};
+  }catch(e){
+    return {connected:false,state:'reconnect',reason:String(e?.message||e).slice(0,180),checkedAt:new Date().toISOString()};
+  }
+});
 ipcMain.handle('portal:check',async(_e,id)=>{const p=await getPortal(clean(id,80));if(!p)throw new Error('Portal no encontrado');const result=await readPortal(p,'dashboard estado conexión');await audit('portal.checked',`${p.name} · ${result.status}`);return result});
 ipcMain.handle('portal:disconnect',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Portal no encontrado');destroyLivePortalWindow(portal.id);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await patchPortal(portal.id,{lastStatus:'disconnected',connectedAt:null,lastUrl:portal.url,lastCheckedAt:new Date().toISOString()});await audit('portal.disconnected',portal.name);return {ok:true,status:'disconnected'};});
 ipcMain.handle('portal:remove',async(_e,id)=>{const portal=await getPortal(clean(id,80));if(!portal)return true;destroyLivePortalWindow(portal.id);const s=await readState();s.portals=(s.portals||[]).filter(p=>p.id!==portal.id);await writeState(s);try{await session.fromPartition(partitionFor(portal.id)).clearStorageData()}catch{}await audit('portal.removed',portal.name);return true});
