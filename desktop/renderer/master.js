@@ -41,6 +41,8 @@
   let runtimeAgents=[];
   let runtimeExternalAgents=[];
   let agentMetrics={};
+  let financeSessionToken='';
+  let financePanelRequested=false;
   const AGENT_INPUT_EXAMPLES={
     core_ai:'Ej.: prepárame el día · ¿qué tengo pendiente? · dime por dónde empiezo · ¿qué puedes adelantar por mí?',
     email:'Ej.: revisa mis correos de hoy, dime cuáles necesitan respuesta, prepara la contestación y crea un borrador en Gmail',
@@ -828,16 +830,152 @@ function emailListItem(m,i,selected){
     refreshGuidedCatalog();
   }
 
+
+  function financeMoney(v){
+    const n=Number(v);return Number.isFinite(n)?n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4})+' €':'—';
+  }
+  function financePct(v){
+    const n=Number(v);return Number.isFinite(n)?n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' %':'—';
+  }
+  function financePortalOptions(){
+    return (masterPortals||[]).filter(p=>p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'));
+  }
+  function renderFinanceGlobalAlert(status={}){
+    let root=$m('#financeGlobalAlert');
+    if(!root){
+      root=document.createElement('div');root.id='financeGlobalAlert';root.className='vnx-finance-global-alert';document.body.appendChild(root);
+    }
+    const count=Number(status.unresolvedCount||0);
+    if(!count){root.style.display='none';root.innerHTML='';return}
+    root.style.display='flex';
+    root.innerHTML='<div><strong>⚠️ '+count+' alerta'+(count===1?'':'s')+' de margen negativo</strong><span>Hay productos con precio de venta inferior al precio de compra/coste. El detalle está protegido por PIN.</span></div><button type="button" data-finance-global-open>Revisar</button>';
+    const btn=root.querySelector('[data-finance-global-open]');
+    if(btn)btn.onclick=()=>{
+      financePanelRequested=true;
+      if(!selectAgentKey('reports',{showGuided:true})){
+        setWorkspaceMode('guided');
+        const item=chatConnections().find(x=>x.key==='reports');
+        if(item)renderGuidedWorkspace(item);
+      }
+    };
+  }
+  async function refreshFinanceGlobalAlert({startup=false}={}){
+    if(!window.vnx?.financeAccessStatus)return;
+    try{
+      const status=startup&&window.vnx.financeStartupCheck?await window.vnx.financeStartupCheck():await window.vnx.financeAccessStatus();
+      renderFinanceGlobalAlert(status||{});
+    }catch{}
+  }
+  function reportsSecureEntryHtml(status={}){
+    const count=Number(status.unresolvedCount||0),configured=Boolean(status.configured);
+    return '<section class="reports-secure-entry '+(count?'has-loss':'')+'">'
+      +'<div class="reports-secure-icon">'+(count?'⚠️':'🔐')+'</div>'
+      +'<div><b>Rentabilidad protegida por EAN</b><p>Compara precio de compra/coste con precio de venta y calcula beneficio unitario, margen sobre venta y recargo sobre coste. Solo accede quien conozca el PIN de 4 dígitos.</p>'
+      +(count?'<strong class="reports-secure-warning">'+count+' producto'+(count===1?'':'s')+' pendiente'+(count===1?'':'s')+' de revisión por margen negativo.</strong>':'<small>'+(configured?'Acceso configurado.':'Todavía no se ha configurado el PIN de acceso.')+'</small>')
+      +'</div><button type="button" class="btn '+(count?'danger':'primary')+'" data-open-finance> '+(count?'Revisar alertas':'Abrir análisis protegido')+' </button>'
+      +'</section>';
+  }
+  async function renderReportsDashboard(chosen){
+    if(financePanelRequested){await renderFinancePanel(chosen);return}
+    const layout=$m('.guided-layout'),cfg=guidedConfig('reports'),saved=guidedSaved('reports');
+    layout?.classList.remove('reports-finance-mode');
+    const host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),summary=$m('#guidedConnectionSummary');
+    if(primary){primary.style.display='';primary.textContent=cfg.primary||'✨ Crear informe';primary.dataset.agentKey='reports'}
+    if(steps){steps.style.display='';steps.innerHTML=(cfg.steps||[]).map((x,i)=>'<div><span>'+(i+1)+'</span><b>'+escM(x)+'</b></div>').join('<i>→</i>')}
+    if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
+    let status={};try{status=await window.vnx.financeAccessStatus()}catch{}
+    if(host)host.innerHTML=reportsSecureEntryHtml(status)+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
+    if(summary){const connected=guidedConnectedLabels('reports');summary.innerHTML='<b>Estado</b><span>🟢 Informes disponibles</span>'+(connected.length?'<small>Conectado: '+escM(connected.join(' · '))+'</small>':'<small>Puedes usar archivos y conexiones autorizadas.</small>')}
+    $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('reports')));
+    const open=$m('[data-open-finance]');if(open)open.onclick=()=>{financePanelRequested=true;renderFinancePanel(chosen)};
+  }
+  async function renderFinancePanel(chosen){
+    financePanelRequested=true;
+    const layout=$m('.guided-layout'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),summary=$m('#guidedConnectionSummary');
+    layout?.classList.add('reports-finance-mode');
+    if(primary)primary.style.display='none';if(steps)steps.style.display='none';
+    if(caps)caps.innerHTML='<div><span>🔐</span><p>Los precios, márgenes y alertas solo se muestran después de validar el PIN.</p></div><div><span>✓</span><p>Los cálculos son deterministas: Venta − Compra/Coste. No se inventan precios.</p></div><div><span>⚠️</span><p>Las alertas rojas permanecen abiertas hasta que una persona autorizada las revise.</p></div>';
+    if(summary)summary.innerHTML='<b>Área protegida</b><span>🔐 Rentabilidad y márgenes</span><small>La sesión se bloquea automáticamente y el PIN no se guarda en la interfaz.</small>';
+    if(!host)return;
+    host.innerHTML='<div class="finance-loading">Comprobando acceso protegido…</div>';
+    let status;
+    try{status=await window.vnx.financeAccessStatus()}catch(e){host.innerHTML='<div class="guided-error">'+escM(e.message||e)+'</div>';return}
+    if(!status.configured){
+      host.innerHTML='<div class="finance-locked-card"><div class="finance-lock-mark">🔐</div><h3>Configurar acceso a Rentabilidad</h3><p>Crea un PIN de exactamente 4 dígitos. Se almacenará protegido por el sistema, no como texto visible.</p><div class="finance-pin-row"><input type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" data-finance-new-pin placeholder="PIN de 4 dígitos"><input type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" data-finance-new-pin2 placeholder="Repite el PIN"></div><div class="finance-lock-actions"><button type="button" class="btn primary" data-finance-create-pin>Crear PIN</button><button type="button" class="btn outline" data-finance-back>Volver a Informes</button></div><small>Configúralo únicamente la persona responsable de esta información.</small></div>';
+      host.querySelector('[data-finance-back]').onclick=()=>{financePanelRequested=false;renderReportsDashboard(chosen)};
+      host.querySelector('[data-finance-create-pin]').onclick=async()=>{
+        const p1=host.querySelector('[data-finance-new-pin]').value,p2=host.querySelector('[data-finance-new-pin2]').value;
+        if(!/^\d{4}$/.test(p1)){alert('El PIN debe tener exactamente 4 dígitos.');return}
+        if(p1!==p2){alert('Los dos PIN no coinciden.');return}
+        try{await window.vnx.financeSetPin({pin:p1});const u=await window.vnx.financeUnlock(p1);financeSessionToken=u.token;await renderFinanceUnlocked(chosen,host)}catch(e){alert(e.message||e)}
+      };
+      return;
+    }
+    if(!financeSessionToken){
+      const lockText=status.lockedUntil?'Acceso bloqueado temporalmente por demasiados intentos.':'Introduce el PIN autorizado para ver precios, márgenes y alertas.';
+      host.innerHTML='<div class="finance-locked-card"><div class="finance-lock-mark">🔒</div><h3>Rentabilidad protegida</h3><p>'+escM(lockText)+'</p><div class="finance-pin-row one"><input type="password" inputmode="numeric" maxlength="4" pattern="[0-9]*" data-finance-pin placeholder="••••"></div><div class="finance-lock-actions"><button type="button" class="btn primary" data-finance-unlock>Acceder</button><button type="button" class="btn outline" data-finance-back>Volver a Informes</button></div></div>';
+      host.querySelector('[data-finance-back]').onclick=()=>{financePanelRequested=false;renderReportsDashboard(chosen)};
+      const unlock=async()=>{
+        const pin=host.querySelector('[data-finance-pin]').value;
+        try{const u=await window.vnx.financeUnlock(pin);financeSessionToken=u.token;await renderFinanceUnlocked(chosen,host)}catch(e){alert(e.message||e);host.querySelector('[data-finance-pin]').value=''}
+      };
+      host.querySelector('[data-finance-unlock]').onclick=unlock;
+      host.querySelector('[data-finance-pin]').onkeydown=e=>{if(e.key==='Enter')unlock()};
+      return;
+    }
+    await renderFinanceUnlocked(chosen,host);
+  }
+  async function renderFinanceUnlocked(chosen,host){
+    let report;
+    try{report=await window.vnx.financeReport(financeSessionToken)}
+    catch(e){financeSessionToken='';await renderFinancePanel(chosen);return}
+    const analysis=report?.analysis||null,alerts=Array.isArray(report?.alerts)?report.alerts:[],rows=Array.isArray(analysis?.rows)?analysis.rows:[];
+    const openAlerts=alerts.filter(a=>a.status==='open'),portals=financePortalOptions();
+    const options='<option value="__file__">Excel / CSV con EAN + compra + venta</option>'+portals.map(p=>'<option value="'+escM(p.id)+'">'+escM(p.name||p.url)+'</option>').join('');
+    const ordered=[...rows].sort((a,b)=>Number(a.unitProfit||0)-Number(b.unitProfit||0));
+    const table=ordered.length?'<div class="finance-table-wrap"><table class="finance-table"><thead><tr><th>EAN</th><th>Fabricante</th><th>Producto</th><th>Compra / coste</th><th>Venta</th><th>Beneficio ud.</th><th>Margen venta</th><th>Recargo coste</th></tr></thead><tbody>'+ordered.map(r=>'<tr class="'+(Number(r.unitProfit)<0?'loss':'ok')+'"><td>'+escM(r.ean||'—')+'</td><td>'+escM(r.manufacturer||'—')+'</td><td>'+escM(r.product||'—')+'</td><td>'+financeMoney(r.purchasePrice)+'</td><td>'+financeMoney(r.salePrice)+'</td><td><strong>'+financeMoney(r.unitProfit)+'</strong></td><td>'+financePct(r.marginOnSalePct)+'</td><td>'+financePct(r.markupOnCostPct)+'</td></tr>').join('')+'</tbody></table></div>':'<div class="finance-empty">Todavía no hay un análisis de rentabilidad. Elige una fuente y pulsa “Analizar rentabilidad”.</div>';
+    const alertCards=alerts.length?alerts.map(a=>'<article class="finance-alert-card '+(a.status==='open'?'open':'reviewed')+'" data-finance-alert="'+escM(a.id)+'"><div class="finance-alert-head"><div><b>'+escM(a.product||'Producto')+'</b><span>EAN '+escM(a.ean||'—')+(a.manufacturer?' · '+escM(a.manufacturer):'')+'</span></div><strong>'+financeMoney(a.unitProfit)+'/ud.</strong></div><div class="finance-alert-prices"><span>Compra <b>'+financeMoney(a.purchasePrice)+'</b></span><span>Venta <b>'+financeMoney(a.salePrice)+'</b></span><span>Margen <b>'+financePct(a.marginOnSalePct)+'</b></span></div><div class="finance-alert-actions"><button type="button" class="btn outline" data-finance-review '+(a.status!=='open'?'disabled':'')+'>✓ Marcar revisado</button><button type="button" class="btn outline" data-finance-draft>✉ Preparar aviso</button><button type="button" class="btn danger" data-finance-send>Enviar al responsable</button></div></article>').join(''):'<div class="finance-empty">No hay alertas de margen negativo pendientes ni revisadas en esta fuente.</div>';
+    host.innerHTML='<div class="finance-dashboard">'
+      +'<div class="finance-dashboard-head"><div><span class="finance-kicker">INFORMES · ACCESO RESTRINGIDO</span><h3>Rentabilidad por EAN</h3><p>Beneficio unitario = precio de venta − precio de compra/coste. Las dos cifras deben estar en la misma base fiscal para que la comparación sea válida.</p></div><div class="finance-head-actions"><button type="button" class="btn outline" data-finance-back>← Informes</button><button type="button" class="btn outline" data-finance-lock>🔒 Bloquear</button></div></div>'
+      +'<div class="finance-metrics"><article class="'+(openAlerts.length?'danger':'')+'"><span>Alertas abiertas</span><b>'+openAlerts.length+'</b><small>margen negativo</small></article><article><span>EAN analizados</span><b>'+rows.length+'</b><small>'+(analysis?.sourceLabel?escM(analysis.sourceLabel):'sin análisis')+'</small></article><article><span>Última revisión</span><b>'+(analysis?.analyzedAt?new Date(analysis.analyzedAt).toLocaleDateString('es-ES'):'—')+'</b><small>'+(analysis?.analyzedAt?new Date(analysis.analyzedAt).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}):'')+'</small></article></div>'
+      +'<div class="finance-source-bar"><label><span>Fuente a analizar</span><select data-finance-source>'+options+'</select></label><button type="button" class="btn primary" data-finance-analyze>Analizar rentabilidad</button></div>'
+      +'<section class="finance-section"><div class="finance-section-head"><div><h4>Alertas que requieren revisión</h4><p>Una alerta roja no desaparece hasta que la revise una persona autorizada. También puedes derivarla por Gmail al responsable.</p></div><label class="finance-responsible"><span>Email del responsable</span><input type="email" data-finance-responsible placeholder="responsable@empresa.com"></label></div><div class="finance-alert-list">'+alertCards+'</div></section>'
+      +'<section class="finance-section"><div class="finance-section-head"><div><h4>Resultado por producto</h4><p>Ordenado desde la mayor pérdida unitaria. No se muestran ni calculan productos sin EAN o sin ambos precios.</p></div></div>'+table+'</section>'
+      +'</div>';
+    host.querySelector('[data-finance-back]').onclick=()=>{financePanelRequested=false;renderReportsDashboard(chosen)};
+    host.querySelector('[data-finance-lock]').onclick=async()=>{try{await window.vnx.financeLock(financeSessionToken)}catch{}financeSessionToken='';renderFinancePanel(chosen)};
+    host.querySelector('[data-finance-analyze]').onclick=async()=>{
+      const btn=host.querySelector('[data-finance-analyze]'),source=host.querySelector('[data-finance-source]').value,old=btn.textContent;btn.disabled=true;btn.textContent='Analizando…';
+      try{
+        if(source==='__file__')await window.vnx.financeAnalyzeFile(financeSessionToken);
+        else await window.vnx.financeAnalyzePortal(financeSessionToken,source);
+        await refreshFinanceGlobalAlert();await renderFinanceUnlocked(chosen,host);
+      }catch(e){if(/caducado|PIN/i.test(String(e.message||e)))financeSessionToken='';alert(e.message||e)}
+      finally{if(btn.isConnected){btn.disabled=false;btn.textContent=old}}
+    };
+    host.querySelectorAll('[data-finance-alert]').forEach(card=>{
+      const id=card.dataset.financeAlert;
+      const responsible=()=>String(host.querySelector('[data-finance-responsible]')?.value||'').trim();
+      const review=card.querySelector('[data-finance-review]');
+      if(review)review.onclick=async()=>{if(!confirm('¿Confirmas que una persona autorizada ha revisado esta alerta?'))return;try{await window.vnx.financeReviewAlert(financeSessionToken,{id});await refreshFinanceGlobalAlert();await renderFinanceUnlocked(chosen,host)}catch(e){alert(e.message||e)}};
+      const draft=card.querySelector('[data-finance-draft]');
+      if(draft)draft.onclick=async()=>{try{const r=await window.vnx.financeSendAlert(financeSessionToken,{id,to:responsible(),mode:'draft'});alert(r.message||'Borrador preparado.')}catch(e){alert(e.message||e)}};
+      const send=card.querySelector('[data-finance-send]');
+      if(send)send.onclick=async()=>{const to=responsible();if(!to){alert('Indica primero el email del responsable.');return}if(!confirm('¿Enviar ahora el aviso de margen negativo a '+to+'?'))return;try{const r=await window.vnx.financeSendAlert(financeSessionToken,{id,to,mode:'send'});alert(r.message||'Aviso enviado.');await renderFinanceUnlocked(chosen,host)}catch(e){alert(e.message||e)}};
+    });
+  }
+
   function renderGuidedWorkspace(chosen){
     if(!chosen)return;
     const layout=$m('.guided-layout'),help=document.querySelector('.guided-help-card'),switcher=document.querySelector('.guided-card-head .mode-switch'),primaryEl=$m('#guidedPrimaryAction'),stepsEl=$m('#guidedSteps');
-    layout?.classList.remove('email-dashboard-mode','prospecting-dashboard-mode');if(help)help.style.display='';if(switcher)switcher.style.display='';if(primaryEl)primaryEl.style.display='';if(stepsEl)stepsEl.style.display='';
+    layout?.classList.remove('email-dashboard-mode','prospecting-dashboard-mode','reports-finance-mode');if(help)help.style.display='';if(switcher)switcher.style.display='';if(primaryEl)primaryEl.style.display='';if(stepsEl)stepsEl.style.display='';
     const cfg=guidedConfig(chosen.key),saved=guidedSaved(chosen.key);
     const title=$m('#guidedAgentTitle'),sub=$m('#guidedAgentSubtitle'),host=$m('#guidedFormHost'),caps=$m('#guidedCapabilities'),primary=$m('#guidedPrimaryAction'),steps=$m('#guidedSteps'),consent=$m('#guidedConsentRow'),cat=$m('#guidedCatalogRow'),summary=$m('#guidedConnectionSummary');
     if(title)title.textContent=chosen.key==='core_ai'?'👩‍💼 Carla · Secretaria ejecutiva':(chosen.icon||'🤖')+' '+chosen.name;
     if(sub)sub.textContent=cfg.subtitle||'';
     if(chosen.key==='email'){renderEmailDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(chosen.key==='prospecting'){renderProspectingDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
+    if(chosen.key==='reports'){renderReportsDashboard(chosen);if(!document.body.classList.contains('vnx-carla-window'))renderGuidedOtherCards(chatConnections(),chosen);return;}
     if(host)host.innerHTML=(chosen.key==='whatsapp'?'<div data-whatsapp-workspace-metrics></div>':'')+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(chosen.key==='whatsapp')refreshWhatsAppWorkspaceMetrics();
     if(caps)caps.innerHTML=(cfg.capabilities||[]).map(x=>'<div><span>✓</span><p>'+escM(x)+'</p></div>').join('');
@@ -3217,6 +3355,8 @@ function emailListItem(m,i,selected){
     setupMasterBusiness();
     await renderMasterPortals();
     await refreshChatConnections();
+    await refreshFinanceGlobalAlert({startup:true});
+    if(window.vnx?.onFinanceAlertsChanged)window.vnx.onFinanceAlertsChanged(status=>renderFinanceGlobalAlert(status||{}));
     setupExecutiveSecretary();
     startSecretaryEmailWatch();
     startSecretaryCalendarWatch();
