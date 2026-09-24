@@ -1,4 +1,4 @@
-const {app,ipcMain,Notification}=require('electron');
+const {app,ipcMain}=require('electron');
 const {readState}=require('./state-store.cjs');
 const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
@@ -222,19 +222,6 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
     portalChat:typeof portalChat
   });
 }
-
-// Avisos del modo Secretaria Ejecutiva. El renderer decide qué evento merece aviso;
-// el proceso principal muestra la notificación nativa sin ejecutar ninguna acción externa.
-ipcMain.removeHandler('secretary:notify');
-ipcMain.handle('secretary:notify',async(_event,payload={})=>{
-  const title=String(payload.title||'VentaNexIA').replace(/[\r\n]+/g,' ').slice(0,100);
-  const body=String(payload.body||'').replace(/[\r\n]+/g,' ').slice(0,260);
-  if(!body)return {ok:false};
-  try{
-    if(Notification.isSupported())new Notification({title,body}).show();
-    return {ok:true};
-  }catch{return {ok:false}}
-});
 
 // --- Inyección de la interfaz ------------------------------------------------
 app.on('browser-window-created',(_event,win)=>{
