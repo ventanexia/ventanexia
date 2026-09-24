@@ -2360,3 +2360,29 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-fit-context{margin:8px 0;padding:8px 0;border-top:1px solid #153b5b;border-bottom:1px solid #153b5b}
 .vnx-dir-fit-context summary{cursor:pointer;color:#7eddf2;font-size:12px}.vnx-dir-fit-context span{display:block;color:#a9bfd1;font-size:11px;margin:4px 0}
 @media(max-width:900px){.vnx-dir-fit-cols{grid-template-columns:1fr}}
+
+
+/* Dirección · contexto humano y criterio de gestión */
+.vnx-dir-human-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:12px;margin-top:12px}
+.vnx-dir-human-panel,.vnx-dir-policy-panel{min-width:0}
+.vnx-dir-human-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vnx-dir-human-form label,.vnx-dir-management-form label{display:grid;gap:5px;font-size:12px;color:#a9bed1}
+.vnx-dir-human-form textarea,.vnx-dir-human-form select{background:#071b32;color:#eef7ff;border:1px solid #1b557f;border-radius:9px;padding:10px;resize:vertical}
+.vnx-dir-human-wide,.vnx-dir-motivators,.vnx-dir-human-warning,.vnx-dir-human-form>button{grid-column:1/-1}
+.vnx-dir-motivators{border:1px solid #184b72;border-radius:10px;padding:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.vnx-dir-motivators legend{padding:0 6px;color:#a9bed1;font-size:12px}
+.vnx-dir-motivators label{display:flex;grid-template-columns:none;flex-direction:row;align-items:center;gap:6px;color:#c6d7e4}
+.vnx-dir-human-warning{padding:9px 10px;border:1px solid #6d5b2d;background:#2a2415;border-radius:9px;color:#e9d79e;font-size:11px;line-height:1.45}
+.vnx-dir-policy-presets{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+.vnx-dir-management-form{display:grid;gap:12px}
+.vnx-dir-management-form label span{display:flex;justify-content:space-between;gap:8px}
+.vnx-dir-management-form input[type="range"]{width:100%;accent-color:#5fdcf1}
+.vnx-dir-management-form label b{color:#71def2}
+.vnx-dir-human-diagnosis,.vnx-dir-management-view{margin:9px 0;padding:11px;border:1px solid #1b567e;border-radius:10px;background:#081d34}
+.vnx-dir-human-diagnosis>b,.vnx-dir-management-view>b{display:block;margin-bottom:7px;color:#edf8ff}
+.vnx-dir-human-diagnosis>div{padding:7px 0;border-bottom:1px solid #153d5d;display:grid;gap:3px}
+.vnx-dir-human-diagnosis>div:last-child{border-bottom:0}
+.vnx-dir-human-diagnosis strong{font-size:12px}.vnx-dir-human-diagnosis span{font-size:11px;color:#b6ccdc}.vnx-dir-human-diagnosis small{font-size:10px;color:#809db5}
+.vnx-dir-management-view{border-color:#235f77;background:#082431}
+.vnx-dir-management-view p{margin:0 0 6px;color:#78def0;font-size:11px}.vnx-dir-management-view span{display:block;font-size:11px;color:#c1d6df;margin:4px 0}.vnx-dir-management-view small{display:block;margin-top:8px;color:#849faf;line-height:1.4}
+@media(max-width:1100px){.vnx-dir-human-grid{grid-template-columns:1fr}.vnx-dir-human-form{grid-template-columns:1fr}.vnx-dir-human-wide,.vnx-dir-motivators,.vnx-dir-human-warning,.vnx-dir-human-form>button{grid-column:1}.vnx-dir-motivators{grid-template-columns:1fr}}
