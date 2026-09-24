@@ -416,6 +416,57 @@ function get(){
   return instance;
 }
 async function handleChat(text){return get().handleChat(text)}
+async function reviewOrders({force=true,max=250}={}){
+  const engine=get();
+  let scanResult={found:[],notOrders:0,skipped:0,errors:[],accounts:0,limit:false,monthly:null};
+  if(force){
+    try{scanResult=await engine.scan({force:true})||scanResult}
+    catch(e){scanResult.errors.push(String(e?.message||e).slice(0,220))}
+  }
+  let state=await engine.store.load();
+  const orders=Object.values(state.orders||{}).filter(Boolean).sort((a,b)=>{
+    const ad=Number(a?.createdAt||0),bd=Number(b?.createdAt||0);
+    if(ad!==bd)return bd-ad;
+    return Number(b?.seq||0)-Number(a?.seq||0);
+  }).slice(0,Math.max(1,Math.min(1000,Number(max)||250)));
+  const rows=orders.map(o=>{
+    const ex=o.extracted||{},v=o.verification||{},c=ex.customer||{},src=o.source||{};
+    const lines=(ex.lines||[]).map((l,i)=>({
+      ref:String(l?.ref||''),description:String(l?.description||''),qty:Number.isFinite(Number(l?.qty))?Number(l.qty):null,
+      price:Number.isFinite(Number(l?.price))?Number(l.price):null,
+      catalogStatus:String(v?.lines?.[i]?.status||'')
+    }));
+    const issues=[
+      ...(Array.isArray(v?.problems)?v.problems:[]),
+      ...(Array.isArray(v?.missing)?v.missing.map(x=>'Falta '+String(x)):[]),
+      ...(Array.isArray(ex?.issues)?ex.issues.map(x=>String(x?.message||x?.code||'')).filter(Boolean):[])
+    ];
+    return {
+      id:String(o.id||''),seq:Number(o.seq||0),internalRef:String(o.internalRef||''),status:String(o.status||'nuevo'),
+      statusText:STATUS_TEXT[String(o.status||'nuevo')]||String(o.status||'nuevo'),
+      createdAt:Number(o.createdAt||0),createdDate:String(o.createdDate||''),
+      orderRef:String(ex.orderRef||''),orderDate:String(ex.orderDate||''),
+      customer:String(c.name||src.from||'Cliente sin identificar'),taxId:String(c.taxId||''),email:String(c.email||src.fromEmail||''),
+      sourceKind:String(src.kind||''),sourceStore:String(src.store||''),sourceAccount:String(src.account||''),sourceSubject:String(src.subject||''),sourceDate:String(src.date||''),
+      total:Number.isFinite(Number(ex.total))?Number(ex.total):null,currency:String(ex.currency||''),lineCount:lines.length,lines,
+      issues:[...new Set(issues)].slice(0,12),missing:Array.isArray(v?.missing)?v.missing.map(String):[],
+      customerStatus:String(v?.customer?.status||''),ready:o.status==='listo',introduced:o.status==='introducido',
+      hasStockIssue:['sin_stock','esperando_compras'].includes(String(o.status||'')),deliveryOk:Boolean(o.delivery?.ok)
+    };
+  });
+  const counts={total:rows.length,new:0,pending:0,ready:0,issues:0,introduced:0};
+  for(const x of rows){
+    if(x.status==='nuevo')counts.new++;
+    if(x.ready)counts.ready++;
+    if(x.introduced)counts.introduced++;
+    if(x.issues.length||['revisar','falta_datos','sin_stock','esperando_compras','esperando_cliente','error'].includes(x.status))counts.issues++;
+    if(!['introducido','descartado'].includes(x.status))counts.pending++;
+  }
+  return {
+    ok:true,generatedAt:new Date().toISOString(),scan:scanResult,counts,orders:rows,
+    settings:{scanDays:Number(state.settings?.scanDays||14),autoScan:Boolean(state.settings?.autoScan),webOrders:state.settings?.webOrders!==false}
+  };
+}
 async function exportReadyOrders(){
   const s=await get().store.load();
   const ready=Object.values(s.orders||{}).filter(o=>o&&o.status==='listo');
@@ -434,4 +485,4 @@ function startScheduler(){
   const first=setTimeout(tick,2*60*1000);first.unref?.();
   timer=setInterval(tick,15*60*1000);timer.unref?.();
 }
-module.exports={handleChat,exportReadyOrders,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
+module.exports={handleChat,reviewOrders,exportReadyOrders,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
