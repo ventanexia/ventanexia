@@ -49,7 +49,7 @@ need(home,/data-home-stock-export="pdf"/,'direct PDF download missing under Stoc
 need(home,/data-home-stock-retry/,'unverified history must offer a retry action');
 need(home,/data-home-stock-continue/,'unverified history must allow continuing with stock only');
 need(home,/lastStockRun\?\.summary\?\.salesLookReliable!==false/,'Generate order must not reuse an unverified historical result');
-need(home,/Importar ventas Excel/CSV/,'historical-sales import fallback missing');
+need(home,/Importar ventas Excel\/CSV/,'historical-sales import fallback missing');
 need(preload,/stockImportFile:\(options=\{\}\)=>ipcRenderer\.invoke\('stock:import-file',options\)/,'policy-aware historical-sales import bridge missing');
 need(backend,/erp:replenishment-summary/,'ERP replenishment IPC missing');
 need(preload,/erpStatus:/,'ERP status bridge missing');
