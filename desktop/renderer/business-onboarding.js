@@ -17,9 +17,10 @@
   }
   async function refresh(){
     if(!window.vnx?.businessList)return state;
+    const previousId=state.activeProfileId;
     state=await window.vnx.businessList();
     updateHeader();
-    window.dispatchEvent(new CustomEvent('vnx-business-changed',{detail:{state}}));
+    window.dispatchEvent(new CustomEvent('vnx-business-changed',{detail:{state,changed:Boolean(previousId&&previousId!==state.activeProfileId)}}));
     return state;
   }
   function closeMenu(){if(menu){menu.remove();menu=null}}
@@ -41,7 +42,7 @@
     document.body.appendChild(menu);placeMenu(btn);
     menu.querySelector('[data-business-close]').onclick=closeMenu;
     menu.querySelectorAll('[data-business-select]').forEach(b=>b.onclick=async()=>{
-      try{state=await window.vnx.businessSetActive(b.dataset.businessSelect);updateHeader();closeMenu();window.dispatchEvent(new CustomEvent('vnx-business-changed',{detail:{state}}))}
+      try{state=await window.vnx.businessSetActive(b.dataset.businessSelect);updateHeader();closeMenu();window.dispatchEvent(new CustomEvent('vnx-business-changed',{detail:{state,changed:true}}))}
       catch(e){alert(e.message||e)}
     });
     menu.querySelector('[data-business-add]').onclick=()=>{closeMenu();openWizard({mode:'add'})};
@@ -151,7 +152,7 @@
     try{
       const activeId=state.activeProfileId&&draft.some(x=>x.id===state.activeProfileId)?state.activeProfileId:(draft[0]?.id||null);
       state=await window.vnx.businessSaveAll({profiles:draft,activeProfileId:activeId});
-      updateHeader();closeWizard();window.dispatchEvent(new CustomEvent('vnx-business-changed',{detail:{state}}));
+      updateHeader();closeWizard();window.dispatchEvent(new CustomEvent('vnx-business-changed',{detail:{state,changed:false}}));
     }catch(e){status.textContent='';alert(e.message||e)}
     finally{if(btn)btn.disabled=false}
   }
