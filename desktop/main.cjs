@@ -824,18 +824,99 @@ ipcMain.handle('agenda:upcoming',async(_e,minutes=180)=>{
   const s=await readState();assertModuleIncluded(s.license,'agenda');return calendar.upcoming(minutes);
 });
 
+const DIRECTION_SESSION_MS=30*60*1000;
+const DIRECTION_PIN_ITERATIONS=210000;
+const directionSessions=new Map();
+
+function directionAccess(d){
+  d.access=d.access&&typeof d.access==='object'?d.access:{};
+  return d.access;
+}
+function directionConfigured(d){
+  const a=directionAccess(d);return Boolean(a.pinHash&&a.pinSalt);
+}
+function directionHashPin(pin,salt){
+  return crypto.pbkdf2Sync(String(pin),String(salt),DIRECTION_PIN_ITERATIONS,32,'sha256').toString('hex');
+}
+function directionSafeEqual(a,b){
+  const aa=Buffer.from(String(a||''),'hex'),bb=Buffer.from(String(b||''),'hex');
+  return aa.length===bb.length&&aa.length>0&&crypto.timingSafeEqual(aa,bb);
+}
+function directionSessionCreate(){
+  const token=crypto.randomBytes(32).toString('hex');
+  directionSessions.set(token,Date.now()+DIRECTION_SESSION_MS);
+  return token;
+}
+function directionSessionValid(token=''){
+  const t=String(token||''),expires=directionSessions.get(t)||0;
+  if(!expires||expires<=Date.now()){if(t)directionSessions.delete(t);return false}
+  directionSessions.set(t,Date.now()+DIRECTION_SESSION_MS);
+  return true;
+}
+function directionRequireSession(payload={}){
+  if(!directionSessionValid(payload?.token)){
+    const e=new Error('Dirección está bloqueada. Introduce el PIN.');e.code='DIRECTION_LOCKED';throw e;
+  }
+}
+function directionAccessStatus(d){
+  const a=directionAccess(d);
+  return {configured:directionConfigured(d),lockedUntil:Number(a.lockedUntil||0)>Date.now()?Number(a.lockedUntil):null};
+}
+
+ipcMain.handle('direction:access-status',async()=>{
+  const s=await readState(),d=direction.ensureDirection(s);
+  return directionAccessStatus(d);
+});
+ipcMain.handle('direction:set-pin',async(_e,payload={})=>{
+  const pin=String(payload.pin||''),currentPin=String(payload.currentPin||'');
+  if(!/^\d{4}$/.test(pin))throw new Error('El PIN de Dirección debe tener exactamente 4 dígitos.');
+  const s=await readState(),d=direction.ensureDirection(s),a=directionAccess(d);
+  if(directionConfigured(d)){
+    if(Number(a.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente por demasiados intentos.');
+    const currentHash=/^\d{4}$/.test(currentPin)?directionHashPin(currentPin,a.pinSalt):'';
+    if(!currentHash||!directionSafeEqual(currentHash,a.pinHash))throw new Error('El PIN actual de Dirección no es correcto.');
+  }
+  const salt=crypto.randomBytes(24).toString('hex');
+  d.access={pinSalt:salt,pinHash:directionHashPin(pin,salt),failedAttempts:0,lockedUntil:null,updatedAt:new Date().toISOString()};
+  await writeState(s);await audit('direction.pin_configured','Acceso privado de Dirección configurado');
+  return {ok:true,configured:true};
+});
+ipcMain.handle('direction:unlock',async(_e,payload={})=>{
+  const pin=String(payload.pin||''),s=await readState(),d=direction.ensureDirection(s),a=directionAccess(d);
+  if(!directionConfigured(d))throw new Error('Configura primero el PIN de Dirección.');
+  if(Number(a.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente. Inténtalo más tarde.');
+  const hash=/^\d{4}$/.test(pin)?directionHashPin(pin,a.pinSalt):'';
+  if(!hash||!directionSafeEqual(hash,a.pinHash)){
+    a.failedAttempts=Number(a.failedAttempts||0)+1;
+    if(a.failedAttempts>=5){a.failedAttempts=0;a.lockedUntil=Date.now()+5*60*1000}
+    await writeState(s);await audit('direction.unlock_failed','Intento de acceso a Dirección rechazado');
+    throw new Error(a.lockedUntil?'Demasiados intentos. Dirección bloqueada durante 5 minutos.':'PIN de Dirección incorrecto.');
+  }
+  a.failedAttempts=0;a.lockedUntil=null;a.lastUnlockedAt=new Date().toISOString();await writeState(s);
+  const token=directionSessionCreate();await audit('direction.unlocked','Agente de Dirección desbloqueado');
+  return {ok:true,token,expiresInMs:DIRECTION_SESSION_MS};
+});
+ipcMain.handle('direction:lock',async(_e,payload={})=>{
+  if(payload?.token)directionSessions.delete(String(payload.token));
+  await audit('direction.locked','Agente de Dirección bloqueado');
+  return {ok:true};
+});
+
 function directionBusinessId(state,payload={}){
   return String(payload.businessId||state?.secret?.activeBusinessProfileId||'').trim().slice(0,120);
 }
 ipcMain.handle('direction:summary',async(_e,payload={})=>{
+  directionRequireSession(payload);
   const s=await readState(),d=direction.ensureDirection(s);
   return direction.summarize(d,{businessId:directionBusinessId(s,payload),now:new Date().toISOString()});
 });
 ipcMain.handle('direction:employees',async(_e,payload={})=>{
+  directionRequireSession(payload);
   const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
   return d.employees.filter(x=>!businessId||x.businessId===businessId);
 });
 ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
+  directionRequireSession(payload);
   let saved=null;
   await updateState(s=>{
     const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
@@ -852,6 +933,7 @@ ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
   return saved;
 });
 ipcMain.handle('direction:create-task',async(_e,payload={})=>{
+  directionRequireSession(payload);
   let task=null;
   await updateState(s=>{
     const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
@@ -862,6 +944,7 @@ ipcMain.handle('direction:create-task',async(_e,payload={})=>{
   return task;
 });
 ipcMain.handle('direction:update-task',async(_e,payload={})=>{
+  directionRequireSession(payload);
   let task=null;
   await updateState(s=>{
     const d=direction.ensureDirection(s);
@@ -872,6 +955,7 @@ ipcMain.handle('direction:update-task',async(_e,payload={})=>{
   return task;
 });
 ipcMain.handle('direction:add-event',async(_e,payload={})=>{
+  directionRequireSession(payload);
   let event=null;
   await updateState(s=>{
     const d=direction.ensureDirection(s);
@@ -881,6 +965,7 @@ ipcMain.handle('direction:add-event',async(_e,payload={})=>{
   return event;
 });
 ipcMain.handle('direction:resolve-task',async(_e,payload={})=>{
+  directionRequireSession(payload);
   let task=null;
   const actor=payload.actor==='ai'?'ai':'human';
   await updateState(s=>{
@@ -891,8 +976,9 @@ ipcMain.handle('direction:resolve-task',async(_e,payload={})=>{
   await audit(actor==='ai'?'direction.task_resolved_by_ai':'direction.task_resolved_by_human',(task?.assigneeName||'Responsable')+' · '+String(task?.title||'').slice(0,160));
   return task;
 });
-ipcMain.handle('direction:settings',async(_e,payload=null)=>{
-  if(payload&&typeof payload==='object'){
+ipcMain.handle('direction:settings',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  if(payload&&typeof payload==='object'&&payload.update===true){
     let settings=null;
     await updateState(s=>{
       const d=direction.ensureDirection(s);
@@ -910,6 +996,7 @@ ipcMain.handle('direction:settings',async(_e,payload=null)=>{
   const s=await readState(),d=direction.ensureDirection(s);return {...d.settings};
 });
 ipcMain.handle('direction:ai-queue',async(_e,payload={})=>{
+  directionRequireSession(payload);
   const s=await readState(),d=direction.ensureDirection(s);
   return direction.summarize(d,{businessId:directionBusinessId(s,payload)}).aiTakeoverQueue;
 });
