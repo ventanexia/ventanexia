@@ -886,7 +886,7 @@ function emailListItem(m,i,selected){
     let status={};try{status=await window.vnx.financeAccessStatus()}catch{}
     if(host)host.innerHTML=reportsSecureEntryHtml(status)+'<div class="guided-form-grid">'+(cfg.fields||[]).map(f=>guidedFieldHtml(f,saved[f.key]||'')).join('')+'</div>';
     if(summary){const connected=guidedConnectedLabels('reports');summary.innerHTML='<b>Estado</b><span>🟢 Informes disponibles</span>'+(connected.length?'<small>Conectado: '+escM(connected.join(' · '))+'</small>':'<small>Puedes usar archivos y conexiones autorizadas.</small>')}
-    $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('reports')));
+    $$m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('reports')));
     const open=$m('[data-open-finance]');if(open)open.onclick=()=>{financePanelRequested=true;renderFinancePanel(chosen)};
   }
   async function renderFinancePanel(chosen){
