@@ -226,6 +226,7 @@
   }
   const HOME_SOURCE_KEY='vnx_home_selected_source_v1';
   const STOCK_POLICY_KEY='vnx_stock_policy_by_source_v1';
+  const PROSPECT_PROFILE_KEY='vnx_prospect_profile_by_source_v1';
   function normalizedText(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
   function tagTexts(selector){return $$(selector+' .vnx-ah-tag').map(el=>{const c=el.cloneNode(true);c.querySelector('button')?.remove();return String(c.textContent||'').trim()}).filter(x=>x&&x!=='Tu producto o servicio')}
   function selectedHomeSource(){try{return JSON.parse(localStorage.getItem(HOME_SOURCE_KEY)||'null')}catch{return null}}
@@ -236,6 +237,27 @@
     return [...new Set(keys)];
   }
   function stockPolicyStore(){try{const x=JSON.parse(localStorage.getItem(STOCK_POLICY_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch{return {}}}
+  function prospectProfileStore(){try{const x=JSON.parse(localStorage.getItem(PROSPECT_PROFILE_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch{return {}}}
+  function prospectProfileForSource(src={}){
+    const store=prospectProfileStore();
+    for(const key of stockPolicyKeys(src)){if(store[key])return store[key]}
+    return {targetSegments:''};
+  }
+  function saveProspectProfileForSource(src={},profile={}){
+    const keys=stockPolicyKeys(src);if(!keys.length)return false;
+    const next={targetSegments:String(profile.targetSegments||'').trim().slice(0,500),updatedAt:new Date().toISOString()};
+    const store=prospectProfileStore();for(const key of keys)store[key]=next;
+    try{localStorage.setItem(PROSPECT_PROFILE_KEY,JSON.stringify(store));return true}catch{return false}
+  }
+  function prospectSegmentInput(){return $('#vnxAhFilters input[data-vnx-filter-text="Tipo de cliente / sector objetivo"]')}
+  function restoreProspectProfile(){
+    if(document.body.dataset.vnxHomeAgent!=='prospecting')return;
+    const input=prospectSegmentInput();if(!input)return;
+    const src=selectedHomeSource(),profile=prospectProfileForSource(src||{});
+    input.value=profile.targetSegments||'';
+    input.onchange=()=>{if(src)saveProspectProfileForSource(src,{targetSegments:input.value})};
+    input.onblur=input.onchange;
+  }
   function stockPolicyForSource(src={}){
     const store=stockPolicyStore();
     for(const key of stockPolicyKeys(src)){const x=store[key];if(x)return {targetDays:Math.max(1,Math.min(365,Number(x.targetDays)||25)),noHistoryMin:Math.max(0,Math.min(100000,Number(x.noHistoryMin)||0))}}
@@ -270,7 +292,7 @@
     };
     populateStockSourceSelect().catch(()=>{});
   }
-  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName();renderStockPolicyUi()}
+  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName();renderStockPolicyUi();restoreProspectProfile()}
   function agentKeyForRequest(question='',fallback='core_ai'){
     const q=normalizedText(question);
     if(/\b(email|emails|correo|correos|gmail|bandeja)\b/.test(q))return 'email';
@@ -289,6 +311,10 @@
     const parts=[String(prompt||'').trim()],src=selectedHomeSource(),brands=tagTexts('#vnxAhBrands'),items=tagTexts('#vnxAhItems');
     if(src?.label)parts.push('Trabaja únicamente con la conexión/empresa seleccionada en la pantalla de inicio: '+src.label+'. No mezcles otras fuentes salvo que yo lo pida expresamente.');
     if(key==='web_ecommerce'){const p=stockPolicyForSource(src||{});parts.push('Política de reposición de esta empresa: objetivo '+p.targetDays+' días; si una referencia no tiene histórico, stock mínimo '+p.noHistoryMin+' unidades. Si el mínimo es 0, no inventes cantidad y marca la referencia para revisión.');}
+    if(key==='prospecting'){
+      const typed=String(prospectSegmentInput()?.value||'').trim(),saved=prospectProfileForSource(src||{}).targetSegments||'',segments=typed||saved;
+      if(segments)parts.push('Tipo de cliente / sector objetivo indicado por el usuario: '+segments+'. Respeta estos segmentos y no los sustituyas por sectores genéricos.');
+    }
     if(items.length)parts.push('Productos o servicios indicados: '+items.join(', ')+'.');
     if(brands.length&&['prospecting','content','social','campaigns'].includes(key))parts.push('Marca o marcas indicadas: '+brands.join(', ')+'. Usa estos nombres tal como se han introducido; no inventes marcas.');
     return parts.filter(Boolean).join('\n');
@@ -600,7 +626,7 @@
       orders:{configTitle:'1. Define qué pedidos revisar',configSub:'Filtra pedidos y decide qué puede preparar Carla antes de que los confirmes.',sourceTabs:['Pedidos conectados','Incidencias','Importar Excel/CSV'],filters:[['Estado',['Todos','Nuevos','Pendientes','Incompletos','Preparados']],['Fecha',['Hoy','7 días','30 días']],['Canal',['Todos','Tienda online','Email','Portal','Archivo']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada hora','Una vez','Personalizada'],actions:['Dejar pedidos preparados','Procesar solo los autorizados','Preparar y avisarme','Solo detectar incidencias'],previewActions:['↻ Volver a comprobar','✦ Ajustar pedido','▧ Exportar / guardar'],switches:['Revisar nuevos','Programar revisión','Dejar preparados'],itemDefault:'Pedido o referencia'},
       web_ecommerce:{configTitle:'1. Define el análisis de stock',configSub:'Elige qué productos revisar y el criterio de reposición que quieres controlar.',sourceTabs:['Stock actual','Ventas 6 meses','Importar Excel/CSV'],filters:[['Estado',['Todos','Sin stock','< 5 días','Bajo stock','Exceso']],['Fabricante',['Todos los fabricantes','Fabricante seleccionado']],['Cobertura',['Todas','0 días','< 5 días','< 20 días','≥ 20 días']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:['Dejar propuesta de compra para revisar','Generar pedido solo con autorización','Preparar y avisarme','Solo analizar, sin generar pedido'],previewActions:['↻ Recalcular stock','✦ Ajustar cobertura','▧ Exportar pedido'],switches:['Calcular ahora','Programar revisión','Dejar como propuesta'],itemDefault:'Producto, SKU o familia'},
       crm:{configTitle:'1. Define el seguimiento comercial',configSub:'Elige clientes u oportunidades y cómo quieres preparar la siguiente acción.',sourceTabs:['Clientes conectados','Oportunidades','Importar Excel/CSV'],filters:[['Estado',['Todos','Nuevo','Seguimiento','Oferta','Negociación','Ganado']],['Responsable',['Todos','Yo','Sin responsable']],['Actividad',['Hoy','7 días','30 días','Sin actividad']]],showStyle:true,showLanguage:true,showBrand:false,styleLabel:'Estilo comercial',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:commonAction,previewActions:['↻ Otra propuesta','✦ Ajustar seguimiento','▧ Guardar plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Cliente u oportunidad'},
-      prospecting:{configTitle:'1. Configura tu estrategia',configSub:'Define qué vendes, a quién quieres llegar y con qué marca.',sourceTabs:['Mis listas','Buscar con IA','Desde archivo (Excel/CSV)'],filters:[['Ubicación',['Toda España','Barcelona','Madrid','Valencia']],['Sector',['Todos','Farmacias','Clínicas','Distribuidores']],['Tamaño',['Todos','Pequeña','Mediana','Grande']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo del trabajo',frequency:['Cada día (recomendado)','Una vez','Cada semana','Personalizada'],actions:commonAction,previewActions:['↻ Regenerar con otro enfoque','✦ Ajustar para este caso','▧ Guardar como plantilla'],switches:['Ejecutar hoy','Programar','Dejar en borrador'],itemDefault:'Tu producto o servicio'},
+      prospecting:{configTitle:'1. Configura tu estrategia',configSub:'Define qué vendes, a qué tipo de cliente quieres llegar y con qué marca.',sourceTabs:['Mis listas','Buscar con IA','Desde archivo (Excel/CSV)'],filters:[['Ubicación',['Toda España','Barcelona','Madrid','Valencia']],{label:'Tipo de cliente / sector objetivo',type:'text',placeholder:'Ej.: hospitales, clínicas, geriátricos, farmacias, herbolarios…'},['Tamaño',['Todos','Pequeña','Mediana','Grande']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo del trabajo',frequency:['Cada día (recomendado)','Una vez','Cada semana','Personalizada'],actions:commonAction,previewActions:['↻ Regenerar con otro enfoque','✦ Ajustar para este caso','▧ Guardar como plantilla'],switches:['Ejecutar hoy','Programar','Dejar en borrador'],itemDefault:'Tu producto o servicio'},
       content:{configTitle:'1. Define qué contenido crear',configSub:'Indica tema, marca, canal y tono antes de generar la pieza.',sourceTabs:['Ideas','Contenido de marca','Desde archivo'],filters:[['Canal',['Todos','Blog','LinkedIn','Instagram','Email']],['Formato',['Todos','Texto corto','Artículo','Ficha producto','Landing']],['Estado',['Todos','Idea','Borrador','Aprobado']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Tono del contenido',frequency:['Una vez','Cada semana','Cada día','Personalizada'],actions:['Dejar contenido para revisar','Preparar solo lo autorizado','Preparar y avisarme','Solo generar ideas'],previewActions:['↻ Crear otra versión','✦ Ajustar contenido','▧ Guardar como plantilla'],switches:['Generar ahora','Programar','Dejar borrador'],itemDefault:'Producto, servicio o tema'},
       social:{configTitle:'1. Configura la publicación',configSub:'Elige red, marca, tema y estilo antes de preparar las publicaciones.',sourceTabs:['Calendario','Publicaciones','Creatividades'],filters:[['Red',['Todas','LinkedIn','Instagram','Facebook','X']],['Estado',['Todos','Borrador','Pendiente','Aprobado']],['Fecha',['Hoy','Esta semana','Este mes']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Tono de la publicación',frequency:['Cada semana','Cada día','Una vez','Personalizada'],actions:['Dejar publicaciones para revisar','Publicar solo con autorización','Preparar y avisarme','Solo generar borradores'],previewActions:['↻ Crear otra versión','✦ Adaptar a esta red','▧ Guardar como plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Campaña o tema'},
       campaigns:{configTitle:'1. Define la campaña',configSub:'Marca, objetivo, audiencia y canales quedan separados antes de generar acciones.',sourceTabs:['Campañas','Audiencias','Desde archivo'],filters:[['Canal',['Todos','Email','LinkedIn','Instagram','Web']],['Audiencia',['Todas','Clientes','Prospectos','Inactivos']],['Estado',['Todos','Diseño','Activa','Pausada','Finalizada']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo de campaña',frequency:['Una vez','Cada semana','Mensual','Personalizada'],actions:commonAction,previewActions:['↻ Otro enfoque','✦ Ajustar campaña','▧ Guardar plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Producto o campaña'},
@@ -612,6 +638,10 @@
     return map[key]||map.core_ai;
   }
   function renderFilterField(field){
+    if(field&&typeof field==='object'&&!Array.isArray(field)){
+      const label=field.label||'Filtro';
+      if(field.type==='text')return '<label><small>'+esc(label)+'</small><input type="text" data-vnx-filter-text="'+esc(label)+'" placeholder="'+esc(field.placeholder||'Escribe aquí…')+'"></label>';
+    }
     const label=field?.[0]||'Filtro',options=Array.isArray(field?.[1])?field[1]:['Todos'];
     return '<label><small>'+esc(label)+'</small><select>'+options.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select></label>';
   }
@@ -628,6 +658,7 @@
     const sourceTabs=$('#vnxAhSourceTabs');if(sourceTabs)sourceTabs.innerHTML=(ui.sourceTabs||[]).map((x,i)=>'<button type="button" class="'+(i===0?'active':'')+'">'+esc(x)+'</button>').join('');
     const filters=$('#vnxAhFilters');if(filters)filters.innerHTML=(ui.filters||[]).map(renderFilterField).join('')+'<button type="button" id="vnxAhMoreFilters">✦ Más filtros</button>';
     renderStockPolicyUi();
+    restoreProspectProfile();
     const previewActions=$('#vnxAhPreviewActions button');(ui.previewActions||[]).forEach((x,i)=>{if(previewActions[i])previewActions[i].textContent=x});
     const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
     const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
