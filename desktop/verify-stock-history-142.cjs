@@ -19,7 +19,7 @@ need(backend,/function portalSalesQtyForProduct/,'normalized SKU/EAN/name histor
 need(backend,/noSalesData:!hit\.match/,'true no-history must require failure of the normalized matcher');
 
 // Fail closed: zero matches across a meaningful catalog is not equivalent to "all products have no history".
-need(backend,/const salesLookReliable=!(products.length>=5&&withSalesCount===0)/,'zero-match historical-sales reliability guard missing');
+need(backend,/const salesLookReliable=!\(products\.length>=5&&withSalesCount===0\)/,'zero-match historical-sales reliability guard missing');
 need(backend,/salesPagesScanned:/,'sales scan page diagnostics missing');
 need(backend,/salesTablesSeen:/,'sales scan table diagnostics missing');
 need(backend,/salesRowsSeen:/,'sales scan row diagnostics missing');
@@ -32,7 +32,7 @@ need(home,/Histórico de ventas no verificado/,'Stock y compras page must show a
 need(home,/0 pedidos calculados/,'unverified history must display zero calculated orders');
 
 // Full policy: sales period and urgency are not hard-coded.
-need(backend,/function normalizeStockPolicy(options={})/,'full stock policy normalizer missing');
+need(backend,/function normalizeStockPolicy\(options=\{\}\)/,'full stock policy normalizer missing');
 need(backend,/windowDays,urgentDays,urgentAuto/,'sales window and urgency missing from stock policy');
 need(preload,/windowDays:options\?\.windowDays,urgentDays:options\?\.urgentDays/,'renderer must pass full stock policy through preload');
 need(html,/id="vnxAhSalesWindowDays"/,'sales-window selector missing');
@@ -40,7 +40,7 @@ need(html,/id="vnxAhUrgentDays"/,'urgent-threshold control missing');
 need(home,/windowDays:Math\.max\(30/,'sales window must persist per company/source');
 need(home,/urgentDays:Math\.max\(0/,'urgent threshold must persist per company/source');
 need(master,/samePurchasePolicy/,'cached purchase analysis must be policy-aware');
-need(desktopMain,/windowDays:windowDays||null,urgentDays:urgentDays||null,noHistoryMin/,'persisted purchase analysis must store the full policy');
+need(desktopMain,/windowDays:windowDays\|\|null,urgentDays:urgentDays\|\|null,noHistoryMin/,'persisted purchase analysis must store the full policy');
 
 // Download / recovery paths must be visible on the same Stock y compras result.
 need(home,/data-home-stock-export="excel"/,'direct Excel download missing under Stock y compras');
