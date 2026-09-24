@@ -17,6 +17,7 @@ function ensureDirection(state){
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
   d.events=Array.isArray(d.events)?d.events:[];
   d.settings=d.settings&&typeof d.settings==='object'?d.settings:{};
+  d.access=d.access&&typeof d.access==='object'?d.access:{};
   if(d.settings.defaultSlaMinutes==null)d.settings.defaultSlaMinutes=480;
   if(d.settings.aiTakeoverGraceMinutes==null)d.settings.aiTakeoverGraceMinutes=60;
   if(d.settings.aiTakeoverEnabled==null)d.settings.aiTakeoverEnabled=false;
