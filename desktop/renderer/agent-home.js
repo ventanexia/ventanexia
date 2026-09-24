@@ -221,6 +221,8 @@
 
   function cfgFor(key){return configs[key]||configs[alias[key]]||configs.core_ai}
   function companyName(){
+    const active=window.vnxBusiness?.activeProfile?.();
+    if(active)return active.tradeName||active.legalName||'Empresa activa';
     const txt=$('#homeCompanyName')?.textContent?.trim();
     return txt&&txt!=='Tu empresa'?txt:'Tu empresa';
   }
@@ -292,7 +294,7 @@
     };
     populateStockSourceSelect().catch(()=>{});
   }
-  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName();renderStockPolicyUi();restoreProspectProfile()}
+  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}renderStockPolicyUi();restoreProspectProfile()}
   function agentKeyForRequest(question='',fallback='core_ai'){
     const q=normalizedText(question);
     if(/\b(email|emails|correo|correos|gmail|bandeja)\b/.test(q))return 'email';
@@ -327,7 +329,10 @@
     const rows=[];
     try{for(const x of await window.vnx.listConnections()||[]){const module=String(x.module||x.key||'').toLowerCase(),label=String(x.label||x.account||x.shopName||x.shop||module||'Conexión').trim();if(label)rows.push({id:String(x.id||x.key||x.shop||module||label),type:'connection',module,label,shop:String(x.shop||''),raw:x})}}catch{}
     try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado'),raw:p})}}catch{}
-    const seen=new Set();return rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+    const seen=new Set(),unique=rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+    const profile=window.vnxBusiness?.activeProfile?.(),refs=new Set(profile?.connectionRefs||[]);
+    if(!refs.size)return unique;
+    return unique.filter(x=>refs.has((x.type==='portal'?'portal:':'connection:')+String(x.id||'')));
   }
   let lastOrdersRun=null;
   function orderFilterValues(){
@@ -757,6 +762,21 @@
       const input=$('#chatInput');if(input&&finalPrompt){input.value=finalPrompt;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}
     },180);
   }
+  function reconcileSourceWithBusiness(){
+    const profile=window.vnxBusiness?.activeProfile?.(),current=selectedHomeSource();
+    if(!profile){return}
+    const refs=new Set(profile.connectionRefs||[]);
+    if(current){
+      const ref=(current.type==='portal'?'portal:':'connection:')+String(current.id||'');
+      if(!refs.size||!refs.has(ref)){
+        try{localStorage.removeItem(HOME_SOURCE_KEY)}catch{}
+      }
+    }
+    const mirror=$('#vnxAhCompanyName');if(mirror)mirror.textContent=companyName();
+    renderStockPolicyUi();restoreProspectProfile();
+  }
+  window.addEventListener('vnx-business-changed',reconcileSourceWithBusiness);
+
   function bind(){
     document.querySelectorAll('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
       openAppTab('home');
