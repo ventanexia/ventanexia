@@ -62,6 +62,39 @@ function holded(cfg,{fetch:f}){
       const list=await pages('products');
       return [CAT_HEAD,...list.filter(p=>p&&(p.sku||p.name)).map(p=>[p.sku||'',p.name||'',num(p.price)??'',p.stock==null?'':num(p.stock)??''])];
     },
+    async salesHistory({windowDays=180}={}){
+      const days=Math.max(30,Math.min(730,Number(windowDays)||180));
+      const end=Math.floor(Date.now()/1000),start=end-days*86400;
+      const products=await pages('products');
+      const skuByProductId=new Map(products.filter(p=>p?.id&&p?.sku).map(p=>[String(p.id),String(p.sku)]));
+      const readDocs=async type=>{
+        const path='documents/'+type+'?starttmp='+start+'&endtmp='+end+'&sort=created-asc';
+        const docs=await pages(path);
+        const out=[];
+        for(const d of docs){
+          let full=d;
+          if(!Array.isArray(d?.items)&&d?.id){
+            try{full=await get('documents/'+type+'/'+encodeURIComponent(d.id))}catch{}
+          }
+          out.push(full||d);
+        }
+        return out;
+      };
+      let docs=await readDocs('invoice');
+      if(!docs.length)docs=await readDocs('salesreceipt');
+      const salesBySku={},matchedLines=[];
+      for(const d of docs){
+        if(d?.status===0||d?.cancelled===true)continue;
+        for(const it of Array.isArray(d?.items)?d.items:[]){
+          const sku=clean(it?.sku||it?.productSku||skuByProductId.get(String(it?.productId||it?.idProduct||''))||'',120);
+          const qty=num(it?.units??it?.quantity??it?.qty);
+          if(!sku||qty==null||qty<=0)continue;
+          salesBySku[sku]=(salesBySku[sku]||0)+qty;
+          matchedLines.push({sku,qty});
+        }
+      }
+      return {salesBySku,documentsSeen:docs.length,rowsSeen:matchedLines.length,windowDays:days,source:'Holded'};
+    },
     async createOrder(order,ctx){
       const c=order.extracted.customer,m=order.verification?.customer;
       const known=m?.status==='conocido'?m.match:null;
@@ -124,6 +157,30 @@ function odoo(cfg,{fetch:f}){
       try{r=await sr('product.product',[['sale_ok','=',true]],['default_code','name','list_price','free_qty'],6000)}
       catch{r=await sr('product.product',[['sale_ok','=',true]],['default_code','name','list_price'],6000)}
       return [CAT_HEAD,...(r||[]).filter(p=>p.default_code).map(p=>[p.default_code,p.name,num(p.list_price)??'',p.free_qty==null?'':num(p.free_qty)??''])];
+    },
+    async salesHistory({windowDays=180}={}){
+      const days=Math.max(30,Math.min(730,Number(windowDays)||180));
+      const from=new Date(Date.now()-days*86400000).toISOString().slice(0,19).replace('T',' ');
+      const domain=[['state','in',['sale','done']],['order_id.date_order','>=',from]];
+      let lines;
+      try{lines=await sr('sale.order.line',domain,['product_id','product_uom_qty','qty_delivered','state','order_id'],12000)}
+      catch{lines=await sr('sale.order.line',domain,['product_id','product_uom_qty','state','order_id'],12000)}
+      const productIds=[...new Set((lines||[]).map(x=>Array.isArray(x?.product_id)?Number(x.product_id[0]):Number(x?.product_id)).filter(Number.isFinite))];
+      const skuById=new Map();
+      for(let i=0;i<productIds.length;i+=1000){
+        const ids=productIds.slice(i,i+1000);
+        const products=await sr('product.product',[['id','in',ids]],['id','default_code','name'],ids.length||1);
+        for(const p of products||[])if(p?.id&&p?.default_code)skuById.set(Number(p.id),String(p.default_code));
+      }
+      const salesBySku={};let rowsSeen=0;
+      for(const l of lines||[]){
+        const pid=Array.isArray(l?.product_id)?Number(l.product_id[0]):Number(l?.product_id);
+        const sku=skuById.get(pid);if(!sku)continue;
+        const delivered=num(l?.qty_delivered),ordered=num(l?.product_uom_qty),qty=delivered!=null&&delivered>0?delivered:ordered;
+        if(qty==null||qty<=0)continue;
+        salesBySku[sku]=(salesBySku[sku]||0)+qty;rowsSeen++;
+      }
+      return {salesBySku,documentsSeen:new Set((lines||[]).map(x=>Array.isArray(x?.order_id)?x.order_id[0]:x?.order_id).filter(Boolean)).size,rowsSeen,windowDays:days,source:'Odoo'};
     },
     async createOrder(order,ctx){
       const c=order.extracted.customer,m=order.verification?.customer;
@@ -274,9 +331,9 @@ const FACTUSOL_LEEME=(dir)=>'CÓMO IMPORTAR ESTOS PEDIDOS EN FACTUSOL (Software 
 
 // ------------------------------------------------------------------ catálogo de programas
 const PROGRAMS={
-  holded:{id:'holded',name:'Holded',kind:'api',make:holded,caps:{customers:true,catalog:true,stock:true,createOrder:true},
+  holded:{id:'holded',name:'Holded',kind:'api',make:holded,caps:{customers:true,catalog:true,stock:true,salesHistory:true,createOrder:true},
     how:'1) Entra en Holded > Desarrolladores > Credenciales.\n2) Crea o copia tu clave de API.\n3) Pégala aquí:  programa: holded clave TU_CLAVE\nNota: la API está en los planes de pago (no en el gratuito) y los pedidos de venta necesitan el módulo Inventario.'},
-  odoo:{id:'odoo',name:'Odoo',kind:'api',make:odoo,caps:{customers:true,catalog:true,stock:true,createOrder:true},
+  odoo:{id:'odoo',name:'Odoo',kind:'api',make:odoo,caps:{customers:true,catalog:true,stock:true,salesHistory:true,createOrder:true},
     how:'1) En Odoo entra en tu perfil > Seguridad de la cuenta y crea una «Clave API».\n2) Pega aquí:  programa: odoo https://tuempresa.odoo.com base tuempresa clave TU_CLAVE\n   (En versiones de Odoo anteriores a la 19 añade también:  usuario tu@email.com)\nNota: en Odoo Online la API externa solo está en el plan Custom. Los pedidos se crean como presupuestos; añade «confirmar» al final para que se confirmen solos.'},
   dolibarr:{id:'dolibarr',name:'Dolibarr',kind:'api',make:dolibarr,caps:{customers:true,catalog:true,stock:true,createOrder:true},
     how:'1) En Dolibarr activa el módulo «API REST» (Inicio > Configuración > Módulos).\n2) Abre tu usuario y genera la «Clave para la API».\n3) Pega aquí:  programa: dolibarr https://tuservidor.com/dolibarr clave TU_CLAVE'},
