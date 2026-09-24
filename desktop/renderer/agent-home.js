@@ -225,10 +225,49 @@
     return txt&&txt!=='Tu empresa'?txt:'Tu empresa';
   }
   const HOME_SOURCE_KEY='vnx_home_selected_source_v1';
+  const STOCK_POLICY_KEY='vnx_stock_policy_by_source_v1';
   function normalizedText(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
-  function tagTexts(selector){return $(selector+' .vnx-ah-tag').map(el=>{const c=el.cloneNode(true);c.querySelector('button')?.remove();return String(c.textContent||'').trim()}).filter(x=>x&&x!=='Tu producto o servicio')}
+  function tagTexts(selector){return $$(selector+' .vnx-ah-tag').map(el=>{const c=el.cloneNode(true);c.querySelector('button')?.remove();return String(c.textContent||'').trim()}).filter(x=>x&&x!=='Tu producto o servicio')}
   function selectedHomeSource(){try{return JSON.parse(localStorage.getItem(HOME_SOURCE_KEY)||'null')}catch{return null}}
-  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName()}
+  function stockPolicyKeys(src={}){
+    const keys=[],raw=src?.raw||{};
+    const id=String(src?.id||raw.id||'').trim(),shop=String(src?.shop||raw.shop||'').trim(),label=String(src?.label||src?.name||raw.shopName||shop||'').trim();
+    if(id)keys.push('id:'+id);if(shop)keys.push('shop:'+shop.toLowerCase());if(label)keys.push('label:'+normalizedText(label));
+    return [...new Set(keys)];
+  }
+  function stockPolicyStore(){try{const x=JSON.parse(localStorage.getItem(STOCK_POLICY_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch{return {}}}
+  function stockPolicyForSource(src={}){
+    const store=stockPolicyStore();
+    for(const key of stockPolicyKeys(src)){const x=store[key];if(x)return {targetDays:Math.max(1,Math.min(365,Number(x.targetDays)||25)),noHistoryMin:Math.max(0,Math.min(100000,Number(x.noHistoryMin)||0))}}
+    return {targetDays:25,noHistoryMin:0};
+  }
+  function saveStockPolicyForSource(src={},policy={}){
+    const keys=stockPolicyKeys(src);if(!keys.length)return false;
+    const next={targetDays:Math.max(1,Math.min(365,Math.round(Number(policy.targetDays)||25))),noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(policy.noHistoryMin)||0))),updatedAt:new Date().toISOString()};
+    const store=stockPolicyStore();for(const key of keys)store[key]=next;
+    try{localStorage.setItem(STOCK_POLICY_KEY,JSON.stringify(store));return true}catch{return false}
+  }
+  function renderStockPolicyUi(){
+    const panel=$('#vnxAhStockPolicy');if(!panel)return;
+    const active=document.body.dataset.vnxHomeAgent==='web_ecommerce';panel.style.display=active?'grid':'none';if(!active)return;
+    const src=selectedHomeSource(),policy=stockPolicyForSource(src||{});
+    const source=$('#vnxAhStockPolicySource'),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),save=$('#vnxAhSaveStockPolicy'),example=$('#vnxAhStockPolicyExample');
+    if(source)source.textContent=src?.label||'Selecciona “Tu empresa” arriba';
+    if(days)days.value=String(policy.targetDays);if(min)min.value=String(policy.noHistoryMin);
+    if(save)save.disabled=!src;
+    const paint=()=>{
+      const d=Math.max(1,Math.min(365,Math.round(Number(days?.value)||25))),m=Math.max(0,Math.min(100000,Math.round(Number(min?.value)||0)));
+      if(example)example.textContent=m>0?'Sin histórico: se propondrá stock hasta alcanzar '+m+' unidad'+(m===1?'':'es')+'. Objetivo con histórico: '+d+' días.':'Sin histórico: no se propondrá una cantidad automática. Objetivo con histórico: '+d+' días.';
+    };
+    if(days)days.oninput=paint;if(min)min.oninput=paint;paint();
+    if(save)save.onclick=()=>{
+      if(!src){alert('Selecciona primero la empresa o conexión en “Tu empresa”.');return}
+      const ok=saveStockPolicyForSource(src,{targetDays:days?.value,noHistoryMin:min?.value});
+      if(!ok){alert('No se ha podido guardar la política de stock.');return}
+      const old=save.textContent;save.textContent='Guardado ✓';setTimeout(()=>{if(save.isConnected)save.textContent=old},1400);
+    };
+  }
+  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName();renderStockPolicyUi()}
   function agentKeyForRequest(question='',fallback='core_ai'){
     const q=normalizedText(question);
     if(/\b(email|emails|correo|correos|gmail|bandeja)\b/.test(q))return 'email';
@@ -246,6 +285,7 @@
   function promptWithHomeContext(key,prompt=''){
     const parts=[String(prompt||'').trim()],src=selectedHomeSource(),brands=tagTexts('#vnxAhBrands'),items=tagTexts('#vnxAhItems');
     if(src?.label)parts.push('Trabaja únicamente con la conexión/empresa seleccionada en la pantalla de inicio: '+src.label+'. No mezcles otras fuentes salvo que yo lo pida expresamente.');
+    if(key==='web_ecommerce'){const p=stockPolicyForSource(src||{});parts.push('Política de reposición de esta empresa: objetivo '+p.targetDays+' días; si una referencia no tiene histórico, stock mínimo '+p.noHistoryMin+' unidades. Si el mínimo es 0, no inventes cantidad y marca la referencia para revisión.');}
     if(items.length)parts.push('Productos o servicios indicados: '+items.join(', ')+'.');
     if(brands.length&&['prospecting','content','social','campaigns'].includes(key))parts.push('Marca o marcas indicadas: '+brands.join(', ')+'. Usa estos nombres tal como se han introducido; no inventes marcas.');
     return parts.filter(Boolean).join('\n');
@@ -338,6 +378,7 @@
     const radios=$('#vnxAhActionRadios');if(radios)radios.innerHTML=(ui.actions||[]).map((x,i)=>'<label><input type="radio" name="ahAction"'+(i===0?' checked':'')+'> '+esc(x)+'</label>').join('');
     const sourceTabs=$('#vnxAhSourceTabs');if(sourceTabs)sourceTabs.innerHTML=(ui.sourceTabs||[]).map((x,i)=>'<button type="button" class="'+(i===0?'active':'')+'">'+esc(x)+'</button>').join('');
     const filters=$('#vnxAhFilters');if(filters)filters.innerHTML=(ui.filters||[]).map(renderFilterField).join('')+'<button type="button" id="vnxAhMoreFilters">✦ Más filtros</button>';
+    renderStockPolicyUi();
     const previewActions=$('#vnxAhPreviewActions button');(ui.previewActions||[]).forEach((x,i)=>{if(previewActions[i])previewActions[i].textContent=x});
     const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
     const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
