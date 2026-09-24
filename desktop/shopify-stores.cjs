@@ -46,9 +46,10 @@ function ensureContainers(state){
   return state;
 }
 function seedStoreMap(state){
+  const existing=listShopifyStores(state);
   ensureContainers(state);
   const map={};
-  for(const x of listShopifyStores(state)){
+  for(const x of existing){
     const k=storeKey(x.shop);if(k)map[k]={...x,shop:k};
   }
   state.secret.shopifyStores=map;
