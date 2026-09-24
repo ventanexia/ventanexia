@@ -1150,8 +1150,11 @@ function sanitizePurchaseAnalysis(payload={}){
     return String(cell).slice(0,500);
   }):[]):[];
   const parsed=new Date(payload.analyzedAt||Date.now()),analyzedAt=Number.isNaN(parsed.getTime())?new Date().toISOString():parsed.toISOString();
-  const targetDays=Math.max(1,Math.min(90,Number(payload.targetDays||0)||0));
-  return {scopeKey,sourceLabel,purchaseData:{headers,rows},analyzedAt,targetDays:targetDays||null,savedAt:new Date().toISOString()};
+  const targetDays=Math.max(1,Math.min(365,Number(payload.targetDays||0)||0));
+  const windowDays=Math.max(30,Math.min(730,Number(payload.windowDays||0)||0));
+  const urgentDays=Math.max(1,Math.min(90,Number(payload.urgentDays||0)||0));
+  const noHistoryMin=Math.max(0,Math.min(100000,Number(payload.noHistoryMin||0)||0));
+  return {scopeKey,sourceLabel,purchaseData:{headers,rows},analyzedAt,targetDays:targetDays||null,windowDays:windowDays||null,urgentDays:urgentDays||null,noHistoryMin,savedAt:new Date().toISOString()};
 }
 ipcMain.handle('purchase-analysis:get',async(_e,scopeKey)=>{
   const rawKey=String(scopeKey||'').trim().slice(0,400);if(!rawKey)return null;
