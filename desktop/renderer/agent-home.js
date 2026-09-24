@@ -1,4 +1,4 @@
-// VentaNexIA Desktop 0.6.141 · Agent Workspace Home
+// VentaNexIA Desktop 0.6.142 · Agent Workspace Home
 (()=>{
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -86,7 +86,7 @@
       previewTitle:'3. Calcula la reposición con IA',previewSub:'Carla ordena los productos por urgencia y deja una propuesta editable.',
       action:'Ver propuesta de compras',metric:'Productos analizados',review:'Necesitan reposición',cta:'Automatiza la reposición',
       ctaText:'Programa revisiones de stock para detectar roturas antes de que ocurran.',
-      primaryPrompt:'Analiza stock y ventas por producto y prepara la reposición necesaria, priorizando roturas y menos de 5 días.',
+      primaryPrompt:'Analiza stock y ventas por producto y prepara la reposición necesaria, priorizando roturas y alertas urgentes según la política configurada.',
       previewType:'stock'
     },
     crm:{
@@ -275,14 +275,34 @@
     }
     restoreProspectProfile();
   }
+  function autoUrgentDaysForPolicy(targetDays){
+    return Math.max(3,Math.min(15,Math.round(Number(targetDays||25)*0.3)));
+  }
   function stockPolicyForSource(src={}){
     const store=stockPolicyStore();
-    for(const key of stockPolicyKeys(src)){const x=store[key];if(x)return {targetDays:Math.max(1,Math.min(365,Number(x.targetDays)||25)),noHistoryMin:Math.max(0,Math.min(100000,Number(x.noHistoryMin)||0))}}
-    return {targetDays:25,noHistoryMin:0};
+    for(const key of stockPolicyKeys(src)){
+      const x=store[key];
+      if(x){
+        const targetDays=Math.max(1,Math.min(365,Number(x.targetDays)||25));
+        return {
+          targetDays,
+          noHistoryMin:Math.max(0,Math.min(100000,Number(x.noHistoryMin)||0)),
+          windowDays:Math.max(30,Math.min(730,Number(x.windowDays)||180)),
+          urgentDays:Math.max(0,Math.min(90,Number(x.urgentDays)||0))
+        };
+      }
+    }
+    return {targetDays:25,noHistoryMin:0,windowDays:180,urgentDays:0};
   }
   function saveStockPolicyForSource(src={},policy={}){
     const keys=stockPolicyKeys(src);if(!keys.length)return false;
-    const next={targetDays:Math.max(1,Math.min(365,Math.round(Number(policy.targetDays)||25))),noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(policy.noHistoryMin)||0))),updatedAt:new Date().toISOString()};
+    const next={
+      targetDays:Math.max(1,Math.min(365,Math.round(Number(policy.targetDays)||25))),
+      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(policy.noHistoryMin)||0))),
+      windowDays:Math.max(30,Math.min(730,Math.round(Number(policy.windowDays)||180))),
+      urgentDays:Math.max(0,Math.min(90,Math.round(Number(policy.urgentDays)||0))),
+      updatedAt:new Date().toISOString()
+    };
     const store=stockPolicyStore();for(const key of keys)store[key]=next;
     try{localStorage.setItem(STOCK_POLICY_KEY,JSON.stringify(store));return true}catch{return false}
   }
@@ -290,19 +310,30 @@
     const panel=$('#vnxAhStockPolicy');if(!panel)return;
     const active=document.body.dataset.vnxHomeAgent==='web_ecommerce';panel.style.display=active?'grid':'none';if(!active)return;
     const src=selectedHomeSource(),policy=stockPolicyForSource(src||{});
-    const source=$('#vnxAhStockPolicySource'),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),save=$('#vnxAhSaveStockPolicy'),example=$('#vnxAhStockPolicyExample');
+    const source=$('#vnxAhStockPolicySource'),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),windowDays=$('#vnxAhSalesWindowDays'),urgent=$('#vnxAhUrgentDays'),save=$('#vnxAhSaveStockPolicy'),example=$('#vnxAhStockPolicyExample');
     if(source)source.textContent=src?.label||'Selecciona “Tu empresa” arriba';
-    if(days)days.value=String(policy.targetDays);if(min)min.value=String(policy.noHistoryMin);
+    if(days)days.value=String(policy.targetDays);
+    if(min)min.value=String(policy.noHistoryMin);
+    if(windowDays){
+      const v=String(policy.windowDays);
+      if(![...windowDays.options].some(o=>o.value===v)){const o=document.createElement('option');o.value=v;o.textContent=v+' días';windowDays.appendChild(o)}
+      windowDays.value=v;
+    }
+    if(urgent)urgent.value=policy.urgentDays>0?String(policy.urgentDays):'';
     if(save)save.disabled=!src;
     const paint=()=>{
-      const d=Math.max(1,Math.min(365,Math.round(Number(days?.value)||25))),m=Math.max(0,Math.min(100000,Math.round(Number(min?.value)||0)));
-      if(example)example.textContent=m>0?'Sin histórico: se propondrá stock hasta alcanzar '+m+' unidad'+(m===1?'':'es')+'. Objetivo con histórico: '+d+' días.':'Sin histórico: no se propondrá una cantidad automática. Objetivo con histórico: '+d+' días.';
+      const d=Math.max(1,Math.min(365,Math.round(Number(days?.value)||25)));
+      const m=Math.max(0,Math.min(100000,Math.round(Number(min?.value)||0)));
+      const w=Math.max(30,Math.min(730,Math.round(Number(windowDays?.value)||180)));
+      const u=Math.max(0,Math.min(90,Math.round(Number(urgent?.value)||0)));
+      const effective=u||autoUrgentDaysForPolicy(d);
+      if(example)example.textContent=(m>0?'Sin histórico: mínimo '+m+' uds.':'Sin histórico: revisar, sin inventar cantidad.')+' · Rotación: últimos '+w+' días · Objetivo: '+d+' días · Urgente: < '+effective+' días'+(u?'':' (automático)')+'.';
     };
-    if(days)days.oninput=paint;if(min)min.oninput=paint;paint();
+    if(days)days.oninput=paint;if(min)min.oninput=paint;if(windowDays)windowDays.onchange=paint;if(urgent)urgent.oninput=paint;paint();
     if(save)save.onclick=()=>{
       const selected=selectedHomeSource();
       if(!selected){alert('Selecciona primero la empresa o conexión que quieres analizar.');return}
-      const ok=saveStockPolicyForSource(selected,{targetDays:days?.value,noHistoryMin:min?.value});
+      const ok=saveStockPolicyForSource(selected,{targetDays:days?.value,noHistoryMin:min?.value,windowDays:windowDays?.value,urgentDays:urgent?.value});
       if(!ok){alert('No se ha podido guardar la política de stock.');return}
       lastStockRun=null;
       const old=save.textContent;save.textContent='Guardado ✓';setTimeout(()=>{if(save.isConnected)save.textContent=old},1400);
@@ -327,7 +358,7 @@
   function promptWithHomeContext(key,prompt=''){
     const parts=[String(prompt||'').trim()],src=selectedHomeSource(),brands=tagTexts('#vnxAhBrands'),items=tagTexts('#vnxAhItems');
     if(src?.label)parts.push('Trabaja únicamente con la conexión/empresa seleccionada en la pantalla de inicio: '+src.label+'. No mezcles otras fuentes salvo que yo lo pida expresamente.');
-    if(key==='web_ecommerce'){const p=stockPolicyForSource(src||{});parts.push('Política de reposición de esta empresa: objetivo '+p.targetDays+' días; si una referencia no tiene histórico, stock mínimo '+p.noHistoryMin+' unidades. Si el mínimo es 0, no inventes cantidad y marca la referencia para revisión.');}
+    if(key==='web_ecommerce'){const p=stockPolicyForSource(src||{}),u=p.urgentDays||autoUrgentDaysForPolicy(p.targetDays);parts.push('Política de reposición de esta empresa: usar ventas de los últimos '+p.windowDays+' días; objetivo '+p.targetDays+' días de cobertura; aviso urgente por debajo de '+u+' días; si una referencia no tiene histórico, stock mínimo '+p.noHistoryMin+' unidades. Si el mínimo es 0, no inventes cantidad y marca la referencia para revisión.');}
     if(key==='prospecting'){
       const typed=String(prospectSegmentInput()?.value||'').trim(),saved=prospectProfileForSource(src||{}).targetSegments||'',segments=typed||saved;
       if(segments)parts.push('Tipo de cliente / sector objetivo indicado por el usuario: '+segments+'. Respeta estos segmentos y no los sustituyas por sectores genéricos.');
@@ -482,10 +513,12 @@
     return sources;
   }
   function stockPolicyFromForm(src){
-    const stored=stockPolicyForSource(src||{}),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin');
+    const stored=stockPolicyForSource(src||{}),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),windowDays=$('#vnxAhSalesWindowDays'),urgent=$('#vnxAhUrgentDays');
     return {
       targetDays:Math.max(1,Math.min(365,Math.round(Number(days?.value)||stored.targetDays||25))),
-      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(min?.value)||stored.noHistoryMin||0)))
+      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(min?.value)||stored.noHistoryMin||0))),
+      windowDays:Math.max(30,Math.min(730,Math.round(Number(windowDays?.value)||stored.windowDays||180))),
+      urgentDays:Math.max(0,Math.min(90,Math.round(Number(urgent?.value)||stored.urgentDays||0)))
     };
   }
   async function resolveStockSource(){
@@ -494,7 +527,6 @@
     if(!src&&sources.length===1){
       src=sources[0];
       try{localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src))}catch{}
-      const m=$('#vnxAhCompanyName');if(m)m.textContent=src.label;
     }
     if(!src){
       if(!sources.length)throw new Error('No hay ninguna conexión de stock disponible. Conecta Shopify o un portal privado primero.');
@@ -512,55 +544,123 @@
   }
   function stockFmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):'—'}
   function stockQtyLabel(r,summary){
+    if(summary?.salesLookReliable===false)return '—';
     if(Number(r?.qty||0)>0)return stockFmt(r.qty);
     if(r?.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r?.stock||0)<=0)return 'REVISAR';
     return '0';
   }
-  function stockSalesLabel(r){return r?.noSalesData?'Sin histórico':stockFmt(r?.soldWindow||0)}
-  function stockCoverageLabel(r){return r?.noSalesData?'—':r?.daysRemaining==null?'Sin ventas':String(r.daysRemaining)}
+  function stockSalesLabel(r,summary){
+    if(summary?.salesLookReliable===false)return 'No verificado';
+    return r?.noSalesData?'Sin histórico':stockFmt(r?.soldWindow||0);
+  }
+  function stockCoverageLabel(r,summary){
+    if(summary?.salesLookReliable===false)return '—';
+    return r?.noSalesData?'—':r?.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
+  }
   function stockStateLabel(r,summary){
+    if(summary?.salesLookReliable===false)return 'HISTÓRICO NO LEÍDO';
     if(r?.noSalesData){
       if(Number(summary?.noHistoryMin||0)>0)return Number(r?.qty||0)>0?'MÍNIMO SIN HISTÓRICO':'MÍNIMO CUBIERTO';
       return Number(r?.stock||0)<=0?'REVISAR · SIN HISTÓRICO':'SIN HISTÓRICO';
     }
     if(Number(r?.stock||0)<=0)return 'SIN STOCK';
-    if(r?.urgent)return 'ROTURA < 5 DÍAS';
+    if(r?.urgent)return 'ROTURA < '+Number(summary?.urgentDays||autoUrgentDaysForPolicy(summary?.targetDays||25))+' DÍAS';
     if(Number(r?.qty||0)>0)return 'REPONER';
     return 'CORRECTO';
   }
   function stockRowsForView(summary,question='',orderMode=false){
     const rows=Array.isArray(summary?.rows)?summary.rows:[],q=normalizedText(question);
+    if(summary?.salesLookReliable===false)return rows;
     if(orderMode)return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     if(/sin stock|stock 0|agotad/.test(q))return rows.filter(r=>Number(r.stock||0)<=0);
-    if(/menos de 5|< ?5|rotura/.test(q))return rows.filter(r=>r.urgent);
+    if(/menos de \d+|rotura/.test(q))return rows.filter(r=>r.urgent);
     if(/reponer|comprar|compra|pedido/.test(q))return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     return rows;
   }
+  function stockExportDataForHome(summary,orderMode=false){
+    const reliable=summary?.salesLookReliable!==false,all=Array.isArray(summary?.rows)?summary.rows:[];
+    const rows=orderMode&&reliable?all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0)):all;
+    return {
+      headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
+      rows:stockSortRows(rows).map(r=>[
+        r.sku||'',r.ean||'',r.manufacturer||'',r.product||'',Number(r.stock||0),
+        reliable&&!r.noSalesData?Number(r.soldWindow||0):'',
+        reliable&&!r.noSalesData?Number(r.avgDaily||0):'',
+        reliable&&!r.noSalesData&&r.daysRemaining!=null?Number(r.daysRemaining):'',
+        reliable?(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0?'REVISAR':Number(r.qty||0)):'',
+        stockStateLabel(r,summary)
+      ])
+    };
+  }
+  async function exportHomeStock(summary,orderMode,format,btn){
+    const data=stockExportDataForHome(summary,orderMode);
+    if(!data.rows.length){alert('No hay filas para exportar.');return}
+    const labels={excel:'Excel',csv:'CSV',pdf:'PDF'},old=btn.textContent;btn.disabled=true;btn.textContent='Preparando '+(labels[format]||format)+'…';
+    const reliable=summary?.salesLookReliable!==false;
+    const kind=orderMode&&reliable?'Pedido de compra':'Stock actual';
+    try{
+      const r=await window.vnx.exportData({format,title:kind+' - '+(summary?.sourceLabel||'VentaNexIA'),headers:data.headers,rows:data.rows});
+      btn.textContent=r?.ok?(labels[format]||format)+' guardado ✓':old;
+    }catch(e){alert('No he podido guardar el archivo: '+(e.message||e));btn.textContent=old}
+    finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(/guardado ✓$/.test(btn.textContent))btn.textContent=old}},1600)}
+  }
+  function bindHomeStockExports(preview,summary,orderMode){
+    preview.querySelectorAll('[data-home-stock-export]').forEach(btn=>btn.onclick=()=>exportHomeStock(summary,orderMode,btn.dataset.homeStockExport,btn));
+    const importBtn=preview.querySelector('[data-home-stock-import]');
+    if(importBtn)importBtn.onclick=async()=>{
+      const old=importBtn.textContent;importBtn.disabled=true;importBtn.textContent='Seleccionando archivo…';
+      try{
+        const policy=stockPolicyFromForm(selectedHomeSource()||{});
+        const imported=await window.vnx.stockImportFile(policy);
+        if(imported?.cancelled)return;
+        if(!imported?.rows?.length)throw new Error('El archivo no ha devuelto datos válidos.');
+        const src=selectedHomeSource();
+        const summary={...imported,sourceLabel:(src?.label||'Empresa')+' · archivo importado',salesLookReliable:true};
+        lastStockRun={src,policy,summary,at:Date.now()};
+        renderStockResult(summary,'',false);
+      }catch(e){alert('No he podido importar el histórico: '+(e.message||e))}
+      finally{if(importBtn.isConnected){importBtn.disabled=false;importBtn.textContent=old}}
+    };
+  }
+  function stockDownloadHtml(){
+    return '<div class="vnx-stock-downloads"><div><b>Descargar resultado</b><small>Excel para trabajar, CSV importable y PDF para compartir.</small></div><div><button type="button" data-home-stock-export="excel">📊 Excel</button><button type="button" data-home-stock-export="csv">⬇ CSV importable</button><button type="button" data-home-stock-export="pdf">📄 PDF</button></div></div>';
+  }
+  function stockHistoryWarningHtml(summary){
+    const products=Number(summary?.productsSeen||summary?.rows?.length||0),pages=Number(summary?.salesPagesScanned||0),tables=Number(summary?.salesTablesSeen||0),rows=Number(summary?.salesRowsSeen||0);
+    return '<div class="vnx-stock-history-warning"><div class="vnx-stock-history-warning-icon">!</div><div><b>No he podido verificar el histórico de ventas</b><p>El stock sí se ha leído ('+products+' referencias), pero ninguna ha podido cruzarse de forma fiable con ventas del periodo. No voy a presentar un pedido calculado con un mínimo por defecto como si fuera rotación real.</p><small>Diagnóstico: '+pages+' páginas de ventas revisadas · '+tables+' tablas detectadas · '+rows+' filas candidatas. Puedes descargar el stock actual o importar un Excel/CSV con stock y ventas.</small></div><button type="button" data-home-stock-import>Importar ventas Excel/CSV</button></div>';
+  }
   function renderStockResult(summary,question='',orderMode=false){
     const preview=$('#vnxAhPreview');if(!preview)return;
+    const unreliable=summary?.salesLookReliable===false;
     const rows=stockSortRows(stockRowsForView(summary,question,orderMode));
-    const all=Array.isArray(summary?.rows)?summary.rows:[],toBuy=all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
+    const all=Array.isArray(summary?.rows)?summary.rows:[];
+    const toBuy=unreliable?[]:all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     const totalUnits=toBuy.reduce((n,r)=>n+Math.max(0,Number(r.qty||0)),0);
     const source=esc(summary?.sourceLabel||'Fuente seleccionada'),target=Number(summary?.targetDays||25),min=Number(summary?.noHistoryMin||0);
-    const title=orderMode?'Pedido propuesto':'Análisis de stock';
-    const note=min>0?'Sin histórico: mínimo configurado de '+min+' uds.':'Sin histórico: se marca REVISAR y no se inventa cantidad.';
-    preview.innerHTML='<div class="vnx-stock-live">'
-      +'<div class="vnx-stock-live-head"><div><small>'+esc(title.toUpperCase())+'</small><b>'+source+'</b><span>Objetivo '+target+' días · '+esc(note)+'</span></div><div><strong>'+stockFmt(orderMode?totalUnits:all.length)+'</strong><small>'+(orderMode?'unidades propuestas':'productos analizados')+'</small></div></div>'
-      +'<div class="vnx-stock-live-table"><table><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
-      +(rows.length?rows.map(r=>'<tr class="'+(Number(r.stock||0)<=0?'loss':'')+'"><td>'+esc(String(r.manufacturer||'—'))+'</td><td>'+esc(String(r.sku||'—'))+'</td><td>'+esc(String(r.ean||'—'))+'</td><td><b>'+esc(String(r.product||''))+'</b></td><td>'+stockFmt(r.stock)+'</td><td>'+esc(stockSalesLabel(r))+'</td><td>'+esc(stockCoverageLabel(r))+'</td><td><strong>'+esc(stockQtyLabel(r,summary))+'</strong></td><td>'+esc(stockStateLabel(r,summary))+'</td></tr>').join(''):'<tr><td colspan="9">No hay referencias que cumplan este filtro.</td></tr>')
+    const windowDays=Number(summary?.windowDays||180),urgentDays=Number(summary?.urgentDays||autoUrgentDaysForPolicy(target));
+    const title=unreliable?'Stock leído · histórico no verificado':orderMode?'Pedido propuesto':'Análisis de stock';
+    const note=unreliable?'No se ha generado ningún pedido.':'Ventas: últimos '+windowDays+' días · objetivo '+target+' días · urgente < '+urgentDays+' días · '+(min>0?'sin histórico: mínimo '+min+' uds.':'sin histórico: revisar sin inventar cantidad.');
+    preview.innerHTML='<div class="vnx-stock-live'+(unreliable?' history-failed':'')+'">'
+      +(unreliable?stockHistoryWarningHtml(summary):'')
+      +'<div class="vnx-stock-live-head"><div><small>'+esc(title.toUpperCase())+'</small><b>'+source+'</b><span>'+esc(note)+'</span></div><div><strong>'+stockFmt(unreliable?all.length:(orderMode?totalUnits:all.length))+'</strong><small>'+(unreliable?'productos con stock leído':orderMode?'unidades propuestas':'productos analizados')+'</small></div></div>'
+      +'<div class="vnx-stock-live-table"><table><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas del periodo ('+windowDays+' días)</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +(rows.length?rows.map(r=>'<tr class="'+(Number(r.stock||0)<=0?'loss':'')+'"><td>'+esc(String(r.manufacturer||'—'))+'</td><td>'+esc(String(r.sku||'—'))+'</td><td>'+esc(String(r.ean||'—'))+'</td><td><b>'+esc(String(r.product||''))+'</b></td><td>'+stockFmt(r.stock)+'</td><td>'+esc(stockSalesLabel(r,summary))+'</td><td>'+esc(stockCoverageLabel(r,summary))+'</td><td><strong>'+esc(stockQtyLabel(r,summary))+'</strong></td><td>'+esc(stockStateLabel(r,summary))+'</td></tr>').join(''):'<tr><td colspan="9">No hay referencias que cumplan este filtro.</td></tr>')
       +'</tbody></table></div>'
-      +'<div class="vnx-stock-live-foot"><span>'+rows.length+' referencias mostradas</span><span>'+toBuy.length+' necesitan compra/revisión</span><span>'+stockFmt(totalUnits)+' unidades propuestas</span></div>'
+      +'<div class="vnx-stock-live-foot"><span>'+rows.length+' referencias mostradas</span><span>'+(unreliable?'0 pedidos calculados':toBuy.length+' necesitan compra/revisión')+'</span><span>'+(unreliable?'Histórico pendiente de verificar':stockFmt(totalUnits)+' unidades propuestas')+'</span></div>'
+      +stockDownloadHtml()
       +'</div>';
+    bindHomeStockExports(preview,summary,orderMode&&!unreliable);
     const metric=$('#vnxAhMetricValue'),review=$('#vnxAhReviewValue'),metricLabel=$('#vnxAhMetricLabel'),reviewLabel=$('#vnxAhReviewLabel');
-    if(metric)metric.textContent=String(all.length);if(review)review.textContent=String(toBuy.length);
-    if(metricLabel)metricLabel.textContent='Productos analizados';if(reviewLabel)reviewLabel.textContent='Necesitan compra/revisión';
+    if(metric)metric.textContent=String(all.length);if(review)review.textContent=unreliable?'—':String(toBuy.length);
+    if(metricLabel)metricLabel.textContent='Productos analizados';if(reviewLabel)reviewLabel.textContent=unreliable?'Histórico no verificado':'Necesitan compra/revisión';
     const previewTitle=$('#vnxAhPreviewTitle'),previewSub=$('#vnxAhPreviewSub');
-    if(previewTitle)previewTitle.textContent=orderMode?'3. Pedido de compra calculado':'3. Resultado del análisis real';
-    if(previewSub)previewSub.textContent=orderMode?'Cantidades calculadas con la política de esta empresa.':'Stock y ventas reales de la conexión seleccionada, por SKU/EAN.';
+    if(previewTitle)previewTitle.textContent=unreliable?'3. Stock leído, histórico pendiente':orderMode?'3. Pedido de compra calculado':'3. Resultado del análisis real';
+    if(previewSub)previewSub.textContent=unreliable?'No se calculará un pedido hasta verificar las ventas reales.':orderMode?'Cantidades calculadas con la política de esta empresa.':'Stock y ventas reales de la conexión seleccionada, por SKU/EAN o coincidencia exacta de producto.';
   }
   async function fetchStockSummary(src,policy,force=true){
+    const opts={force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentDays||undefined};
     if(src.type==='portal'||src.module==='portal'){
-      const r=await window.vnx?.portalReplenishmentSummary?.(src.id,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      const r=await window.vnx?.portalReplenishmentSummary?.(src.id,opts);
       if(!r?.ok){
         const why=r?.reason==='login_required'?'La sesión del portal necesita volver a iniciarse.':r?.reason==='catalog_scan_incomplete'?'No he podido verificar el catálogo completo.':r?.reason==='stock_not_structured'?'No encuentro una tabla verificable de stock en el portal.':'No he podido leer los datos de stock.';
         throw new Error(why);
@@ -569,7 +669,7 @@
     }
     if(src.module==='shopify'){
       const shop=src.shop||src.raw?.shop||null;
-      const r=await window.vnx?.shopifyReplenishmentSummary?.(shop,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      const r=await window.vnx?.shopifyReplenishmentSummary?.(shop,opts);
       if(!r?.rows)throw new Error('Shopify no ha devuelto el catálogo de stock.');
       return {...r,sourceLabel:src.label||r.sourceLabel};
     }
@@ -584,11 +684,14 @@
       if(analyze){analyze.disabled=true;analyze.textContent=orderMode?'Calculando…':'Analizando…'}
       if(order){order.disabled=true;order.textContent=orderMode?'Generando…':'Generar pedido'}
       if(preview)preview.innerHTML='<div class="vnx-stock-loading">Leyendo stock y ventas reales de '+esc(src.label)+'…</div>';
-      const sameRun=lastStockRun&&sameHomeSource(lastStockRun.src,src)&&lastStockRun.policy.targetDays===policy.targetDays&&lastStockRun.policy.noHistoryMin===policy.noHistoryMin;
+      const sameRun=lastStockRun&&sameHomeSource(lastStockRun.src,src)
+        &&lastStockRun.policy.targetDays===policy.targetDays&&lastStockRun.policy.noHistoryMin===policy.noHistoryMin
+        &&lastStockRun.policy.windowDays===policy.windowDays&&lastStockRun.policy.urgentDays===policy.urgentDays;
       const summary=orderMode&&sameRun?lastStockRun.summary:await fetchStockSummary(src,policy,true);
       lastStockRun={src,policy,summary,at:Date.now()};
       renderStockResult(summary,question,orderMode);
     }catch(e){
+      lastStockRun=null;
       if(preview)preview.innerHTML='<div class="vnx-stock-error"><b>No se ha podido completar el análisis.</b><span>'+esc(String(e?.message||e))+'</span></div>';
     }finally{
       if(analyze){analyze.disabled=false;analyze.textContent='Analizar'}
@@ -644,7 +747,7 @@
       core_ai:{configTitle:'1. Define el foco',configSub:'Elige qué quieres priorizar y qué puede adelantar Carla.',sourceTabs:['Fuentes conectadas','Prioridades','Pendientes'],filters:[['Periodo',['Hoy','Esta semana','Este mes']],['Área',['Todas','Correo','Pedidos','Stock','Clientes']],['Prioridad',['Todas','Urgente','Importante','Normal']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo del trabajo',frequency:['Una vez','Cada día','Cada semana','Personalizada'],actions:commonAction,previewActions:['↻ Recalcular prioridades','✦ Ajustar criterio','▧ Guardar enfoque'],switches:['Preparar ahora','Programar revisión','Avisarme al terminar'],itemDefault:'Contexto o asunto'},
       email:{configTitle:'1. Configura la revisión',configSub:'Define qué correos revisar y cómo quieres que Carla prepare las respuestas.',sourceTabs:['Bandeja conectada','Necesitan respuesta','Buscar correo'],filters:[['Cuenta',['Todas las cuentas','Cuenta seleccionada']],['Estado',['Todos','Sin leer','Necesita respuesta','Informativo']],['Fecha',['Hoy','Últimas 24 h','7 días','30 días']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo de la respuesta',frequency:['Cada día (recomendado)','Una vez','Cada hora','Personalizada'],actions:['Dejar respuesta en borrador','Crear borrador solo con autorización','Preparar y avisarme','Solo clasificar, sin redactar'],previewActions:['↻ Redactar otro enfoque','✦ Ajustar respuesta','▧ Guardar como plantilla'],switches:['Revisar ahora','Programar','Dejar en borrador'],itemDefault:'Cuenta o asunto'},
       orders:{configTitle:'1. Define qué pedidos revisar',configSub:'Filtra pedidos y decide qué puede preparar Carla antes de que los confirmes.',sourceTabs:['Pedidos conectados','Incidencias','Importar Excel/CSV'],filters:[['Estado',['Todos','Nuevos','Pendientes','Incompletos','Preparados']],['Fecha',['Hoy','7 días','30 días']],['Canal',['Todos','Tienda online','Email','Portal','Archivo']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada hora','Una vez','Personalizada'],actions:['Dejar pedidos preparados','Procesar solo los autorizados','Preparar y avisarme','Solo detectar incidencias'],previewActions:['↻ Volver a comprobar','✦ Ajustar pedido','▧ Exportar / guardar'],switches:['Revisar nuevos','Programar revisión','Dejar preparados'],itemDefault:'Pedido o referencia'},
-      web_ecommerce:{configTitle:'1. Define el análisis de stock',configSub:'Elige qué productos revisar y el criterio de reposición que quieres controlar.',sourceTabs:['Stock actual','Ventas 6 meses','Importar Excel/CSV'],filters:[['Estado',['Todos','Sin stock','< 5 días','Bajo stock','Exceso']],['Fabricante',['Todos los fabricantes','Fabricante seleccionado']],['Cobertura',['Todas','0 días','< 5 días','< 20 días','≥ 20 días']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:['Dejar propuesta de compra para revisar','Generar pedido solo con autorización','Preparar y avisarme','Solo analizar, sin generar pedido'],previewActions:['↻ Recalcular stock','✦ Ajustar cobertura','▧ Exportar pedido'],switches:['Calcular ahora','Programar revisión','Dejar como propuesta'],itemDefault:'Producto, SKU o familia'},
+      web_ecommerce:{configTitle:'1. Define el análisis de stock',configSub:'Elige qué productos revisar y el criterio de reposición que quieres controlar.',sourceTabs:['Stock actual','Ventas del periodo','Importar Excel/CSV'],filters:[['Estado',['Todos','Sin stock','Alerta urgente','Bajo objetivo','Exceso']],['Fabricante',['Todos los fabricantes','Fabricante seleccionado']],['Cobertura',['Todas','0 días','Por debajo del aviso urgente','Por debajo del objetivo','Objetivo cubierto']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:['Dejar propuesta de compra para revisar','Generar pedido solo con autorización','Preparar y avisarme','Solo analizar, sin generar pedido'],previewActions:['↻ Recalcular stock','✦ Ajustar cobertura','▧ Exportar pedido'],switches:['Calcular ahora','Programar revisión','Dejar como propuesta'],itemDefault:'Producto, SKU o familia'},
       crm:{configTitle:'1. Define el seguimiento comercial',configSub:'Elige clientes u oportunidades y cómo quieres preparar la siguiente acción.',sourceTabs:['Clientes conectados','Oportunidades','Importar Excel/CSV'],filters:[['Estado',['Todos','Nuevo','Seguimiento','Oferta','Negociación','Ganado']],['Responsable',['Todos','Yo','Sin responsable']],['Actividad',['Hoy','7 días','30 días','Sin actividad']]],showStyle:true,showLanguage:true,showBrand:false,styleLabel:'Estilo comercial',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:commonAction,previewActions:['↻ Otra propuesta','✦ Ajustar seguimiento','▧ Guardar plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Cliente u oportunidad'},
       prospecting:{configTitle:'1. Configura tu estrategia',configSub:'Define qué vendes, a qué tipo de cliente quieres llegar y con qué marca.',sourceTabs:['Mis listas','Buscar con IA','Desde archivo (Excel/CSV)'],filters:[['Ubicación',['Toda España','Barcelona','Madrid','Valencia']],{label:'Tipo de cliente / sector objetivo',type:'text',placeholder:'Ej.: hospitales, clínicas, geriátricos, farmacias, herbolarios…'},['Tamaño',['Todos','Pequeña','Mediana','Grande']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo del trabajo',frequency:['Cada día (recomendado)','Una vez','Cada semana','Personalizada'],actions:commonAction,previewActions:['↻ Regenerar con otro enfoque','✦ Ajustar para este caso','▧ Guardar como plantilla'],switches:['Ejecutar hoy','Programar','Dejar en borrador'],itemDefault:'Tu producto o servicio'},
       content:{configTitle:'1. Define qué contenido crear',configSub:'Indica tema, marca, canal y tono antes de generar la pieza.',sourceTabs:['Ideas','Contenido de marca','Desde archivo'],filters:[['Canal',['Todos','Blog','LinkedIn','Instagram','Email']],['Formato',['Todos','Texto corto','Artículo','Ficha producto','Landing']],['Estado',['Todos','Idea','Borrador','Aprobado']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Tono del contenido',frequency:['Una vez','Cada semana','Cada día','Personalizada'],actions:['Dejar contenido para revisar','Preparar solo lo autorizado','Preparar y avisarme','Solo generar ideas'],previewActions:['↻ Crear otra versión','✦ Ajustar contenido','▧ Guardar como plantilla'],switches:['Generar ahora','Programar','Dejar borrador'],itemDefault:'Producto, servicio o tema'},

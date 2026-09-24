@@ -2157,7 +2157,20 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
   display:flex;gap:10px;flex-wrap:wrap;color:#90b4c5;font-size:8.5px
 }
 .vnx-stock-live-foot span{border:1px solid #20526e;border-radius:999px;padding:5px 8px;background:#071e30}
+.vnx-stock-history-warning{
+  display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;align-items:center;
+  border:1px solid #d08a2e;border-radius:11px;background:#33230c;padding:12px;color:#ffe1a8
+}
+.vnx-stock-history-warning-icon{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:#d98a24;color:#1e1304;font-size:19px;font-weight:1000}
+.vnx-stock-history-warning>div:nth-child(2){display:grid;gap:4px}.vnx-stock-history-warning b{color:#fff;font-size:11px}.vnx-stock-history-warning p{margin:0;font-size:9px;line-height:1.45;color:#f6d39a}
+.vnx-stock-history-warning small{font-size:8px;line-height:1.4;color:#cfac78}.vnx-stock-history-warning button{border:1px solid #e2a04a;background:#9c5d13;color:#fff;border-radius:8px;padding:9px 11px;font-size:8.5px;font-weight:900;cursor:pointer;white-space:nowrap}
+.vnx-stock-downloads{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #225c78;border-radius:10px;background:#071f31;padding:10px 11px}
+.vnx-stock-downloads>div:first-child{display:grid;gap:2px}.vnx-stock-downloads b{font-size:10px;color:#eefaff}.vnx-stock-downloads small{font-size:8px;color:#7fa8bb}
+.vnx-stock-downloads>div:last-child{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.vnx-stock-downloads button{border:1px solid #2a7698;background:#0a3651;color:#eaf8ff;border-radius:8px;padding:8px 10px;font-size:8.5px;font-weight:900;cursor:pointer}
+.vnx-stock-downloads button:hover{background:#0d496d}.vnx-stock-live.history-failed .vnx-stock-live-table td:nth-child(6),.vnx-stock-live.history-failed .vnx-stock-live-table td:nth-child(9){color:#ffc975}
 @media(max-width:900px){
+  .vnx-stock-history-warning{grid-template-columns:34px 1fr}.vnx-stock-history-warning>button{grid-column:1/-1}
+  .vnx-stock-downloads{align-items:flex-start;flex-direction:column}.vnx-stock-downloads>div:last-child{justify-content:flex-start}
   .vnx-ah-search-row{grid-template-columns:auto minmax(0,1fr)}
   .vnx-ah-search-row>button{grid-column:auto}
   .vnx-ah-generate-order{grid-column:1/-1}

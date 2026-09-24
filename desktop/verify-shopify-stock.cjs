@@ -10,7 +10,8 @@ function need(src,re,msg){if(!re.test(src)){console.error('SHOPIFY_STOCK_VERIFY_
 need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'sales window must stay at 180 days');
 need(backend,/const SHOPIFY_TARGET_COVER_DAYS=25;/,'default purchase provisioning target must be 25 days');
 need(backend,/function normalizeStockPolicy\(options=\{\}\)/,'coverage days and no-history minimum must be configurable');
-need(backend,/const SHOPIFY_URGENT_DAYS=5;/,'urgent threshold must stay at 5 days');
+need(backend,/function autoUrgentDays\(targetDays\)/,'urgent threshold must be derived from the active coverage target unless explicitly configured');
+need(backend,/windowDays,urgentDays,urgentAuto/,'full stock policy must include sales window and urgent threshold');
 need(backend,/orders\(first:100, after:\$cursor[\s\S]*created_at:>=\$\{since\}/,'sales query must paginate by date');
 need(backend,/if\(o\.cancelledAt\)\{cancelledSkipped\+\+;continue\}/,'cancelled orders must be excluded');
 need(renderer,/function isShopifyStockRequest/,'renderer must detect Shopify stock requests');
@@ -38,7 +39,7 @@ need(renderer,/stockListing\?stockInventoryTable\(portalSummary\):shopifyStockTa
   if(fn('analiza el stock')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "analiza el stock" must stay in replenishment analysis, not plain listing');process.exit(1)}
   if(fn('dime qué tengo que comprar')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: purchase intent must not be treated as a plain stock listing');process.exit(1)}
 }
-need(renderer,/async function latestPurchaseAnalysis\(scopeKey,targetDays=25\)/,'purchase analysis loader must support the active coverage policy');
+need(renderer,/async function latestPurchaseAnalysis\(scopeKey,policy=\{\}\)/,'purchase analysis loader must support the full active policy');
 need(renderer,/purchaseAnalysisGet\?\.\(scopeKey\)/,'purchase order must restore persisted analysis');
 need(renderer,/rememberPurchaseAnalysis/,'verified purchase analysis must be persisted');
 need(renderer,/Si no existe un análisis válido con la política actual, lo calculamos ahora/,'purchase request must auto-calculate a missing analysis using the active policy');
@@ -49,10 +50,10 @@ need(preload,/purchaseAnalysisSet:\(payload\)=>ipcRenderer\.invoke\('purchase-an
 need(desktopMain,/ipcMain\.handle\('purchase-analysis:get'/,'desktop main must expose encrypted purchase analysis read');
 need(desktopMain,/ipcMain\.handle\('purchase-analysis:set'/,'desktop main must expose encrypted purchase analysis write');
 need(renderer,/const direct=\/\\b\(haz/,'direct "hazme el pedido" intent must be detected before stock analysis');
-need(renderer,/shopifyReplenishmentSummary\(selectedShop,\{force:true,targetDays:policy\.targetDays,noHistoryMin:policy\.noHistoryMin\}\)/,'renderer must calculate stock from the explicitly selected Shopify store and policy');
-need(renderer,/portalReplenishmentSummary\(portalId,\{force:true,targetDays:policy\.targetDays,noHistoryMin:policy\.noHistoryMin\}\)/,'a direct purchase request must calculate the selected portal with the active policy');
-need(renderer,/\| Fabricante \| SKU \| EAN \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must expose manufacturer, SKU and EAN separately');
-need(renderer,/URGENTE · < 5 DÍAS/i,'visible urgent rule must stay at 5 days');
+need(renderer,/shopifyReplenishmentSummary\(selectedShop,\{force:true,targetDays:policy\.targetDays,noHistoryMin:policy\.noHistoryMin,windowDays:policy\.windowDays,urgentDays:policy\.urgentDays\|\|undefined\}\)/,'renderer must calculate stock from the selected Shopify store with the full policy');
+need(renderer,/stockOptions=\{force:true,targetDays:policy\.targetDays,noHistoryMin:policy\.noHistoryMin,windowDays:policy\.windowDays,urgentDays:policy\.urgentDays\|\|undefined\}/,'direct purchase requests must calculate with the complete active policy');
+need(renderer,/Ventas del periodo \('\+windowDays\+' días\)/,'purchase table must expose the configured sales period');
+need(renderer,/URGENTE · < '\+urgentDays\+' DÍAS/i,'visible urgent rule must use the configured threshold');
 need(renderer,/REPONER · < '\+targetDays\+' DÍAS/,'purchase table must include non-urgent rows that still need stock to reach the configured target');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
@@ -88,7 +89,7 @@ need(renderer,/He abierto \*\*'\+sourceLabel\+'\*\* automáticamente/,'failed au
 
 
 need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');
-need(renderer,/headers:\['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep manufacturer, SKU and EAN separate and stable');
+need(renderer,/headers:\['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep manufacturer, SKU, EAN and generic sales-period field separate and stable');
 const exportCode=fs.readFileSync(path.join(__dirname,'export.cjs'),'utf8');
 need(exportCode,/function csvBuffer\(data\)/,'CSV exporter must exist');
 need(exportCode,/payload\.format==='csv'/,'CSV format must be routed by exporter');
