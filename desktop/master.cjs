@@ -567,7 +567,10 @@ function portalPageFingerprint(page){
   const body=String(page?.text||'').slice(0,1200);
   return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))+'|'+actions+'|'+body).digest('hex').slice(0,16);
 }
-async function readPortal(portal,question='',preferredUrl=null,existingWin=null,options={}){
+async function readPortal(portal,question='',preferredUrl=null,existingWin=null){
+  return readPortalWithOptions(portal,question,preferredUrl,existingWin,arguments[4]||{});
+}
+async function readPortalWithOptions(portal,question='',preferredUrl=null,existingWin=null,options={}){
   const maxPages=Math.max(1,Math.min(300,Number(options?.maxPages||PORTAL_MAX_PAGES)));
   const preferFullCollection=Boolean(options?.fullCollection);
   const startFromBase=Boolean(options?.startFromBase);
