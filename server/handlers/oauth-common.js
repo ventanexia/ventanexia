@@ -1,5 +1,9 @@
 import crypto from "node:crypto";
 
+export const META_GRAPH_VERSION="v26.0";
+const META_GRAPH_BASE=`https://graph.facebook.com/${META_GRAPH_VERSION}`;
+const META_AUTH_BASE=`https://www.facebook.com/${META_GRAPH_VERSION}`;
+
 export function sb(){
   const url=String(process.env.SUPABASE_URL||"").replace(/\/$/,"").replace(/\/rest\/v1\/?$/i,"");
   const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -31,7 +35,15 @@ export function connector(provider,extra={}){
   if(p==="microsoft_365")return {clientId:process.env.MICROSOFT_OAUTH_CLIENT_ID,clientSecret:process.env.MICROSOFT_OAUTH_CLIENT_SECRET,auth:"https://login.microsoftonline.com/common/oauth2/v2.0/authorize",token:"https://login.microsoftonline.com/common/oauth2/v2.0/token",scope:"openid offline_access User.Read Mail.ReadWrite Mail.Send"};
   if(p==="microsoft_calendar")return {clientId:process.env.MICROSOFT_OAUTH_CLIENT_ID,clientSecret:process.env.MICROSOFT_OAUTH_CLIENT_SECRET,auth:"https://login.microsoftonline.com/common/oauth2/v2.0/authorize",token:"https://login.microsoftonline.com/common/oauth2/v2.0/token",scope:"openid offline_access User.Read Calendars.Read"};
   if(p==="hubspot")return {clientId:process.env.HUBSPOT_CLIENT_ID,clientSecret:process.env.HUBSPOT_CLIENT_SECRET,auth:"https://app.hubspot.com/oauth/authorize",token:"https://api.hubapi.com/oauth/v1/token",scope:"oauth crm.objects.contacts.read crm.objects.contacts.write crm.objects.deals.read crm.objects.deals.write"};
-  if(["instagram","facebook","whatsapp_business"].includes(p))return {clientId:process.env.META_APP_ID,clientSecret:process.env.META_APP_SECRET,auth:"https://www.facebook.com/v20.0/dialog/oauth",token:"https://graph.facebook.com/v20.0/oauth/access_token",scope:p==="whatsapp_business"?"business_management,whatsapp_business_management,whatsapp_business_messaging":"pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,business_management"};
+  if(["meta_social","instagram","facebook","whatsapp_business"].includes(p)){
+    const scopes={
+      meta_social:"pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_comments,business_management",
+      instagram:"pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,instagram_manage_comments",
+      facebook:"pages_show_list,pages_read_engagement,pages_manage_posts",
+      whatsapp_business:"business_management,whatsapp_business_management,whatsapp_business_messaging"
+    };
+    return {clientId:process.env.META_APP_ID,clientSecret:process.env.META_APP_SECRET,auth:META_AUTH_BASE+"/dialog/oauth",token:META_GRAPH_BASE+"/oauth/access_token",scope:scopes[p],meta:true};
+  }
   if(p==="linkedin")return {clientId:process.env.LINKEDIN_CLIENT_ID,clientSecret:process.env.LINKEDIN_CLIENT_SECRET,auth:"https://www.linkedin.com/oauth/v2/authorization",token:"https://www.linkedin.com/oauth/v2/accessToken",scope:"openid profile email w_member_social"};
   if(p==="x_twitter")return {clientId:process.env.X_OAUTH_CLIENT_ID,clientSecret:process.env.X_OAUTH_CLIENT_SECRET,auth:"https://twitter.com/i/oauth2/authorize",token:"https://api.twitter.com/2/oauth2/token",scope:"tweet.read tweet.write users.read offline.access",pkce:true};
   if(p==="shopify"){
@@ -41,6 +53,20 @@ export function connector(provider,extra={}){
   }
   throw new Error("UNSUPPORTED_PROVIDER");
 }
+export async function exchangeMetaLongLivedToken(cfg,tokenPayload={}){
+  if(!cfg?.meta||!cfg?.clientId||!cfg?.clientSecret||!tokenPayload?.access_token)return tokenPayload;
+  const qs=new URLSearchParams({
+    grant_type:"fb_exchange_token",
+    client_id:cfg.clientId,
+    client_secret:cfg.clientSecret,
+    fb_exchange_token:String(tokenPayload.access_token)
+  });
+  const r=await fetch(META_GRAPH_BASE+"/oauth/access_token?"+qs.toString(),{headers:{Accept:"application/json"}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.access_token)return tokenPayload;
+  return {...tokenPayload,...j,meta_long_lived:true};
+}
+
 export async function exchangeCode(cfg,{code,redirectUri,verifier}){
   const params=new URLSearchParams({grant_type:"authorization_code",code,redirect_uri:redirectUri,client_id:cfg.clientId||""});
   if(cfg.clientSecret)params.set("client_secret",cfg.clientSecret);
