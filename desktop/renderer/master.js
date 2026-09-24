@@ -2265,30 +2265,36 @@ function emailListItem(m,i,selected){
     const get=(row,name)=>{const i=idx(name);return i>=0?row[i]:''};
     const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
     const fmt=v=>n(v).toLocaleString('es-ES',{maximumFractionDigits:2});
-    const totalUnits=rows.reduce((sum,row)=>sum+(typeof get(row,'cantidad_a_pedir')==='number'?n(get(row,'cantidad_a_pedir')):n(get(row,'cantidad_a_pedir'))),0);
-    const noStock=rows.filter(row=>/SIN STOCK/i.test(String(get(row,'estado')||''))||n(get(row,'stock_actual'))<=0).length;
-    const risk=Math.max(0,rows.length-noStock);
+    const ordered=[...rows].sort((a,b)=>{
+      const am=String(get(a,'fabricante')||'').trim(),bm=String(get(b,'fabricante')||'').trim();
+      if(am&&!bm)return -1;if(!am&&bm)return 1;
+      const m=am.localeCompare(bm,'es',{sensitivity:'base'});if(m)return m;
+      return String(get(a,'producto')||'').localeCompare(String(get(b,'producto')||''),'es',{sensitivity:'base'});
+    });
+    const totalUnits=ordered.reduce((sum,row)=>sum+n(get(row,'cantidad_a_pedir')),0);
+    const noStock=ordered.filter(row=>/SIN STOCK/i.test(String(get(row,'estado')||''))||n(get(row,'stock_actual'))<=0).length;
+    const risk=Math.max(0,ordered.length-noStock);
     const source=msg.stockSourceLabel||'Conexión seleccionada';
     const date=msg.purchaseAnalyzedAt?purchaseAnalysisDateLabel(msg.purchaseAnalyzedAt):'Ahora';
-    const tableRows=rows.slice(0,200).map(row=>{
-      const code=String(get(row,'sku')||get(row,'ean')||'—'),product=String(get(row,'producto')||'Producto');
+    const tableRows=ordered.map(row=>{
+      const manufacturer=String(get(row,'fabricante')||'—'),sku=String(get(row,'sku')||'—'),ean=String(get(row,'ean')||'—'),product=String(get(row,'producto')||'Producto');
       const stock=get(row,'stock_actual'),sold=get(row,'ventas_180_dias'),coverage=get(row,'dias_cobertura'),qty=get(row,'cantidad_a_pedir'),state=String(get(row,'estado')||'REVISAR');
       const cls=/SIN STOCK/i.test(state)?'danger':/ROTURA|REVISAR/i.test(state)?'warning':'ok';
       const qtyText=typeof qty==='number'||/^\d+(?:[.,]\d+)?$/.test(String(qty))?fmt(qty):escM(qty||'—');
-      return '<tr><td><strong>'+escM(product)+'</strong><small>'+escM(code)+'</small></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
+      return '<tr><td>'+escM(manufacturer)+'</td><td>'+escM(sku)+'</td><td>'+escM(ean)+'</td><td><strong>'+escM(product)+'</strong></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
     }).join('');
     return '<div class="vnx-purchase-panel">'
       +'<div class="vnx-purchase-head"><div><span class="vnx-purchase-kicker">STOCK Y COMPRAS</span><h3>Qué necesitas comprar ahora</h3><p>Fuente: <b>'+escM(source)+'</b> · análisis: '+escM(date)+'</p></div><span class="vnx-purchase-source">● Datos verificados</span></div>'
       +'<div class="vnx-purchase-metrics">'
-      +'<article><span>Productos a comprar</span><b>'+rows.length+'</b><small>referencias</small></article>'
+      +'<article><span>Productos a comprar</span><b>'+ordered.length+'</b><small>referencias</small></article>'
       +'<article><span>Sin stock</span><b>'+noStock+'</b><small>acción inmediata</small></article>'
       +'<article><span>Riesgo de rotura</span><b>'+risk+'</b><small>menos de 5 días / revisar</small></article>'
       +'<article><span>Unidades propuestas</span><b>'+fmt(totalUnits)+'</b><small>según el análisis</small></article>'
       +'</div>'
-      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
-      +(tableRows||'<tr><td colspan="6" class="purchase-empty">No hay referencias que necesiten compra ahora.</td></tr>')
+      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +(tableRows||'<tr><td colspan="9" class="purchase-empty">No hay referencias que necesiten compra ahora.</td></tr>')
       +'</tbody></table></div>'
-      +(rows.length>200?'<div class="vnx-purchase-foot">Mostrando 200 de '+rows.length+' referencias. El Excel y CSV incluyen el pedido completo.</div>':'')
+      +'<div class="vnx-purchase-foot">Ordenado por fabricante. Fabricante y EAN solo aparecen cuando la fuente los proporciona; nunca se inventan.</div>'
       +'</div>';
   }
 
@@ -2373,11 +2379,11 @@ function emailListItem(m,i,selected){
         const sourceLabel=masterMessages[msgIndex]?.stockSourceLabel||'Archivo de stock y ventas';
         const reply=shopifyStockTable({...summary,sourceLabel});
         const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-          String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+          String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
           Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
           Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
         ]);
-        const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+        const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
         const importScopeKey=masterMessages[msgIndex]?.scopeKey||'stock-import',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
         masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:importScopeKey});
         await rememberPurchaseAnalysis(importScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
@@ -2707,13 +2713,22 @@ function emailListItem(m,i,selected){
     }
     return lines.join('\n');
   }
+  function realManufacturer(row={}){
+    return String(row?.manufacturer||'').trim();
+  }
+  function stockManufacturerSort(a,b){
+    const am=realManufacturer(a),bm=realManufacturer(b);
+    if(am&&!bm)return -1;
+    if(!am&&bm)return 1;
+    const byManufacturer=am.localeCompare(bm,'es',{sensitivity:'base'});
+    if(byManufacturer)return byManufacturer;
+    return String(a?.product||'').localeCompare(String(b?.product||''),'es',{sensitivity:'base'});
+  }
   function shopifyStockTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
     const targetDays=Number(summary.targetDays||20);
-    const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData))
-      .sort((a,b)=>Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999)||Number(a.stock||0)-Number(b.stock||0)||String(a.product||'').localeCompare(String(b.product||'')));
+    const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
-    const ref=r=>r.sku||r.ean||'—';
     const coverage=r=>r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
     const qtyLabel=r=>Number(r.qty||0)>0?fmt(r.qty):(Number(r.stock||0)<=0&&r.noSalesData?'Revisar':'0');
     const status=r=>{
@@ -2722,12 +2737,16 @@ function emailListItem(m,i,selected){
       return '🟡 REPONER · < '+targetDays+' DÍAS';
     };
     const label=summary.sourceLabel||summary.shop||'Shopify';
-    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
-    for(const r of toBuy){const product=String(r.product||'').replace(/\|/g,'/');lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |')}
-    if(!toBuy.length)lines.push('| — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
+    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|'];
+    for(const r of toBuy){
+      const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
+      lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |');
+    }
+    if(!toBuy.length)lines.push('| — | — | — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
     const units=toBuy.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=toBuy.filter(r=>Number(r.stock||0)<=0).length,under5=toBuy.filter(r=>Number(r.stock||0)>0&&r.urgent).length,normal=toBuy.filter(r=>Number(r.stock||0)>0&&!r.urgent).length;
     lines.push('','**Resumen del pedido:** '+toBuy.length+' referencias · '+zero+' sin stock · '+under5+' urgentes (<5 días) · '+normal+' a reponer para completar '+targetDays+' días · '+fmt(units)+' unidades calculadas.');
     lines.push('**Fórmula:** media diaria = ventas de '+(summary.windowDays||180)+' días ÷ '+(summary.windowDays||180)+'; stock objetivo = media diaria × '+targetDays+'; cantidad a pedir = stock objetivo − stock actual, redondeando hacia arriba.');
+    lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. VentaNexIA no los deduce ni los inventa.');
     if(toBuy.some(r=>Number(r.stock||0)<=0&&r.noSalesData))lines.push('⚠️ Las referencias agotadas sin ventas registradas aparecen como **Revisar**, sin inventar una cantidad.');
     if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar el histórico; puede no ser exhaustivo.');
     if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
@@ -2736,32 +2755,33 @@ function emailListItem(m,i,selected){
   }
   function stockInventoryTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const ordered=[...rows].sort((a,b)=>Number(a.stock||0)-Number(b.stock||0)||String(a.product||'').localeCompare(String(b.product||'')));
+    const ordered=[...rows].sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
     const label=summary.sourceLabel||summary.shop||'Fuente seleccionada';
     const hasStructuredSales=summary.structuredSales!==false;
-    const visible=ordered.slice(0,250);
-    const lines=['# Stock actual · '+label,'','**Referencias leídas:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Código | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---:|---:|---:|---|'];
-    for(const r of visible){
-      const code=r.sku||r.ean||'—',product=String(r.product||'').replace(/\|/g,'/');
+    const lines=['# Stock actual · '+label,'','**Referencias leídas del catálogo:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---|---|---:|---:|---:|---|'];
+    for(const r of ordered){
+      const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
       const sold=hasStructuredSales?fmt(r.soldWindow):'—';
       const coverage=hasStructuredSales?(r.daysRemaining==null?'Sin ventas':String(r.daysRemaining)):'—';
       const state=Number(r.stock||0)<=0?'🔴 Sin stock':r.urgent?'🟠 Menos de 5 días':'🟢 Disponible';
-      lines.push('| '+code+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
+      lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
     }
-    if(!visible.length)lines.push('| — | No se han recibido referencias de stock | — | — | — | — |');
-    if(rows.length>visible.length)lines.push('','**Mostrando '+visible.length+' de '+rows.length+' referencias en pantalla.** El Excel/CSV incluye el listado completo.');
+    if(!ordered.length)lines.push('| — | — | — | No se han recibido referencias de stock | — | — | — | — |');
     const zero=rows.filter(r=>Number(r.stock||0)<=0).length,urgent=rows.filter(r=>r.urgent&&Number(r.stock||0)>0).length;
     lines.push('','**Resumen:** '+zero+' sin stock · '+urgent+' con menos de 5 días de cobertura · '+Math.max(0,rows.length-zero-urgent)+' con stock sin alerta.');
+    lines.push('**Orden:** fabricante alfabético y, dentro de cada fabricante, producto.');
+    lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. Si faltan, aparece “—”; nunca se infieren por el nombre del producto.');
     if(!hasStructuredSales)lines.push('⚠️ Esta conexión ha proporcionado existencias, pero no un histórico de ventas estructurado suficiente; por eso Ventas 6 meses y Cobertura aparecen como “—”.');
     return lines.join('\n');
   }
   function stockExportData(summary={}){
     const hasStructuredSales=summary.structuredSales!==false;
+    const ordered=[...(summary.rows||[])].sort(stockManufacturerSort);
     return {
-      headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
-      rows:(summary.rows||[]).map(r=>[
-        String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),
+      headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
+      rows:ordered.map(r=>[
+        String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),
         hasStructuredSales?Number(r.soldWindow||0):'',hasStructuredSales?Number(r.avgDaily||0):'',
         hasStructuredSales?(r.daysRemaining==null?'':Number(r.daysRemaining)):'',
         Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <5 DIAS':'DISPONIBLE'
@@ -2804,6 +2824,12 @@ function emailListItem(m,i,selected){
     const rows=Array.isArray(data.rows)?data.rows:[];
     const idx=n=>headers.indexOf(n),at=(r,n)=>{const i=idx(n);return i>=0?r[i]:''};
     const fmt=n=>{const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):String(n??'—')};
+    const ordered=[...rows].sort((a,b)=>{
+      const am=String(at(a,'fabricante')||'').trim(),bm=String(at(b,'fabricante')||'').trim();
+      if(am&&!bm)return -1;if(!am&&bm)return 1;
+      const m=am.localeCompare(bm,'es',{sensitivity:'base'});if(m)return m;
+      return String(at(a,'producto')||'').localeCompare(String(at(b,'producto')||''),'es',{sensitivity:'base'});
+    });
     const lines=['# Pedido para Compras · '+sourceLabel,'','**Preparado a partir del último análisis verificado de esta misma fuente.**','**Basado en análisis verificado:** '+purchaseAnalysisDateLabel(analyzedAt)+'.'];
     const stamp=analyzedAt?new Date(analyzedAt):null;
     if(stamp&&!Number.isNaN(stamp.getTime())){
@@ -2813,15 +2839,15 @@ function emailListItem(m,i,selected){
         lines.push('⚠️ **Este análisis tiene '+ageLabel+'.** El pedido sigue disponible, pero puedes pedirme **“actualiza el stock”** antes de enviarlo si quieres trabajar con existencias más recientes.');
       }
     }
-    lines.push('','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|');
+    lines.push('','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|');
     let units=0;
-    for(const r of rows){
-      const sku=at(r,'sku')||at(r,'ean')||'—',product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
+    for(const r of ordered){
+      const manufacturer=String(at(r,'fabricante')||'—').replace(/\|/g,'/'),sku=String(at(r,'sku')||'—').replace(/\|/g,'/'),ean=String(at(r,'ean')||'—').replace(/\|/g,'/'),product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
       if(Number.isFinite(Number(qty)))units+=Math.max(0,Number(qty));
-      lines.push('| '+sku+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
+      lines.push('| '+manufacturer+' | '+sku+' | '+ean+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
     }
-    if(!rows.length)lines.push('| — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
-    lines.push('','**Resumen del pedido:** '+rows.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 20 días cuando existe histórico suficiente.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
+    if(!ordered.length)lines.push('| — | — | — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
+    lines.push('','**Resumen del pedido:** '+ordered.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 20 días cuando existe histórico suficiente.','**Fabricante y EAN:** solo se usan los valores reales recibidos de la fuente; no se deducen por el nombre del producto.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
   function enrichBusinessRequest(text,scope){
@@ -2940,12 +2966,12 @@ function emailListItem(m,i,selected){
             }
             if(summary?.rows&&Array.isArray(summary.rows)){
               const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-                String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+                String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
                 Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),
                 Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
                 Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'URGENTE <5 DIAS':'REPOSICION <20 DIAS'
               ]);
-              const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+              const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               const analyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
               await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,analyzedAt,20);
               const content=purchaseTableFromData(purchaseData,sourceLabel,analyzedAt);
@@ -2975,10 +3001,10 @@ function emailListItem(m,i,selected){
             const combined=buildCombinedStockSummary(first,second,combinedSources);
             const content=combinedStockTable(combined);
             const purchaseRows=(combined.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-              String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),Number(r.qty||0),
+              String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),Number(r.qty||0),
               r.supplierStock==null?'':Number(r.supplierStock),Number(r.supplierCanSupply||0),String(r.supplyStatus||'')
             ]);
-            const purchaseData={headers:['sku','ean','producto','stock_propio','ventas_180_dias','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
+            const purchaseData={headers:['sku','ean','fabricante','producto','stock_propio','ventas_180_dias','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
             const sourceLabel=combined.sourceLabel,purchaseAnalyzedAt=combined.generatedAt;
             masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
             await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
@@ -2999,6 +3025,7 @@ function emailListItem(m,i,selected){
           const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
             String(r.sku||''),
             String(r.ean||''),
+            realManufacturer(r),
             String(r.product||''),
             Number(r.stock||0),
             Number(r.soldWindow||0),
@@ -3008,7 +3035,7 @@ function emailListItem(m,i,selected){
             r.urgent?'URGENTE <5 DIAS':'REPOSICION'
           ]);
           const purchaseData={
-            headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
+            headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
             rows:purchaseRows
           };
           const sourceLabel=summary.sourceLabel||summary.shop||scope?.name||'Shopify',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
@@ -3035,11 +3062,11 @@ function emailListItem(m,i,selected){
               const portalSummary={...summary,sourceLabel};
               const reply=stockListing?stockInventoryTable(portalSummary):shopifyStockTable(portalSummary);
               const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-                String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+                String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
                 Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
                 Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
               ]);
-              const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+              const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
               if(summary.cacheHit){const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));content+='\n\nℹ️ Datos leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** si quieres que vuelva a entrar ahora mismo.';}
@@ -3054,6 +3081,8 @@ function emailListItem(m,i,selected){
                 ?'He entrado en **'+sourceLabel+'** pero la página ha devuelto contenido que no he podido procesar'+(summary?.error?' ('+summary.error+')':'')+'.'
                 :summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** ha caducado y necesita volver a iniciarse.'
+                :summary?.reason==='catalog_scan_incomplete'
+                ?'He podido leer parte de **'+sourceLabel+'**, pero no he podido verificar el catálogo completo. Para evitar darte una previsión parcial, **no voy a mostrar ese subconjunto como si fueran todos los productos**.'
                 :'He usado la sesión guardada de **'+sourceLabel+'**'+(rehydrated?' y he reconstruido automáticamente su ventana':'')+'. He intentado entrar en **Productos / Stock / Existencias / Inventario**'+(scanPages?' y he revisado '+scanPages+' pantalla'+(scanPages===1?'':'s'):'')+(scanTables?' con '+scanTables+' tablas o rejillas detectadas':'')+', pero todavía no encuentro una combinación verificable de **referencia + existencias**.';
               const next=summary?.reason==='login_required'
                 ?'Te he dejado la conexión preparada para que vuelvas a iniciar sesión.'
