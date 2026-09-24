@@ -2273,3 +2273,41 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
   .vnx-business-form,.vnx-business-review-grid{grid-template-columns:1fr}.vnx-business-form>label.wide,.vnx-business-form>.wide{grid-column:1}
   .vnx-business-connections>div{grid-template-columns:1fr}.vnx-business-review-grid dl{grid-template-columns:95px 1fr}
 }
+
+
+/* Dirección · Control Operativo */
+.vnx-direction-nav{margin-top:4px;border:1px solid #2d658d!important;background:linear-gradient(90deg,#0a2946,#0b355b)!important}
+.vnx-direction-tab{background:radial-gradient(circle at 85% 0,#123c67 0,#07192f 34%,#061426 80%)}
+.vnx-dir-wrap{padding:26px;max-width:1600px;margin:0 auto}
+.vnx-dir-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:18px}
+.vnx-dir-head h1{margin:7px 0 8px;font-size:30px;line-height:1.15}
+.vnx-dir-head p{margin:0;max-width:920px;color:#9cb4cc;line-height:1.55}
+.vnx-dir-actions{display:flex;gap:8px;flex-wrap:wrap}
+.vnx-dir-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:18px 0}
+.vnx-dir-kpis article{padding:16px;border:1px solid #174b77;background:linear-gradient(145deg,#08213c,#0a2d50);border-radius:15px}
+.vnx-dir-kpis span,.vnx-dir-kpis small{display:block;color:#91abc4}.vnx-dir-kpis strong{display:block;font-size:29px;margin:5px 0;color:#f2f8ff}
+.vnx-dir-grid{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(430px,1.2fr);gap:12px;margin-bottom:12px}
+.vnx-dir-panel{padding:18px}.vnx-dir-wide{margin-top:12px}
+.vnx-dir-panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:13px}
+.vnx-dir-panel-head h2{margin:4px 0 0;font-size:20px}.vnx-dir-panel-head p{margin:5px 0 0;color:#90aac3}
+.vnx-dir-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vnx-dir-form label,.vnx-dir-settings label{font-size:12px;color:#a9bed1;display:flex;flex-direction:column;gap:5px}
+.vnx-dir-form label:has(textarea),.vnx-dir-form .vnx-dir-check,.vnx-dir-form>button{grid-column:1/-1}
+.vnx-dir-form input,.vnx-dir-form select,.vnx-dir-form textarea,.vnx-dir-settings input,.vnx-dir-settings select,#vnxDirFilter{background:#071b32;color:#eef7ff;border:1px solid #1b557f;border-radius:9px;padding:10px}
+.vnx-dir-check{display:flex!important;flex-direction:row!important;align-items:flex-start;gap:8px!important;color:#c7d9e8!important}
+.vnx-dir-check input{width:auto;margin-top:2px}
+.vnx-dir-employee-list{display:grid;gap:7px;margin-bottom:12px}
+.vnx-dir-person{border:1px solid #174b77;background:#071b32;color:#eef7ff;border-radius:11px;padding:10px;text-align:left;display:flex;gap:10px;align-items:center;cursor:pointer}
+.vnx-dir-person>span{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:#0d4c7d;color:#5be4ff;font-weight:900}
+.vnx-dir-person p{margin:0}.vnx-dir-person b,.vnx-dir-person small{display:block}.vnx-dir-person small{color:#88a5bf;margin-top:2px}
+.vnx-dir-empty,.vnx-dir-note{color:#8faac3;border:1px dashed #235b83;border-radius:10px;padding:11px;background:#07192c}
+.vnx-dir-table-wrap{overflow:auto;border:1px solid #164a77;border-radius:12px}
+.vnx-dir-table{border-collapse:collapse;width:100%;min-width:980px;background:#071b32}
+.vnx-dir-table th,.vnx-dir-table td{padding:10px;border-bottom:1px solid #123d61;text-align:left;font-size:12px;vertical-align:top}
+.vnx-dir-table th{background:#0b2948;color:#a9c4db;position:sticky;top:0;z-index:1}
+.vnx-dir-table td small{display:block;color:#7899b5;max-width:340px;margin-top:3px;white-space:normal}
+.vnx-dir-risk{background:#351a1f!important}.vnx-dir-red{color:#ff8a92}.vnx-dir-ai{color:#5be4ff}.vnx-dir-legend{display:flex;gap:12px;color:#91aec7;font-size:11px}
+.vnx-dir-row-actions{display:flex;gap:5px;flex-wrap:wrap}.btn.mini{padding:6px 8px;font-size:10px;border-radius:7px}
+.vnx-dir-settings{display:grid;grid-template-columns:220px 260px 1fr auto;gap:12px;align-items:end}
+.vnx-dir-note{margin-top:10px;line-height:1.45}
+@media(max-width:1100px){.vnx-dir-kpis{grid-template-columns:repeat(2,1fr)}.vnx-dir-grid{grid-template-columns:1fr}.vnx-dir-settings{grid-template-columns:1fr 1fr}}
