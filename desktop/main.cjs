@@ -670,7 +670,7 @@ ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
   try{await transport.verify()}catch(e){throw new Error('El correo entrante funciona, pero no se pudo verificar el envío (SMTP): '+String(e?.message||e).slice(0,180))}
   const s=await readState();
   addMasterEmailAccount(s,{provider,module:'email',account:email,label:email,mode:'write',connectedAt:new Date().toISOString(),genericMail:{email,username,password,imapHost,imapPort,smtpHost,smtpPort}});
-  await writeState(s);await audit('integration.connected','email · '+provider+' · '+email);
+  await writeState(s);clearConnectionHealth();await audit('integration.connected','email · '+provider+' · '+email);
   return {connected:true,label:email,provider,mode:'write'};
 });
 
@@ -721,13 +721,13 @@ async function oauthStatusOnce(payload={}){
     const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
     const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
     await updateState(fresh=>{upsertShopifyStore(fresh,{shop,token,refreshToken:result.token?.refresh_token||null,mode:'write',connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes},{makeActive:true});return fresh});
-    await audit('integration.shopify_connected',(data.shop?.name||shop)+' · OAuth');
+    clearConnectionHealth();await audit('integration.shopify_connected',(data.shop?.name||shop)+' · OAuth');
     return done({status:'connected',module:'shopify',provider:'shopify',label:data.shop?.name||shop,shop,shopName:data.shop?.name||shop,mode:'write',scopes});
   }
   const verified=await verifyIntegration(provider,{token,account:'',accountId:'',username:''});
   const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),tokenObtainedAt:Date.now(),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
   await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;return fresh});
-  await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
+  clearConnectionHealth();await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
   if(module==='whatsapp'){
     try{
       await postJson(CLOUD+'/api/whatsapp-channel',{
@@ -762,7 +762,7 @@ ipcMain.handle('integration:connect',async(_e,payload={})=>{
   const verified=await verifyIntegration(provider,payload);s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
   const entry={provider,module,account:String(payload.account||'').trim(),accountId:String(payload.accountId||'').trim(),username:String(payload.username||'').trim(),token:String(payload.token||'').trim(),mode:payload.mode==='write'?'write':'read',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
   if(module==='email')addMasterEmailAccount(s,entry);else s.secret.integrations[module]=entry;
-  await writeState(s);await audit('integration.connected',module+' · '+provider+' · '+verified.label);
+  await writeState(s);clearConnectionHealth();await audit('integration.connected',module+' · '+provider+' · '+verified.label);
   return {connected:true,module,provider,label:verified.label,mode:s.secret.integrations[module].mode,meta:verified.meta||{}};
 });
 ipcMain.handle('integration:status',async(_e,module)=>{
@@ -841,7 +841,7 @@ ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
   const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
   const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
   const fresh=await readState();upsertShopifyStore(fresh,{shop,token,mode:'write',connectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+Number(expiresIn||86399)*1000).toISOString(),shopName:data.shop?.name||shop,scopes,authMode:'client_credentials'},{makeActive:true});
-  await writeState(fresh);await audit('integration.shopify_connected',(data.shop?.name||shop)+' · client credentials');
+  await writeState(fresh);clearConnectionHealth();await audit('integration.shopify_connected',(data.shop?.name||shop)+' · client credentials');
   return {connected:true,shop,shopName:data.shop?.name||shop,mode:'write',scopes,expiresIn:Number(expiresIn||86399)};
 });
 
@@ -855,27 +855,32 @@ ipcMain.handle('shopify:connect',async(_e,payload={})=>{
   const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
   const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
   const s=await readState();upsertShopifyStore(s,{shop,token,mode,connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes},{makeActive:true});
-  await writeState(s);await audit('integration.shopify_connected',`${data.shop?.name||shop} · ${mode==='write'?'lectura/escritura':'solo lectura'}`);
+  await writeState(s);clearConnectionHealth();await audit('integration.shopify_connected',`${data.shop?.name||shop} · ${mode==='write'?'lectura/escritura':'solo lectura'}`);
   return {connected:true,shop,shopName:data.shop?.name||shop,mode,scopes};
 });
 ipcMain.handle('shopify:list',async()=>{
-  const s=await readState(),active=getShopifyStore(s);
-  return listShopifyStores(s).map(x=>({...publicShopifyStore(x),active:Boolean(active?.shop&&String(active.shop).toLowerCase()===String(x.shop).toLowerCase())}));
+  const s=await readState(),active=getShopifyStore(s),stores=listShopifyStores(s);
+  return Promise.all(stores.map(async x=>{
+    const h=await liveShopifyHealth(x);
+    return {...publicShopifyStore(x),...h,active:Boolean(active?.shop&&String(active.shop).toLowerCase()===String(x.shop).toLowerCase())};
+  }));
 });
 ipcMain.handle('shopify:set-active',async(_e,shop)=>{
-  const s=await readState(),x=setActiveShopifyStore(s,shop);await writeState(s);
+  const s=await readState(),x=setActiveShopifyStore(s,shop);await writeState(s);clearConnectionHealth();
+  const h=await liveShopifyHealth(x,{force:true});
   await audit('integration.shopify_active',(x.shopName||x.shop)+' · activa');
-  return {connected:true,...publicShopifyStore(x)};
+  return {...publicShopifyStore(x),...h};
 });
 ipcMain.handle('shopify:status',async()=>{
   const s=await readState(),x=getShopifyStore(s),stores=listShopifyStores(s);
-  if(!x)return {connected:false,stores:[]};
-  return {connected:true,...publicShopifyStore(x),stores:stores.map(publicShopifyStore)};
+  if(!x)return {connected:false,configured:false,state:'disconnected',stores:[]};
+  const h=await liveShopifyHealth(x);
+  return {configured:true,...publicShopifyStore(x),...h,stores:stores.map(publicShopifyStore)};
 });
 ipcMain.handle('shopify:disconnect',async(_e,shop)=>{
   const s=await readState(),target=shop||getShopifyStore(s)?.shop;
   if(!target)return {ok:true,connected:false,stores:[]};
-  removeShopifyStore(s,target);await writeState(s);
+  removeShopifyStore(s,target);await writeState(s);clearConnectionHealth();
   await audit('integration.shopify_disconnected','Shopify · '+target);
   const active=getShopifyStore(s),stores=listShopifyStores(s);
   return {ok:true,connected:Boolean(active),active:publicShopifyStore(active),stores:stores.map(publicShopifyStore)};
