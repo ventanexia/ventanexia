@@ -778,18 +778,18 @@
       const input=$('#chatInput');if(input&&finalPrompt){input.value=finalPrompt;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}
     },180);
   }
-  function reconcileSourceWithBusiness(){
+  function reconcileSourceWithBusiness(event){
     const profile=window.vnxBusiness?.activeProfile?.(),current=selectedHomeSource();
     if(!profile){return}
     const refs=new Set(profile.connectionRefs||[]);
-    if(current){
+    if(event?.detail?.changed&&current){
       const ref=(current.type==='portal'?'portal:':'connection:')+String(current.id||'');
       if(!refs.size||!refs.has(ref)){
         try{localStorage.removeItem(HOME_SOURCE_KEY)}catch{}
       }
     }
     const mirror=$('#vnxAhCompanyName');if(mirror)mirror.textContent=companyName();
-    renderStockPolicyUi();restoreProspectProfile();
+    renderStockPolicyUi();restoreProspectProfile();applyBusinessAgentDefaults(document.body.dataset.vnxHomeAgent||'core_ai');
   }
   window.addEventListener('vnx-business-changed',reconcileSourceWithBusiness);
 
