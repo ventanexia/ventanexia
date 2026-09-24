@@ -651,7 +651,7 @@ async function liveShopifyHealth(store,{force=false}={}){
   return value;
 }
 ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
-  const preState=await readState();assertConnectionCapacity(preState);
+  const preState=await readState();
   const policyState=await readState();assertModuleIncluded(policyState.license,'email');
   const email=String(payload.email||'').trim();
   const username=String(payload.username||email).trim();
@@ -661,6 +661,8 @@ ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
   const imapPort=Number(payload.imapPort||993);
   const smtpPort=Number(payload.smtpPort||465);
   const provider=normalizeProviderKey(payload.provider||'generic_imap');
+  const exists=emailAccountsFromState(preState).some(x=>integrationAccountKey(x)===email.toLowerCase()&&email);
+  if(!exists)assertConnectionCapacity(preState);
   if(!email||!username||!password||!imapHost||!smtpHost)throw new Error('Faltan datos de conexión del correo');
   const imapSecure=imapPort===993;
   const smtpSecure=smtpPort===465;
@@ -678,11 +680,7 @@ ipcMain.handle('oauth:start',async(_e,payload={})=>{
   const s=await readState();
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   assertModuleIncluded(s.license,module);
-  if(module==='email'){
-    const requested=String(payload.account||'').trim().toLowerCase();
-    const exists=emailAccountsFromState(s).some(x=>String(x.meta?.email||x.label||x.account||'').trim().toLowerCase()===requested&&requested);
-    if(!exists)assertConnectionCapacity(s);
-  }else if(!s.secret?.integrations?.[module])assertConnectionCapacity(s);
+  if(module!=='email'&&!s.secret?.integrations?.[module])assertConnectionCapacity(s);
   const shopValue=provider==='shopify'?await resolveShopifyShop(payload.shop):String(payload.shop||'').trim();
   const result=await postJson(CLOUD+'/api/oauth-start',{provider,module,shop:shopValue,account:String(payload.account||'').trim(),customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null});
   if(!result.authUrl||!result.state)throw new Error('No se pudo iniciar la autorización');
@@ -725,6 +723,11 @@ async function oauthStatusOnce(payload={}){
     return done({status:'connected',module:'shopify',provider:'shopify',label:data.shop?.name||shop,shop,shopName:data.shop?.name||shop,mode:'write',scopes});
   }
   const verified=await verifyIntegration(provider,{token,account:'',accountId:'',username:''});
+  if(module==='email'){
+    const actual=String(verified.meta?.email||verified.label||'').trim().toLowerCase();
+    const already=emailAccountsFromState(s).some(x=>integrationAccountKey(x)===actual&&actual);
+    if(!already)assertConnectionCapacity(s);
+  }
   const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),tokenObtainedAt:Date.now(),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
   await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;return fresh});
   clearConnectionHealth();await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
