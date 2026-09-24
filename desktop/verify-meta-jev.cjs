@@ -14,6 +14,9 @@ const html=read('desktop/renderer/index.html');
 const jev=read('lib/jev-client.js');
 const routing=JSON.parse(read('config/ai-routing.json'));
 const agents=JSON.parse(read('config/agents.json'));
+const leadQualification=read('lib/lead-qualification.js');
+const qualifyHandler=read('server/handlers/qualify.js');
+const leadHandler=read('server/handlers/lead.js');
 
 ok(oauth.includes('META_GRAPH_VERSION="v26.0"'),'Meta OAuth no usa Graph API v26');
 ok(!oauth.includes('v20.0')&&!wa.includes('v20.0')&&!main.includes('v20.0')&&!adaptive.includes('v20.0'),'Quedan endpoints Meta v20 obsoletos');
@@ -29,6 +32,8 @@ ok(routing.decision_model?.use_for?.includes('classification')&&routing.decision
 ok(jev.includes('https://api.typesafe.ai/v1/systemone')&&jev.includes('jev-latest'),'Cliente Jev no apunta al endpoint/modelo esperado');
 ok(jev.includes('TYPESAFE_API_KEY')&&!jev.includes('tsf_'),'La clave Jev debe venir del entorno, no del código');
 ok(wa.includes('createJevDecision')&&wa.includes('requires_human_approval')&&wa.includes('Fail closed'),'WhatsApp no usa Jev como puerta de aprobación segura');
+ok(leadQualification.includes('createJevDecision')&&leadQualification.includes('decisionSource:"jev"'),'Qualify no usa Jev para la clasificación comercial');
+ok(qualifyHandler.includes('await qualifyLead')&&leadHandler.includes('await qualifyLead'),'Los endpoints de leads no comparten el clasificador Jev');
 for(const id of ['guardian','inbox','qualify']){
   const a=agents.agents?.find(x=>x.id===id);
   ok(a?.decision_model==='jev-latest'&&a?.decision_provider==='typesafe','El agente '+id+' no tiene Jev como motor de decisión');
