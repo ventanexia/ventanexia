@@ -3358,22 +3358,29 @@ function emailListItem(m,i,selected){
             if(summary?.ok){
               const stockListing=isStockListingRequest(text);
               const portalSummary={...summary,sourceLabel};
-              const reply=stockListing?stockInventoryTable(portalSummary):shopifyStockTable(portalSummary);
-              const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-                String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
-                Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
-                Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
-              ]);
-              const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
-              let content=reply;
-              if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
-              if(summary.cacheHit){const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));content+='\n\nℹ️ Datos leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** si quieres que vuelva a entrar ahora mismo.';}
-              const purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
-              const stockData=stockListing?stockExportData(portalSummary):null;
-              const usedPolicy=normalizedPurchasePolicy({targetDays:summary.targetDays||policy.targetDays,windowDays:summary.windowDays||policy.windowDays,noHistoryMin:summary.noHistoryMin??policy.noHistoryMin,urgentDays:summary.urgentDays||policy.effectiveUrgentDays});
-              masterMessages.push({role:'assistant',content,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchasePolicy:usedPolicy,scopeKey:activeScopeKey});
-              if(!stockListing)await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,usedPolicy);
-              window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              if(summary.salesLookReliable===false){
+                const content=stockInventoryTable(portalSummary)+'\n\n**No he generado un pedido de compra.** El catálogo y el stock son legibles, pero 0 referencias han podido cruzarse con el histórico de ventas. Presentar todas como “sin histórico” sería incorrecto.';
+                const stockData=stockExportData(portalSummary);
+                masterMessages.push({role:'assistant',content,stockExport:true,stockData,importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
+                window.vnx?.saveWorkspaceItem?.({category:'Stock',name:'Stock-Historico-No-Verificado-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              }else{
+                const reply=stockListing?stockInventoryTable(portalSummary):shopifyStockTable(portalSummary);
+                const urgentDays=Number(summary.urgentDays||policy.effectiveUrgentDays||autoUrgentDaysForPolicy(policy.targetDays));
+                const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
+                  String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),r.noSalesData?'':Number(r.soldWindow||0),
+                  r.noSalesData?'':Number(r.avgDaily||0),r.noSalesData||r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
+                  r.noSalesData?'REVISAR SIN HISTORICO':Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <'+urgentDays+' DIAS':'REPOSICION'
+                ]);
+                const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+                let content=reply;
+                if(summary.cacheHit){const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));content+='\n\nℹ️ Datos leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** si quieres que vuelva a entrar ahora mismo.';}
+                const purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
+                const stockData=stockListing?stockExportData(portalSummary):null;
+                const usedPolicy=normalizedPurchasePolicy({targetDays:summary.targetDays||policy.targetDays,windowDays:summary.windowDays||policy.windowDays,noHistoryMin:summary.noHistoryMin??policy.noHistoryMin,urgentDays:summary.urgentDays||policy.effectiveUrgentDays});
+                masterMessages.push({role:'assistant',content,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchasePolicy:usedPolicy,scopeKey:activeScopeKey});
+                if(!stockListing)await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,usedPolicy);
+                window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              }
             }else{
               const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0),liveChecked=Boolean(summary?.liveWindowChecked),rehydrated=Boolean(summary?.autoRehydrated),portalOpened=Boolean(summary?.portalOpened);
               const reason=summary?.reason==='read_error'
