@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.132",
+  "version": "0.6.133",
   "private": true,
-  "description": "VentaNexIA Desktop · reconstrucción automática de portales conectados + stock dinámico · 0.6.132",
+  "description": "VentaNexIA Desktop · lector Naturdesma ejecutable validado en navegador · 0.6.133",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
