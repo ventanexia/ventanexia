@@ -6,7 +6,7 @@ const CRITICAL_PRELOAD=[
   'listConnections','ordersReview','ordersExportReady','shopifyReplenishmentSummary','portalReplenishmentSummary',
   'erpStatus','erpReplenishmentSummary','stockImportFile','exportData','businessList','businessSaveAll','businessSetActive',
   'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair',
-  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue'
+  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
 ];
 const RUNTIME_FILES=[
   'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs','direction-control.cjs',
@@ -53,8 +53,8 @@ function staticRuntimeChecks(base=__dirname){
   const erpOk=preload.includes('erpStatus:')&&preload.includes('erpReplenishmentSummary:')&&read(base,'master.cjs').includes("ipcMain.handle('erp:replenishment-summary'");
   add('Stock desde ERP',erpOk,erpOk?'Bridge y backend disponibles':'Integración ERP incompleta');
   const directionSrc=read(base,'renderer/direction-control.js');
-  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary');
-  add('Agente privado de Dirección',directionUi,directionUi?'PIN, sesión privada, responsables, SLA y evidencia disponibles':'Módulo privado de Dirección incompleto');
+  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport');
+  add('Agente privado de Dirección',directionUi,directionUi?'PIN, sesión privada, responsables, SLA, informes de empleados y evidencia disponibles':'Módulo privado de Dirección incompleto');
   return checks;
 }
 
