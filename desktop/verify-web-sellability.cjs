@@ -64,6 +64,8 @@ ok(!mobileHtml.includes('<span>Datos reales</span>'),'Móvil no debe afirmar dat
 ok(mobileJs.includes("function privateChatBody")&&mobileJs.includes("activationCode:session.activationCode")&&mobileJs.includes("scope:'agent:core_ai'"),'Móvil: Carla no está autenticada contra licencia');
 ok(!mobileJs.includes("localStorage.setItem('vnx_mobile_saved_session'"),'Móvil no debe persistir la sesión con código de activación');
 ok(mobileJs.includes("localStorage.setItem('vnx_mobile_saved_id'"),'Móvil debería recordar solo el ID cuando el usuario lo pide');
+const mobileViews=[...mobileHtml.matchAll(/data-view="([^"]+)"/g)].map(m=>m[1]);for(const id of new Set(mobileViews))ok(mobileHtml.includes('id="'+id+'"'),'Móvil: navegación apunta a vista inexistente '+id);
+ok(mobileJs.includes('no inventes ninguno')&&mobileJs.includes('no inventes ninguna')&&mobileJs.includes('No inventes datos ni conexiones'),'Móvil: las consultas sin contexto deben fallar de forma segura');
 
 if(errors.length){
   console.error('\nWEB_SELLABILITY_VERIFY_FAIL\n- '+errors.join('\n- '));
