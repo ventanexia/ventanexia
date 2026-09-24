@@ -10,6 +10,8 @@ const {shopifyCall}=require('./shopify-auth.cjs');
 const {listShopifyStores,getShopifyStore}=require('./shopify-stores.cjs');
 let prospecting=null;
 try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
+let orders=null;
+try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,180))}
 
 require('./main.cjs');
 
@@ -40,8 +42,17 @@ async function shopifyGraphqlRead(shop,token,query,variables={}){
   return j.data||{};
 }
 const SHOPIFY_SALES_WINDOW_DAYS=180;
-const SHOPIFY_TARGET_COVER_DAYS=20;
+const SHOPIFY_TARGET_COVER_DAYS=25;
+const STOCK_NO_HISTORY_DEFAULT_MIN=0;
 const SHOPIFY_URGENT_DAYS=5;
+function normalizeStockPolicy(options={}){
+  const td=Math.round(Number(options?.targetDays));
+  const mn=Math.round(Number(options?.noHistoryMin));
+  return {
+    targetDays:Number.isFinite(td)?Math.max(1,Math.min(365,td)):SHOPIFY_TARGET_COVER_DAYS,
+    noHistoryMin:Number.isFinite(mn)?Math.max(0,Math.min(100000,mn)):STOCK_NO_HISTORY_DEFAULT_MIN
+  };
+}
 const SHOPIFY_MAX_ORDERS=5000;
 const SHOPIFY_MAX_PRODUCTS=5000;
 let shopifyReplenishmentCache={key:'',at:0,value:null};
@@ -99,36 +110,50 @@ async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WIND
   return {salesBySku,windowDays,ordersSeen,cancelledSkipped,truncated,since};
 }
 
-function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
   return products.map(p=>{
-    const sold=(p.sku&&salesBySku.get(p.sku))||(p.ean&&salesBySku.get('EAN:'+String(p.ean)))||0;
+    const hasSkuSale=Boolean(p.sku&&salesBySku.has(p.sku)),hasEanSale=Boolean(p.ean&&salesBySku.has('EAN:'+String(p.ean)));
+    const sold=hasSkuSale?Number(salesBySku.get(p.sku)||0):hasEanSale?Number(salesBySku.get('EAN:'+String(p.ean))||0):0;
+    const noSalesData=!hasSkuSale&&!hasEanSale;
     const avgDaily=sold/windowDays;
-    const noSalesData=sold===0;
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
-    const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
+    const targetStock=noSalesData?policy.noHistoryMin:Math.ceil(avgDaily*policy.targetDays);
     const qty=Math.max(0,targetStock-p.stock);
     const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
     return {
       sku:p.sku,ean:p.ean||'',product:p.title,stock:p.stock,
       soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
       daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),
-      qty,urgent,noSalesData
+      qty,urgent,noSalesData,targetStock,
+      replenishmentBasis:noSalesData?(policy.noHistoryMin>0?'minimum':'review'):'history',
+      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays
     };
   });
 }
 
-async function shopifyReplenishmentSummary(integration,{force=false}={}){
+async function shopifyReplenishmentSummary(integration,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
   if(!integration?.shop)throw new Error('Shopify no está conectado.');
-  const key=String(integration.shop||'');
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
+  const key=String(integration.shop||'')+'|'+policy.targetDays+'|'+policy.noHistoryMin;
   if(!force&&shopifyReplenishmentCache.key===key&&shopifyReplenishmentCache.value&&(Date.now()-shopifyReplenishmentCache.at)<10*60*1000)return shopifyReplenishmentCache.value;
   const catalog=await fetchShopifyProducts(integration);
   const products=catalog.rows.filter(p=>p.sku||p.ean).map(p=>({sku:p.sku||'',ean:p.ean||'',title:p.product+(p.variant&&p.variant!=='Default Title'?' · '+p.variant:''),stock:p.stock,price:p.price,status:p.productStatus}));
   const history=await fetchShopifySalesBySku(integration);
-  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays});
-  const value={...history,targetDays:SHOPIFY_TARGET_COVER_DAYS,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
+  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+  const value={...history,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
   shopifyReplenishmentCache={key,at:Date.now(),value};
   return value;
 }
+
+ipcMain.handle('orders:review',async(_e,payload={})=>{
+  if(!orders?.reviewOrders)throw new Error('El agente de Pedidos no está disponible.');
+  return orders.reviewOrders({force:payload?.force!==false,max:payload?.max||250});
+});
+ipcMain.handle('orders:export-ready',async()=>{
+  if(!orders?.exportReadyOrders)throw new Error('El agente de Pedidos no está disponible.');
+  return orders.exportReadyOrders();
+});
 
 ipcMain.handle('shopify:replenishment-summary',async(_e,payload={})=>{
   const s=await readState();
@@ -136,13 +161,14 @@ ipcMain.handle('shopify:replenishment-summary',async(_e,payload={})=>{
   const integration=getShopifyStore(s,requested);
   if(!integration)throw new Error(requested?'La tienda Shopify seleccionada ya no está conectada.':'Conecta Shopify para calcular la previsión de stock.');
   const force=typeof payload==='object'?payload?.force!==false:true;
-  const result=await shopifyReplenishmentSummary(integration,{force});
+  const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
+  const result=await shopifyReplenishmentSummary(integration,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
   return {shop:integration.shopName||integration.shop,shopDomain:integration.shop,sourceLabel:'Shopify · '+(integration.shopName||integration.shop),generatedAt:new Date().toISOString(),...result};
 });
 
-// Reposición y previsión de rotura desde archivo para conexiones sin API
-// (por ejemplo, portales privados como Naturdesma). Usa exactamente la misma
-// ventana de 180 días, objetivo de 20 días y regla urgente <5 días que Shopify.
+// Reposición y previsión de rotura desde archivo o portal privado.
+// Usa una ventana de 180 días, objetivo de cobertura configurable y regla urgente <5 días.
+// Cuando una referencia no tiene histórico, el mínimo también lo decide cada empresa/conexión.
 const {readTableBuffer,extractText}=require('./order-files.cjs');
 function normStockHeader(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findStockColumn(headers,candidates){
@@ -150,15 +176,18 @@ function findStockColumn(headers,candidates){
   for(const c of candidates){const i=normHeaders.findIndex(h=>h===c||h.includes(c));if(i>=0)return i}
   return -1;
 }
-function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
   return products.map(p=>{
-    const sold=Number(p.soldWindow||0),avgDaily=sold/windowDays,noSalesData=sold===0;
+    const sold=Number(p.soldWindow||0),avgDaily=sold/windowDays,noSalesData=Boolean(p.noSalesData??(sold===0));
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
-    const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
+    const targetStock=noSalesData?policy.noHistoryMin:Math.ceil(avgDaily*policy.targetDays);
     const qty=Math.max(0,targetStock-p.stock);
     const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
     return {sku:p.sku,ean:p.ean||'',manufacturer:String(p.manufacturer||'').trim(),product:p.title,stock:p.stock,soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
-      daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData};
+      daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData,targetStock,
+      replenishmentBasis:noSalesData?(policy.noHistoryMin>0?'minimum':'review'):'history',
+      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays};
   });
 }
 ipcMain.handle('document:analyze-select',async()=>{
@@ -201,8 +230,8 @@ ipcMain.handle('stock:import-file',async()=>{
     soldWindow:Number(String(r[iSold]||'0').replace(',','.'))||0
   })).filter(p=>p.title&&(p.sku||p.ean));
   if(!products.length)throw new Error('No encuentro filas válidas con producto y SKU/EAN.');
-  const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
-  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows:replen,productsSeen:products.length,
+  const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,noHistoryMin:STOCK_NO_HISTORY_DEFAULT_MIN});
+  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,noHistoryMin:STOCK_NO_HISTORY_DEFAULT_MIN,rows:replen,productsSeen:products.length,
     urgent:replen.filter(r=>r.urgent),withSales:replen.filter(r=>!r.noSalesData).length,truncated:false,catalogTruncated:false};
 });
 
@@ -673,8 +702,24 @@ const PORTAL_STOCK_COLUMNS={
 };
 const PORTAL_SALES_COLUMNS={
   sku:PORTAL_STOCK_COLUMNS.sku,ean:PORTAL_STOCK_COLUMNS.ean,
-  qty:['ventas 6 meses','ventas 180 dias','unidades vendidas','cantidad vendida','unidades venta','vendido','vendidas','ventas','cantidad']
+  qty:['ventas 6 meses','ventas 180 dias','unidades vendidas','uds vendidas','cantidad vendida','cantidad venta','unidades venta','uds venta','unidades servidas','uds servidas','cantidad servida','unidades facturadas','cantidad facturada','salidas','unidades salida','consumo','vendido','vendidas','ventas','cantidad'],
+  date:['fecha venta','fecha pedido','fecha albaran','fecha factura','fecha movimiento','fecha operacion','fecha','date']
 };
+function portalDate(v){
+  const raw=String(v??'').trim();if(!raw)return null;
+  let m=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\D|$)/);
+  if(m){
+    let y=Number(m[3]);if(y<100)y+=2000;
+    const d=new Date(y,Number(m[2])-1,Number(m[1]));
+    return Number.isNaN(d.getTime())?null:d;
+  }
+  m=raw.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})(?:\D|$)/);
+  if(m){
+    const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    return Number.isNaN(d.getTime())?null:d;
+  }
+  const d=new Date(raw);return Number.isNaN(d.getTime())?null:d;
+}
 function portalHeaderInfo(table,kind='stock'){
   if(!Array.isArray(table)||!table.length)return null;
   let best=null;
@@ -686,9 +731,9 @@ function portalHeaderInfo(table,kind='stock'){
       const score=(stock>=0?5:0)+(sku>=0||ean>=0?4:0)+(name>=0?2:0)+(manufacturer>=0?1:0);
       if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,manufacturer,name,stock,score};
     }else{
-      const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty);
-      const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0);
-      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,qty,score};
+      const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty),date=portalCol(headers,PORTAL_SALES_COLUMNS.date);
+      const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0)+(date>=0?1:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,qty,date,score};
     }
   }
   return best;
@@ -723,25 +768,32 @@ function mergePortalReads(portal,reads=[]){
   }
   return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0),limitReached};
 }
-function extractPortalSalesRows(portalResult){
-  const totals=new Map();let sourceUrl=null,structuredTables=0;
+function extractPortalSalesRows(portalResult,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+  const totals=new Map();let sourceUrl=null,structuredTables=0,rowsSeen=0,rowsInWindow=0,dateFilteredTables=0;
+  const cutoff=Date.now()-Math.max(1,Number(windowDays)||SHOPIFY_SALES_WINDOW_DAYS)*86400000;
   for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
     if(!Array.isArray(table)||table.length<2)continue;
     const info=portalHeaderInfo(table,'sales');if(!info)continue;structuredTables++;
+    if(info.date>=0)dateFilteredTables++;
     for(const row of table.slice(info.rowIndex+1)){
       const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'';
-      if(!sku&&!ean)continue;
-      const qty=portalNumber(row[info.qty]);if(qty===null)continue;
+      if(!sku&&!ean)continue;rowsSeen++;
+      if(info.date>=0){
+        const d=portalDate(row[info.date]);
+        if(d&&d.getTime()<cutoff)continue;
+      }
+      const qty=portalNumber(row[info.qty]);if(qty===null)continue;rowsInWindow++;
       if(!sourceUrl)sourceUrl=page.url||null;
       if(sku)totals.set(sku,(totals.get(sku)||0)+qty);
       if(ean)totals.set('EAN:'+ean,(totals.get('EAN:'+ean)||0)+qty);
     }
   }
-  return {totals,sourceUrl,structuredTables};
+  return {totals,sourceUrl,structuredTables,rowsSeen,rowsInWindow,dateFilteredTables,windowDays};
 }
-async function portalReplenishmentSummary(portal,{force=false}={}){
+async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
   if(!portal)throw new Error('Conexión privada no encontrada.');
-  const cacheKey=String(portal.id||portal.url||portal.name||'portal');
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
+  const cacheKey=String(portal.id||portal.url||portal.name||'portal')+'|'+policy.targetDays+'|'+policy.noHistoryMin;
   const cached=portalReplenishmentCache.get(cacheKey);
   if(!force&&cached?.value&&(Date.now()-cached.at)<PORTAL_REPLENISHMENT_CACHE_MS){
     return {...cached.value,cacheHit:true,cacheAgeMs:Date.now()-cached.at};
@@ -802,24 +854,28 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
   for(const candidate of salesCandidates){
     const key=String(candidate.url||'__BASE__');if(seenSalesStarts.has(key))continue;seenSalesStarts.add(key);
     try{
-      const scan=await readPortal(portal,'ventas historico historial movimientos pedidos productos referencias ultimos 6 meses 180 dias',candidate.url,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:candidate.startFromBase});
+      const scan=await readPortal(portal,'ventas historico historial movimientos pedidos albaranes facturas salidas consumo productos referencias unidades vendidas cantidad servida ultimos 6 meses 180 dias',candidate.url,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:candidate.startFromBase});
       if(scan.status==='connected')salesReads.push(scan);
     }catch{}
   }
   const salesRead=mergePortalReads(portal,salesReads);
-  const salesExtract=extractPortalSalesRows(salesRead),sales=salesExtract.totals;
+  const salesExtract=extractPortalSalesRows(salesRead,{windowDays:SHOPIFY_SALES_WINDOW_DAYS}),sales=salesExtract.totals;
   if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
   const soldFor=p=>{
     if(p.sku&&sales.has(p.sku))return sales.get(p.sku);
     if(p.ean&&sales.has('EAN:'+p.ean))return sales.get('EAN:'+p.ean);
     return 0;
   };
-  const merged=products.map(p=>({...p,soldWindow:soldFor(p)}));
-  const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
+  const merged=products.map(p=>{
+    const skuHit=Boolean(p.sku&&sales.has(p.sku)),eanHit=Boolean(p.ean&&sales.has('EAN:'+p.ean));
+    return {...p,soldWindow:soldFor(p),noSalesData:!skuHit&&!eanHit};
+  });
+  const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
   const value={
-    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows,
+    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,rows,
     productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
-    structuredSales:sales.size>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
+    structuredSales:salesExtract.structuredTables>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
+    salesRowsSeen:salesExtract.rowsSeen||0,salesRowsInWindow:salesExtract.rowsInWindow||0,salesDateFilteredTables:salesExtract.dateFilteredTables||0,
     generatedAt:new Date().toISOString(),
     pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
     tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
@@ -832,8 +888,9 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
 ipcMain.handle('portal:replenishment-summary',async(_e,payload)=>{
   const id=typeof payload==='string'?payload:payload?.id;
   const force=typeof payload==='object'&&Boolean(payload?.force);
+  const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
   const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Conexión privada no encontrada.');
-  return portalReplenishmentSummary(portal,{force});
+  return portalReplenishmentSummary(portal,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
 });
 
 
@@ -1836,6 +1893,10 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       if(direct)return {reply:direct,source:'desktop-support-email',route:'agent:customer_service'};
     }
   }else if(scope?.type==='agent'&&scope?.key==='orders'){
+    if(orders?.handleChat){
+      const handled=await orders.handleChat(question);
+      if(handled)return handled;
+    }
     const emailIntegrations=emailAccountsForState(s);
     const orderMail=await collectGmailContextsFast(emailIntegrations,question);
     localContext.push(...orderMail.files);
@@ -1895,3 +1956,4 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
 });
 
 if(prospecting)app.whenReady().then(()=>prospecting.startScheduler());
+if(orders)app.whenReady().then(()=>orders.startScheduler());
