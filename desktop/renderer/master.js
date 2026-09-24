@@ -2940,15 +2940,30 @@ function emailListItem(m,i,selected){
     return [...new Set(keys)];
   }
   function stockPolicyStore(){try{const x=JSON.parse(localStorage.getItem(STOCK_POLICY_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch{return {}}}
+  function autoUrgentDaysForPolicy(targetDays){return Math.max(3,Math.min(15,Math.round(Number(targetDays||25)*0.3)))}
   function stockPolicyForSource(src={},text=''){
-    const store=stockPolicyStore();let out={targetDays:25,noHistoryMin:0};
-    for(const k of stockPolicyKeys(src)){if(store[k]){out={targetDays:Number(store[k].targetDays)||25,noHistoryMin:Number(store[k].noHistoryMin)||0};break}}
+    const store=stockPolicyStore();let out={targetDays:25,noHistoryMin:0,windowDays:180,urgentDays:0};
+    for(const k of stockPolicyKeys(src)){
+      if(store[k]){
+        out={targetDays:Number(store[k].targetDays)||25,noHistoryMin:Number(store[k].noHistoryMin)||0,windowDays:Number(store[k].windowDays)||180,urgentDays:Number(store[k].urgentDays)||0};
+        break;
+      }
+    }
     out.targetDays=Math.max(1,Math.min(365,Math.round(Number(out.targetDays)||25)));
     out.noHistoryMin=Math.max(0,Math.min(100000,Math.round(Number(out.noHistoryMin)||0)));
+    out.windowDays=Math.max(30,Math.min(730,Math.round(Number(out.windowDays)||180)));
+    out.urgentDays=Math.max(0,Math.min(90,Math.round(Number(out.urgentDays)||0)));
     const q=stockPolicyNorm(text),d=q.match(/(?:para|durante|cobertura(?:\s+de)?|objetivo(?:\s+de)?)\s*(\d{1,3})\s*dias?/);
     if(d)out.targetDays=Math.max(1,Math.min(365,Number(d[1])));
     const m=q.match(/(?:stock\s+)?minim\w*(?:\s+sin\s+historico)?[^0-9]{0,16}(\d{1,6})/);
     if(m)out.noHistoryMin=Math.max(0,Math.min(100000,Number(m[1])));
+    const months=q.match(/(?:ventas|historico|rotacion|periodo)[^0-9]{0,20}(3|6|12)\s*mes/);
+    if(months)out.windowDays=Number(months[1])===3?90:Number(months[1])===12?365:180;
+    const wd=q.match(/(?:ultimos|periodo(?:\s+de)?|ventas(?:\s+de)?)\s*(\d{2,3})\s*dias/);
+    if(wd)out.windowDays=Math.max(30,Math.min(730,Number(wd[1])));
+    const urgent=q.match(/(?:urgente|rotura|aviso)[^0-9]{0,16}(\d{1,2})\s*dias/);
+    if(urgent)out.urgentDays=Math.max(1,Math.min(90,Number(urgent[1])));
+    out.effectiveUrgentDays=out.urgentDays||autoUrgentDaysForPolicy(out.targetDays);
     return out;
   }
   function realManufacturer(row={}){
