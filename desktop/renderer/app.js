@@ -52,8 +52,31 @@ function openTab(name){
   }
 }
 function bindTabs(){
-  $$('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
-  $$('[data-tab-jump]').forEach(b=>b.onclick=()=>openTab(b.dataset.tabJump));
+  $('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
+  $('[data-tab-jump]').forEach(b=>b.onclick=()=>openTab(b.dataset.tabJump));
+
+  // Navegación lateral robusta: los agentes no son tabs independientes,
+  // abren la plantilla de Inicio con el agente correspondiente.
+  document.addEventListener('click',event=>{
+    const agentBtn=event.target?.closest?.('[data-agent-home]');
+    if(agentBtn){
+      event.preventDefault();
+      const key=agentBtn.dataset.agentHome;
+      if(window.vnxAgentHome?.open)window.vnxAgentHome.open(key);
+      else{
+        try{localStorage.setItem('vnx_agent_home_key',key)}catch{}
+        openTab('home');
+        setTimeout(()=>window.vnxAgentHome?.open?.(key),60);
+      }
+      return;
+    }
+    const group=event.target?.closest?.('.vnx-side-group-title');
+    if(group){
+      event.preventDefault();
+      if(window.vnxAgentHome?.open)window.vnxAgentHome.open('prospecting');
+      else{try{localStorage.setItem('vnx_agent_home_key','prospecting')}catch{};openTab('home')}
+    }
+  },true);
 }
 function renderLicense(){
   const l=state.license||{};
