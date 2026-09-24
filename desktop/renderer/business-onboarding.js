@@ -10,9 +10,10 @@
   function activeProfile(){return state.active||state.profiles.find(x=>x.id===state.activeProfileId)||null}
   function activeName(){const p=activeProfile();return p?.tradeName||p?.legalName||'Empresa activa'}
   function updateHeader(){
-    const name=$('#vnxAhCompanyName'),hidden=$('#homeCompanyName');
+    const name=$('#vnxAhCompanyName'),hidden=$('#homeCompanyName'),settings=$('#settingsActiveBusiness');
     if(name)name.textContent=activeName();
     if(hidden)hidden.textContent=activeName();
+    if(settings)settings.textContent=state.profiles?.length?activeName():'Sin configurar';
   }
   async function refresh(){
     if(!window.vnx?.businessList)return state;
@@ -173,6 +174,7 @@
       btn.title='Empresa activa';
       btn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();toggleCompanyMenu()},true);
     }
+    const manage=$('#manageBusinessProfilesBtn');if(manage)manage.onclick=()=>openWizard({mode:'manage'});
     window.addEventListener('vnx-open-business-onboarding',()=>openWizard({mode:'manage'}));
     if(state.needsOnboarding)setTimeout(()=>openWizard({mode:'first'}),450);
   }
