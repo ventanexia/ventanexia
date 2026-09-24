@@ -951,6 +951,16 @@ ipcMain.handle('direction:update-cv',async(_e,payload={})=>{
   return employee;
 });
 
+ipcMain.handle('direction:compare-team-role',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  return direction.compareTeamToRole(d,{
+    businessId,
+    roleTarget:String(payload.roleTarget||'').trim().slice(0,180),
+    requirements:Array.isArray(payload.requirements)?payload.requirements:[]
+  });
+});
+
 ipcMain.handle('direction:add-employee-observation',async(_e,payload={})=>{
   directionRequireSession(payload);
   let event=null,employeeName='';
