@@ -13,7 +13,6 @@ const AGENT_CATALOG=[
   {key:'web_ecommerce',icon:'🌐',name:'Web y tienda',entitlement:'web_ecommerce',requires:'web'},
   {key:'administration',icon:'🗂️',name:'Administración y agenda',entitlement:'administracion',requires:null},
   {key:'reports',icon:'📊',name:'Informes y resultados',entitlement:'informes',requires:null},
-  {key:'direction',icon:'🔒',name:'Dirección',entitlement:'direction',requires:null},
   {key:'automation',icon:'⚙️',name:'Tareas automáticas',entitlement:'automatizacion',requires:null}
 ];
 
@@ -105,7 +104,6 @@ function moduleEntitlement(module=''){
   if(m==='social')return 'redes';
   if(m==='prospecting')return 'buscador';
   if(m==='crm')return 'crm';
-  if(m==='direction')return 'direction';
   if(m==='shopify')return 'pedidos';
   if(m==='wordpress'||m==='github_vercel'||m==='web_ecommerce')return 'web_ecommerce';
   return m||null;
