@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.147",
+  "version": "0.6.148",
   "private": true,
-  "description": "VentaNexIA Desktop · Agente Dirección privado con PIN, SLA y recuperación IA · 0.6.147",
+  "description": "VentaNexIA Desktop · Dirección privada con informes de empleados y desviaciones operativas · 0.6.148",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
