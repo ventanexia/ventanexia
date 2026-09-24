@@ -12,6 +12,8 @@ const {shopifyCall,requestOwnedToken}=require('./shopify-auth.cjs');
 const {listShopifyStores,getShopifyStore,hasShopifyStore,upsertShopifyStore,setActiveShopifyStore,removeShopifyStore,publicShopifyStore}=require('./shopify-stores.cjs');
 const calendar=require('./calendar.cjs');
 const externalAgents=require('./external-agent.cjs');
+const erpConnectors=require('./erp.cjs');
+const {staticRuntimeChecks,sanitizeState}=require('./runtime-health.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
@@ -957,11 +959,56 @@ ipcMain.handle('update:check',async()=>{
 });
 ipcMain.handle('app:open-external',async(_e,url)=>{const u=String(url||'').trim();if(!/^https:\/\//i.test(u))throw new Error('Enlace no válido');await shell.openExternal(u);return true});
 
+async function rendererRuntimeHealth(){
+  const wins=BrowserWindow.getAllWindows().filter(w=>{
+    try{return !w.isDestroyed()&&String(w.webContents?.getURL?.()||'').toLowerCase().includes('renderer/index.html')}catch{return false}
+  });
+  if(!wins.length)return {ok:true,detail:'Interfaz no abierta; se comprobará al abrirla'};
+  const expected=['email','orders','web_ecommerce','crm','prospecting','content','social','campaigns','administration','agenda','reports','automation'];
+  const required=['vnxAhSearchBtn','vnxAhPrimary','vnxAhCompanyBtn','vnxAhPreviewActions','chatConnectionSelect'];
+  const probe='(()=>{const expected='+JSON.stringify(expected)+',required='+JSON.stringify(required)+';const missingAgents=expected.filter(k=>!document.querySelector(\'[data-agent-home="\'+k+\'"]\'));const missingIds=required.filter(id=>!document.getElementById(id));return {ok:missingAgents.length===0&&missingIds.length===0&&Boolean(window.vnxAgentHome)&&Boolean(window.vnx),missingAgents,missingIds,agentApi:Boolean(window.vnxAgentHome),bridge:Boolean(window.vnx)}})()';
+  for(const win of wins){
+    try{
+      const result=await withHealthTimeout(win.webContents.executeJavaScript(probe,true),6000);
+      if(!result?.ok)return {ok:false,detail:'Faltan '+([...(result?.missingAgents||[]),...(result?.missingIds||[])].join(', ')||'APIs de interfaz')};
+    }catch(e){return {ok:false,detail:'No se pudo verificar la interfaz: '+String(e?.message||e).slice(0,180)}}
+  }
+  return {ok:true,detail:expected.length+' módulos y '+required.length+' controles críticos visibles'};
+}
+async function repairRendererState(){
+  let repaired=0;
+  const keys=['vnx_home_selected_source_v1','vnx_stock_policy_by_source_v1','vnx_prospect_profile_by_source_v1','vnx_master_chat_state_v1'];
+  const script='(()=>{let n=0;for(const k of '+JSON.stringify(keys)+'){const raw=localStorage.getItem(k);if(!raw)continue;try{JSON.parse(raw)}catch{localStorage.removeItem(k);n++}}return n})()';
+  for(const win of BrowserWindow.getAllWindows()){
+    try{
+      const url=String(win.webContents?.getURL?.()||'').toLowerCase();
+      if(!url.includes('renderer/index.html'))continue;
+      const n=await win.webContents.executeJavaScript(script,true);repaired+=Number(n||0);
+      win.webContents.reloadIgnoringCache();
+    }catch{}
+  }
+  return repaired;
+}
+async function erpRuntimeHealth(state){
+  const p=state?.secret?.ordersErp?.program;
+  if(!p)return null;
+  const def=erpConnectors.PROGRAMS?.[p.id];
+  if(!def)return {name:'Programa de gestión',ok:false,detail:'La configuración apunta a un conector que ya no existe'};
+  if(def.kind==='files')return {name:'Programa de gestión · '+def.name,ok:true,detail:'Conector por archivos configurado'};
+  if(typeof def.make!=='function')return {name:'Programa de gestión · '+def.name,ok:false,detail:'El conector no puede inicializarse'};
+  try{
+    const adapter=def.make(p.cfg||{},{fetch:(...args)=>fetch(...args)});
+    if(typeof adapter.test==='function')await withHealthTimeout(adapter.test(),10000);
+    return {name:'Programa de gestión · '+def.name,ok:true,detail:def.caps?.salesHistory?'Conexión verificada · histórico disponible para Stock y Compras':'Conexión verificada · histórico de stock no disponible por API'};
+  }catch(e){return {name:'Programa de gestión · '+def.name,ok:false,detail:String(e?.message||e).slice(0,180)}}
+}
 async function runHealthCheck(){
   const checks=[];
   const add=(name,ok,detail='')=>checks.push({name,ok:Boolean(ok),detail:String(detail||'').slice(0,500)});
   let state=null;
   try{state=await readState();add('Configuración de VentaNexIA',true)}catch(e){add('Configuración de VentaNexIA',false,e.message)}
+  try{for(const x of staticRuntimeChecks(__dirname))add('Integridad · '+x.name,x.ok,x.detail)}catch(e){add('Integridad interna',false,e.message)}
+  try{const ui=await rendererRuntimeHealth();add('Interfaz y menús',ui.ok,ui.detail)}catch(e){add('Interfaz y menús',false,e.message)}
   try{const st=await fs.stat(storeFile());add('Archivo de configuración',st.isFile(),'Disponible')}catch{add('Archivo de configuración',false,'No se encuentra o no se puede abrir')}
   try{const probe=path.join(app.getPath('userData'),'.vnx-write-test');await fs.writeFile(probe,'ok','utf8');await fs.unlink(probe);add('Permiso para guardar cambios',true,'Correcto')}catch(e){add('Permiso para guardar cambios',false,'Windows está bloqueando la carpeta de VentaNexIA')}
   const clockDrift=Math.abs(Date.now()-new Date().getTime());add('Fecha y hora del equipo',clockDrift<60000,'Correctas');
@@ -1000,6 +1047,10 @@ async function runHealthCheck(){
   for(const p of portals.slice(0,10)){
     add('Portal · '+String(p.name||'sin nombre'),p.lastStatus!=='error',p.lastStatus||'Pendiente de comprobar');
   }
+  for(const store of listShopifyStores(state||{})){
+    try{const h=await liveShopifyHealth(store,{force:true});add('Shopify · '+String(store.shopName||store.shop),h.connected,h.reason||h.state)}catch(e){add('Shopify · '+String(store.shopName||store.shop),false,e.message)}
+  }
+  try{const erpHealth=await erpRuntimeHealth(state);if(erpHealth)add(erpHealth.name,erpHealth.ok,erpHealth.detail)}catch(e){add('Programa de gestión',false,e.message)}
   const ints=state?.secret?.integrations||{};
   for(const [key,x] of Object.entries(ints).slice(0,15)){
     let ok=Boolean(x.token||key==='shopify'),detail=x.connectedAt?'Conectada':'Sin fecha de conexión';
@@ -1034,14 +1085,10 @@ async function autoRepair(){
   const before=await runHealthCheck();
   const actions=[];
   try{
-    const s=await readState();
-    s.permissions=s.permissions||{folders:[]};
-    if(!Array.isArray(s.permissions.folders))s.permissions.folders=[];
-    s.activity=Array.isArray(s.activity)?s.activity:[];
-    s.license=s.license||{};
-    s.secret=s.secret||{};
-    await writeState(s);
-    actions.push('Configuración local revisada.');
+    const current=await readState(),fixed=sanitizeState(current);
+    if(fixed.changed){await writeState(fixed.state);actions.push(...fixed.actions)}
+    else actions.push('Estructura de configuración local correcta.');
+    clearConnectionHealth();
   }catch{actions.push('No se pudo reparar la configuración local.')}
   try{
     const s=await readState();
@@ -1062,6 +1109,10 @@ async function autoRepair(){
     if(valid.length!==(s.permissions?.folders||[]).length){
       s.permissions.folders=valid;await writeState(s);actions.push('Se quitaron accesos a carpetas que ya no existen.');
     }
+  }catch{}
+  try{
+    const ui=await rendererRuntimeHealth();
+    if(!ui.ok){const cleaned=await repairRendererState();actions.push('Se recargó la interfaz para restaurar menús y controles'+(cleaned?' y se limpiaron '+cleaned+' estados locales dañados':'')+'.')}
   }catch{}
   const after=await runHealthCheck();
   let escalation=null;
