@@ -219,8 +219,8 @@ ipcMain.handle('stock:import-file',async()=>{
     soldWindow:Number(String(r[iSold]||'0').replace(',','.'))||0
   })).filter(p=>p.title&&(p.sku||p.ean));
   if(!products.length)throw new Error('No encuentro filas válidas con producto y SKU/EAN.');
-  const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
-  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows:replen,productsSeen:products.length,
+  const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,noHistoryMin:STOCK_NO_HISTORY_DEFAULT_MIN});
+  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,noHistoryMin:STOCK_NO_HISTORY_DEFAULT_MIN,rows:replen,productsSeen:products.length,
     urgent:replen.filter(r=>r.urgent),withSales:replen.filter(r=>!r.noSalesData).length,truncated:false,catalogTruncated:false};
 });
 
@@ -854,8 +854,9 @@ async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY
 ipcMain.handle('portal:replenishment-summary',async(_e,payload)=>{
   const id=typeof payload==='string'?payload:payload?.id;
   const force=typeof payload==='object'&&Boolean(payload?.force);
+  const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
   const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Conexión privada no encontrada.');
-  return portalReplenishmentSummary(portal,{force});
+  return portalReplenishmentSummary(portal,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
 });
 
 
