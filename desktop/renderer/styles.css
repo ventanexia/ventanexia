@@ -2078,3 +2078,32 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-ah-company-list>button{display:grid;grid-template-columns:14px 1fr 16px;gap:8px;align-items:center;text-align:left;border:1px solid #194b68;background:#08243a;color:#e9f7ff;border-radius:9px;padding:9px;cursor:pointer}
 .vnx-ah-company-list>button>span{color:#2bd08e}.vnx-ah-company-list>button p{margin:0;min-width:0}.vnx-ah-company-list>button b{display:block;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vnx-ah-company-list>button small{display:block;color:#84a8bb;font-size:8.5px;margin-top:2px}.vnx-ah-company-list>button i{opacity:0;color:#46e7a7;font-style:normal}.vnx-ah-company-list>button.active{border-color:#20bde5;background:#0a3048}.vnx-ah-company-list>button.active i{opacity:1}
 .vnx-ah-company-manage{width:100%;border:1px solid #245977;background:#0a2942;color:#d9edf8;border-radius:8px;padding:9px;cursor:pointer;font-size:10px}
+
+
+/* 0.6.140 · política de reposición por empresa */
+.vnx-ah-stock-policy{
+  border:1px solid #276484;
+  border-radius:12px;
+  background:linear-gradient(145deg,#071f31,#0a2a40);
+  padding:11px;
+  gap:10px;
+  margin-top:9px;
+}
+.vnx-ah-stock-policy-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.vnx-ah-stock-policy-head>div{display:grid;gap:2px}
+.vnx-ah-stock-policy-head b{font-size:11px;color:#f0fbff}
+.vnx-ah-stock-policy-head small{font-size:8.5px;color:#7fa8bc}
+.vnx-ah-stock-policy-head>span{font-size:8.5px;color:#54d7f5;border:1px solid #1b617f;border-radius:999px;padding:4px 8px;max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vnx-ah-stock-policy-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.vnx-ah-stock-policy-grid label{display:grid;gap:5px}
+.vnx-ah-stock-policy-grid small{font-size:8.5px;color:#a5c8d8;font-weight:800}
+.vnx-ah-stock-policy-grid input{
+  min-height:38px;border:1px solid #256184;border-radius:8px;background:#061b2c;color:#f4fbff;
+  padding:0 10px;font-weight:800;outline:none
+}
+.vnx-ah-stock-policy-note{display:grid;gap:3px;border:1px solid #194b66;border-radius:8px;padding:8px;background:#061a29}
+.vnx-ah-stock-policy-note b{font-size:9px;color:#dff8ff}
+.vnx-ah-stock-policy-note span{font-size:8.5px;line-height:1.4;color:#7fa8bc}
+#vnxAhSaveStockPolicy{min-height:36px;border:1px solid #1687b0;border-radius:8px;background:#0b5f85;color:#fff;font-weight:900;cursor:pointer}
+#vnxAhSaveStockPolicy:disabled{opacity:.42;cursor:not-allowed}
+@media(max-width:780px){.vnx-ah-stock-policy-grid{grid-template-columns:1fr}}
