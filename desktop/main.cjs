@@ -14,6 +14,7 @@ const calendar=require('./calendar.cjs');
 const externalAgents=require('./external-agent.cjs');
 const erpConnectors=require('./erp.cjs');
 const {staticRuntimeChecks,sanitizeState}=require('./runtime-health.cjs');
+const direction=require('./direction-control.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const META_GRAPH_BASE='https://graph.facebook.com/v26.0';
@@ -821,6 +822,90 @@ ipcMain.handle('agenda:today',async()=>{
 });
 ipcMain.handle('agenda:upcoming',async(_e,minutes=180)=>{
   const s=await readState();assertModuleIncluded(s.license,'agenda');return calendar.upcoming(minutes);
+});
+
+function directionBusinessId(state,payload={}){
+  return String(payload.businessId||state?.secret?.activeBusinessProfileId||'').trim().slice(0,120);
+}
+ipcMain.handle('direction:summary',async(_e,payload={})=>{
+  const s=await readState(),d=direction.ensureDirection(s);
+  return direction.summarize(d,{businessId:directionBusinessId(s,payload),now:new Date().toISOString()});
+});
+ipcMain.handle('direction:employees',async(_e,payload={})=>{
+  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  return d.employees.filter(x=>!businessId||x.businessId===businessId);
+});
+ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
+  let saved=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+    saved=direction.addOrUpdateEmployee(d,{...payload,businessId:payload.businessId||businessId});
+    return s;
+  });
+  await audit('direction.employee_saved',(saved?.name||'Empleado')+' · '+(saved?.role||'sin rol'));
+  return saved;
+});
+ipcMain.handle('direction:create-task',async(_e,payload={})=>{
+  let task=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+    task=direction.addTask(d,{...payload,businessId:payload.businessId||businessId});
+    return s;
+  });
+  await audit('direction.task_assigned',(task?.assigneeName||task?.assigneeId||'Responsable')+' · '+String(task?.title||'').slice(0,160));
+  return task;
+});
+ipcMain.handle('direction:update-task',async(_e,payload={})=>{
+  let task=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s);
+    task=direction.updateTask(d,String(payload.id||''),payload.patch||{});
+    return s;
+  });
+  await audit('direction.task_updated',String(task?.title||'').slice(0,160)+' · '+(task?.status||''));
+  return task;
+});
+ipcMain.handle('direction:add-event',async(_e,payload={})=>{
+  let event=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s);
+    event=direction.recordEvent(d,String(payload.taskId||''),payload.event||{});
+    return s;
+  });
+  return event;
+});
+ipcMain.handle('direction:resolve-task',async(_e,payload={})=>{
+  let task=null;
+  const actor=payload.actor==='ai'?'ai':'human';
+  await updateState(s=>{
+    const d=direction.ensureDirection(s);
+    task=direction.resolveTask(d,String(payload.taskId||''),{actor,detail:payload.detail||'',outcome:payload.outcome||'',evidence:payload.evidence||''});
+    return s;
+  });
+  await audit(actor==='ai'?'direction.task_resolved_by_ai':'direction.task_resolved_by_human',(task?.assigneeName||'Responsable')+' · '+String(task?.title||'').slice(0,160));
+  return task;
+});
+ipcMain.handle('direction:settings',async(_e,payload=null)=>{
+  if(payload&&typeof payload==='object'){
+    let settings=null;
+    await updateState(s=>{
+      const d=direction.ensureDirection(s);
+      d.settings={
+        ...d.settings,
+        defaultSlaMinutes:Math.max(1,Math.min(525600,Number(payload.defaultSlaMinutes)||d.settings.defaultSlaMinutes||480)),
+        aiTakeoverGraceMinutes:Math.max(0,Math.min(43200,Number(payload.aiTakeoverGraceMinutes)||0)),
+        aiTakeoverEnabled:Boolean(payload.aiTakeoverEnabled)
+      };
+      settings={...d.settings};return s;
+    });
+    await audit('direction.settings_updated','Control Operativo de Dirección actualizado');
+    return settings;
+  }
+  const s=await readState(),d=direction.ensureDirection(s);return {...d.settings};
+});
+ipcMain.handle('direction:ai-queue',async(_e,payload={})=>{
+  const s=await readState(),d=direction.ensureDirection(s);
+  return direction.summarize(d,{businessId:directionBusinessId(s,payload)}).aiTakeoverQueue;
 });
 
 ipcMain.handle('integration:disconnect',async(_e,module)=>{
