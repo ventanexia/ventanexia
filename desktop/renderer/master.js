@@ -12,7 +12,7 @@
     return (list||[]).slice(-50).map(m=>({
       role:m.role,content:m.content,images:Array.isArray(m.images)?m.images.slice(0,8):[],
       emailActions:m.emailActions||null,emailActionGroups:Array.isArray(m.emailActionGroups)?m.emailActionGroups.slice(0,12):[],handoff:m.handoff||null,secretaryActions:Boolean(m.secretaryActions),
-      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,securityCard:m.securityCard||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,purchaseAnalyzedAt:m.purchaseAnalyzedAt||null,stockExport:Boolean(m.stockExport),stockData:m.stockData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
+      handoffInternal:Boolean(m.handoffInternal),scopeKey:m.scopeKey||null,securityCard:m.securityCard||null,purchaseExport:Boolean(m.purchaseExport),purchaseData:m.purchaseData||null,purchaseAnalyzedAt:m.purchaseAnalyzedAt||null,purchasePolicy:m.purchasePolicy||null,stockExport:Boolean(m.stockExport),stockData:m.stockData||null,importStockPrompt:Boolean(m.importStockPrompt),stockSourceLabel:m.stockSourceLabel||null
     }));
   }
   function persistMasterChatState(){
@@ -2497,7 +2497,7 @@ function emailListItem(m,i,selected){
     const date=msg.purchaseAnalyzedAt?purchaseAnalysisDateLabel(msg.purchaseAnalyzedAt):'Ahora';
     const tableRows=ordered.map(row=>{
       const manufacturer=String(get(row,'fabricante')||'—'),sku=String(get(row,'sku')||'—'),ean=String(get(row,'ean')||'—'),product=String(get(row,'producto')||'Producto');
-      const stock=get(row,'stock_actual'),sold=get(row,'ventas_180_dias'),coverage=get(row,'dias_cobertura'),qty=get(row,'cantidad_a_pedir'),state=String(get(row,'estado')||'REVISAR');
+      const stock=get(row,'stock_actual'),sold=get(row,'ventas_periodo')!==''?get(row,'ventas_periodo'):get(row,'ventas_180_dias'),coverage=get(row,'dias_cobertura'),qty=get(row,'cantidad_a_pedir'),state=String(get(row,'estado')||'REVISAR');
       const cls=/SIN STOCK/i.test(state)?'danger':/ROTURA|REVISAR/i.test(state)?'warning':'ok';
       const qtyText=typeof qty==='number'||/^\d+(?:[.,]\d+)?$/.test(String(qty))?fmt(qty):escM(qty||'—');
       return '<tr><td>'+escM(manufacturer)+'</td><td>'+escM(sku)+'</td><td>'+escM(ean)+'</td><td><strong>'+escM(product)+'</strong></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
@@ -3065,21 +3065,34 @@ function emailListItem(m,i,selected){
     const context=/\b(compra|compras|reponer|reposici[oó]n|proveedor|stock)\b/.test(q);
     return direct||context||q==='pedido';
   }
-  async function latestPurchaseAnalysis(scopeKey,targetDays=25){
+  function normalizedPurchasePolicy(policy={}){
+    const targetDays=Math.max(1,Math.min(365,Math.round(Number(policy?.targetDays)||25)));
+    const windowDays=Math.max(30,Math.min(730,Math.round(Number(policy?.windowDays)||180)));
+    const noHistoryMin=Math.max(0,Math.min(100000,Math.round(Number(policy?.noHistoryMin)||0)));
+    const urgentDays=Math.max(1,Math.min(90,Math.round(Number(policy?.urgentDays)||autoUrgentDaysForPolicy(targetDays))));
+    return {targetDays,windowDays,noHistoryMin,urgentDays};
+  }
+  function samePurchasePolicy(a={},b={}){
+    const x=normalizedPurchasePolicy(a),y=normalizedPurchasePolicy(b);
+    return x.targetDays===y.targetDays&&x.windowDays===y.windowDays&&x.noHistoryMin===y.noHistoryMin&&x.urgentDays===y.urgentDays;
+  }
+  async function latestPurchaseAnalysis(scopeKey,policy={}){
+    const wanted=normalizedPurchasePolicy(policy);
     for(let i=masterMessages.length-1;i>=0;i--){
       const m=masterMessages[i];
-      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&Number(m?.purchaseTargetDays)===Number(targetDays)&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
+      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&m?.purchaseData&&Array.isArray(m.purchaseData.rows)&&samePurchasePolicy(m.purchasePolicy||{},wanted))return m;
     }
     try{
       const saved=await window.vnx?.purchaseAnalysisGet?.(scopeKey);
-      if(Number(saved?.targetDays)===Number(targetDays)&&saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)){
-        return {role:'assistant',scopeKey,purchaseExport:true,purchaseTargetDays:targetDays,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
+      const savedPolicy={targetDays:saved?.targetDays,windowDays:saved?.windowDays,noHistoryMin:saved?.noHistoryMin,urgentDays:saved?.urgentDays};
+      if(saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)&&saved?.windowDays&&saved?.urgentDays&&samePurchasePolicy(savedPolicy,wanted)){
+        return {role:'assistant',scopeKey,purchaseExport:true,purchasePolicy:wanted,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
       }
     }catch{}
     return null;
   }
-  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString(),targetDays=25){
-    const payload={scopeKey,purchaseData,sourceLabel,analyzedAt,targetDays};
+  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString(),policy={}){
+    const p=normalizedPurchasePolicy(policy),payload={scopeKey,purchaseData,sourceLabel,analyzedAt,...p};
     try{await window.vnx?.purchaseAnalysisSet?.(payload)}catch{}
     return payload;
   }
@@ -3088,10 +3101,9 @@ function emailListItem(m,i,selected){
     const d=new Date(value);if(Number.isNaN(d.getTime()))return 'fecha no disponible';
     return d.toLocaleString('es-ES',{dateStyle:'short',timeStyle:'short'});
   }
-  function purchaseTableFromData(data={},sourceLabel='Fuente seleccionada',analyzedAt=null,targetDays=25){
-    const headers=Array.isArray(data.headers)?data.headers:[];
-    const rows=Array.isArray(data.rows)?data.rows:[];
-    const idx=n=>headers.indexOf(n),at=(r,n)=>{const i=idx(n);return i>=0?r[i]:''};
+  function purchaseTableFromData(data={},sourceLabel='Fuente seleccionada',analyzedAt=null,policy={}){
+    const p=normalizedPurchasePolicy(policy),headers=Array.isArray(data.headers)?data.headers:[],rows=Array.isArray(data.rows)?data.rows:[];
+    const idx=n=>headers.indexOf(n),at=(r,n)=>{const i=idx(n);return i>=0?r[i]:''},atAny=(r,names)=>{for(const n of names){const v=at(r,n);if(v!==''&&v!==undefined&&v!==null)return v}return ''};
     const fmt=n=>{const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):String(n??'—')};
     const ordered=[...rows].sort((a,b)=>{
       const am=String(at(a,'fabricante')||'').trim(),bm=String(at(b,'fabricante')||'').trim();
@@ -3105,18 +3117,18 @@ function emailListItem(m,i,selected){
       const ageHours=Math.max(0,Math.floor((Date.now()-stamp.getTime())/3600000));
       if(ageHours>=24){
         const ageLabel=ageHours<48?ageHours+' horas':Math.floor(ageHours/24)+' días';
-        lines.push('⚠️ **Este análisis tiene '+ageLabel+'.** El pedido sigue disponible, pero puedes pedirme **“actualiza el stock”** antes de enviarlo si quieres trabajar con existencias más recientes.');
+        lines.push('⚠️ **Este análisis tiene '+ageLabel+'.** Puedes pedirme **“actualiza el stock”** antes de enviarlo si quieres existencias más recientes.');
       }
     }
-    lines.push('','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|');
+    lines.push('','| Fabricante | SKU | EAN | Producto | Stock | Ventas del periodo ('+p.windowDays+' días) | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|');
     let units=0;
     for(const r of ordered){
-      const manufacturer=String(at(r,'fabricante')||'—').replace(/\|/g,'/'),sku=String(at(r,'sku')||'—').replace(/\|/g,'/'),ean=String(at(r,'ean')||'—').replace(/\|/g,'/'),product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
+      const manufacturer=String(at(r,'fabricante')||'—').replace(/\|/g,'/'),sku=String(at(r,'sku')||'—').replace(/\|/g,'/'),ean=String(at(r,'ean')||'—').replace(/\|/g,'/'),product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=atAny(r,['ventas_periodo','ventas_180_dias']),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
       if(Number.isFinite(Number(qty)))units+=Math.max(0,Number(qty));
       lines.push('| '+manufacturer+' | '+sku+' | '+ean+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
     }
     if(!ordered.length)lines.push('| — | — | — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
-    lines.push('','**Resumen del pedido:** '+ordered.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente '+targetDays+' días cuando existe histórico suficiente.','**Fabricante y EAN:** solo se usan los valores reales recibidos de la fuente; no se deducen por el nombre del producto.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
+    lines.push('','**Resumen del pedido:** '+ordered.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** alerta urgente por debajo de '+p.urgentDays+' días; reposición hasta aproximadamente '+p.targetDays+' días usando ventas de los últimos '+p.windowDays+' días.','**Fabricante y EAN:** solo se usan valores reales de la fuente; no se deducen por el nombre del producto.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
   function enrichBusinessRequest(text,scope){
