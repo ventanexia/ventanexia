@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import {pdb} from "../../lib/portal-auth.js";
 import {createAIResponse,aiConfigured} from "../../lib/ai-client.js";
+import {createJevDecision,jevConfigured,noulAnswer} from "../../lib/jev-client.js";
 
 export const META_GRAPH_VERSION="v26.0";
 const META_GRAPH_BASE=`https://graph.facebook.com/${META_GRAPH_VERSION}`;
@@ -65,6 +66,39 @@ Devuelve SOLO JSON válido: {"reply":"texto","requiresApproval":true|false}.`;
     const raw=outputText(r.data).replace(/^\`\`\`json\s*/i,"").replace(/\`\`\`$/,"").trim();
     const j=JSON.parse(raw);
     const reply=String(j.reply||"").trim();
-    return reply?{reply:reply.slice(0,4000),requiresApproval:Boolean(j.requiresApproval)}:{reply:fallback,requiresApproval:true};
+    if(!reply)return {reply:fallback,requiresApproval:true};
+    let requiresApproval=Boolean(j.requiresApproval),decisionSource="generative_fallback",approvalProbability=null;
+    if(jevConfigured()){
+      try{
+        const decision=await createJevDecision({
+          state:{
+            customer_name:customerName||"",
+            inbound_message:String(inboundText||"").slice(0,6000),
+            proposed_reply:reply.slice(0,4000),
+            company_context:profile
+          },
+          questions:{
+            requires_human_approval:{
+              type:"noul",
+              instructions:"This WhatsApp reply requires human approval before it can be sent because it is sensitive, ambiguous, involves money, discounts, refunds, contracts, legal commitments, exceptions, complaints, uncertain facts, or a consequential business decision.",
+              criteria:{
+                true:"Human approval is required before sending.",
+                false:"The reply is routine, factual, low-risk and can be sent under the company's existing rules."
+              }
+            }
+          }
+        });
+        const gate=noulAnswer(decision,"requires_human_approval",{yesAt:0.65,noAt:0.35});
+        approvalProbability=gate.probability;
+        // Fail closed: an uncertain Jev answer requires approval.
+        requiresApproval=gate.decided?Boolean(gate.decision):true;
+        decisionSource="jev";
+      }catch{
+        // If Jev is configured but unavailable, keep the conservative generative fallback.
+        requiresApproval=Boolean(j.requiresApproval);
+        decisionSource="generative_fallback";
+      }
+    }
+    return {reply:reply.slice(0,4000),requiresApproval,decisionSource,approvalProbability};
   }catch{return {reply:fallback,requiresApproval:true}}
 }
