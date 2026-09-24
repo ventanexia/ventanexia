@@ -5,6 +5,7 @@ const preload=fs.readFileSync(path.join(__dirname,'preload.cjs'),'utf8');
 const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8');
 const html=fs.readFileSync(path.join(__dirname,'renderer','index.html'),'utf8');
 const css=fs.readFileSync(path.join(__dirname,'renderer','styles.css'),'utf8');
+const agentHome=fs.readFileSync(path.join(__dirname,'renderer','agent-home.js'),'utf8');
 function need(src,re,msg){if(!re.test(src)){console.error('ONBOARDING_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
 need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'stock sales window must remain 180 days');
 need(backend,/const SHOPIFY_TARGET_COVER_DAYS=30;/,'replenishment target must remain 30 days');
@@ -17,7 +18,7 @@ need(renderer,/data-import-stock-file/,'stock file picker button missing');
 need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'SKU and EAN must remain separate in import exports');
 need(renderer,/if\(key==='shopify'\)return Boolean\(shop\?\.connected\)/,'Shopify connected indicator must use backend connected boolean');
 need(html,/id="homeOnboardingCard"/,'first-run checklist HTML missing');
-need(html,/alerta por debajo de 5 días/,'home stock copy must match 5-day calculation');
+need(agentHome,/< 5 días/,'agent home stock copy must match the 5-day calculation');
 need(css,/\.vnx-home-onboarding\{/,'first-run checklist styles missing');
 need(renderer,/card\.style\.display=doneCount<=1\?'':'none'/,'checklist visibility rule missing');
 console.log('ONBOARDING_STOCK_VERIFY_OK');
