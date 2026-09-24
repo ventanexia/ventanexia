@@ -255,10 +255,25 @@
   function restoreProspectProfile(){
     if(document.body.dataset.vnxHomeAgent!=='prospecting')return;
     const input=prospectSegmentInput();if(!input)return;
-    const src=selectedHomeSource(),profile=prospectProfileForSource(src||{});
-    input.value=profile.targetSegments||'';
+    const src=selectedHomeSource(),profile=prospectProfileForSource(src||{}),business=window.vnxBusiness?.activeProfile?.();
+    input.value=profile.targetSegments||business?.targetCustomers||'';
     input.onchange=()=>{if(src)saveProspectProfileForSource(src,{targetSegments:input.value})};
     input.onblur=input.onchange;
+  }
+  function businessValues(v='',max=6){
+    return String(v||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean).slice(0,max);
+  }
+  function applyBusinessAgentDefaults(key){
+    const business=window.vnxBusiness?.activeProfile?.();if(!business)return;
+    if(['prospecting','content','social','campaigns'].includes(key)){
+      const items=businessValues(business.productsServices,6),brands=businessValues(business.brands,6);
+      const itemBox=$('#vnxAhItems'),brandBox=$('#vnxAhBrands');
+      if(itemBox&&items.length)itemBox.innerHTML=items.map(x=>'<span class="vnx-ah-tag">'+esc(x)+' <button type="button" class="vnx-ah-remove-tag">×</button></span>').join('');
+      if(brandBox&&brands.length)brandBox.innerHTML=brands.map(x=>'<span class="vnx-ah-tag">'+esc(x)+' <button type="button" class="vnx-ah-remove-brand">×</button></span>').join('');
+      document.querySelectorAll('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.onclick=()=>b.parentElement?.remove());
+      document.querySelectorAll('#vnxAhBrands .vnx-ah-remove-brand').forEach(b=>b.onclick=()=>b.parentElement?.remove());
+    }
+    restoreProspectProfile();
   }
   function stockPolicyForSource(src={}){
     const store=stockPolicyStore();
@@ -668,6 +683,7 @@
     const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
     const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
     document.querySelectorAll('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
+    applyBusinessAgentDefaults(key);
     document.querySelectorAll('#vnxAhSourceTabs button').forEach(btn=>btn.addEventListener('click',()=>{
       document.querySelectorAll('#vnxAhSourceTabs button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
       const label=String(btn.textContent||'').trim();
