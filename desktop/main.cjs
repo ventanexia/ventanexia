@@ -927,6 +927,19 @@ ipcMain.handle('direction:update-employee-context',async(_e,payload={})=>{
   await audit('direction.employee_context_updated',(employee?.name||'Empleado')+' · contexto laboral actualizado');
   return employee;
 });
+
+ipcMain.handle('direction:add-employee-observation',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  let event=null,employeeName='';
+  await updateState(s=>{
+    const d=direction.ensureDirection(s),employeeId=String(payload.employeeId||'');
+    const employee=d.employees.find(x=>x.id===employeeId);employeeName=employee?.name||'Empleado';
+    event=direction.addEmployeeObservation(d,employeeId,{...(payload.observation||{}),businessId:directionBusinessId(s,payload)});
+    return s;
+  });
+  await audit('direction.employee_observation_added',employeeName+' · '+(event?.type||'evidencia laboral'));
+  return event;
+});
 ipcMain.handle('direction:management-policy',async(_e,payload={})=>{
   directionRequireSession(payload);
   if(payload.update===true){
