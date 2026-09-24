@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-  let snapshot=null,employees=[],settings=null,currentFilter='all';
+  let snapshot=null,employees=[],settings=null,currentFilter='all',latestReport=null;
   // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
   let directionToken='',accessState=null;
 
@@ -30,11 +30,16 @@
   }
 
   function clearSensitiveUi(){
-    snapshot=null;employees=[];settings=null;
-    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee');
+    snapshot=null;employees=[];settings=null;latestReport=null;
+    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee');
     if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
     if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
-    $$('#vnxDirKpis article strong').forEach(x=>x.textContent='0');
+    if(rsel)rsel.innerHTML='<option value="">Toda la plantilla</option>';
+    const rs=$('#vnxDirReportSummary'),rd=$('#vnxDirReportDetail'),rw=$('#vnxDirReportTableWrap');
+    if(rs)rs.innerHTML='<div class="vnx-dir-empty">Desbloquea Dirección para generar informes.</div>';
+    if(rd)rd.innerHTML='';if(rw)rw.hidden=true;
+    for(const id of ['vnxDirReportExcel','vnxDirReportPdf']){const b=$('#'+id);if(b)b.disabled=true}
+    $('#vnxDirKpis article strong').forEach(x=>x.textContent='0');
   }
   function setGateMessage(msg='',error=false){
     const box=$('#vnxDirPinMsg');if(!box)return;
@@ -95,12 +100,17 @@
     cards.forEach((c,i)=>{const s=c.querySelector('strong');if(s)s.textContent=String(v[i]||0)});
   }
   function renderEmployees(){
-    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee');
+    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee');
     if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
     if(sel){
       const keep=sel.value;
       sel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))sel.value=keep;
+    }
+    if(rsel){
+      const keep=rsel.value;
+      rsel.innerHTML='<option value="">Toda la plantilla</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
+      if(employees.some(e=>e.id===keep))rsel.value=keep;
     }
   }
   function renderEmployeeRows(){
@@ -126,6 +136,94 @@
     }).join(''):'<tr><td colspan="8">No hay tareas en este filtro.</td></tr>';
     bindTaskActions();
   }
+  function reportRange(){
+    const period=$('#vnxDirReportPeriod')?.value||'30';
+    if(period==='all')return {from:'',to:''};
+    const days=Math.max(1,Number(period)||30),to=new Date(),from=new Date(to.getTime()-(days-1)*86400000);
+    return {from:from.toISOString().slice(0,10),to:to.toISOString().slice(0,10)};
+  }
+  function pct(v){return v==null?'—':String(v)+'%'}
+  function reportArea(r){return r?.areas?.find(x=>x.deviations>0)?.label||'—'}
+  function renderReport(){
+    const r=latestReport,summary=$('#vnxDirReportSummary'),rows=$('#vnxDirReportRows'),wrap=$('#vnxDirReportTableWrap'),detail=$('#vnxDirReportDetail');
+    if(!r){if(wrap)wrap.hidden=true;return}
+    if(summary)summary.innerHTML='<div class="vnx-dir-report-kpis">'+
+      '<article><span>Tareas analizadas</span><strong>'+r.totals.assigned+'</strong></article>'+
+      '<article><span>Fuera de plazo</span><strong>'+r.totals.overdueOpen+'</strong></article>'+
+      '<article><span>Terminadas tarde</span><strong>'+r.totals.lateDone+'</strong></article>'+
+      '<article><span>Recuperadas IA</span><strong>'+r.totals.doneAI+'</strong></article>'+
+      '<article><span>Bloqueadas</span><strong>'+r.totals.blocked+'</strong></article>'+
+      '</div><div class="vnx-dir-report-findings"><b>Hallazgos del periodo</b>'+r.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>';
+    if(rows)rows.innerHTML=(r.employees||[]).map(e=>'<tr>'+
+      '<td><b>'+esc(e.name)+'</b><small>'+esc(e.role||'')+'</small></td>'+
+      '<td>'+e.assigned+'</td><td>'+pct(e.onTimeRate)+'</td><td>'+e.overdueOpen+'</td><td>'+e.lateDone+'</td><td>'+e.doneAI+'</td>'+
+      '<td>'+e.blocked+'</td><td>'+e.noEvidence+'</td><td>'+fmtMinutes(e.averageDelayMinutes)+'</td><td>'+esc(reportArea(e))+'</td></tr>').join('')||'<tr><td colspan="10">Sin datos en este periodo.</td></tr>';
+    if(wrap)wrap.hidden=false;
+    if(detail){
+      detail.innerHTML=(r.employees||[]).map(e=>'<article class="vnx-dir-report-person"><div><h3>'+esc(e.name)+'</h3><p>'+esc(e.role||'')+'</p></div>'+
+        '<div class="vnx-dir-report-findings">'+e.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>'+
+        (e.examples?.length?'<details><summary>Ver ejemplos y evidencia</summary>'+e.examples.map(x=>'<div class="vnx-dir-report-example"><b>'+esc(x.title)+'</b><span>'+esc(x.moduleLabel)+' · '+esc(x.reasons.join(', '))+(x.delayMinutes?' · retraso '+fmtMinutes(x.delayMinutes):'')+'</span><small>Plazo: '+fmtDate(x.dueAt)+(x.completedAt?' · Finalizada: '+fmtDate(x.completedAt):'')+'</small></div>').join('')+'</details>':'')+
+        '</article>').join('');
+    }
+    for(const id of ['vnxDirReportExcel','vnxDirReportPdf']){const b=$('#'+id);if(b)b.disabled=false}
+  }
+  async function generateEmployeeReport(){
+    if(!directionToken)return;
+    const btn=$('#vnxDirReportForm button[type="submit"]'),old=btn?.textContent;
+    if(btn){btn.disabled=true;btn.textContent='Analizando…'}
+    try{
+      const range=reportRange();
+      latestReport=await window.vnx.directionReport(directionToken,{businessId:businessId(),employeeId:$('#vnxDirReportEmployee')?.value||'',...range});
+      renderReport();
+    }catch(e){
+      if(isSessionError(e)){directionToken='';clearSensitiveUi();await refreshAccessStatus().catch(()=>{});setGateMessage('La sesión de Dirección ha caducado.',true);return}
+      alert('No se pudo generar el informe: '+(e.message||e));
+    }finally{if(btn){btn.disabled=false;btn.textContent=old||'Generar informe'}}
+  }
+  function reportRows(){
+    return (latestReport?.employees||[]).map(e=>[
+      e.name,e.role||'',e.assigned,e.done,pct(e.onTimeRate),e.overdueOpen,e.lateDone,e.doneAI,e.blocked,e.noEvidence,
+      fmtMinutes(e.averageDelayMinutes),reportArea(e),e.findings.join(' · ')
+    ]);
+  }
+  function reportBlocks(){
+    const r=latestReport;if(!r)return [];
+    const blocks=[
+      {type:'heading',text:'Resumen de plantilla'},
+      {type:'record',fields:[
+        {label:'Tareas analizadas',value:r.totals.assigned},{label:'Completadas',value:r.totals.done},
+        {label:'Fuera de plazo',value:r.totals.overdueOpen},{label:'Terminadas tarde',value:r.totals.lateDone},
+        {label:'Recuperadas por IA',value:r.totals.doneAI},{label:'Bloqueadas',value:r.totals.blocked}
+      ]},
+      {type:'subheading',text:'Hallazgos generales'},
+      ...r.findings.map(x=>({type:'bullet',text:x}))
+    ];
+    for(const e of r.employees||[]){
+      blocks.push({type:'heading',text:e.name+(e.role?' · '+e.role:'')});
+      blocks.push({type:'record',fields:[
+        {label:'Tareas',value:e.assigned},{label:'A tiempo',value:pct(e.onTimeRate)},{label:'Fuera de plazo',value:e.overdueOpen},
+        {label:'Terminadas tarde',value:e.lateDone},{label:'Recuperadas IA',value:e.doneAI},{label:'Bloqueadas',value:e.blocked},
+        {label:'Retraso medio',value:fmtMinutes(e.averageDelayMinutes)},{label:'Área principal',value:reportArea(e)}
+      ]});
+      for(const x of e.findings)blocks.push({type:'bullet',text:x});
+      if(e.examples?.length){
+        blocks.push({type:'subheading',text:'Ejemplos registrados'});
+        for(const x of e.examples)blocks.push({type:'record',fields:[
+          {label:'Tarea',value:x.title},{label:'Área',value:x.moduleLabel},{label:'Incidencia',value:x.reasons.join(', ')},
+          {label:'Plazo',value:fmtDate(x.dueAt)},{label:'Finalización',value:fmtDate(x.completedAt)},{label:'Retraso',value:fmtMinutes(x.delayMinutes)}
+        ]});
+      }
+    }
+    blocks.push({type:'subheading',text:'Criterio de lectura'},{type:'fact',label:'Importante',text:r.note});
+    return blocks;
+  }
+  async function exportEmployeeReport(format){
+    if(!latestReport)return;
+    const selected=latestReport.scope?.employeeId?(latestReport.employees?.[0]?.name||'Empleado'):'Plantilla';
+    if(format==='pdf')return window.vnx.exportData({format:'pdf',title:'Informe Dirección · '+selected,blocks:reportBlocks()});
+    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Hallazgos'],rows:reportRows()});
+  }
+
   function renderSettings(){
     if(!settings)return;
     const a=$('#vnxDirDefaultSla'),b=$('#vnxDirAiGrace'),c=$('#vnxDirAiGlobal');
@@ -236,6 +334,9 @@
       };
     }
     const filter=$('#vnxDirFilter');if(filter)filter.onchange=()=>{currentFilter=filter.value;renderTasks()};
+    const rf=$('#vnxDirReportForm');if(rf)rf.onsubmit=async e=>{e.preventDefault();await generateEmployeeReport()};
+    const rExcel=$('#vnxDirReportExcel');if(rExcel)rExcel.onclick=()=>exportEmployeeReport('excel').catch(e=>alert('No se pudo exportar: '+(e.message||e)));
+    const rPdf=$('#vnxDirReportPdf');if(rPdf)rPdf.onclick=()=>exportEmployeeReport('pdf').catch(e=>alert('No se pudo exportar: '+(e.message||e)));
     const sf=$('#vnxDirSettingsForm');if(sf)sf.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
       try{
