@@ -528,8 +528,11 @@
             <form id="vnxDirTaskForm" class="vnx-dir-form">
               <label>Responsable<select id="vnxDirTaskEmployee" required><option value="">Selecciona una persona</option></select></label>
               <label>Qué debía hacer<input id="vnxDirTaskTitle" required placeholder="Ej.: revisar oportunidades sin seguimiento"></label>
+              <label>Tipo de trabajo<select id="vnxDirTaskWorkType"><option value="email">Respuesta de email</option><option value="colleague_request">Solicitud de compañero</option><option value="customer_request">Solicitud de cliente</option><option value="orders">Pedido</option><option value="web_ecommerce">Stock / compras</option><option value="administration">Administración</option><option value="meeting">Reunión / coordinación</option><option value="other">Otro</option></select></label>
+              <label>Quién lo solicita<input id="vnxDirTaskRequester" placeholder="Ej.: Marta · Logística / Cliente ACME"></label>
               <label>Área<select id="vnxDirTaskModule"><option value="email">Correo</option><option value="crm">Ventas y clientes</option><option value="orders">Pedidos</option><option value="web_ecommerce">Stock y compras</option><option value="administration">Documentos</option><option value="agenda">Agenda</option><option value="reports">Informes</option><option value="other">Otra</option></select></label>
               <label>Prioridad<select id="vnxDirTaskPriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option><option value="low">Baja</option></select></label>
+              <label>Cuándo se recibió<input id="vnxDirTaskReceived" type="datetime-local"></label>
               <label>Plazo<input id="vnxDirTaskDue" type="datetime-local" required></label>
               <label class="vnx-dir-check"><input id="vnxDirTaskAi" type="checkbox"> <span>Si vence, permitir que VentaNexIA la marque como candidata para ser asumida por IA</span></label>
               <label>Detalle<textarea id="vnxDirTaskDesc" rows="3" placeholder="Resultado esperado, criterios y contexto"></textarea></label>
@@ -637,9 +640,10 @@
             <button class="btn primary" type="submit">Generar informe</button>
           </form>
           <div id="vnxDirReportSummary" class="vnx-dir-report-summary"><div class="vnx-dir-empty">Genera un informe global o selecciona un empleado para ver sus desviaciones operativas.</div></div>
+          <div id="vnxDirTimingByType" class="vnx-dir-timing-types"></div>
           <div class="vnx-dir-table-wrap" id="vnxDirReportTableWrap" hidden>
             <table class="vnx-dir-table">
-              <thead><tr><th>Empleado</th><th>Tareas</th><th>A tiempo</th><th>Fuera de plazo</th><th>Terminadas tarde</th><th>Recuperadas IA</th><th>Bloqueadas</th><th>Sin evidencia</th><th>Retraso medio</th><th>Principal área</th></tr></thead>
+              <thead><tr><th>Empleado</th><th>Tareas</th><th>1ª reacción</th><th>1ª respuesta</th><th>Resolución</th><th>Tiempo bloqueado</th><th>A tiempo</th><th>Fuera de plazo</th><th>Recuperadas IA</th><th>Principal área</th></tr></thead>
               <tbody id="vnxDirReportRows"></tbody>
             </table>
           </div>
