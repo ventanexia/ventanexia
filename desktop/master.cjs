@@ -691,8 +691,24 @@ const PORTAL_STOCK_COLUMNS={
 };
 const PORTAL_SALES_COLUMNS={
   sku:PORTAL_STOCK_COLUMNS.sku,ean:PORTAL_STOCK_COLUMNS.ean,
-  qty:['ventas 6 meses','ventas 180 dias','unidades vendidas','cantidad vendida','unidades venta','vendido','vendidas','ventas','cantidad']
+  qty:['ventas 6 meses','ventas 180 dias','unidades vendidas','uds vendidas','cantidad vendida','cantidad venta','unidades venta','uds venta','unidades servidas','uds servidas','cantidad servida','unidades facturadas','cantidad facturada','salidas','unidades salida','consumo','vendido','vendidas','ventas','cantidad'],
+  date:['fecha venta','fecha pedido','fecha albaran','fecha factura','fecha movimiento','fecha operacion','fecha','date']
 };
+function portalDate(v){
+  const raw=String(v??'').trim();if(!raw)return null;
+  let m=raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\D|$)/);
+  if(m){
+    let y=Number(m[3]);if(y<100)y+=2000;
+    const d=new Date(y,Number(m[2])-1,Number(m[1]));
+    return Number.isNaN(d.getTime())?null:d;
+  }
+  m=raw.match(/^(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})(?:\D|$)/);
+  if(m){
+    const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    return Number.isNaN(d.getTime())?null:d;
+  }
+  const d=new Date(raw);return Number.isNaN(d.getTime())?null:d;
+}
 function portalHeaderInfo(table,kind='stock'){
   if(!Array.isArray(table)||!table.length)return null;
   let best=null;
@@ -704,9 +720,9 @@ function portalHeaderInfo(table,kind='stock'){
       const score=(stock>=0?5:0)+(sku>=0||ean>=0?4:0)+(name>=0?2:0)+(manufacturer>=0?1:0);
       if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,manufacturer,name,stock,score};
     }else{
-      const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty);
-      const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0);
-      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,qty,score};
+      const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty),date=portalCol(headers,PORTAL_SALES_COLUMNS.date);
+      const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0)+(date>=0?1:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,qty,date,score};
     }
   }
   return best;
@@ -741,21 +757,27 @@ function mergePortalReads(portal,reads=[]){
   }
   return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0),limitReached};
 }
-function extractPortalSalesRows(portalResult){
-  const totals=new Map();let sourceUrl=null,structuredTables=0;
+function extractPortalSalesRows(portalResult,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+  const totals=new Map();let sourceUrl=null,structuredTables=0,rowsSeen=0,rowsInWindow=0,dateFilteredTables=0;
+  const cutoff=Date.now()-Math.max(1,Number(windowDays)||SHOPIFY_SALES_WINDOW_DAYS)*86400000;
   for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
     if(!Array.isArray(table)||table.length<2)continue;
     const info=portalHeaderInfo(table,'sales');if(!info)continue;structuredTables++;
+    if(info.date>=0)dateFilteredTables++;
     for(const row of table.slice(info.rowIndex+1)){
       const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'';
-      if(!sku&&!ean)continue;
-      const qty=portalNumber(row[info.qty]);if(qty===null)continue;
+      if(!sku&&!ean)continue;rowsSeen++;
+      if(info.date>=0){
+        const d=portalDate(row[info.date]);
+        if(d&&d.getTime()<cutoff)continue;
+      }
+      const qty=portalNumber(row[info.qty]);if(qty===null)continue;rowsInWindow++;
       if(!sourceUrl)sourceUrl=page.url||null;
       if(sku)totals.set(sku,(totals.get(sku)||0)+qty);
       if(ean)totals.set('EAN:'+ean,(totals.get('EAN:'+ean)||0)+qty);
     }
   }
-  return {totals,sourceUrl,structuredTables};
+  return {totals,sourceUrl,structuredTables,rowsSeen,rowsInWindow,dateFilteredTables,windowDays};
 }
 async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
   if(!portal)throw new Error('Conexión privada no encontrada.');
@@ -821,12 +843,12 @@ async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY
   for(const candidate of salesCandidates){
     const key=String(candidate.url||'__BASE__');if(seenSalesStarts.has(key))continue;seenSalesStarts.add(key);
     try{
-      const scan=await readPortal(portal,'ventas historico historial movimientos pedidos productos referencias ultimos 6 meses 180 dias',candidate.url,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:candidate.startFromBase});
+      const scan=await readPortal(portal,'ventas historico historial movimientos pedidos albaranes facturas salidas consumo productos referencias unidades vendidas cantidad servida ultimos 6 meses 180 dias',candidate.url,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:candidate.startFromBase});
       if(scan.status==='connected')salesReads.push(scan);
     }catch{}
   }
   const salesRead=mergePortalReads(portal,salesReads);
-  const salesExtract=extractPortalSalesRows(salesRead),sales=salesExtract.totals;
+  const salesExtract=extractPortalSalesRows(salesRead,{windowDays:SHOPIFY_SALES_WINDOW_DAYS}),sales=salesExtract.totals;
   if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
   const soldFor=p=>{
     if(p.sku&&sales.has(p.sku))return sales.get(p.sku);
@@ -841,7 +863,8 @@ async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY
   const value={
     ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,rows,
     productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
-    structuredSales:sales.size>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
+    structuredSales:salesExtract.structuredTables>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
+    salesRowsSeen:salesExtract.rowsSeen||0,salesRowsInWindow:salesExtract.rowsInWindow||0,salesDateFilteredTables:salesExtract.dateFilteredTables||0,
     generatedAt:new Date().toISOString(),
     pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
     tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
