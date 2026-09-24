@@ -2501,7 +2501,8 @@ function emailListItem(m,i,selected){
       const stock=get(row,'stock_actual'),sold=get(row,'ventas_periodo')!==''?get(row,'ventas_periodo'):get(row,'ventas_180_dias'),coverage=get(row,'dias_cobertura'),qty=get(row,'cantidad_a_pedir'),state=String(get(row,'estado')||'REVISAR');
       const cls=/SIN STOCK/i.test(state)?'danger':/ROTURA|REVISAR/i.test(state)?'warning':'ok';
       const qtyText=typeof qty==='number'||/^\d+(?:[.,]\d+)?$/.test(String(qty))?fmt(qty):escM(qty||'—');
-      return '<tr><td>'+escM(manufacturer)+'</td><td>'+escM(sku)+'</td><td>'+escM(ean)+'</td><td><strong>'+escM(product)+'</strong></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
+      const soldText=sold===''||sold===null||sold===undefined?'—':fmt(sold);
+      return '<tr><td>'+escM(manufacturer)+'</td><td>'+escM(sku)+'</td><td>'+escM(ean)+'</td><td><strong>'+escM(product)+'</strong></td><td>'+fmt(stock)+'</td><td>'+soldText+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
     }).join('');
     return '<div class="vnx-purchase-panel">'
       +'<div class="vnx-purchase-head"><div><span class="vnx-purchase-kicker">STOCK Y COMPRAS</span><h3>Qué necesitas comprar ahora</h3><p>Fuente: <b>'+escM(source)+'</b> · análisis: '+escM(date)+'</p></div><span class="vnx-purchase-source">● Datos verificados</span></div>'
