@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.135",
+  "version": "0.6.136",
   "private": true,
-  "description": "VentaNexIA Desktop · lector Naturdesma ejecutable validado en navegador · 0.6.135",
+  "description": "VentaNexIA Desktop · lector Naturdesma ejecutable validado en navegador · 0.6.136",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
