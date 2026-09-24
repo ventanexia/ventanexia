@@ -1,0 +1,36 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path');
+const backend=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
+const preload=fs.readFileSync(path.join(__dirname,'preload.cjs'),'utf8');
+const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8');
+const styles=fs.readFileSync(path.join(__dirname,'renderer','styles.css'),'utf8');
+function need(src,re,msg){if(!re.test(src)){console.error('FINANCE_VERIFY_FAIL:',msg);process.exit(1)}}
+need(backend,/FINANCE_PIN_ITERATIONS=210000/,'PIN hashing iterations missing');
+need(backend,/pbkdf2Sync\(/,'PIN must be hashed, not stored as plain text');
+need(backend,/state\.secret\.finance/,'financial data must live inside encrypted secret state');
+need(backend,/\^\\d\{4\}\$/,'PIN must be exactly four digits');
+need(backend,/financeSessions=new Map\(\)/,'protected access must use short-lived session tokens');
+need(backend,/status:same\?\(old\.status\|\|'open'\):'open'/,'reviewed alert state must persist while prices are unchanged');
+need(backend,/status='reviewed'/,'authorized reviewer must be able to mark an alert reviewed');
+need(backend,/unitProfit=sale-purchase/,'unit profit must be deterministic');
+need(backend,/marginOnSalePct/,'margin on sale must be calculated');
+need(backend,/markupOnCostPct/,'markup on cost must be calculated');
+need(backend,/PORTAL_FINANCE_COLUMNS/,'portal financial columns missing');
+need(backend,/ean:\['ean'/,'EAN must be a required financial key');
+need(backend,/purchase:\['precio compra'/,'purchase cost detection missing');
+need(backend,/sale:\['precio venta'/,'sale price detection missing');
+need(backend,/finance:startup-check/,'startup finance alert check missing');
+need(backend,/finance:send-alert/,'responsible notification action missing');
+need(preload,/financeUnlock/,'finance unlock bridge missing');
+need(preload,/financeAnalyzePortal/,'portal analysis bridge missing');
+need(preload,/financeAnalyzeFile/,'file analysis bridge missing');
+need(preload,/onFinanceAlertsChanged/,'persistent finance alert event bridge missing');
+need(renderer,/Rentabilidad protegida por EAN/,'protected finance entry missing in Reports');
+need(renderer,/alerta.*margen negativo/s,'global negative-margin alert missing');
+need(renderer,/data-finance-review/,'review action missing');
+need(renderer,/data-finance-send/,'responsible send action missing');
+need(renderer,/financeSessionToken/,'finance token must stay in renderer memory');
+if(/localStorage\.setItem\([^\n]*financeSessionToken/.test(renderer)){console.error('FINANCE_VERIFY_FAIL: finance session token must not be persisted in localStorage');process.exit(1)}
+need(styles,/\.vnx-finance-global-alert/,'global finance warning styles missing');
+need(styles,/\.finance-table tr\.loss/,'loss row styles missing');
+console.log('FINANCE_VERIFY_OK');
