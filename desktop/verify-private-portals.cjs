@@ -22,6 +22,20 @@ need(backend,/const ownsWindow=!existingWin/,'reused live portal windows must no
 need(backend,/const docs=\[document\]/,'portal extraction must include same-origin iframe documents');
 need(backend,/autoRehydrated/,'stock diagnostics must expose automatic portal rehydration');
 need(backend,/portalOpened/,'failed automatic stock discovery must surface the real portal window directly');
+need(backend,/join\(String\.fromCharCode\(10\)\)/,'injected portal reader must avoid nested newline escape corruption');
+need(backend,/ownerDocument\?\.defaultView\|\|window/,'iframe elements must use their own document window for computed styles');
+{
+  const m=backend.match(/async function extractPage\(win\)\{[\s\S]*?executeJavaScript\(`([\s\S]*?)`,true\);[\s\S]*?\n\}/);
+  if(!m){console.error('PRIVATE_PORTAL_VERIFY_FAIL: extractPage injected script not found');process.exit(1)}
+  try{
+    const escaped=m[1].replace(/`/g,'\\`').replace(/\$\{/g,'\\${');
+    const injected=(0,Function)('return `'+escaped+'`;')();
+    (0,Function)(injected);
+  }catch(e){
+    console.error('PRIVATE_PORTAL_VERIFY_FAIL: injected browser script has invalid runtime syntax:',e.message);
+    process.exit(1);
+  }
+}
 
 need(backend,/const liveRead=await readLivePortal\(portal\)/,'stock analysis must inspect the live portal before hidden navigation');
 need(backend,/usedLiveWindow/,'stock result must report when the live portal supplied the data');
