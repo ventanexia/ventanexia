@@ -606,6 +606,15 @@
   }
   function bindHomeStockExports(preview,summary,orderMode){
     preview.querySelectorAll('[data-home-stock-export]').forEach(btn=>btn.onclick=()=>exportHomeStock(summary,orderMode,btn.dataset.homeStockExport,btn));
+    const retryBtn=preview.querySelector('[data-home-stock-retry]');
+    if(retryBtn)retryBtn.onclick=()=>runStockAnalysis(false);
+    const continueBtn=preview.querySelector('[data-home-stock-continue]');
+    if(continueBtn)continueBtn.onclick=()=>{
+      const warning=preview.querySelector('.vnx-stock-history-warning');
+      if(warning)warning.remove();
+      const sub=$('#vnxAhPreviewSub');
+      if(sub)sub.textContent='Puedes seguir trabajando y exportando el stock leído. El pedido seguirá desactivado hasta verificar las ventas.';
+    };
     const importBtn=preview.querySelector('[data-home-stock-import]');
     if(importBtn)importBtn.onclick=async()=>{
       const old=importBtn.textContent;importBtn.disabled=true;importBtn.textContent='Seleccionando archivo…';
@@ -627,7 +636,7 @@
   }
   function stockHistoryWarningHtml(summary){
     const products=Number(summary?.productsSeen||summary?.rows?.length||0),pages=Number(summary?.salesPagesScanned||0),tables=Number(summary?.salesTablesSeen||0),rows=Number(summary?.salesRowsSeen||0),windowRows=Number(summary?.salesRowsInWindow||0);
-    return '<div class="vnx-stock-history-warning"><div class="vnx-stock-history-warning-icon">!</div><div><b>Histórico de ventas no verificado</b><p>El stock sí se ha leído ('+products+' referencias), pero no hay ningún cruce fiable con ventas. Esto no significa que los productos no tengan histórico; significa que VentaNexIA no ha podido leerlo o relacionarlo con el catálogo.</p><small>Diagnóstico: '+pages+' páginas revisadas · '+tables+' tablas detectadas · '+rows+' filas candidatas · '+windowRows+' filas dentro del periodo. El pedido queda bloqueado hasta verificar las ventas.</small></div><button type="button" data-home-stock-import>Importar ventas Excel/CSV</button></div>';
+    return '<div class="vnx-stock-history-warning"><div class="vnx-stock-history-warning-icon">!</div><div><b>Histórico de ventas no verificado</b><p>El stock sí se ha leído ('+products+' referencias), pero no hay ningún cruce fiable con ventas. Esto no significa que los productos no tengan histórico; significa que VentaNexIA no ha podido leerlo o relacionarlo con el catálogo.</p><small>Diagnóstico: '+pages+' páginas revisadas · '+tables+' tablas detectadas · '+rows+' filas candidatas · '+windowRows+' filas dentro del periodo. Puedes seguir trabajando con el stock; solo el pedido queda bloqueado hasta verificar las ventas.</small></div><div class="vnx-stock-history-actions"><button type="button" data-home-stock-retry>↻ Reintentar histórico</button><button type="button" data-home-stock-import>Importar ventas Excel/CSV</button><button type="button" class="secondary" data-home-stock-continue>Seguir solo con stock</button></div></div>';
   }
   function renderStockResult(summary,question='',orderMode=false){
     const preview=$('#vnxAhPreview');if(!preview)return;
@@ -687,7 +696,8 @@
       const sameRun=lastStockRun&&sameHomeSource(lastStockRun.src,src)
         &&lastStockRun.policy.targetDays===policy.targetDays&&lastStockRun.policy.noHistoryMin===policy.noHistoryMin
         &&lastStockRun.policy.windowDays===policy.windowDays&&lastStockRun.policy.urgentDays===policy.urgentDays;
-      const summary=orderMode&&sameRun?lastStockRun.summary:await fetchStockSummary(src,policy,true);
+      const canReuse=orderMode&&sameRun&&lastStockRun?.summary?.salesLookReliable!==false;
+      const summary=canReuse?lastStockRun.summary:await fetchStockSummary(src,policy,true);
       lastStockRun={src,policy,summary,at:Date.now()};
       renderStockResult(summary,question,orderMode);
     }catch(e){
