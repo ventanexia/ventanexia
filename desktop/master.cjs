@@ -843,6 +843,42 @@ function portalDate(v){
 function portalProductKey(v=''){
   return normStockHeader(v).replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
 }
+function portalCodeKey(v=''){
+  return String(v||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]/g,'');
+}
+function portalEanKey(v=''){
+  return String(v||'').replace(/\D/g,'');
+}
+function portalNameTokens(v=''){
+  return portalProductKey(v).split(' ').filter(x=>x.length>=3&&!/^(uds?|caps?|comp|gr|kg|ml|l|caja|pack|unidad|unidades)$/.test(x));
+}
+function portalNameSimilarity(a='',b=''){
+  const aa=portalNameTokens(a),bb=portalNameTokens(b);
+  if(aa.length<2||bb.length<2)return 0;
+  const A=new Set(aa),B=new Set(bb),common=[...A].filter(x=>B.has(x)).length;
+  return common/Math.max(A.size,B.size);
+}
+function portalSalesQtyForProduct(product,sales){
+  const rawSku=String(product?.sku||'').trim(),rawEan=String(product?.ean||'').trim(),title=String(product?.title||'').trim();
+  const skuKeys=[rawSku,portalCodeKey(rawSku)].filter(Boolean);
+  for(const k of skuKeys)if(sales.has('SKU:'+k))return {qty:sales.get('SKU:'+k),match:'sku'};
+  const ean=portalEanKey(rawEan);
+  if(ean&&sales.has('EAN:'+ean))return {qty:sales.get('EAN:'+ean),match:'ean'};
+  const exact=portalProductKey(title);
+  if(exact&&sales.has('NAME:'+exact))return {qty:sales.get('NAME:'+exact),match:'name'};
+  if(exact&&exact.length>=12){
+    let best=null,ties=0;
+    for(const [key,qty] of sales.entries()){
+      if(!key.startsWith('NAME:'))continue;
+      const candidate=key.slice(5),score=portalNameSimilarity(exact,candidate);
+      if(score<0.88)continue;
+      if(!best||score>best.score+0.001){best={qty,score};ties=1}
+      else if(Math.abs(score-best.score)<=0.001)ties++;
+    }
+    if(best&&ties===1)return {qty:best.qty,match:'name-fuzzy'};
+  }
+  return {qty:0,match:null};
+}
 function portalHeaderInfo(table,kind='stock',context=''){
   if(!Array.isArray(table)||!table.length)return null;
   let best=null;
@@ -917,8 +953,14 @@ function extractPortalSalesRows(portalResult,{windowDays=SHOPIFY_SALES_WINDOW_DA
       }
       const qty=portalNumber(row[info.qty]);if(qty===null)continue;rowsInWindow++;
       if(!sourceUrl)sourceUrl=page.url||null;
-      if(sku)totals.set(sku,(totals.get(sku)||0)+qty);
-      if(ean)totals.set('EAN:'+ean,(totals.get('EAN:'+ean)||0)+qty);
+      if(sku){
+        const raw=String(sku).trim(),compact=portalCodeKey(raw);
+        if(raw)totals.set('SKU:'+raw,(totals.get('SKU:'+raw)||0)+qty);
+        if(compact&&compact!==raw)totals.set('SKU:'+compact,(totals.get('SKU:'+compact)||0)+qty);
+      }
+      if(ean){
+        const ek=portalEanKey(ean);if(ek)totals.set('EAN:'+ek,(totals.get('EAN:'+ek)||0)+qty);
+      }
       if(nameKey){totals.set('NAME:'+nameKey,(totals.get('NAME:'+nameKey)||0)+qty);nameMatchedRows++}
     }
   }
@@ -992,16 +1034,9 @@ async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY
   const salesExtract=extractPortalSalesRows(salesRead,{windowDays:policy.windowDays}),sales=salesExtract.totals;
   if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
 
-  const soldFor=p=>{
-    if(p.sku&&sales.has(p.sku))return sales.get(p.sku);
-    if(p.ean&&sales.has('EAN:'+p.ean))return sales.get('EAN:'+p.ean);
-    const nk=portalProductKey(p.title);if(nk&&sales.has('NAME:'+nk))return sales.get('NAME:'+nk);
-    return 0;
-  };
   const merged=products.map(p=>{
-    const nk=portalProductKey(p.title);
-    const skuHit=Boolean(p.sku&&sales.has(p.sku)),eanHit=Boolean(p.ean&&sales.has('EAN:'+p.ean)),nameHit=Boolean(nk&&sales.has('NAME:'+nk));
-    return {...p,soldWindow:soldFor(p),noSalesData:!skuHit&&!eanHit&&!nameHit,salesMatch:skuHit?'sku':eanHit?'ean':nameHit?'name':null};
+    const hit=portalSalesQtyForProduct(p,sales);
+    return {...p,soldWindow:Number(hit.qty||0),noSalesData:!hit.match,salesMatch:hit.match};
   });
   const rows=buildReplenishmentFromRows(merged,{windowDays:policy.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,urgentDays:policy.urgentAuto?null:policy.urgentDays});
   const withSalesCount=rows.filter(r=>!r.noSalesData).length;
@@ -1011,6 +1046,8 @@ async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY
     productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:withSalesCount,salesLookReliable,
     structuredSales:salesExtract.structuredTables>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
     salesRowsSeen:salesExtract.rowsSeen||0,salesRowsInWindow:salesExtract.rowsInWindow||0,salesDateFilteredTables:salesExtract.dateFilteredTables||0,salesNameRows:salesExtract.nameMatchedRows||0,
+    salesMatchedBySku:rows.filter(r=>r.salesMatch==='sku').length,salesMatchedByEan:rows.filter(r=>r.salesMatch==='ean').length,
+    salesMatchedByName:rows.filter(r=>r.salesMatch==='name').length,salesMatchedByFuzzyName:rows.filter(r=>r.salesMatch==='name-fuzzy').length,
     generatedAt:new Date().toISOString(),pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
     stockPagesScanned:stockRead.pagesScanned||stockRead.pages?.length||0,salesPagesScanned:salesRead.pagesScanned||salesRead.pages?.length||0,
     tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),salesTablesSeen:salesRead.tablesSeen||0,
