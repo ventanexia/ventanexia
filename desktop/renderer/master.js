@@ -780,7 +780,7 @@ function emailListItem(m,i,selected){
     if(cat)cat.style.display='flex';
     if(summary)summary.style.display='none';
     const bindProspectingFields=()=>{
-      $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+      document.querySelectorAll('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
       const company=$m('[data-prospecting-company]'),brandField=$m('[data-prospecting-brand-field]');
       const rebuildBrand=()=>{
         if(!brandField)return;
