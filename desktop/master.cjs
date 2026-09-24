@@ -446,7 +446,7 @@ async function extractPage(win){
       for(const node of safe(()=>all('button,[role="button"],[role="menuitem"],[role="tab"],[role="treeitem"],a').slice(0,MAX_NODES),[])){
         const text=cellText(node)||safe(()=>clean(node.getAttribute('aria-label')||node.getAttribute('title')),'');
         if(!text||text.length>140)continue;
-        const cs=safe(()=>{const vw=node.ownerDocument&&node.ownerDocument.defaultView||window;return vw.getComputedStyle(node)},null);
+        const cs=safe(()=>{const vw=node.ownerDocument?.defaultView||window;return vw.getComputedStyle(node)},null);
         if(cs&&(cs.display==='none'||cs.visibility==='hidden'))continue;
         const id='vnx_read_'+(++ai);try{node.setAttribute('data-vnx-read-action',id)}catch(e){}
         actions.push({id,text,disabled:safe(()=>Boolean(node.disabled||node.getAttribute('aria-disabled')==='true'),false),href:safe(()=>node.href||'','')});
@@ -454,7 +454,7 @@ async function extractPage(win){
       const images=docs.flatMap(d=>safe(()=>[...(d.images||[])],[]))
         .map(img=>safe(()=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0}),null))
         .filter(x=>x&&x.src&&(x.w>=100||x.h>=100)).slice(0,30);
-      const text=docs.map(d=>safe(()=>String(d.body?.innerText||''),'')).join('\\n').slice(0,160000);
+      const text=docs.map(d=>safe(()=>String(d.body?.innerText||''),'')).join(String.fromCharCode(10)).slice(0,160000);
       return {ok:true,title:document.title||'',text,links,actions,images,tables:allTables,url:location.href};
     }catch(e){
       return {ok:false,error:String((e&&e.message)||e).slice(0,300),title:safe(()=>document.title,'')||'',
