@@ -836,6 +836,314 @@ ipcMain.handle('portal:replenishment-summary',async(_e,payload)=>{
   return portalReplenishmentSummary(portal,{force});
 });
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Informes protegidos · rentabilidad por EAN
+// El PIN nunca se expone al renderer: se valida aquí y su hash/salt viven dentro
+// de state.secret, que state-store cifra con Electron safeStorage.
+// ─────────────────────────────────────────────────────────────────────────────
+const FINANCE_SESSION_MS=30*60*1000;
+const FINANCE_PIN_ITERATIONS=210000;
+const financeSessions=new Map();
+
+function financeSecret(state){
+  state.secret=state.secret||{};
+  state.secret.finance=state.secret.finance||{access:{},alerts:[],lastAnalysis:null};
+  state.secret.finance.access=state.secret.finance.access||{};
+  state.secret.finance.alerts=Array.isArray(state.secret.finance.alerts)?state.secret.finance.alerts:[];
+  return state.secret.finance;
+}
+function financeAssertIncluded(state){assertAgentIncluded(state.license,'reports')}
+function financeConfigured(state){
+  const access=state?.secret?.finance?.access||{};
+  return Boolean(access.pinHash&&access.pinSalt);
+}
+function financeHashPin(pin,salt){
+  return crypto.pbkdf2Sync(String(pin),String(salt),FINANCE_PIN_ITERATIONS,32,'sha256').toString('hex');
+}
+function financeSafeEqual(a,b){
+  const aa=Buffer.from(String(a||''),'hex'),bb=Buffer.from(String(b||''),'hex');
+  return aa.length===bb.length&&aa.length>0&&crypto.timingSafeEqual(aa,bb);
+}
+function financeSessionCreate(){
+  const token=crypto.randomBytes(32).toString('hex');
+  financeSessions.set(token,Date.now()+FINANCE_SESSION_MS);
+  return token;
+}
+function financeSessionValid(token=''){
+  const t=String(token||''),expires=financeSessions.get(t)||0;
+  if(!expires||expires<=Date.now()){if(t)financeSessions.delete(t);return false}
+  financeSessions.set(t,Date.now()+FINANCE_SESSION_MS);
+  return true;
+}
+function financeRequireSession(payload={}){
+  if(!financeSessionValid(payload?.token))throw new Error('El acceso protegido ha caducado. Introduce de nuevo el PIN.');
+}
+function financePublicStatus(state){
+  const finance=state?.secret?.finance||{},access=finance.access||{},alerts=Array.isArray(finance.alerts)?finance.alerts:[];
+  const open=alerts.filter(x=>x&&x.status==='open');
+  return {
+    configured:financeConfigured(state),
+    lockedUntil:Number(access.lockedUntil||0)>Date.now()?Number(access.lockedUntil):null,
+    unresolvedCount:open.length,
+    lastAnalyzedAt:finance.lastAnalysis?.analyzedAt||null,
+    lastSourceLabel:finance.lastAnalysis?.sourceLabel||null,
+    hasAnalysis:Boolean(finance.lastAnalysis?.analyzedAt)
+  };
+}
+function financeRound(n,d=4){
+  const x=Number(n);return Number.isFinite(x)?Number(x.toFixed(d)):null;
+}
+function financeCalcRow(row={}){
+  const purchase=Number(row.purchasePrice),sale=Number(row.salePrice);
+  if(!Number.isFinite(purchase)||!Number.isFinite(sale))return null;
+  const unitProfit=sale-purchase;
+  return {
+    ean:String(row.ean||'').trim(),
+    sku:String(row.sku||'').trim(),
+    manufacturer:String(row.manufacturer||'').trim(),
+    product:String(row.product||row.title||'').trim(),
+    purchasePrice:financeRound(purchase),
+    salePrice:financeRound(sale),
+    unitProfit:financeRound(unitProfit),
+    marginOnSalePct:sale!==0?financeRound((unitProfit/sale)*100,2):null,
+    markupOnCostPct:purchase!==0?financeRound((unitProfit/purchase)*100,2):null
+  };
+}
+function financeAnalysisKey(sourceKey,ean){return String(sourceKey||'source')+'|'+String(ean||'')}
+async function financePersistAnalysis(state,{sourceType,sourceId,sourceLabel,filePath=null,rows=[]}={}){
+  const finance=financeSecret(state),now=new Date().toISOString(),sourceKey=String(sourceType||'source')+':'+String(sourceId||sourceLabel||'default');
+  const calculated=rows.map(financeCalcRow).filter(Boolean).filter(r=>r.ean);
+  const previous=new Map((finance.alerts||[]).map(a=>[financeAnalysisKey(a.sourceKey,a.ean),a]));
+  const seen=new Set(),nextAlerts=[];
+  for(const row of calculated){
+    const key=financeAnalysisKey(sourceKey,row.ean);seen.add(key);
+    const old=previous.get(key);
+    if(Number(row.unitProfit)<0){
+      const same=old&&Number(old.purchasePrice)===Number(row.purchasePrice)&&Number(old.salePrice)===Number(row.salePrice);
+      nextAlerts.push({
+        id:old?.id||crypto.randomUUID(),sourceKey,sourceType,sourceId:sourceId||null,sourceLabel:sourceLabel||'Fuente financiera',
+        ean:row.ean,sku:row.sku,manufacturer:row.manufacturer,product:row.product,
+        purchasePrice:row.purchasePrice,salePrice:row.salePrice,unitProfit:row.unitProfit,
+        marginOnSalePct:row.marginOnSalePct,markupOnCostPct:row.markupOnCostPct,
+        status:same?(old.status||'open'):'open',
+        detectedAt:same?(old.detectedAt||now):now,lastSeenAt:now,
+        reviewedAt:same?(old.reviewedAt||null):null,reviewedNote:same?(old.reviewedNote||''):'',
+        sentForReviewAt:same?(old.sentForReviewAt||null):null,responsibleEmail:same?(old.responsibleEmail||''):''
+      });
+    }else if(old){
+      nextAlerts.push({...old,status:'resolved',resolvedAt:now,lastSeenAt:now,
+        purchasePrice:row.purchasePrice,salePrice:row.salePrice,unitProfit:row.unitProfit,
+        marginOnSalePct:row.marginOnSalePct,markupOnCostPct:row.markupOnCostPct});
+    }
+  }
+  for(const old of finance.alerts||[]){
+    const key=financeAnalysisKey(old.sourceKey,old.ean);
+    if(!seen.has(key))nextAlerts.push({...old,notSeenAt:now});
+  }
+  finance.alerts=nextAlerts.slice(-1000);
+  finance.lastAnalysis={sourceType,sourceId:sourceId||null,sourceLabel:sourceLabel||'Fuente financiera',filePath:filePath||null,analyzedAt:now,rows:calculated.slice(0,10000)};
+  await writeState(state);
+  await audit('finance.analysis',(sourceLabel||sourceType||'Fuente')+' · '+calculated.length+' EAN analizados · '+calculated.filter(r=>Number(r.unitProfit)<0).length+' con margen negativo');
+  return finance.lastAnalysis;
+}
+
+const PORTAL_FINANCE_COLUMNS={
+  ean:['ean','ean13','codigo de barras','cod barras','barcode','gtin'],
+  sku:['sku','referencia','ref','codigo articulo','cod articulo','codigo producto','codigo'],
+  manufacturer:['fabricante','marca','laboratorio','manufacturer','brand'],
+  name:['producto','articulo','nombre','descripcion','denominacion'],
+  purchase:['precio compra','precio de compra','coste compra','coste de compra','precio coste','coste','costo','purchase price','cost price','pmp'],
+  sale:['precio venta','precio de venta','pvp','precio pvp','pv','selling price','sale price','precio tarifa','tarifa venta']
+};
+function financeHeaderInfo(table){
+  if(!Array.isArray(table)||table.length<2)return null;
+  let best=null;
+  for(let rowIndex=0;rowIndex<Math.min(6,table.length);rowIndex++){
+    const headers=(table[rowIndex]||[]).map(normStockHeader);if(!headers.length)continue;
+    const ean=portalCol(headers,PORTAL_FINANCE_COLUMNS.ean),purchase=portalCol(headers,PORTAL_FINANCE_COLUMNS.purchase),sale=portalCol(headers,PORTAL_FINANCE_COLUMNS.sale);
+    if(ean<0||purchase<0||sale<0)continue;
+    const sku=portalCol(headers,PORTAL_FINANCE_COLUMNS.sku),manufacturer=portalCol(headers,PORTAL_FINANCE_COLUMNS.manufacturer),name=portalCol(headers,PORTAL_FINANCE_COLUMNS.name);
+    const score=8+(sku>=0?1:0)+(manufacturer>=0?1:0)+(name>=0?2:0);
+    if(!best||score>best.score)best={rowIndex,headers,ean,sku,manufacturer,name,purchase,sale,score};
+  }
+  return best;
+}
+function extractPortalFinanceRows(portalResult){
+  const rows=[],seen=new Set();let sourceUrl=null,structuredTables=0;
+  for(const page of portalResult?.pages||[])for(const table of page.tables||[]){
+    const info=financeHeaderInfo(table);if(!info)continue;structuredTables++;
+    for(const row of table.slice(info.rowIndex+1)){
+      const ean=String(row[info.ean]||'').trim();if(!ean)continue;
+      const purchasePrice=portalNumber(row[info.purchase]),salePrice=portalNumber(row[info.sale]);
+      if(purchasePrice===null||salePrice===null)continue;
+      const key=ean;if(seen.has(key))continue;seen.add(key);
+      rows.push({
+        ean,
+        sku:info.sku>=0?String(row[info.sku]||'').trim():'',
+        manufacturer:info.manufacturer>=0?String(row[info.manufacturer]||'').trim():'',
+        product:info.name>=0?String(row[info.name]||'').trim():'',
+        purchasePrice,salePrice
+      });
+      if(!sourceUrl)sourceUrl=page.url||null;
+    }
+  }
+  return {rows,sourceUrl,structuredTables};
+}
+function financeRowsFromTable(rows=[]){
+  if(!Array.isArray(rows)||rows.length<2)throw new Error('El archivo está vacío o no tiene filas suficientes.');
+  const headers=rows[0].map(String),find=(list)=>findStockColumn(headers,list);
+  const iEan=find(PORTAL_FINANCE_COLUMNS.ean),iPurchase=find(PORTAL_FINANCE_COLUMNS.purchase),iSale=find(PORTAL_FINANCE_COLUMNS.sale);
+  const iSku=find(PORTAL_FINANCE_COLUMNS.sku),iManufacturer=find(PORTAL_FINANCE_COLUMNS.manufacturer),iName=find(PORTAL_FINANCE_COLUMNS.name);
+  if(iEan<0||iPurchase<0||iSale<0)throw new Error('Para calcular rentabilidad necesito columnas reales de EAN, precio/coste de compra y precio de venta. Cabeceras encontradas: '+headers.join(', '));
+  const out=[];
+  for(const row of rows.slice(1)){
+    const ean=String(row?.[iEan]||'').trim();if(!ean)continue;
+    const purchasePrice=portalNumber(row?.[iPurchase]),salePrice=portalNumber(row?.[iSale]);
+    if(purchasePrice===null||salePrice===null)continue;
+    out.push({ean,
+      sku:iSku>=0?String(row?.[iSku]||'').trim():'',
+      manufacturer:iManufacturer>=0?String(row?.[iManufacturer]||'').trim():'',
+      product:iName>=0?String(row?.[iName]||'').trim():'',
+      purchasePrice,salePrice});
+  }
+  if(!out.length)throw new Error('No encuentro filas válidas con EAN, precio de compra y precio de venta.');
+  return out;
+}
+async function financeAnalyzePortalInternal(portal,state){
+  if(!portal)throw new Error('Conexión privada no encontrada.');
+  const scan=await readPortal(portal,'todos los productos catalogo tarifas precios compra coste costo pvp precio venta ean fabricante marca',portal.lastUrl||null,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:true});
+  if(scan.status!=='connected')throw new Error(scan.status==='login_required'?'La conexión necesita iniciar sesión de nuevo.':'No he podido leer la conexión.');
+  const extracted=extractPortalFinanceRows(scan);
+  if(!extracted.rows.length)throw new Error('No encuentro una tabla verificable que contenga EAN + precio de compra/coste + precio de venta. No voy a inventar esos datos.');
+  return financePersistAnalysis(state,{sourceType:'portal',sourceId:portal.id,sourceLabel:portal.name||portal.url,rows:extracted.rows});
+}
+async function financeAnalyzeFileInternal(filePath,state){
+  const name=path.basename(filePath),buffer=await fs.readFile(filePath),table=await readTableBuffer(name,buffer),rows=financeRowsFromTable(table);
+  return financePersistAnalysis(state,{sourceType:'file',sourceId:filePath,sourceLabel:name,filePath,rows});
+}
+async function financeBackgroundRescan(){
+  const state=await readState(),finance=financeSecret(state),last=finance.lastAnalysis;
+  if(!last?.sourceType)return financePublicStatus(state);
+  try{
+    if(last.sourceType==='portal'){
+      const portal=await getPortal(clean(last.sourceId,80));if(portal)await financeAnalyzePortalInternal(portal,state);
+    }else if(last.sourceType==='file'&&last.filePath){
+      try{await fs.access(last.filePath);await financeAnalyzeFileInternal(last.filePath,state)}catch{}
+    }
+  }catch(e){
+    await audit('finance.background_error',String(e?.message||e).slice(0,180));
+  }
+  const fresh=await readState(),status=financePublicStatus(fresh);
+  for(const win of BrowserWindow.getAllWindows())try{win.webContents.send('finance:alerts-changed',status)}catch{}
+  return status;
+}
+
+ipcMain.handle('finance:access-status',async()=>{
+  const state=await readState();financeAssertIncluded(state);return financePublicStatus(state);
+});
+ipcMain.handle('finance:set-pin',async(_e,payload={})=>{
+  const pin=String(payload.pin||''),currentPin=String(payload.currentPin||'');
+  if(!/^\d{4}$/.test(pin))throw new Error('El PIN debe tener exactamente 4 dígitos.');
+  const state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),access=finance.access;
+  if(financeConfigured(state)){
+    const lockedUntil=Number(access.lockedUntil||0);if(lockedUntil>Date.now())throw new Error('Acceso bloqueado temporalmente por demasiados intentos.');
+    const currentHash=financeHashPin(currentPin,access.pinSalt);
+    if(!/^\d{4}$/.test(currentPin)||!financeSafeEqual(currentHash,access.pinHash))throw new Error('El PIN actual no es correcto.');
+  }
+  const salt=crypto.randomBytes(24).toString('hex');
+  finance.access={pinSalt:salt,pinHash:financeHashPin(pin,salt),failedAttempts:0,lockedUntil:null,updatedAt:new Date().toISOString()};
+  await writeState(state);await audit('finance.pin_configured','Acceso protegido de Informes configurado');
+  return {ok:true,configured:true};
+});
+ipcMain.handle('finance:unlock',async(_e,payload={})=>{
+  const pin=String(payload.pin||''),state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),access=finance.access;
+  if(!financeConfigured(state))throw new Error('Primero configura el PIN de 4 dígitos.');
+  if(Number(access.lockedUntil||0)>Date.now())throw new Error('Acceso bloqueado temporalmente. Inténtalo más tarde.');
+  const hash=/^\d{4}$/.test(pin)?financeHashPin(pin,access.pinSalt):'';
+  if(!hash||!financeSafeEqual(hash,access.pinHash)){
+    access.failedAttempts=Number(access.failedAttempts||0)+1;
+    if(access.failedAttempts>=5){access.failedAttempts=0;access.lockedUntil=Date.now()+5*60*1000}
+    await writeState(state);await audit('finance.unlock_failed','Intento de acceso protegido rechazado');
+    throw new Error(access.lockedUntil?'Demasiados intentos. Acceso bloqueado durante 5 minutos.':'PIN incorrecto.');
+  }
+  access.failedAttempts=0;access.lockedUntil=null;access.lastUnlockedAt=new Date().toISOString();await writeState(state);
+  const token=financeSessionCreate();await audit('finance.unlocked','Informes de rentabilidad desbloqueados');
+  return {ok:true,token,expiresInMs:FINANCE_SESSION_MS};
+});
+ipcMain.handle('finance:lock',async(_e,payload={})=>{
+  if(payload?.token)financeSessions.delete(String(payload.token));return {ok:true};
+});
+ipcMain.handle('finance:report',async(_e,payload={})=>{
+  financeRequireSession(payload);
+  const state=await readState();financeAssertIncluded(state);const finance=financeSecret(state);
+  return {ok:true,status:financePublicStatus(state),analysis:finance.lastAnalysis||null,alerts:(finance.alerts||[]).filter(x=>x.status!=='resolved').slice(-500)};
+});
+ipcMain.handle('finance:analyze-portal',async(_e,payload={})=>{
+  financeRequireSession(payload);const state=await readState();financeAssertIncluded(state);const portal=await getPortal(clean(payload.portalId,80));
+  const analysis=await financeAnalyzePortalInternal(portal,state),fresh=await readState();
+  return {ok:true,analysis,status:financePublicStatus(fresh),alerts:(financeSecret(fresh).alerts||[]).filter(x=>x.status!=='resolved').slice(-500)};
+});
+ipcMain.handle('finance:analyze-file',async(_e,payload={})=>{
+  financeRequireSession(payload);
+  const accessState=await readState();financeAssertIncluded(accessState);
+  const win=BrowserWindow.getFocusedWindow()||BrowserWindow.getAllWindows()[0]||null;
+  const picked=await dialog.showOpenDialog(win,{title:'Rentabilidad por EAN · selecciona Excel o CSV',properties:['openFile'],filters:[{name:'Excel o CSV',extensions:['xlsx','xls','csv']}]});
+  if(picked.canceled||!picked.filePaths?.length)return {ok:false,cancelled:true};
+  const state=await readState(),analysis=await financeAnalyzeFileInternal(picked.filePaths[0],state),fresh=await readState();
+  return {ok:true,analysis,status:financePublicStatus(fresh),alerts:(financeSecret(fresh).alerts||[]).filter(x=>x.status!=='resolved').slice(-500)};
+});
+ipcMain.handle('finance:review-alert',async(_e,payload={})=>{
+  financeRequireSession(payload);
+  const id=String(payload.id||''),note=clean(payload.note||'',500),state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),alert=finance.alerts.find(x=>x.id===id);
+  if(!alert)throw new Error('No encuentro esta alerta.');
+  alert.status='reviewed';alert.reviewedAt=new Date().toISOString();alert.reviewedNote=note;
+  await writeState(state);await audit('finance.alert_reviewed',(alert.ean||'EAN')+' · '+(alert.product||'producto'));
+  return {ok:true,status:financePublicStatus(state),alert};
+});
+ipcMain.handle('finance:send-alert',async(_e,payload={})=>{
+  financeRequireSession(payload);
+  const id=String(payload.id||''),to=String(payload.to||'').trim(),mode=payload.mode==='send'?'send':'draft';
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to))throw new Error('Indica un email válido del responsable.');
+  const state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),alert=finance.alerts.find(x=>x.id===id);
+  if(!alert)throw new Error('No encuentro esta alerta.');
+  const accounts=emailAccountsForState(state),requested=String(payload.account||'').trim();
+  const integration=accounts.find(x=>!requested||String(x.meta?.email||x.label||x.account||'')===requested)||accounts[0];
+  if(!integration)throw new Error('Conecta una cuenta de Gmail para avisar al responsable.');
+  const subject='ALERTA VentaNexIA · margen negativo · EAN '+alert.ean;
+  const eur=n=>Number(n).toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:4})+' €';
+  const body=[
+    'VentaNexIA ha detectado un producto con margen negativo que necesita revisión.',
+    '',
+    'Producto: '+(alert.product||'No indicado'),
+    'Fabricante: '+(alert.manufacturer||'No indicado'),
+    'EAN: '+alert.ean,
+    alert.sku?'SKU: '+alert.sku:'',
+    'Precio de compra/coste: '+eur(alert.purchasePrice),
+    'Precio de venta: '+eur(alert.salePrice),
+    'Resultado unitario: '+eur(alert.unitProfit),
+    alert.marginOnSalePct==null?'':'Margen sobre venta: '+alert.marginOnSalePct+' %',
+    '',
+    'Fuente verificada: '+(alert.sourceLabel||'Fuente financiera'),
+    'Acción solicitada: comprobar si el precio de compra o el precio de venta está mal configurado y corregirlo si procede.',
+    '',
+    'Este aviso no modifica precios automáticamente.'
+  ].filter(Boolean).join('\r\n');
+  const headers=['To: '+to,'Subject: '+mimeHeader(subject),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8'];
+  const raw=b64url(headers.join('\r\n')+'\r\n\r\n'+body);
+  const gmailWriteAuth=(pathAndQuery,opts)=>gmailCall(integration,tok=>gmailWrite(tok,pathAndQuery,opts));
+  if(mode==='send')await gmailWriteAuth('messages/send',{body:{raw}});
+  else await gmailWriteAuth('drafts',{body:{message:{raw}}});
+  alert.sentForReviewAt=new Date().toISOString();alert.responsibleEmail=to;alert.sentMode=mode;
+  await writeState(state);await audit('finance.alert_shared',(mode==='send'?'Aviso enviado':'Borrador preparado')+' · '+alert.ean+' · '+to);
+  return {ok:true,mode,message:mode==='send'?'Aviso enviado al responsable.':'Borrador preparado en Gmail para revisar antes de enviar.'};
+});
+ipcMain.handle('finance:startup-check',async()=>{
+  const state=await readState();financeAssertIncluded(state);const status=financePublicStatus(state);
+  setTimeout(()=>financeBackgroundRescan().catch(()=>{}),250);
+  return status;
+});
+
 async function collectPortalContext(question=''){
   const s=await readState(),connected=(s.portals||[]).filter(p=>!isShopifyAdminUrl(p.url)&&!isShopifyAdminUrl(p.lastUrl)&&(p.mode==='read'||p.mode==='write')),out=[];
   for(const portal of connected.slice(0,4)){try{out.push(await readPortal(portal,question))}catch(e){out.push({name:portal.name,url:portal.url,status:'error',mode:portal.mode,pages:[],images:[],error:String(e?.message||e).slice(0,200)})}}return out;
