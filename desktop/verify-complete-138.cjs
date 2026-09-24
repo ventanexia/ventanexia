@@ -35,7 +35,7 @@ forbid(main,/workbenchWindow\.maximize\(\)/,'Carla popup must not force maximize
 
 // Reports/finance selector regression that broke the first 0.6.138 build.
 need(master,/\$\$m\('\[data-guided-field\]'\)\.forEach\(el=>el\.addEventListener\('input',\(\)=>guidedRead\('reports'\)\)\)/,'Reports fields must use the list selector helper');
-forbid(master,/(?<!\$)\$m\([^\n;]*?\)\.forEach/,'master.js still uses querySelector helper as a list');
+forbid(master,/(^|[^$])\$m\([^\)\n]+\)\.forEach/g,'master.js still uses querySelector helper as a list');
 
 // Gmail: one-click mark-all-read must mutate Gmail and verify completion.
 need(master,/data-email-mark-all-read/,'email dashboard must show Mark all as read');
