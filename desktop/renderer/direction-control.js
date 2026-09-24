@@ -160,10 +160,19 @@
       '<td>'+e.blocked+'</td><td>'+e.noEvidence+'</td><td>'+fmtMinutes(e.averageDelayMinutes)+'</td><td>'+esc(reportArea(e))+'</td></tr>').join('')||'<tr><td colspan="10">Sin datos en este periodo.</td></tr>';
     if(wrap)wrap.hidden=false;
     if(detail){
-      detail.innerHTML=(r.employees||[]).map(e=>'<article class="vnx-dir-report-person"><div><h3>'+esc(e.name)+'</h3><p>'+esc(e.role||'')+'</p></div>'+
-        '<div class="vnx-dir-report-findings">'+e.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>'+
+      detail.innerHTML=(r.employees||[]).map(e=>{
+        const fit=e.roleFit||{},strengths=fit.strengths||[],frictions=fit.frictions||[],matches=fit.possibleMatches||[],questions=fit.contextQuestions||[];
+        return '<article class="vnx-dir-report-person"><div class="vnx-dir-report-person-head"><div><h3>'+esc(e.name)+'</h3><p>'+esc(e.role||'')+'</p></div><span class="vnx-dir-fit-confidence">Confianza '+esc(fit.confidence||'insuficiente')+'</span></div>'+
+        '<div class="vnx-dir-fit-box"><b>Lectura de encaje</b><p>'+esc(fit.interpretation||'Sin evidencia suficiente para valorar el encaje del puesto.')+'</p></div>'+
+        (strengths.length?'<div class="vnx-dir-fit-cols"><div><b>Fortalezas observadas</b>'+strengths.map(x=>'<span class="good">✓ '+esc(x)+'</span>').join('')+'</div>':'')+
+        (frictions.length?'<div><b>Fricciones recurrentes</b>'+frictions.map(x=>'<span class="warn">⚠ '+esc(x)+'</span>').join('')+'</div>':'')+
+        ((strengths.length||frictions.length)?'</div>':'')+
+        (matches.length?'<div class="vnx-dir-fit-matches"><b>Posibles funciones a explorar</b><p>'+matches.map(esc).join(' · ')+'</p></div>':'')+
+        (questions.length?'<details class="vnx-dir-fit-context"><summary>Qué debería comprobar Dirección antes de concluir</summary>'+questions.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</details>':'')+
+        '<div class="vnx-dir-report-findings"><b>Hechos registrados</b>'+e.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>'+
         (e.examples?.length?'<details><summary>Ver ejemplos y evidencia</summary>'+e.examples.map(x=>'<div class="vnx-dir-report-example"><b>'+esc(x.title)+'</b><span>'+esc(x.moduleLabel)+' · '+esc(x.reasons.join(', '))+(x.delayMinutes?' · retraso '+fmtMinutes(x.delayMinutes):'')+'</span><small>Plazo: '+fmtDate(x.dueAt)+(x.completedAt?' · Finalizada: '+fmtDate(x.completedAt):'')+'</small></div>').join('')+'</details>':'')+
-        '</article>').join('');
+        '</article>';
+      }).join('');
     }
     for(const id of ['vnxDirReportExcel','vnxDirReportPdf']){const b=$('#'+id);if(b)b.disabled=false}
   }
@@ -183,7 +192,9 @@
   function reportRows(){
     return (latestReport?.employees||[]).map(e=>[
       e.name,e.role||'',e.assigned,e.done,pct(e.onTimeRate),e.overdueOpen,e.lateDone,e.doneAI,e.blocked,e.noEvidence,
-      fmtMinutes(e.averageDelayMinutes),reportArea(e),e.findings.join(' · ')
+      fmtMinutes(e.averageDelayMinutes),reportArea(e),
+      e.roleFit?.interpretation||'',(e.roleFit?.possibleMatches||[]).join(' · '),e.roleFit?.confidence||'',
+      e.findings.join(' · ')
     ]);
   }
   function reportBlocks(){
@@ -205,6 +216,15 @@
         {label:'Terminadas tarde',value:e.lateDone},{label:'Recuperadas IA',value:e.doneAI},{label:'Bloqueadas',value:e.blocked},
         {label:'Retraso medio',value:fmtMinutes(e.averageDelayMinutes)},{label:'Área principal',value:reportArea(e)}
       ]});
+      const fit=e.roleFit||{};
+      blocks.push({type:'subheading',text:'Lectura de encaje profesional'});
+      blocks.push({type:'fact',label:'Interpretación',text:fit.interpretation||'Sin evidencia suficiente'});
+      blocks.push({type:'fact',label:'Confianza',text:fit.confidence||'insuficiente'});
+      for(const x of fit.strengths||[])blocks.push({type:'bullet',text:'Fortaleza observada: '+x});
+      for(const x of fit.frictions||[])blocks.push({type:'bullet',text:'Fricción recurrente: '+x});
+      if((fit.possibleMatches||[]).length)blocks.push({type:'fact',label:'Funciones a explorar',text:fit.possibleMatches.join(' · ')});
+      for(const x of fit.contextQuestions||[])blocks.push({type:'question',text:x});
+      blocks.push({type:'subheading',text:'Hechos registrados'});
       for(const x of e.findings)blocks.push({type:'bullet',text:x});
       if(e.examples?.length){
         blocks.push({type:'subheading',text:'Ejemplos registrados'});
@@ -221,7 +241,7 @@
     if(!latestReport)return;
     const selected=latestReport.scope?.employeeId?(latestReport.employees?.[0]?.name||'Empleado'):'Plantilla';
     if(format==='pdf')return window.vnx.exportData({format:'pdf',title:'Informe Dirección · '+selected,blocks:reportBlocks()});
-    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Hallazgos'],rows:reportRows()});
+    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hallazgos'],rows:reportRows()});
   }
 
   function renderSettings(){
