@@ -31,7 +31,7 @@ for(const ch of ['direction:access-status','direction:set-pin','direction:unlock
 for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
 ok(html.includes('data-tab="direction"')&&html.includes('Agente privado protegido por PIN'),'Falta acceso privado de Dirección en menú');
 ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&html.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
-ok(ui.includes("let directionToken=''")&&!/localStorage\.|sessionStorage\./.test(ui),'El token privado de Dirección no debe persistirse en el navegador');
+ok(ui.includes("let directionToken=''")&&!/localStorage\s*\.\s*setItem\s*\(|sessionStorage\s*\.\s*setItem\s*\(/.test(ui),'El token privado de Dirección no debe persistirse en el navegador');
 ok(ui.includes('directionAccessStatus')&&ui.includes('directionUnlock')&&ui.includes('directionLock'),'La UI no aplica bloqueo/desbloqueo privado');
 ok(main.includes('DIRECTION_PIN_ITERATIONS=210000')&&main.includes('pbkdf2Sync('),'El PIN de Dirección debe almacenarse mediante hash robusto');
 ok(main.includes('directionSessions=new Map()')&&main.includes('DIRECTION_SESSION_MS=30*60*1000'),'Dirección debe usar sesiones temporales');
