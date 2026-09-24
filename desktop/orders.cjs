@@ -298,6 +298,12 @@ async function erpRows(kind){
   const a=await erpAdapter();if(!a)return null;
   const rows=await a.adapter[kind]();erpCache[kind]={at:Date.now(),rows};return rows;
 }
+async function erpReplenishmentSource({windowDays=180}={}){
+  const a=await erpAdapter();if(!a)return null;
+  if(typeof a.adapter.salesHistory!=='function')throw new Error((connectors.PROGRAMS[a.id]?.name||a.id)+' no ofrece histórico de ventas para Stock y Compras.');
+  const [catalog,sales]=await Promise.all([a.adapter.catalog(),a.adapter.salesHistory({windowDays})]);
+  return {id:a.id,label:connectors.PROGRAMS[a.id]?.name||a.id,catalog,sales};
+}
 const dash='\n\nOtros programas (Sage 50/200, a3, Business Central, SAP Business One…): de momento se conectan con un archivo a tu medida («destino: archivo en C:\\Pedidos», CSV/XML/JSON con las columnas que pida tu programa) o con «destino: webhook https://…», que sirve con Make, Zapier o las plataformas de integración que ya tengan conector para tu programa.';
 function programList(){
   const L=Object.values(connectors.PROGRAMS).map(p=>'• '+p.name+' — '+(p.kind==='api'?'conexión directa pegando una clave':'archivos de importación oficiales'));
@@ -486,4 +492,4 @@ function startScheduler(){
   const first=setTimeout(tick,2*60*1000);first.unref?.();
   timer=setInterval(tick,15*60*1000);timer.unref?.();
 }
-module.exports={handleChat,reviewOrders,exportReadyOrders,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_allWebOrders:allWebOrders};
+module.exports={handleChat,reviewOrders,exportReadyOrders,startScheduler,orderChannelStatus,_get:get,_deps:deps,_adapters:{gmailAdapter,imapAdapter},_shopify:{shopifyDraft,shopifyCustomers,shopifyCatalog,shopifyWebOrders},_stockLookup:stockLookup,_erpApi:erpApi,_erpRows:erpRows,_erpReplenishmentSource:erpReplenishmentSource,_allWebOrders:allWebOrders};
