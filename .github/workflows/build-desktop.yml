@@ -5,6 +5,21 @@ on:
     branches: [main]
     paths:
       - 'desktop/**'
+      - 'app/**'
+      - 'index.html'
+      - 'planes.html'
+      - 'constructor.html'
+      - 'contrato-servicio.html'
+      - 'checkout.html'
+      - 'assets/builder.js'
+      - 'config/pricing.json'
+      - 'lib/pricing.js'
+      - 'server/handlers/start-trial.js'
+      - 'server/handlers/create-checkout.js'
+      - 'api/router.js'
+      - 'sitemap.xml'
+      - 'robots.txt'
+      - 'vercel.json'
       - '.github/workflows/build-desktop.yml'
   workflow_dispatch:
 
