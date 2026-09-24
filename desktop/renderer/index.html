@@ -594,11 +594,43 @@
           </section>
         </div>
 
+        <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-evidence-panel">
+          <div class="vnx-dir-panel-head"><div><span class="eyebrow">EVIDENCIA LABORAL</span><h2>Registrar hechos que los números no explican solos</h2><p>Calidad, retrabajo, reconocimiento del cliente, colaboración, formación o problemas de proceso. Cada registro debe describir un hecho concreto.</p></div></div>
+          <form id="vnxDirObservationForm" class="vnx-dir-observation-form">
+            <label>Empleado<select id="vnxDirObservationEmployee" required><option value="">Selecciona una persona</option></select></label>
+            <label>Tipo de evidencia<select id="vnxDirObservationType" required>
+              <option value="quality_ok">Calidad validada / bien a la primera</option>
+              <option value="quality_issue">Incidencia de calidad</option>
+              <option value="correction">Corrección necesaria</option>
+              <option value="rework">Retrabajo</option>
+              <option value="customer_praise">Reconocimiento de cliente</option>
+              <option value="customer_complaint">Incidencia de cliente</option>
+              <option value="helped_team">Ayuda al equipo</option>
+              <option value="handoff_ok">Entrega/coordinación correcta</option>
+              <option value="collaboration">Colaboración documentada</option>
+              <option value="training">Formación realizada</option>
+              <option value="coaching">Feedback / acompañamiento</option>
+              <option value="instruction_issue">Instrucciones insuficientes</option>
+              <option value="tool_issue">Problema de herramienta</option>
+              <option value="dependency">Dependencia externa</option>
+            </select></label>
+            <label>Área<select id="vnxDirObservationModule"><option value="email">Correo</option><option value="crm">Ventas y clientes</option><option value="orders">Pedidos</option><option value="web_ecommerce">Stock y compras</option><option value="administration">Documentos / administración</option><option value="agenda">Agenda</option><option value="reports">Informes</option><option value="other">Otra</option></select></label>
+            <label class="vnx-dir-observation-wide">Qué ocurrió<textarea id="vnxDirObservationDetail" rows="3" required placeholder="Describe el hecho observable. Ej.: el cliente confirmó por escrito que la incidencia quedó resuelta a la primera."></textarea></label>
+            <div class="vnx-dir-human-warning">Registra hechos del trabajo, no opiniones sobre personalidad, salud o emociones. Esta evidencia alimenta Calidad, Aprendizaje, Colaboración y Contexto.</div>
+            <button class="btn primary" type="submit">Registrar evidencia</button>
+          </form>
+        </section>
+
         <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-report-panel">
           <div class="vnx-dir-panel-head">
-            <div><span class="eyebrow">INFORMES DE EMPLEADOS</span><h2>Qué está fallando y dónde</h2><p>Analiza hechos registrados: plazos, bloqueos, retrasos, evidencias y trabajo recuperado por VentaNexIA. No genera rankings ni sanciones automáticas.</p></div>
+            <div><span class="eyebrow">EVALUACIÓN DE PERSONAS Y FUNCIONES</span><h2>Entender el desempeño sin reducir a nadie a una nota</h2><p>VentaNexIA evalúa diez dimensiones por separado, muestra evidencias y confianza, y busca si el problema puede estar en la persona, la formación, el puesto, la carga o el proceso. No genera una nota global ni un ranking.</p></div>
             <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirReportExcel" type="button" disabled>Excel</button><button class="btn primary" id="vnxDirReportPdf" type="button" disabled>PDF</button></div>
           </div>
+          <div class="vnx-dir-dimensions-guide">
+            <span>01 Cumplimiento</span><span>02 Calidad</span><span>03 Fiabilidad</span><span>04 Fortalezas por función</span><span>05 Aprendizaje</span>
+            <span>06 Autonomía</span><span>07 Colaboración</span><span>08 Contexto del puesto</span><span>09 Encaje actual/alternativo</span><span>10 Impacto empresarial</span>
+          </div>
+          <div class="vnx-dir-note"><b>Regla del sistema:</b> una desviación no demuestra por sí sola falta de capacidad. Antes de recomendar cambios, VentaNexIA debe considerar formación, instrucciones, carga, proceso, herramientas, dependencias y posibles funciones con mejor encaje.</div>
           <form id="vnxDirReportForm" class="vnx-dir-report-form">
             <label><span>Empleado</span><select id="vnxDirReportEmployee"><option value="">Toda la plantilla</option></select></label>
             <label><span>Periodo</span><select id="vnxDirReportPeriod"><option value="7">Últimos 7 días</option><option value="30" selected>Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="all">Todo el histórico</option></select></label>
