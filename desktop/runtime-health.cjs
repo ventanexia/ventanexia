@@ -6,7 +6,7 @@ const CRITICAL_PRELOAD=[
   'listConnections','ordersReview','ordersExportReady','shopifyReplenishmentSummary','portalReplenishmentSummary',
   'erpStatus','erpReplenishmentSummary','stockImportFile','exportData','businessList','businessSaveAll','businessSetActive',
   'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair',
-  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionAddEmployeeObservation','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
+  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionImportCv','directionUpdateCv','directionCompareTeamRole','directionAddEmployeeObservation','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
 ];
 const RUNTIME_FILES=[
   'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs','direction-control.cjs',
@@ -53,8 +53,8 @@ function staticRuntimeChecks(base=__dirname){
   const erpOk=preload.includes('erpStatus:')&&preload.includes('erpReplenishmentSummary:')&&read(base,'master.cjs').includes("ipcMain.handle('erp:replenishment-summary'");
   add('Stock desde ERP',erpOk,erpOk?'Bridge y backend disponibles':'Integración ERP incompleta');
   const directionSrc=read(base,'renderer/direction-control.js');
-  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&html.includes('id="vnxDirHumanForm"')&&html.includes('id="vnxDirObservationForm"')&&html.includes('id="vnxDirManagementForm"')&&html.includes('Evaluación de personas y funciones')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport')&&directionSrc.includes('directionUpdateEmployeeContext')&&directionSrc.includes('directionAddEmployeeObservation')&&directionSrc.includes('directionManagementPolicy')&&directionSrc.includes('Evaluación multidimensional');
-  add('Agente privado de Dirección',directionUi,directionUi?'PIN, evaluación multidimensional, contexto humano, evidencia laboral, criterio de Dirección, SLA e informes disponibles':'Módulo privado de Dirección incompleto');
+  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&html.includes('id="vnxDirCvForm"')&&html.includes('id="vnxDirCvCompare"')&&html.includes('id="vnxDirHumanForm"')&&html.includes('id="vnxDirObservationForm"')&&html.includes('id="vnxDirManagementForm"')&&html.includes('id="vnxDirApproach"')&&html.includes('EVALUACIÓN DE PERSONAS Y FUNCIONES')&&html.includes('Fórmula intermedia')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport')&&directionSrc.includes('directionUpdateEmployeeContext')&&directionSrc.includes('directionImportCv')&&directionSrc.includes('directionCompareTeamRole')&&directionSrc.includes('directionAddEmployeeObservation')&&directionSrc.includes('directionManagementPolicy')&&directionSrc.includes('Evaluación multidimensional')&&directionSrc.includes('Ruta de decisión equilibrada');
+  add('Agente privado de Dirección',directionUi,directionUi?'PIN, CV, códigos personales, tiempos, evaluación multidimensional, contexto humano, evidencia laboral y contrato de Dirección disponibles':'Módulo privado de Dirección incompleto');
   return checks;
 }
 
@@ -105,10 +105,12 @@ function sanitizeState(state){
     if(!Array.isArray(d.events)){d.events=[];set('Se reparó el historial de evidencias de Dirección.')}
     if(!d.settings||typeof d.settings!=='object'){d.settings={defaultSlaMinutes:480,aiTakeoverGraceMinutes:60,aiTakeoverEnabled:false};set('Se reparó la política de recuperación por IA.')}
     if(!d.access||typeof d.access!=='object'||Array.isArray(d.access)){d.access={};set('Se reparó la protección privada de Dirección.')}
-    if(!d.managementPolicy||typeof d.managementPolicy!=='object'||Array.isArray(d.managementPolicy)){d.managementPolicy={profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50};set('Se reparó el criterio de Dirección.')}
+    if(!d.managementPolicy||typeof d.managementPolicy!=='object'||Array.isArray(d.managementPolicy)){d.managementPolicy={profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50,approach:'balanced',requireEmployeeConversation:true,requireSupportTrial:true,requireRoleAlternativeReview:true,employeeVoiceRequired:true,improvementWindowDays:30};set('Se reparó el criterio de Dirección.')}
     for(const e of d.employees){
       if(!e||typeof e!=='object')continue;
       if(!e.workProfile||typeof e.workProfile!=='object'||Array.isArray(e.workProfile)){e.workProfile={source:'agreed',declaredStrengths:[],preferredTasks:[],trainingNeeds:[],roleInterests:[],motivators:[],preferredAutonomy:'balanced',collaborationPreference:'balanced',workContext:''};set('Se reparó el contexto laboral de una persona.')}
+      if(!e.cvProfile||typeof e.cvProfile!=='object'||Array.isArray(e.cvProfile)){e.cvProfile={summary:[],experience:[],education:[],skills:[],languages:[],certifications:[],confirmedByManagement:[],roleTarget:'',roleRequirements:[]};set('Se reparó el expediente profesional de una persona.')}
+      if(!e.employeeCode){e.employeeCode='VNX-EMP-'+String(e.id||'').replace(/[^a-z0-9]/gi,'').slice(-8).toUpperCase();set('Se reparó el código personal de una persona.')}
     }
   }
   if(!s.support||typeof s.support!=='object'){s.support={};set('Se reconstruyó la configuración de asistencia automática.')}
