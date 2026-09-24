@@ -56,6 +56,7 @@ jobs:
           const pay=read('server/handlers/create-checkout.js');
           const docs=read('docs/paid-plan-operating-model.md');
           const trial=read('lib/entitlement.js');
+          const desktopVersion=JSON.parse(read('desktop/package.json')).version;
           const sweep=read('server/handlers/trial-sweep.js');
           const portal=read('assets/portal.js');
           function must(ok,msg){if(!ok)throw new Error(msg)}
@@ -78,7 +79,7 @@ jobs:
           must(plans.includes("/constructor.html?plan=")&&plans.includes("Empezar demo completa 15 días"),'Trial cart must lead to active trial flow');
           must(home.includes('129 €')&&home.includes('299 €')&&home.includes('599 €'),'Home pricing stale');
           must(home.includes('VNX Negocio')&&home.includes('Todos los asistentes estándar incluidos'),'Home positioning stale');
-          must(home.includes('VENTANEXIA DESKTOP 0.6.142')&&home.includes('15 días gratis sin tarjeta'),'Home must state current desktop and trial availability');
+          must(home.includes('VENTANEXIA DESKTOP '+desktopVersion)&&home.includes('15 días gratis sin tarjeta'),'Home must state current desktop '+desktopVersion+' and trial availability');
           must(contract.includes("termAck")&&contract.includes("límites medidos")&&contract.includes("49 €/mes"),'Customer contract limits/term model missing');
           must(!contract.includes("workUnits={inicio:1500")&&!contract.includes("trabajos/mes · Conexiones"),'Customer contract still exposes obsolete global work units');
           must(accept.includes('price:129')&&accept.includes('price:299')&&accept.includes('price:599'),'Contract server prices mismatch');
