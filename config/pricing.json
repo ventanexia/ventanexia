@@ -11,11 +11,11 @@
   "plans": {
     "start": {
       "name": "VNX Inicio",
-      "monthly": 99,
-      "list_monthly": 99,
+      "monthly": 129,
+      "list_monthly": 129,
       "all_standard_agents": true,
       "agents_included": 12,
-      "integrations_included": 3,
+      "integrations_included": 4,
       "users_included": 1,
       "email_accounts_included": 1,
       "stores_included": 1,
@@ -38,11 +38,11 @@
     },
     "core": {
       "name": "VNX Negocio",
-      "monthly": 249,
-      "list_monthly": 249,
+      "monthly": 299,
+      "list_monthly": 299,
       "all_standard_agents": true,
       "agents_included": 12,
-      "integrations_included": 8,
+      "integrations_included": 10,
       "users_included": 3,
       "email_accounts_included": 3,
       "stores_included": 2,
@@ -65,11 +65,11 @@
     },
     "scale": {
       "name": "VNX Empresa",
-      "monthly": 499,
-      "list_monthly": 499,
+      "monthly": 599,
+      "list_monthly": 599,
       "all_standard_agents": true,
       "agents_included": 12,
-      "integrations_included": 15,
+      "integrations_included": 18,
       "users_included": 8,
       "email_accounts_included": 6,
       "stores_included": 4,
@@ -115,7 +115,7 @@
       "description": "Una conexión o cuenta adicional compatible."
     },
     "storage_pack": {
-      "monthly": 39,
+      "monthly": 29,
       "units_gb": 10,
       "billing": "monthly",
       "description": "10 GB adicionales mientras la ampliación esté activa."
@@ -163,6 +163,12 @@
       "monthly": 49,
       "billing": "monthly",
       "description": "Un dispositivo adicional."
+    },
+    "order_pack": {
+      "monthly": 39,
+      "units": 500,
+      "billing": "monthly",
+      "description": "500 pedidos adicionales al mes."
     }
   },
   "delivery_model": "VentaNexIA Desktop + acceso móvil",
