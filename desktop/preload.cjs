@@ -90,6 +90,7 @@ contextBridge.exposeInMainWorld('vnx',{
   agentCatalog:()=>ipcRenderer.invoke('agent:catalog'),
   prospectingCatalogStatus:()=>ipcRenderer.invoke('prospecting:catalog-status'),
   emailAction:(payload)=>ipcRenderer.invoke('email:action',payload),
+  emailMarkAllRead:(payload={})=>ipcRenderer.invoke('email:mark-all-read',payload),
   emailMetrics:(payload={})=>ipcRenderer.invoke('email:metrics',payload),
   emailInbox:(payload)=>ipcRenderer.invoke('email:inbox',payload),
   emailSentBody:(payload)=>ipcRenderer.invoke('email:sent-body',payload),
