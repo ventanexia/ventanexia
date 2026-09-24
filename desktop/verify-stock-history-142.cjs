@@ -7,6 +7,7 @@ const preload=read('preload.cjs');
 const master=read('renderer/master.js');
 const home=read('renderer/agent-home.js');
 const html=read('renderer/index.html');
+const entry=read('master-entry.cjs');
 function need(src,re,msg){if(!re.test(src)){console.error('STOCK_HISTORY_142_VERIFY_FAIL:',msg);process.exit(1)}}
 function forbid(src,re,msg){if(re.test(src)){console.error('STOCK_HISTORY_142_VERIFY_FAIL:',msg);process.exit(1)}}
 
@@ -56,6 +57,8 @@ need(preload,/erpStatus:/,'ERP status bridge missing');
 need(preload,/erpReplenishmentSummary:/,'ERP replenishment bridge missing');
 need(home,/window\.vnx\.erpStatus\(\)/,'connected ERP must appear as a stock source');
 need(home,/src\.module==='erp'\|\|src\.type==='erp'/,'Stock y compras must fetch from ERP');
+need(backend,/ipcMain\.handle\('orders:export-ready'/,'orders export IPC handler missing from master backend');
+forbid(entry,/ipcMain\.handle\('orders:export-ready'/,'duplicate orders export IPC handler must not be registered by master-entry');
 need(master,/ventas_periodo/,'generic sales-period export column missing');
 forbid(home,/347 referencias|676 unidades/,'no screenshot-specific quantities may be hard-coded');
 
