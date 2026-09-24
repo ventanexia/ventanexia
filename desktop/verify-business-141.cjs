@@ -44,6 +44,8 @@ need(onboarding,/Conexiones asociadas a esta empresa/,'per-company connection ma
 need(onboarding,/Sugerir clientes objetivo con IA/,'AI target-customer suggestion button missing');
 need(onboarding,/businessSetActive/,'top company selector must change the active profile');
 need(onboarding,/needsOnboarding/,'first-run business onboarding trigger missing');
+need(onboarding,/data-biz-index="'\+i\+'">/,'business cards must close data-biz-index correctly so fields are captured');
+forbid(onboarding,/data-biz-index="'\+i\+'>/,'malformed business card data-biz-index would discard typed company names');
 need(home,/window\.vnxBusiness\?\.activeProfile/,'agent workspace must consume active business profile');
 need(home,/business\?\.targetCustomers/,'captation target field must default from business profile');
 need(home,/business\.productsServices/,'agent product defaults must use business profile');
