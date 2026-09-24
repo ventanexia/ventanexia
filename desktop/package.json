@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.148",
+  "version": "0.6.149",
   "private": true,
-  "description": "VentaNexIA Desktop · Dirección privada con informes de empleados y desviaciones operativas · 0.6.148",
+  "description": "VentaNexIA Desktop · Dirección privada con diagnóstico cualitativo de encaje profesional · 0.6.149",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
