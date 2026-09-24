@@ -8,6 +8,7 @@ const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8
 const stores=fs.readFileSync(path.join(__dirname,'shopify-stores.cjs'),'utf8');
 function need(src,re,msg){if(!re.test(src)){console.error('SHOPIFY_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
 need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'sales window must stay at 180 days');
+need(backend,/const SHOPIFY_TARGET_COVER_DAYS=20;/,'purchase provisioning target must stay at 20 days');
 need(backend,/const SHOPIFY_URGENT_DAYS=5;/,'urgent threshold must stay at 5 days');
 need(backend,/orders\(first:100, after:\$cursor[\s\S]*created_at:>=\$\{since\}/,'sales query must paginate by date');
 need(backend,/if\(o\.cancelledAt\)\{cancelledSkipped\+\+;continue\}/,'cancelled orders must be excluded');
@@ -39,7 +40,7 @@ need(renderer,/stockListing\?stockInventoryTable\(portalSummary\):shopifyStockTa
 need(renderer,/async function latestPurchaseAnalysis\(scopeKey\)/,'purchase analysis loader must support persisted cache');
 need(renderer,/purchaseAnalysisGet\?\.\(scopeKey\)/,'purchase order must restore persisted analysis');
 need(renderer,/rememberPurchaseAnalysis/,'verified purchase analysis must be persisted');
-need(renderer,/No tengo todavía un análisis de stock guardado/,'missing analysis must be an explicit user-visible case');
+need(renderer,/Si no existe un análisis válido de 20 días, lo calculamos ahora/,'purchase request must auto-calculate a missing 20-day analysis');
 need(renderer,/Basado en análisis verificado/,'purchase order must show analysis timestamp');
 need(renderer,/ageHours>=24/,'stale analysis must be visibly flagged without being discarded');
 need(preload,/purchaseAnalysisGet:\(scopeKey\)=>ipcRenderer\.invoke\('purchase-analysis:get',scopeKey\)/,'preload must expose purchase analysis read');
@@ -48,8 +49,10 @@ need(desktopMain,/ipcMain\.handle\('purchase-analysis:get'/,'desktop main must e
 need(desktopMain,/ipcMain\.handle\('purchase-analysis:set'/,'desktop main must expose encrypted purchase analysis write');
 need(renderer,/const direct=\/\\b\(haz/,'direct "hazme el pedido" intent must be detected before stock analysis');
 need(renderer,/shopifyReplenishmentSummary\(selectedShop,\{force:true\}\)/,'renderer must calculate stock from the explicitly selected Shopify store');
+need(renderer,/portalReplenishmentSummary\(portalId,\{force:true\}\)/,'a direct purchase request must calculate the selected portal when no valid cached analysis exists');
 need(renderer,/\| Código \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must be present');
-need(renderer,/menos de 5 días de cobertura/i,'visible urgent rule must stay at 5 days');
+need(renderer,/URGENTE · < 5 DÍAS/i,'visible urgent rule must stay at 5 days');
+need(renderer,/REPONER · < '\+targetDays\+' DÍAS/,'purchase table must include non-urgent rows that still need stock to reach 20 days');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
 need(stores,/function listShopifyStores\(state\)/,'multi-store Shopify state helper must list all connected stores');
@@ -69,7 +72,8 @@ need(renderer,/function purchasePanelHtml\(msg=\{\}\)/,'visual Stock and Compras
 need(renderer,/m\.purchaseExport&&m\.purchaseData\?\.headers\?\.length\?purchasePanelHtml\(m\)/,'structured purchase data must render through the visual purchase panel');
 need(renderer,/Qué necesitas comprar ahora/,'visual purchase panel title must stay present');
 
-need(backend,/const PORTAL_MAX_PAGES=12;/,'private portal stock scan must explore enough relevant pages');
+need(backend,/const PORTAL_MAX_PAGES=12;/,'ordinary private portal reads must remain bounded');
+need(backend,/const PORTAL_REPLENISHMENT_MAX_PAGES=120;/,'stock and sales replenishment must be able to scan the full paginated portal');
 need(backend,/\[role="grid"\],\[role="table"\],\.ag-root,\.MuiDataGrid-root,\.dx-datagrid/,'private portal reader must extract modern ERP grids');
 need(backend,/choosePortalActions/,'private portal reader must navigate safe dynamic menus');
 need(backend,/stockUrl:stockExtract\.sourceUrl/,'private portal reader must learn the verified stock route');
