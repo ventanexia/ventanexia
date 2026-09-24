@@ -322,7 +322,11 @@
       snapshotOrder?.internalRef,snapshotOrder?.orderRef,snapshotOrder?.customer,snapshotOrder?.email,snapshotOrder?.sourceSubject,
       ...(snapshotOrder?.lines||[]).flatMap(x=>[x.ref,x.description])
     ].filter(Boolean).join(' '));
-    if(q&&!/pedidos?\s+(nuevos?|pendientes?|listos?|preparados?)\s*(de\s+)?(hoy)?/.test(q)&&!hay.includes(q))return false;
+    if(/pedidos?\s+nuevos?/.test(q)&&st!=='nuevo')return false;
+    if(/pedidos?\s+(?:preparados?|listos?)/.test(q)&&st!=='listo')return false;
+    if(/pedidos?\s+pendientes?/.test(q)&&['introducido','descartado','listo'].includes(st))return false;
+    if(/incidencias?/.test(q)&&!snapshotOrder?.issues?.length&&!['revisar','falta_datos','sin_stock','esperando_compras','esperando_cliente','error'].includes(st))return false;
+    if(q&&!/pedidos?\s+(nuevos?|pendientes?|listos?|preparados?)\s*(de\s+)?(hoy)?/.test(q)&&!/incidencias?/.test(q)&&!hay.includes(q))return false;
     if(status!=='todos'){
       if(status==='nuevos'&&st!=='nuevo')return false;
       if(status==='pendientes'&&['introducido','descartado','listo'].includes(st))return false;
