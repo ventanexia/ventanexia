@@ -14,12 +14,12 @@
   <div class="login-card">
     <img src="/assets/ventanexia-logo.svg" class="logo" alt="VentaNexIA">
     <div class="eyebrow">VENTANEXIA</div>
-    <h1>Tu empresa también en el móvil.</h1>
-    <p>Entra con el mismo ID y contraseña que usas en tu ordenador.</p>
+    <h1>Carla y tu cuenta, también en el móvil.</h1>
+    <p>Entra con tu ID de cliente y código de activación. El código se mantiene solo durante esta sesión del navegador.</p>
     <label>ID de cliente<input id="customerId" autocomplete="username" placeholder="Tu ID de VentaNexIA"></label>
     <label>Contraseña<input id="password" type="password" autocomplete="current-password" placeholder="Tu contraseña"></label>
-    <label class="remember"><input id="rememberMe" type="checkbox"> <span>Recordarme en este dispositivo</span></label>
-    <small class="remember-note">Si lo marcas, VentaNexIA mantendrá tu sesión abierta en este móvil. Tu contraseña no se guarda dentro de la app.</small>
+    <label class="remember"><input id="rememberMe" type="checkbox"> <span>Recordar mi ID de cliente</span></label>
+    <small class="remember-note">Si lo marcas, solo recordaremos tu ID. Por seguridad tendrás que volver a introducir el código de activación al iniciar una nueva sesión.</small>
     <button id="loginBtn" class="primary">Entrar</button>
     <div id="loginMsg" class="message"></div>
   </div>
@@ -47,17 +47,17 @@
       <div class="hero">
         <div class="eyebrow">VENTANEXIA MÓVIL</div>
         <h1>El futuro de tu empresa, en tu bolsillo.</h1>
-        <p>Clientes, ventas, pedidos y tu equipo. Todo en un solo lugar.</p>
+        <p>Consulta a Carla y accede a tu cuenta desde el móvil. Los datos operativos conectados localmente se gestionan desde VentaNexIA Desktop.</p>
       </div>
       <div class="kpis">
-        <article><small>Ventas de hoy</small><strong>—</strong><span>Datos reales</span></article>
-        <article><small>Clientes nuevos</small><strong>—</strong><span>Datos reales</span></article>
-        <article><small>Pedidos</small><strong>—</strong><span>Datos reales</span></article>
-        <article><small>Facturas</small><strong>—</strong><span>Datos reales</span></article>
+        <article><small>Ventas de hoy</small><strong>Desktop</strong><span>Consulta operativa en el ordenador</span></article>
+        <article><small>Clientes nuevos</small><strong>Desktop</strong><span>Consulta operativa en el ordenador</span></article>
+        <article><small>Pedidos</small><strong>Desktop</strong><span>Consulta operativa en el ordenador</span></article>
+        <article><small>Facturas</small><strong>Desktop</strong><span>Consulta operativa en el ordenador</span></article>
       </div>
       <div class="master-card" id="masterHome">
         <div><b>♛ Centro Maestro</b><small>Solo versión maestra</small></div>
-        <p>Ve clientes, facturas, pedidos y toda la información conectada.</p>
+        <p>Accede a Carla desde el móvil. Para datos conectados al equipo, abre VentaNexIA Desktop.</p>
         <button data-go="master">Abrir Centro Maestro</button>
       </div>
       <div class="quick">
@@ -80,37 +80,37 @@
 
     <section id="connections" class="view">
       <h2>Conexiones</h2>
-      <p class="muted">Conecta las mismas cuentas que usas en el ordenador.</p>
+      <p class="muted">Las conexiones con datos de empresa se configuran y verifican en VentaNexIA Desktop.</p>
       <div class="listcards">
-        <button>📧 Correo <span>Conectar</span></button>
-        <button>💬 WhatsApp <span>Conectar</span></button>
-        <button>📣 Redes sociales <span>Conectar</span></button>
-        <button>👥 Clientes y ventas <span>Conectar</span></button>
-        <button>🛒 Shopify <span>Conectar</span></button>
+        <button type="button" data-mobile-desktop="Correo">📧 Correo <span>Gestionar en Desktop</span></button>
+        <button type="button" data-mobile-desktop="WhatsApp">💬 WhatsApp <span>Gestionar en Desktop</span></button>
+        <button type="button" data-mobile-desktop="Redes sociales">📣 Redes sociales <span>Gestionar en Desktop</span></button>
+        <button type="button" data-mobile-desktop="Ventas y clientes">👥 Clientes y ventas <span>Gestionar en Desktop</span></button>
+        <button type="button" data-mobile-desktop="Shopify">🛒 Shopify <span>Gestionar en Desktop</span></button>
       </div>
-      <div class="notice">Las conexiones del móvil se irán compartiendo con tu ordenador para que trabajes con la misma información.</div>
+      <div class="notice" id="mobileInfo">Por seguridad, las credenciales y conexiones operativas se gestionan en Desktop. Desde aquí puedes hablar con Carla con tu licencia autenticada.</div>
     </section>
 
-    <section id="clients" class="view"><h2>Clientes</h2><div class="empty">Aquí aparecerán tus clientes conectados.</div></section>
-    <section id="invoices" class="view"><h2>Facturas</h2><div class="empty">Aquí aparecerán tus facturas conectadas.</div></section>
-    <section id="orders" class="view"><h2>Pedidos</h2><div class="empty">Aquí aparecerán tus pedidos conectados.</div></section>
+    <section id="clients" class="view"><h2>Clientes</h2><div class="empty">Los clientes conectados se consultan actualmente en VentaNexIA Desktop. Desde el móvil puedes abrir Carla para preparar una consulta general.</div></section>
+    <section id="invoices" class="view"><h2>Facturas</h2><div class="empty">Las facturas y documentos conectados se trabajan actualmente en VentaNexIA Desktop.</div></section>
+    <section id="orders" class="view"><h2>Pedidos</h2><div class="empty">Los pedidos y el stock real se consultan actualmente en VentaNexIA Desktop, donde se mantienen las conexiones locales y sus permisos.</div></section>
 
     <section id="web" class="view">
       <h2>Web y tienda</h2>
       <div class="listcards">
-        <button>Shopify <span>Ver tienda</span></button>
-        <button>WooCommerce <span>Ver web</span></button>
-        <button>Web propia <span>Ver proyecto</span></button>
+        <button type="button" data-mobile-chat="Explícame cómo puedo trabajar con Shopify desde VentaNexIA.">Shopify <span>Preguntar a Carla</span></button>
+        <button type="button" data-mobile-chat="Explícame cómo puedo trabajar con WooCommerce desde VentaNexIA.">WooCommerce <span>Preguntar a Carla</span></button>
+        <button type="button" data-mobile-chat="Explícame cómo puedo trabajar con mi web propia desde VentaNexIA.">Web propia <span>Preguntar a Carla</span></button>
       </div>
     </section>
 
     <section id="master" class="view">
-      <div class="master-head"><div class="eyebrow gold">SOLO EDICIÓN MAESTRA</div><h2>Centro Maestro</h2><p>Todo lo importante de tu empresa desde el móvil.</p></div>
+      <div class="master-head"><div class="eyebrow gold">ACCESO MÓVIL</div><h2>Carla</h2><p>Consultas autenticadas desde el móvil. Los datos locales de Desktop no se sincronizan automáticamente con esta vista.</p></div>
       <div class="master-grid">
-        <button data-master="clientes">👥<b>Clientes</b><small>Ver todos</small></button>
-        <button data-master="facturas">▤<b>Facturas</b><small>Ver todas</small></button>
-        <button data-master="pedidos">▣<b>Pedidos</b><small>Ver todos</small></button>
-        <button data-master="datos">▥<b>Todos los datos</b><small>Explorar</small></button>
+        <button data-master="clientes">👥<b>Clientes</b><small>Consultar con Carla</small></button>
+        <button data-master="facturas">▤<b>Facturas</b><small>Consultar con Carla</small></button>
+        <button data-master="pedidos">▣<b>Pedidos</b><small>Consultar con Carla</small></button>
+        <button data-master="datos">▥<b>Datos conectados</b><small>Comprobar disponibilidad</small></button>
       </div>
       <div id="masterResult" class="result"><div class="empty">Elige qué quieres ver.</div></div>
     </section>
