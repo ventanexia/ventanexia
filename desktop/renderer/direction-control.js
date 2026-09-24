@@ -31,11 +31,11 @@
 
   function clearSensitiveUi(){
     snapshot=null;employees=[];settings=null;managementPolicy=null;latestReport=null;
-    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee');
+    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),csel=$('#vnxDirCvEmployee');
     if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
     if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
     if(rsel)rsel.innerHTML='<option value="">Toda la plantilla</option>';
-    if(hsel)hsel.innerHTML='<option value="">Selecciona una persona</option>';
+    if(hsel)hsel.innerHTML='<option value="">Selecciona una persona</option>';if(csel)csel.innerHTML='<option value="">Selecciona una persona</option>';
     const rs=$('#vnxDirReportSummary'),rd=$('#vnxDirReportDetail'),rw=$('#vnxDirReportTableWrap');
     if(rs)rs.innerHTML='<div class="vnx-dir-empty">Desbloquea Dirección para generar informes.</div>';
     if(rd)rd.innerHTML='';if(rw)rw.hidden=true;
@@ -102,7 +102,7 @@
     cards.forEach((c,i)=>{const s=c.querySelector('strong');if(s)s.textContent=String(v[i]||0)});
   }
   function renderEmployees(){
-    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),osel=$('#vnxDirObservationEmployee');
+    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),osel=$('#vnxDirObservationEmployee'),csel=$('#vnxDirCvEmployee');
     if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
     if(sel){
       const keep=sel.value;
@@ -123,6 +123,11 @@
       const keep=osel.value;
       osel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))osel.value=keep;
+    }
+    if(csel){
+      const keep=csel.value;
+      csel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.employeeCode?' · '+esc(e.employeeCode):'')+'</option>').join('');
+      if(employees.some(e=>e.id===keep))csel.value=keep;
     }
   }
   function renderEmployeeRows(){
@@ -173,7 +178,7 @@
   }
 
   function renderReport(){
-    const r=latestReport,summary=$('#vnxDirReportSummary'),rows=$('#vnxDirReportRows'),wrap=$('#vnxDirReportTableWrap'),detail=$('#vnxDirReportDetail');
+    const r=latestReport,summary=$('#vnxDirReportSummary'),rows=$('#vnxDirReportRows'),wrap=$('#vnxDirReportTableWrap'),detail=$('#vnxDirReportDetail'),timingBox=$('#vnxDirTimingByType');
     if(!r){if(wrap)wrap.hidden=true;return}
     if(summary)summary.innerHTML='<div class="vnx-dir-report-kpis">'+
       '<article><span>Tareas analizadas</span><strong>'+r.totals.assigned+'</strong></article>'+
@@ -183,9 +188,14 @@
       '<article><span>Bloqueadas</span><strong>'+r.totals.blocked+'</strong></article>'+
       '</div><div class="vnx-dir-report-findings"><b>Hallazgos del periodo</b>'+r.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>';
     if(rows)rows.innerHTML=(r.employees||[]).map(e=>'<tr>'+
-      '<td><b>'+esc(e.name)+'</b><small>'+esc(e.role||'')+'</small></td>'+
-      '<td>'+e.assigned+'</td><td>'+pct(e.onTimeRate)+'</td><td>'+e.overdueOpen+'</td><td>'+e.lateDone+'</td><td>'+e.doneAI+'</td>'+
-      '<td>'+e.blocked+'</td><td>'+e.noEvidence+'</td><td>'+fmtMinutes(e.averageDelayMinutes)+'</td><td>'+esc(reportArea(e))+'</td></tr>').join('')||'<tr><td colspan="10">Sin datos en este periodo.</td></tr>';
+      '<td><b>'+esc(e.name)+'</b><small>'+esc(e.employeeCode||'')+' · '+esc(e.role||'')+'</small></td>'+
+      '<td>'+e.assigned+'</td><td>'+fmtMinutes(e.timing?.averageReactionMinutes)+'</td><td>'+fmtMinutes(e.timing?.averageResponseMinutes)+'</td>'+
+      '<td>'+fmtMinutes(e.timing?.averageResolutionMinutes)+'</td><td>'+fmtMinutes(e.timing?.totalBlockedMinutes)+'</td>'+
+      '<td>'+pct(e.onTimeRate)+'</td><td>'+e.overdueOpen+'</td><td>'+e.doneAI+'</td><td>'+esc(reportArea(e))+'</td></tr>').join('')||'<tr><td colspan="10">Sin datos en este periodo.</td></tr>';
+    if(timingBox){
+      const types=r.timing?.byType||[];
+      timingBox.innerHTML=types.length?'<div class="vnx-dir-timing-head"><b>Tiempos por tipo de trabajo</b><span>Reacción ≠ respuesta ≠ resolución ≠ bloqueo</span></div><div class="vnx-dir-timing-grid">'+types.map(x=>'<article><b>'+esc(x.label)+'</b><small>'+x.count+' registros</small><span>1ª reacción <strong>'+fmtMinutes(x.averageReactionMinutes)+'</strong></span><span>1ª respuesta <strong>'+fmtMinutes(x.averageResponseMinutes)+'</strong></span><span>Resolución <strong>'+fmtMinutes(x.averageResolutionMinutes)+'</strong></span><span>Bloqueado <strong>'+fmtMinutes(x.totalBlockedMinutes)+'</strong></span></article>').join('')+'</div>':'';
+    }
     if(wrap)wrap.hidden=false;
     if(detail){
       detail.innerHTML=(r.employees||[]).map(e=>{
@@ -193,6 +203,7 @@
         return '<article class="vnx-dir-report-person"><div class="vnx-dir-report-person-head"><div><h3>'+esc(e.name)+'</h3><p>'+esc(e.role||'')+'</p></div><span class="vnx-dir-fit-confidence">Confianza '+esc(fit.confidence||'insuficiente')+'</span></div>'+
         renderDimensions(e)+
         '<div class="vnx-dir-fit-box"><b>Lectura de encaje</b><p>'+esc(fit.interpretation||'Sin evidencia suficiente para valorar el encaje del puesto.')+'</p></div>'+
+        (e.roleComparison?.requirements?.length?'<div class="vnx-dir-role-evidence"><b>Persona ↔ puesto: '+esc(e.roleComparison.roleTarget||'puesto objetivo')+'</b>'+e.roleComparison.requirements.map(x=>'<span class="'+esc(x.status)+'"><strong>'+esc(x.requirement)+'</strong> · '+esc(x.source)+'</span>').join('')+'<small>'+esc(e.roleComparison.conclusion||'')+'</small></div>':'')+
         (strengths.length?'<div class="vnx-dir-fit-cols"><div><b>Fortalezas observadas</b>'+strengths.map(x=>'<span class="good">✓ '+esc(x)+'</span>').join('')+'</div>':'')+
         (frictions.length?'<div><b>Fricciones recurrentes</b>'+frictions.map(x=>'<span class="warn">⚠ '+esc(x)+'</span>').join('')+'</div>':'')+
         ((strengths.length||frictions.length)?'</div>':'')+
@@ -222,7 +233,7 @@
   }
   function reportRows(){
     return (latestReport?.employees||[]).map(e=>[
-      e.name,e.role||'',e.assigned,e.done,pct(e.onTimeRate),e.overdueOpen,e.lateDone,e.doneAI,e.blocked,e.noEvidence,
+      e.name,e.employeeCode||'',e.role||'',e.assigned,e.done,pct(e.onTimeRate),e.overdueOpen,e.lateDone,e.doneAI,e.blocked,e.noEvidence,
       fmtMinutes(e.averageDelayMinutes),reportArea(e),
       e.roleFit?.interpretation||'',(e.roleFit?.possibleMatches||[]).join(' · '),e.roleFit?.confidence||'',
       (e.humanContext?.hypotheses||[]).map(x=>x.label+' ['+x.confidence+']').join(' · '),
@@ -246,7 +257,9 @@
     for(const e of r.employees||[]){
       blocks.push({type:'heading',text:e.name+(e.role?' · '+e.role:'')});
       blocks.push({type:'record',fields:[
-        {label:'Tareas',value:e.assigned},{label:'A tiempo',value:pct(e.onTimeRate)},{label:'Fuera de plazo',value:e.overdueOpen},
+        {label:'Código personal',value:e.employeeCode||''},{label:'Tareas',value:e.assigned},{label:'A tiempo',value:pct(e.onTimeRate)},{label:'Fuera de plazo',value:e.overdueOpen},
+        {label:'1ª reacción',value:fmtMinutes(e.timing?.averageReactionMinutes)},{label:'1ª respuesta',value:fmtMinutes(e.timing?.averageResponseMinutes)},
+        {label:'Resolución',value:fmtMinutes(e.timing?.averageResolutionMinutes)},{label:'Tiempo bloqueado',value:fmtMinutes(e.timing?.totalBlockedMinutes)},
         {label:'Terminadas tarde',value:e.lateDone},{label:'Recuperadas IA',value:e.doneAI},{label:'Bloqueadas',value:e.blocked},
         {label:'Retraso medio',value:fmtMinutes(e.averageDelayMinutes)},{label:'Área principal',value:reportArea(e)}
       ]});
@@ -294,10 +307,41 @@
     if(!latestReport)return;
     const selected=latestReport.scope?.employeeId?(latestReport.employees?.[0]?.name||'Empleado'):'Plantilla';
     if(format==='pdf')return window.vnx.exportData({format:'pdf',title:'Informe Dirección · '+selected,blocks:reportBlocks()});
-    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hipótesis de causa','Recomendaciones según Dirección','Cumplimiento','Calidad del resultado','Fiabilidad','Fortalezas por función','Aprendizaje y mejora','Autonomía y resolución','Colaboración y equipo','Contexto del puesto','Encaje actual y alternativo','Impacto empresarial','Hallazgos'],rows:reportRows()});
+    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Código personal','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hipótesis de causa','Recomendaciones según Dirección','Cumplimiento','Calidad del resultado','Fiabilidad','Fortalezas por función','Aprendizaje y mejora','Autonomía y resolución','Colaboración y equipo','Contexto del puesto','Encaje actual y alternativo','Impacto empresarial','Hallazgos'],rows:reportRows()});
   }
 
   function listText(v){return Array.isArray(v)?v.join('\n'):''}
+  function selectedCvEmployee(){return employees.find(e=>e.id===$('#vnxDirCvEmployee')?.value)||null}
+  function renderCvProfile(){
+    const e=selectedCvEmployee(),p=e?.cvProfile||{},set=(id,v)=>{const el=$('#'+id);if(el)el.value=v??''};
+    const file=$('#vnxDirCvFile');if(file)file.textContent=e?((e.employeeCode||'')+(p.fileName?' · CV: '+p.fileName:' · Sin CV importado')):'Sin CV importado';
+    set('vnxDirCvExperience',listText(p.experience));set('vnxDirCvEducation',listText(p.education));set('vnxDirCvSkills',listText(p.skills));
+    set('vnxDirCvLanguages',listText(p.languages));set('vnxDirCvCertifications',listText(p.certifications));set('vnxDirCvConfirmed',listText(p.confirmedByManagement));
+    set('vnxDirCvRoleTarget',p.roleTarget||e?.role||'');set('vnxDirCvRequirements',listText(p.roleRequirements));
+    const box=$('#vnxDirCvComparison');if(box&&!e)box.innerHTML='<div class="vnx-dir-empty">Selecciona una persona para consultar su expediente.</div>';
+  }
+  function cvSplit(id){return String($('#'+id)?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
+  async function saveCvProfile({silent=false}={}){
+    if(!directionToken)return null;
+    const employeeId=$('#vnxDirCvEmployee')?.value||'';if(!employeeId){if(!silent)alert('Selecciona un empleado.');return null}
+    const updated=await window.vnx.directionUpdateCv(directionToken,employeeId,{
+      experience:cvSplit('vnxDirCvExperience'),education:cvSplit('vnxDirCvEducation'),skills:cvSplit('vnxDirCvSkills'),
+      languages:cvSplit('vnxDirCvLanguages'),certifications:cvSplit('vnxDirCvCertifications'),confirmedByManagement:cvSplit('vnxDirCvConfirmed'),
+      roleTarget:String($('#vnxDirCvRoleTarget')?.value||'').trim(),roleRequirements:cvSplit('vnxDirCvRequirements')
+    });
+    const i=employees.findIndex(x=>x.id===employeeId);if(i>=0)employees[i]=updated;
+    if(!silent){renderCvProfile();alert('Expediente profesional guardado.')}
+    return updated;
+  }
+  function evidenceStatusLabel(v){return v==='observado'?'Observado trabajando':v==='confirmado'?'Confirmado por Dirección':v==='declarado'?'Declarado en CV/perfil':'Por comprobar'}
+  function renderTeamRoleComparison(result){
+    const box=$('#vnxDirCvComparison');if(!box)return;
+    if(!result?.requirements?.length){box.innerHTML='<div class="vnx-dir-empty">Define los requisitos reales del puesto, uno por línea.</div>';return}
+    box.innerHTML='<div class="vnx-dir-role-compare-head"><div><b>'+esc(result.roleTarget||'Puesto objetivo')+'</b><span>'+result.requirements.length+' requisitos analizados</span></div><small>'+esc(result.decisionRule||'')+'</small></div>'+
+      '<div class="vnx-dir-role-compare-list">'+result.strongestByRequirement.map(x=>'<article><b>'+esc(x.requirement)+'</b>'+(x.unproven?'<span class="empty">Sin evidencia suficiente en la plantilla</span>':x.strongest.map(p=>'<span class="'+esc(p.status)+'"><strong>'+esc(p.name)+'</strong> · '+esc(p.employeeCode||'')+' · '+esc(evidenceStatusLabel(p.status))+'</span>').join(''))+'</article>').join('')+'</div>'+
+      '<details class="vnx-dir-role-team-details"><summary>Ver evidencia por persona</summary>'+(result.employees||[]).map(e=>'<div><b>'+esc(e.name)+' · '+esc(e.employeeCode||'')+'</b>'+e.requirements.map(x=>'<span><strong>'+esc(x.requirement)+'</strong> · '+esc(evidenceStatusLabel(x.status))+'</span>').join('')+'</div>').join('')+'</details>';
+  }
+
   function selectedHumanEmployee(){return employees.find(e=>e.id===$('#vnxDirHumanEmployee')?.value)||null}
   function renderHumanProfile(){
     const e=selectedHumanEmployee(),p=e?.workProfile||{};
@@ -340,7 +384,7 @@
     if(b)b.value=String(settings.aiTakeoverGraceMinutes??60);
     if(c)c.checked=Boolean(settings.aiTakeoverEnabled);
   }
-  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderManagementPolicy()}
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy()}
 
   async function promptEvent(taskId,kind){
     const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
@@ -427,7 +471,7 @@
       }catch(err){alert(err.message||err)}
     };
     const tf=$('#vnxDirTaskForm');if(tf){
-      const due=$('#vnxDirTaskDue');if(due&&!due.value)due.value=defaultDue();
+      const due=$('#vnxDirTaskDue'),received=$('#vnxDirTaskReceived');if(due&&!due.value)due.value=defaultDue();if(received&&!received.value){const n=new Date(),pad=x=>String(x).padStart(2,'0');received.value=n.getFullYear()+'-'+pad(n.getMonth()+1)+'-'+pad(n.getDate())+'T'+pad(n.getHours())+':'+pad(n.getMinutes())}
       tf.onsubmit=async e=>{
         e.preventDefault();if(!directionToken)return;
         const employee=employees.find(x=>x.id===$('#vnxDirTaskEmployee').value);if(!employee)return;
@@ -435,14 +479,39 @@
           await window.vnx.directionCreateTask(directionToken,{
             businessId:businessId(),assigneeId:employee.id,assigneeName:employee.name,
             title:$('#vnxDirTaskTitle').value,description:$('#vnxDirTaskDesc').value,module:$('#vnxDirTaskModule').value,
+            workType:$('#vnxDirTaskWorkType')?.value||$('#vnxDirTaskModule').value,requesterName:$('#vnxDirTaskRequester')?.value||'',
+            requesterType:($('#vnxDirTaskWorkType')?.value==='customer_request'?'customer':$('#vnxDirTaskWorkType')?.value==='colleague_request'?'colleague':'internal'),
+            receivedAt:$('#vnxDirTaskReceived')?.value?new Date($('#vnxDirTaskReceived').value).toISOString():new Date().toISOString(),
             priority:$('#vnxDirTaskPriority').value,dueAt:new Date($('#vnxDirTaskDue').value).toISOString(),
             aiTakeoverEligible:true,aiTakeoverEnabled:$('#vnxDirTaskAi').checked
           });
-          tf.reset();$('#vnxDirTaskDue').value=defaultDue();await load();
+          tf.reset();$('#vnxDirTaskDue').value=defaultDue();if($('#vnxDirTaskReceived')){$('#vnxDirTaskReceived').value=''};await load();
         }catch(err){alert(err.message||err)}
       };
     }
     const filter=$('#vnxDirFilter');if(filter)filter.onchange=()=>{currentFilter=filter.value;renderTasks()};
+    const cvSelect=$('#vnxDirCvEmployee');if(cvSelect)cvSelect.onchange=renderCvProfile;
+    const cvForm=$('#vnxDirCvForm');if(cvForm)cvForm.onsubmit=async e=>{e.preventDefault();try{await saveCvProfile()}catch(err){alert(err.message||err)}};
+    const cvImport=$('#vnxDirCvImport');if(cvImport)cvImport.onclick=async()=>{
+      if(!directionToken)return;const employeeId=$('#vnxDirCvEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
+      cvImport.disabled=true;const old=cvImport.textContent;cvImport.textContent='Leyendo CV…';
+      try{
+        const doc=await window.vnx.analyzeDocument();if(!doc?.ok)return;
+        const updated=await window.vnx.directionImportCv(directionToken,employeeId,{fileName:doc.fileName,text:doc.text});
+        const i=employees.findIndex(x=>x.id===employeeId);if(i>=0)employees[i]=updated;
+        renderCvProfile();alert('CV importado. Se han conservado solo datos profesionales útiles para el expediente.');
+      }catch(err){alert('No se pudo importar el CV: '+(err.message||err))}
+      finally{cvImport.disabled=false;cvImport.textContent=old}
+    };
+    const cvCompare=$('#vnxDirCvCompare');if(cvCompare)cvCompare.onclick=async()=>{
+      if(!directionToken)return;const employeeId=$('#vnxDirCvEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado para definir el puesto de referencia.');return}
+      try{
+        await saveCvProfile({silent:true});
+        const roleTarget=String($('#vnxDirCvRoleTarget')?.value||'').trim(),requirements=cvSplit('vnxDirCvRequirements');
+        const result=await window.vnx.directionCompareTeamRole(directionToken,{businessId:businessId(),roleTarget,requirements});
+        renderTeamRoleComparison(result);
+      }catch(err){alert('No se pudo comparar la plantilla con el puesto: '+(err.message||err))}
+    };
     const humanSelect=$('#vnxDirHumanEmployee');if(humanSelect)humanSelect.onchange=renderHumanProfile;
     const humanForm=$('#vnxDirHumanForm');if(humanForm)humanForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
