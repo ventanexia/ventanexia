@@ -51,6 +51,11 @@ need(home,/data-home-stock-continue/,'unverified history must allow continuing w
 need(home,/lastStockRun\?\.summary\?\.salesLookReliable!==false/,'Generate order must not reuse an unverified historical result');
 need(home,/Importar ventas Excel/CSV/,'historical-sales import fallback missing');
 need(preload,/stockImportFile:\\(options=\\{\\}\\)=>ipcRenderer\\.invoke\\('stock:import-file',options\\)/,'policy-aware historical-sales import bridge missing');
+need(backend,/erp:replenishment-summary/,'ERP replenishment IPC missing');
+need(preload,/erpStatus:/,'ERP status bridge missing');
+need(preload,/erpReplenishmentSummary:/,'ERP replenishment bridge missing');
+need(home,/window\.vnx\.erpStatus\(\)/,'connected ERP must appear as a stock source');
+need(home,/src\.module==='erp'\|\|src\.type==='erp'/,'Stock y compras must fetch from ERP');
 need(master,/ventas_periodo/,'generic sales-period export column missing');
 forbid(home,/347 referencias|676 unidades/,'no screenshot-specific quantities may be hard-coded');
 
