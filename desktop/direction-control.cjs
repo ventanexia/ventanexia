@@ -17,7 +17,17 @@ function id(prefix='x'){return prefix+'_'+crypto.randomBytes(7).toString('hex')}
 function clampText(v,n=500){return String(v??'').trim().slice(0,n)}
 function clampNum(v,min=0,max=1e9,def=0){const n=Number(v);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):def}
 
-const DEFAULT_MANAGEMENT_POLICY={profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50};
+const DEFAULT_MANAGEMENT_POLICY={
+  profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50,
+  approach:'balanced',
+  requireEmployeeConversation:true,
+  requireSupportTrial:true,
+  requireRoleAlternativeReview:true,
+  improvementWindowDays:30,
+  employeeVoiceRequired:true
+};
+const MANAGEMENT_NUMERIC_KEYS=['profitability','customerService','peopleDevelopment','growth','stability'];
+const MANAGEMENT_APPROACHES=new Set(['results_first','balanced','people_first']);
 const PROFILE_SOURCES=new Set(['self_reported','agreed','manager_observed']);
 const AUTONOMY_LEVELS=new Set(['guided','balanced','autonomous']);
 const COLLAB_LEVELS=new Set(['individual','balanced','team']);
@@ -43,7 +53,13 @@ function sanitizeWorkProfile(raw={}){
 }
 function sanitizeManagementPolicy(raw={}){
   const p={};
-  for(const k of Object.keys(DEFAULT_MANAGEMENT_POLICY))p[k]=Math.round(clampNum(raw[k],0,100,DEFAULT_MANAGEMENT_POLICY[k]));
+  for(const k of MANAGEMENT_NUMERIC_KEYS)p[k]=Math.round(clampNum(raw[k],0,100,DEFAULT_MANAGEMENT_POLICY[k]));
+  p.approach=MANAGEMENT_APPROACHES.has(raw.approach)?raw.approach:DEFAULT_MANAGEMENT_POLICY.approach;
+  p.requireEmployeeConversation=raw.requireEmployeeConversation!==false;
+  p.requireSupportTrial=raw.requireSupportTrial!==false;
+  p.requireRoleAlternativeReview=raw.requireRoleAlternativeReview!==false;
+  p.employeeVoiceRequired=raw.employeeVoiceRequired!==false;
+  p.improvementWindowDays=Math.round(clampNum(raw.improvementWindowDays,7,180,DEFAULT_MANAGEMENT_POLICY.improvementWindowDays));
   p.updatedAt=raw.updatedAt?iso(raw.updatedAt):new Date().toISOString();
   return p;
 }
@@ -560,7 +576,8 @@ function causeHypotheses(emp,mine,roleFit,peers,now){
 function managementLens(policy,emp,roleFit,hypotheses){
   const p=sanitizeManagementPolicy(policy||DEFAULT_MANAGEMENT_POLICY);
   const labels={profitability:'rentabilidad',customerService:'servicio al cliente',peopleDevelopment:'desarrollo de personas',growth:'crecimiento',stability:'estabilidad y riesgo'};
-  const priorities=Object.entries(p).filter(([k])=>k!=='updatedAt').sort((a,b)=>b[1]-a[1]).slice(0,2).map(([key,value])=>({key,label:labels[key],value}));
+  const priorities=MANAGEMENT_NUMERIC_KEYS.map(key=>({key,label:labels[key],value:p[key]})).sort((a,b)=>b.value-a.value).slice(0,2);
+  const approachLabel=p.approach==='results_first'?'Resultados empresariales primero':p.approach==='people_first'?'Desarrollo y recuperación primero':'Equilibrio entre resultado y persona';
   const rec=[];
   const has=k=>hypotheses.some(x=>x.key===k||x.key.startsWith(k+'_'));
   if(has('process'))rec.push('Revisar el proceso antes de atribuir el problema a una persona; si varias personas fallan en la misma fase, corregir el sistema puede producir más efecto que cambiar al trabajador.');
@@ -576,10 +593,22 @@ function managementLens(policy,emp,roleFit,hypotheses){
   if(p.stability>=70)rec.push('Criterio de Dirección: reducir dependencia de una sola persona, documentar procesos y crear respaldos para tareas críticas.');
 
   if((roleFit?.possibleMatches||[]).length)rec.push('Funciones a explorar según evidencias actuales: '+roleFit.possibleMatches.join(', ')+'.');
+  if(p.approach==='results_first')rec.push('Enfoque declarado: resultados empresariales primero. Presentar el impacto económico y operativo con claridad, pero separar ese impacto de las causas y de las alternativas disponibles.');
+  if(p.approach==='balanced')rec.push('Enfoque declarado: equilibrio. Comparar simultáneamente impacto empresarial, posibilidad de mejora y encaje alternativo.');
+  if(p.approach==='people_first')rec.push('Enfoque declarado: desarrollo primero. Agotar razonablemente conversación, apoyo y ajuste del puesto cuando exista una hipótesis corregible.');
   if(!rec.length)rec.push('Mantener el seguimiento y revisar nuevamente cuando exista más evidencia comparable.');
+
+  const reviewSteps=[
+    {key:'business_floor',label:'1. Necesidad empresarial',required:true,text:'Definir qué resultado del puesto es realmente imprescindible: servicio, calidad, seguridad, cumplimiento, margen o continuidad.'},
+    {key:'cause',label:'2. Explicar la causa',required:true,text:'Distinguir persona, formación, carga, proceso, herramientas, instrucciones y dependencias antes de atribuir el resultado.'},
+    {key:'employee_voice',label:'3. Escuchar a la persona',required:p.employeeVoiceRequired||p.requireEmployeeConversation,text:'Recoger su explicación laboral, necesidades, obstáculos y propuesta de mejora; no inferir emociones ni estados mentales.'},
+    {key:'support_trial',label:'4. Probar una intervención',required:p.requireSupportTrial,text:'Cuando sea razonable, probar formación, instrucciones, apoyo o rediseño durante '+p.improvementWindowDays+' días y volver a medir.'},
+    {key:'role_alternative',label:'5. Revisar encaje alternativo',required:p.requireRoleAlternativeReview,text:'Comprobar si sus fortalezas encajan mejor en otra combinación de funciones antes de concluir que el problema es general.'},
+    {key:'human_decision',label:'6. Decisión de Dirección',required:true,text:'Presentar escenarios con consecuencias empresariales y humanas. VentaNexIA no ejecuta una decisión laboral automática.'}
+  ];
   return {
-    policy:p,priorities,recommendations:[...new Set(rec)].slice(0,7),
-    principle:'Los hechos del informe no cambian con el criterio del jefe; solo cambia qué objetivos prioriza la recomendación. La decisión final corresponde a Dirección.'
+    policy:p,approachLabel,priorities,recommendations:[...new Set(rec)].slice(0,9),reviewSteps,
+    principle:'Los hechos no cambian según la filosofía del jefe. El criterio de Dirección decide qué objetivos prioriza, pero VentaNexIA mantiene separadas la evidencia, las causas, la voz de la persona y las alternativas. La decisión final corresponde a Dirección.'
   };
 }
 
