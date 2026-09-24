@@ -1660,7 +1660,7 @@ function emailListItem(m,i,selected){
     // donde no existe #portalList. El selector de fuentes depende de masterPortals.
     try{masterPortals=await window.vnx.listPortals()||[]}catch{masterPortals=[]}
     if(!root)return masterPortals;
-    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-disconnect" data-id="${escM(p.id)}" style="${p.lastStatus==='connected'?'':'display:none'}">Desconectar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
+    root.innerHTML=masterPortals.length?masterPortals.map(p=>`<div class="listrow"><div><b>${escM(p.name)}</b><span>${escM(p.url)} · ${p.mode==='read'?'🔒 Solo lectura':'Lectura y escritura'} · ${statusLabel(p)}</span>${p.lastCheckedAt?`<small>Última comprobación: ${new Date(p.lastCheckedAt).toLocaleString('es-ES')}</small>`:''}</div><div class="row"><button class="mini master-portal-connect" data-id="${escM(p.id)}">${p.lastStatus==='connected'?'Abrir':'Conectar'}</button><button class="mini master-portal-check" data-id="${escM(p.id)}">Revisar</button><button class="mini master-portal-disconnect" data-id="${escM(p.id)}">Desconectar</button><button class="mini master-portal-remove" data-id="${escM(p.id)}">Quitar</button></div></div>`).join(''):'<div class="empty">Todavía no hay páginas privadas configurados.</div>';
     $$m('.master-portal-connect').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Abriendo…';
       try{await window.vnx.connectPortal(b.dataset.id);$m('#portalMsg').textContent='Se ha abierto una ventana segura de VentaNexIA. Inicia sesión ahí una sola vez; la sesión quedará guardada localmente en este ordenador.';}
@@ -1939,7 +1939,11 @@ function emailListItem(m,i,selected){
       if(src){
         base.selectedSource=src;
         const second=secondChoice!==''?sources[Number(secondChoice)]:null;
-        if(second&&second.id!==src.id)base.selectedSources=[src,second];
+        if(second&&second.id!==src.id){
+          base.selectedSources=[src,second];
+          base.sources=[src,second];
+          base.separateSources=true;
+        }
         if(item.key==='email')base.accountIndex=src.accountIndex;
         if(item.key==='web_ecommerce'&&src.module==='shopify')base.source={type:'shopify',key:'shopify',name:'Shopify · '+src.label,shop:src.raw?.shop||src.label};
         if(item.key==='web_ecommerce'&&(src.module==='portal'||src.type==='portal'))base.source={type:'portal',id:src.id,name:src.label,url:src.url};
@@ -2338,7 +2342,10 @@ function emailListItem(m,i,selected){
   }
   function chatScopeKey(scope){
     if(!scope)return 'none';
-    if(scope.selectedSource)return 'source:'+(scope.selectedSource.module||'unknown')+':'+(scope.selectedSource.id||scope.selectedSource.label||scope.selectedSource.accountIndex||'0');
+    if(Array.isArray(scope.selectedSources)&&scope.selectedSources.length>1){
+      return 'sources:'+scope.selectedSources.map(x=>(x.module||x.type||'unknown')+':'+(x.id||x.raw?.shop||x.label||x.accountIndex||'0')).sort().join('|');
+    }
+    if(scope.selectedSource)return 'source:'+(scope.selectedSource.module||'unknown')+':'+(scope.selectedSource.id||scope.selectedSource.raw?.shop||scope.selectedSource.label||scope.selectedSource.accountIndex||'0');
     if(scope.type==='shopify')return 'shopify:'+(scope.shop||'connected');
     if(scope.type==='integration')return 'integration:'+scope.key+':'+(Number.isInteger(scope.accountIndex)?scope.accountIndex:'0');
     if(scope.type==='portal')return 'portal:'+scope.id;
@@ -2527,6 +2534,84 @@ function emailListItem(m,i,selected){
     if(scope?.type==='portal')return true;
     if(scope?.selectedSource?.module==='portal'||scope?.selectedSource?.type==='portal')return true;
     return false;
+  }
+  function wantsFreshStock(text=''){
+    return /\b(actualiza|actualizar|refresca|refrescar|recarga|recargar|vuelve a entrar|lee de nuevo|ahora mismo)\b/i.test(String(text||''));
+  }
+  function combinedStockSources(scope){
+    const list=Array.isArray(scope?.selectedSources)?scope.selectedSources:[];
+    if(list.length!==2)return null;
+    const supported=list.every(x=>['shopify','portal'].includes(String(x.module||x.type||'')));
+    return supported?list:null;
+  }
+  function sourceLabelOf(src){return src?.label||src?.name||src?.raw?.shopName||src?.raw?.shop||'Conexión'}
+  async function stockSummaryForSource(src,text=''){
+    const module=String(src?.module||src?.type||'');
+    const force=wantsFreshStock(text);
+    if(module==='shopify'){
+      const shop=src?.raw?.shop||src?.shop||null;
+      const r=await window.vnx.shopifyReplenishmentSummary(shop,{force:true});
+      return {...r,sourceLabel:'Shopify · '+(src?.label||r?.shop||shop||'Tienda'),sourceModule:'shopify'};
+    }
+    if(module==='portal'){
+      const r=await window.vnx.portalReplenishmentSummary(src.id,{force});
+      if(!r?.ok){
+        const why=r?.reason==='login_required'?'la sesión necesita volver a iniciarse':r?.reason==='read_error'?'la página no se ha podido leer':r?.reason==='stock_not_structured'?'no se ha encontrado una tabla verificable de referencias y existencias':'la lectura no ha terminado correctamente';
+        throw new Error(sourceLabelOf(src)+': '+why+(r?.error?' · '+r.error:''));
+      }
+      return {...r,sourceLabel:sourceLabelOf(src),sourceModule:'portal'};
+    }
+    throw new Error(sourceLabelOf(src)+': esta conexión no admite todavía el cruce de stock.');
+  }
+  function rowLookup(rows=[]){
+    const bySku=new Map(),byEan=new Map();
+    for(const r of rows||[]){
+      const sku=String(r?.sku||'').trim(),ean=String(r?.ean||'').trim();
+      if(sku&&!bySku.has(sku))bySku.set(sku,r);
+      if(ean&&!byEan.has(ean))byEan.set(ean,r);
+    }
+    return r=>{
+      const sku=String(r?.sku||'').trim(),ean=String(r?.ean||'').trim();
+      return (sku&&bySku.get(sku))||(ean&&byEan.get(ean))||null;
+    };
+  }
+  function buildCombinedStockSummary(a,b,sources){
+    const shopIndex=sources.findIndex(x=>String(x.module||x.type||'')==='shopify');
+    const demand=shopIndex>=0?(shopIndex===0?a:b):([a,b].sort((x,y)=>Number(y?.withSales||0)-Number(x?.withSales||0))[0]);
+    const supplier=demand===a?b:a;
+    const demandSource=demand===a?sources[0]:sources[1],supplierSource=demand===a?sources[1]:sources[0];
+    const matchSupplier=rowLookup(supplier.rows||[]);
+    const rows=(demand.rows||[]).map(r=>{
+      const supplierRow=matchSupplier(r),needed=Math.max(0,Number(r.qty||0)),available=supplierRow?Math.max(0,Number(supplierRow.stock||0)):null;
+      const canSupply=available==null?0:Math.min(needed,available);
+      const supplyStatus=!supplierRow?'NO APARECE EN CATÁLOGO':available<=0?'SIN STOCK':needed<=0?'NO NECESITA COMPRA':available>=needed?'PUEDE SERVIRLO':'SOLO '+canSupply+' DE '+needed;
+      return {...r,supplierStock:available,supplierCanSupply:canSupply,supplyStatus,supplierProduct:supplierRow?.product||supplierRow?.title||'',supplierMatched:Boolean(supplierRow)};
+    });
+    return {
+      ok:true,combined:true,windowDays:demand.windowDays||180,rows,
+      sourceLabel:sourceLabelOf(demandSource)+' + '+sourceLabelOf(supplierSource),
+      demandLabel:sourceLabelOf(demandSource),supplierLabel:sourceLabelOf(supplierSource),
+      generatedAt:new Date().toISOString(),cacheHit:Boolean(a.cacheHit||b.cacheHit),
+      cacheAgeMs:Math.max(Number(a.cacheAgeMs||0),Number(b.cacheAgeMs||0)),
+      urgent:rows.filter(r=>r.urgent),productsSeen:rows.length,withSales:rows.filter(r=>!r.noSalesData).length
+    };
+  }
+  function combinedStockTable(summary={}){
+    const rows=(summary.rows||[]).filter(r=>r.urgent||Number(r.qty||0)>0);
+    const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
+    const lines=['# Cruce de stock · '+summary.demandLabel+' → '+summary.supplierLabel,'',
+      '**Demanda:** '+summary.demandLabel+' · **Disponibilidad del proveedor:** '+summary.supplierLabel+'. El cruce se hace por SKU y EAN; no se mezclan otras conexiones.','',
+      '| Código | Producto | Stock propio | Ventas 6 meses | Necesito comprar | Stock proveedor | Puede servir | Estado proveedor |',
+      '|---|---|---:|---:|---:|---:|---:|---|'];
+    for(const r of rows){
+      lines.push('| '+(r.sku||r.ean||'—')+' | '+String(r.product||'').replace(/\|/g,'/')+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.qty)+' | '+(r.supplierStock==null?'—':fmt(r.supplierStock))+' | '+fmt(r.supplierCanSupply)+' | '+r.supplyStatus+' |');
+    }
+    if(!rows.length)lines.push('| — | No hay referencias que necesiten reposición | — | — | — | — | — | Correcto |');
+    if(summary.cacheHit){
+      const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));
+      lines.push('','ℹ️ Datos del portal leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** para volver a entrar ahora mismo.');
+    }
+    return lines.join('\n');
   }
   function shopifyStockTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
@@ -2739,8 +2824,33 @@ function emailListItem(m,i,selected){
           btn.disabled=false;btn.textContent='Enviar';
           return;
         }
+        const combinedSources=combinedStockSources(scope);
+        if(combinedSources&&stockIntentText(text)&&window.vnx?.shopifyReplenishmentSummary&&window.vnx?.portalReplenishmentSummary){
+          try{
+            const first=await stockSummaryForSource(combinedSources[0],text);
+            const second=await stockSummaryForSource(combinedSources[1],text);
+            const combined=buildCombinedStockSummary(first,second,combinedSources);
+            const content=combinedStockTable(combined);
+            const purchaseRows=(combined.rows||[]).filter(r=>r.urgent||Number(r.qty||0)>0).map(r=>[
+              String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),Number(r.qty||0),
+              r.supplierStock==null?'':Number(r.supplierStock),Number(r.supplierCanSupply||0),String(r.supplyStatus||'')
+            ]);
+            const purchaseData={headers:['sku','ean','producto','stock_propio','ventas_180_dias','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
+            const sourceLabel=combined.sourceLabel,purchaseAnalyzedAt=combined.generatedAt;
+            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
+            await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+            window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Cruce-Stock-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+          }catch(e){
+            masterMessages.push({role:'assistant',content:'No he hecho un cruce parcial. Para cruzar dos conexiones necesito leer **las dos** correctamente. '+String(e?.message||e),scopeKey:activeScopeKey});
+          }
+          renderMasterMessages({focusIndex:masterMessages.length-1});
+          btn.disabled=false;btn.textContent='Enviar';
+          return;
+        }
         if(isShopifyStockRequest(text,scope)&&window.vnx?.shopifyReplenishmentSummary){
-          const summary=await window.vnx.shopifyReplenishmentSummary();
+          const shopSource=scope?.selectedSource||scope?.source||scope;
+          const selectedShop=shopSource?.raw?.shop||shopSource?.shop||scope?.shop||null;
+          const summary=await window.vnx.shopifyReplenishmentSummary(selectedShop,{force:true});
           const stockListing=isStockListingRequest(text);
           const reply=stockListing?stockInventoryTable(summary):shopifyStockTable(summary);
           const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
@@ -2775,7 +2885,7 @@ function emailListItem(m,i,selected){
             renderMasterMessages({focusIndex:masterMessages.length-1});btn.disabled=false;btn.textContent='Enviar';return;
           }
           try{
-            const summary=await window.vnx.portalReplenishmentSummary(portalId);
+            const summary=await window.vnx.portalReplenishmentSummary(portalId,{force:wantsFreshStock(text)});
             if(summary?.status==='login_required'){await renderMasterPortals();await refreshChatConnections();}
             if(summary?.ok){
               const stockListing=isStockListingRequest(text);
@@ -2789,6 +2899,7 @@ function emailListItem(m,i,selected){
               const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
+              if(summary.cacheHit){const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));content+='\n\nℹ️ Datos leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** si quieres que vuelva a entrar ahora mismo.';}
               const purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
               const stockData=stockListing?stockExportData(portalSummary):null;
               masterMessages.push({role:'assistant',content,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
@@ -2796,7 +2907,9 @@ function emailListItem(m,i,selected){
               window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
               const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0),liveChecked=Boolean(summary?.liveWindowChecked),rehydrated=Boolean(summary?.autoRehydrated),portalOpened=Boolean(summary?.portalOpened);
-              const reason=summary?.reason==='login_required'
+              const reason=summary?.reason==='read_error'
+                ?'He entrado en **'+sourceLabel+'** pero la página ha devuelto contenido que no he podido procesar'+(summary?.error?' ('+summary.error+')':'')+'.'
+                :summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** ha caducado y necesita volver a iniciarse.'
                 :'He usado la sesión guardada de **'+sourceLabel+'**'+(rehydrated?' y he reconstruido automáticamente su ventana':'')+'. He intentado entrar en **Productos / Stock / Existencias / Inventario**'+(scanPages?' y he revisado '+scanPages+' pantalla'+(scanPages===1?'':'s'):'')+(scanTables?' con '+scanTables+' tablas o rejillas detectadas':'')+', pero todavía no encuentro una combinación verificable de **referencia + existencias**.';
               const next=summary?.reason==='login_required'
@@ -2807,7 +2920,11 @@ function emailListItem(m,i,selected){
               masterMessages.push({role:'assistant',content:reason+'\n\n'+next,importStockPrompt:summary?.reason!=='login_required',stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
             }
           }catch(e){
-            masterMessages.push({role:'assistant',content:'No he podido leer el stock de **'+sourceLabel+'**: '+String(e?.message||e)+'. No he usado Shopify ni ninguna otra conexión.',scopeKey:activeScopeKey});
+            const detalle=String(e?.message||e);
+            const tecnico=/Script failed to execute|renderer console|Cannot read|undefined/i.test(detalle);
+            masterMessages.push({role:'assistant',content:'No he podido leer el stock de **'+sourceLabel+'**.'
+              +(tecnico?'\n\nLa página ha devuelto contenido que no he podido procesar. Abre **'+sourceLabel+'**, entra en la pantalla donde se ven las referencias y sus existencias, déjala abierta y vuelve a pedirme el stock. Si sigue fallando, puedes darme el listado en Excel o CSV.':'\n\n'+detalle)
+              +'\n\nNo he usado Shopify ni ninguna otra conexión.',importStockPrompt:true,stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
           }
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
