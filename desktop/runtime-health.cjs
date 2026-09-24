@@ -5,11 +5,12 @@ const EXPECTED_AGENTS=['email','orders','web_ecommerce','crm','prospecting','con
 const CRITICAL_PRELOAD=[
   'listConnections','ordersReview','ordersExportReady','shopifyReplenishmentSummary','portalReplenishmentSummary',
   'erpStatus','erpReplenishmentSummary','stockImportFile','exportData','businessList','businessSaveAll','businessSetActive',
-  'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair'
+  'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair',
+  'directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue'
 ];
 const RUNTIME_FILES=[
-  'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs',
-  'renderer/index.html','renderer/app.js','renderer/master.js','renderer/agent-home.js','renderer/business-onboarding.js'
+  'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs','direction-control.cjs',
+  'renderer/index.html','renderer/app.js','renderer/master.js','renderer/agent-home.js','renderer/direction-control.js','renderer/business-onboarding.js'
 ];
 
 function read(base,rel){return fs.readFileSync(path.join(base,rel),'utf8')}
@@ -51,6 +52,8 @@ function staticRuntimeChecks(base=__dirname){
   add('Exportación Stock y Compras',exportOk,exportOk?'Excel, CSV y PDF sobre la vista actual':'Exportación incompleta');
   const erpOk=preload.includes('erpStatus:')&&preload.includes('erpReplenishmentSummary:')&&read(base,'master.cjs').includes("ipcMain.handle('erp:replenishment-summary'");
   add('Stock desde ERP',erpOk,erpOk?'Bridge y backend disponibles':'Integración ERP incompleta');
+  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&read(base,'renderer/direction-control.js').includes('directionSummary');
+  add('Control Operativo de Dirección',directionUi,directionUi?'Panel, responsables, SLA y evidencia disponibles':'Módulo de dirección incompleto');
   return checks;
 }
 
@@ -92,6 +95,14 @@ function sanitizeState(state){
   }
   if(s.secret.ordersErp!==undefined&&(s.secret.ordersErp===null||typeof s.secret.ordersErp!=='object'||Array.isArray(s.secret.ordersErp))){
     s.secret.ordersErp={};set('Se reconstruyó la configuración local del programa de gestión.');
+  }
+  if(!s.secret.directionControl||typeof s.secret.directionControl!=='object'||Array.isArray(s.secret.directionControl)){s.secret.directionControl={employees:[],tasks:[],events:[],settings:{defaultSlaMinutes:480,aiTakeoverGraceMinutes:60,aiTakeoverEnabled:false}};set('Se reconstruyó el Control Operativo de Dirección.')}
+  else{
+    const d=s.secret.directionControl;
+    if(!Array.isArray(d.employees)){d.employees=[];set('Se reparó el índice de responsables de Dirección.')}
+    if(!Array.isArray(d.tasks)){d.tasks=[];set('Se reparó el registro de tareas de Dirección.')}
+    if(!Array.isArray(d.events)){d.events=[];set('Se reparó el historial de evidencias de Dirección.')}
+    if(!d.settings||typeof d.settings!=='object'){d.settings={defaultSlaMinutes:480,aiTakeoverGraceMinutes:60,aiTakeoverEnabled:false};set('Se reparó la política de recuperación por IA.')}
   }
   if(!s.support||typeof s.support!=='object'){s.support={};set('Se reconstruyó la configuración de asistencia automática.')}
   return {state:s,changed,actions};
