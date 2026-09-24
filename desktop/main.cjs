@@ -1074,7 +1074,7 @@ async function rendererRuntimeHealth(){
   });
   if(!wins.length)return {ok:true,detail:'Interfaz no abierta; se comprobará al abrirla'};
   const expected=['email','orders','web_ecommerce','crm','prospecting','content','social','campaigns','administration','agenda','reports','automation'];
-  const required=['vnxAhSearchBtn','vnxAhPrimary','vnxAhCompanyBtn','vnxAhPreviewActions','chatConnectionSelect'];
+  const required=['vnxAhSearchBtn','vnxAhPrimary','vnxAhCompanyBtn','vnxAhPreviewActions','chatConnectionSelect','vnxDirKpis','vnxDirTaskRows'];
   const probe='(()=>{const expected='+JSON.stringify(expected)+',required='+JSON.stringify(required)+';const missingAgents=expected.filter(k=>!document.querySelector(\'[data-agent-home="\'+k+\'"]\'));const missingIds=required.filter(id=>!document.getElementById(id));return {ok:missingAgents.length===0&&missingIds.length===0&&Boolean(window.vnxAgentHome)&&Boolean(window.vnx),missingAgents,missingIds,agentApi:Boolean(window.vnxAgentHome),bridge:Boolean(window.vnx)}})()';
   for(const win of wins){
     try{
