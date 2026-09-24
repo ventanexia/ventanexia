@@ -1,10 +1,11 @@
 'use strict';
 const {app}=require('electron');
-const {readState,updateState}=require('./state-store.cjs');
+const {readState}=require('./state-store.cjs');
+const {persistShopifyStorePatch,storeKey}=require('./shopify-stores.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const SAFETY_MS=5*60*1000;
-let inflight=null;
+const inflight=new Map();
 
 function fail(message,code,extra){const e=new Error(message);e.code=code;if(extra)e.data=extra;return e}
 function expired(cfg,now=Date.now()){
@@ -42,19 +43,21 @@ async function requestOwnedToken(shop,postJson=postJsonDefault){
   if(!token)throw fail('El servidor conectó con Shopify pero no entregó el token a VentaNexIA.','SHOPIFY_TOKEN_MISSING_IN_RESPONSE',{tokenReceived:Boolean(result.tokenReceived),shop:result.shop||shop});
   return {token,expiresIn:Number(result.expiresIn||result.expires_in||86399),raw:result};
 }
-async function persist(patch){
-  await updateState(s=>{const x=s.secret?.integrations?.shopify;if(x)Object.assign(x,patch);return s});
+async function persist(cfg,patch){
+  await persistShopifyStorePatch(cfg?.shop,patch);
 }
 async function refreshShopifyToken(cfg,{failedToken=null,postJson=postJsonDefault}={}){
   if(cfg.authMode!=='client_credentials')throw fail('El acceso a Shopify ya no es válido. Vuelve a conectar la tienda en Conexiones.','REAUTH_REQUIRED');
   if(failedToken&&cfg.token&&cfg.token!==failedToken)return cfg.token;
-  if(inflight)return inflight;
-  inflight=(async()=>{
+  const key=storeKey(cfg.shop);
+  if(inflight.has(key))return inflight.get(key);
+  const job=(async()=>{
     const {token,expiresIn}=await requestOwnedToken(cfg.shop,postJson);
     const patch={token,expiresAt:new Date(Date.now()+expiresIn*1000).toISOString()};
-    Object.assign(cfg,patch);await persist(patch);return token;
-  })().finally(()=>{inflight=null});
-  return inflight;
+    Object.assign(cfg,patch);await persist(cfg,patch);return token;
+  })().finally(()=>{inflight.delete(key)});
+  inflight.set(key,job);
+  return job;
 }
 async function shopifyCall(cfg,fn){
   let token=String(cfg?.token||'').trim();
