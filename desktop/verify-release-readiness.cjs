@@ -69,7 +69,21 @@ ok(!business.includes('data-biz-index="'+String.fromCharCode(39)+'+i+'+String.fr
 function extractFn(src,name){
   const start=src.indexOf('function '+name+'(');
   if(start<0)throw new Error('No se encuentra '+name);
-  const brace=src.indexOf('{',start);let depth=0,quote=null,escape=false;
+  const paren=src.indexOf('(',start);let pd=0,quote=null,escape=false,close=-1;
+  for(let i=paren;i<src.length;i++){
+    const ch=src[i];
+    if(quote){
+      if(escape){escape=false;continue}
+      if(ch==='\\'){escape=true;continue}
+      if(ch===quote)quote=null;
+      continue;
+    }
+    if(ch==="'"||ch==='"'||ch.charCodeAt(0)===96){quote=ch;continue}
+    if(ch==='(')pd++;
+    else if(ch===')'&&--pd===0){close=i;break}
+  }
+  if(close<0)throw new Error('Firma incompleta '+name);
+  const brace=src.indexOf('{',close);let depth=0;quote=null;escape=false;
   for(let i=brace;i<src.length;i++){
     const ch=src[i];
     if(quote){
@@ -108,7 +122,7 @@ try{
 
 ok(masterUi.includes('function isPurchaseOrderRequest')&&masterUi.includes('function isStockListingRequest'),'Detección de intenciones Stock/Pedidos incompleta');
 ok(masterUi.includes('purchasePanelHtml')&&masterUi.includes('stockInventoryTable'),'Renderizado de resultados de compras/stock incompleto');
-ok(exporter.includes("payload.format==='csv'")&&exporter.includes("payload.format==='excel'")&&exporter.includes("payload.format==='pdf'"),'Motor de exportación no enruta Excel/CSV/PDF');
+ok(exporter.includes("payload.format==='csv'")&&exporter.includes("payload.format==='pdf'")&&exporter.includes(":'excel'")&&exporter.includes("if(format==='excel')")&&exporter.includes("xlsxBuffer(data)")&&exporter.includes("printToPDF"),'Motor de exportación no enruta Excel/CSV/PDF');
 ok(main.includes("ipcMain.handle('support:auto-repair'"),'Autoreparación no disponible');
 ok(main.includes('runHealthCheck'),'Chequeo de salud no disponible');
 
