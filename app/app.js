@@ -63,10 +63,10 @@ $('#chatForm').onsubmit=async e=>{
 $$('[data-master]').forEach(btn=>btn.onclick=async()=>{
   const key=btn.dataset.master,root=$('#masterResult');
   const prompts={
-    clientes:'Muéstrame los clientes disponibles para esta cuenta.',
-    facturas:'Muéstrame las facturas disponibles para esta cuenta.',
-    pedidos:'Muéstrame los pedidos disponibles para esta cuenta.',
-    datos:'Resume todos los datos empresariales disponibles para esta cuenta.'
+    clientes:'Comprueba si esta sesión móvil tiene datos de clientes disponibles. Si no los tienes, no inventes ninguno y explícame que debo consultarlos en VentaNexIA Desktop.',
+    facturas:'Comprueba si esta sesión móvil tiene datos de facturas disponibles. Si no los tienes, no inventes ninguna y explícame que debo consultarlas en VentaNexIA Desktop.',
+    pedidos:'Comprueba si esta sesión móvil tiene datos de pedidos disponibles. Si no los tienes, no inventes ninguno y explícame que debo consultarlos en VentaNexIA Desktop.',
+    datos:'Comprueba qué datos empresariales están realmente disponibles en esta sesión móvil. No inventes datos ni conexiones; indica qué requiere VentaNexIA Desktop.'
   };
   root.innerHTML='<div class="empty">Mirándolo…</div>';
   try{
