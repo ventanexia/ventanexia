@@ -2400,3 +2400,14 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-dimension details{margin-top:6px;border-top:1px solid #133c5b;padding-top:5px}.vnx-dir-dimension summary{cursor:pointer;color:#78dff2;font-size:10px}.vnx-dir-dimension em{display:block;color:#9eb7c8;font-size:10px;font-style:normal;margin:3px 0}
 .vnx-dir-eval-questions{margin-top:10px;border-top:1px solid #174969;padding-top:8px}.vnx-dir-eval-questions summary{cursor:pointer;color:#7be3f4;font-size:11px}.vnx-dir-eval-questions span{display:block;color:#a9c0d1;font-size:10px;margin:4px 0}
 @media(max-width:900px){.vnx-dir-evaluation-head,.vnx-dir-dimension-grid{grid-template-columns:1fr}.vnx-dir-dimension>div{display:grid}}
+
+
+/* Dirección · evidencia laboral y marco de 10 dimensiones */
+.vnx-dir-observation-form{display:grid;grid-template-columns:minmax(220px,.8fr) minmax(260px,1fr) minmax(180px,.7fr);gap:10px;align-items:end}
+.vnx-dir-observation-form label{display:grid;gap:5px;font-size:12px;color:#a9bed1}
+.vnx-dir-observation-form select,.vnx-dir-observation-form textarea{background:#071b32;color:#eef7ff;border:1px solid #1b557f;border-radius:9px;padding:10px}
+.vnx-dir-observation-wide,.vnx-dir-observation-form .vnx-dir-human-warning,.vnx-dir-observation-form>button{grid-column:1/-1}
+.vnx-dir-dimensions-guide{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:10px 0}
+.vnx-dir-dimensions-guide span{border:1px solid #174c73;border-radius:9px;background:#071c31;color:#b9cfdf;padding:8px;font-size:10px;text-align:center}
+@media(max-width:1100px){.vnx-dir-observation-form{grid-template-columns:1fr 1fr}.vnx-dir-observation-wide,.vnx-dir-observation-form .vnx-dir-human-warning,.vnx-dir-observation-form>button{grid-column:1/-1}.vnx-dir-dimensions-guide{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){.vnx-dir-observation-form,.vnx-dir-dimensions-guide{grid-template-columns:1fr}.vnx-dir-observation-wide,.vnx-dir-observation-form .vnx-dir-human-warning,.vnx-dir-observation-form>button{grid-column:1}}
