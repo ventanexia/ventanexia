@@ -231,8 +231,9 @@ function summarize(d,{businessId='',now=new Date().toISOString()}={}){
 
 
 const MODULE_LABELS={
-  email:'Correo',crm:'Ventas y clientes',orders:'Pedidos',web_ecommerce:'Stock y compras',
-  administration:'Documentos / administración',agenda:'Agenda',reports:'Informes',other:'Otra'
+  email:'Correo',colleague_request:'Solicitud de compañero',customer_request:'Solicitud de cliente',
+  crm:'Ventas y clientes',orders:'Pedidos',web_ecommerce:'Stock y compras',
+  administration:'Documentos / administración',agenda:'Agenda',reports:'Informes',meeting:'Reuniones',other:'Otra'
 };
 function validDate(v){const d=v?new Date(v):null;return d&&!Number.isNaN(d.getTime())?d:null}
 function taskActiveInPeriod(t,from,to,now){
