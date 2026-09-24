@@ -28,6 +28,91 @@ function clean(v,n=500){return String(v||'').trim().slice(0,n)}
 function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function portalId(url){return crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,16)}
 
+const BUSINESS_PROFILE_MAX=20;
+function businessText(v,n=1200){return clean(v,n)}
+function businessListText(v,n=1800){
+  if(Array.isArray(v))return v.map(x=>businessText(x,180)).filter(Boolean).join(', ').slice(0,n);
+  return businessText(v,n);
+}
+function businessConnectionRefs(v){
+  return [...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,260)).filter(Boolean))].slice(0,40);
+}
+function sanitizeBusinessProfile(input={},previous={}){
+  const now=new Date().toISOString(),id=clean(input.id||previous.id||crypto.randomUUID(),80);
+  const p={
+    id,
+    legalName:businessText(input.legalName??previous.legalName,180),
+    tradeName:businessText(input.tradeName??previous.tradeName,180),
+    description:businessText(input.description??previous.description,1800),
+    sectors:businessListText(input.sectors??previous.sectors,1800),
+    productsServices:businessListText(input.productsServices??previous.productsServices,2600),
+    brands:businessListText(input.brands??previous.brands,1800),
+    businessModel:businessText(input.businessModel??previous.businessModel,80),
+    targetCustomers:businessListText(input.targetCustomers??previous.targetCustomers,2200),
+    salesArea:businessListText(input.salesArea??previous.salesArea,1000),
+    salesChannels:businessListText(input.salesChannels??previous.salesChannels,1600),
+    website:businessText(input.website??previous.website,500),
+    phone:businessText(input.phone??previous.phone,100),
+    address:businessText(input.address??previous.address,500),
+    goals:businessListText(input.goals??previous.goals,1800),
+    notes:businessText(input.notes??previous.notes,2200),
+    connectionRefs:businessConnectionRefs(input.connectionRefs??previous.connectionRefs),
+    createdAt:previous.createdAt||input.createdAt||now,
+    updatedAt:now
+  };
+  if(!p.tradeName)p.tradeName=p.legalName;
+  if(!p.legalName)p.legalName=p.tradeName;
+  return p;
+}
+function businessStore(state){
+  state.secret=state.secret||{};
+  state.secret.businessProfiles=Array.isArray(state.secret.businessProfiles)?state.secret.businessProfiles:[];
+  state.secret.activeBusinessProfileId=clean(state.secret.activeBusinessProfileId,80)||null;
+  return state.secret;
+}
+function activeBusinessProfile(state,requestedId=null){
+  const secret=businessStore(state),id=clean(requestedId,80)||secret.activeBusinessProfileId;
+  return secret.businessProfiles.find(x=>x&&x.id===id)||secret.businessProfiles[0]||null;
+}
+function publicBusinessProfile(p){
+  if(!p)return null;
+  return {
+    id:p.id,legalName:p.legalName||'',tradeName:p.tradeName||'',description:p.description||'',sectors:p.sectors||'',
+    productsServices:p.productsServices||'',brands:p.brands||'',businessModel:p.businessModel||'',targetCustomers:p.targetCustomers||'',
+    salesArea:p.salesArea||'',salesChannels:p.salesChannels||'',website:p.website||'',phone:p.phone||'',address:p.address||'',
+    goals:p.goals||'',notes:p.notes||'',connectionRefs:Array.isArray(p.connectionRefs)?p.connectionRefs:[],
+    createdAt:p.createdAt||null,updatedAt:p.updatedAt||null
+  };
+}
+function businessListPayload(state){
+  const secret=businessStore(state),profiles=secret.businessProfiles.map(publicBusinessProfile),active=activeBusinessProfile(state);
+  return {profiles,activeProfileId:active?.id||null,active:publicBusinessProfile(active),needsOnboarding:profiles.length===0};
+}
+function businessProfileContext(profile){
+  if(!profile)return null;
+  const rows=[
+    ['Empresa',profile.tradeName||profile.legalName],
+    ['Razón social',profile.legalName&&profile.legalName!==profile.tradeName?profile.legalName:''],
+    ['Actividad / qué hace',profile.description],
+    ['Sectores en los que trabaja',profile.sectors],
+    ['Productos o servicios',profile.productsServices],
+    ['Marcas propias o distribuidas',profile.brands],
+    ['Modelo comercial',profile.businessModel],
+    ['Clientes objetivo confirmados por el usuario',profile.targetCustomers],
+    ['Zona comercial',profile.salesArea],
+    ['Canales de venta',profile.salesChannels],
+    ['Web',profile.website],
+    ['Objetivos principales',profile.goals],
+    ['Notas del negocio',profile.notes]
+  ].filter(([,v])=>String(v||'').trim());
+  return [
+    'PERFIL DE NEGOCIO CONFIRMADO POR EL USUARIO.',
+    'Úsalo para entender el negocio, adaptar búsquedas, mensajes, propuestas, informes y recomendaciones.',
+    'No conviertas este perfil en prueba de ventas, stock, precios, pedidos ni datos transaccionales: esos datos deben venir de las conexiones reales.',
+    'No inventes sectores, productos, clientes, marcas ni datos que no aparezcan aquí o en una fuente autorizada.',
+    ...rows.map(([k,v])=>k+': '+v)
+  ].join('\n');
+}
 function normalizeShopifyHost(value=''){
   let v=String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
   if(/^[a-z0-9][a-z0-9-]*$/.test(v))v+='.myshopify.com';
