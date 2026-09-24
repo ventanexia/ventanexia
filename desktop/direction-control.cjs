@@ -4,6 +4,11 @@ const crypto=require('node:crypto');
 const TASK_STATES=new Set(['pending','in_progress','blocked','done','cancelled']);
 const PRIORITIES=new Set(['low','normal','high','critical']);
 const ACTORS=new Set(['human','ai','system']);
+const EMPLOYEE_OBSERVATION_TYPES=new Set([
+  'quality_ok','quality_issue','correction','rework','customer_praise','customer_complaint',
+  'helped_team','handoff_ok','collaboration','training','coaching','learning',
+  'instruction_issue','tool_issue','dependency'
+]);
 
 function iso(v){const d=v?new Date(v):new Date();return Number.isNaN(d.getTime())?new Date().toISOString():d.toISOString()}
 function id(prefix='x'){return prefix+'_'+crypto.randomBytes(7).toString('hex')}
@@ -604,6 +609,19 @@ function setManagementPolicy(d,raw={}){
   return d.managementPolicy;
 }
 
+function addEmployeeObservation(d,employeeId,raw={}){
+  const emp=d.employees.find(x=>x.id===employeeId);if(!emp)throw new Error('Empleado no encontrado');
+  const type=clampText(raw.type,80);if(!EMPLOYEE_OBSERVATION_TYPES.has(type))throw new Error('Tipo de evidencia laboral no válido');
+  const detail=clampText(raw.detail,1400);if(!detail)throw new Error('Describe la evidencia laboral');
+  const e={
+    id:id('evt'),taskId:'',employeeId:emp.id,actor:'human',type,detail,
+    at:iso(raw.at),businessId:clampText(raw.businessId||emp.businessId,120),
+    module:clampText(raw.module||'other',80)
+  };
+  d.events.unshift(e);d.events=d.events.slice(0,20000);
+  return e;
+}
+
 function addTask(d,raw={}){
   const t=sanitizeTask(raw,d.settings);
   if(!t.title)throw new Error('Indica qué trabajo debía realizarse');
@@ -642,4 +660,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,employeeEvaluation,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,employeeEvaluation,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
