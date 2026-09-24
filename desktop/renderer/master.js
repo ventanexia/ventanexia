@@ -2479,6 +2479,7 @@ function emailListItem(m,i,selected){
 
   function purchasePanelHtml(msg={}){
     const data=msg.purchaseData||{},headers=Array.isArray(data.headers)?data.headers:[],rows=Array.isArray(data.rows)?data.rows:[];
+    const policy=normalizedPurchasePolicy(msg.purchasePolicy||{});
     if(!headers.length)return '';
     const idx=name=>headers.indexOf(name);
     const get=(row,name)=>{const i=idx(name);return i>=0?row[i]:''};
@@ -2507,10 +2508,10 @@ function emailListItem(m,i,selected){
       +'<div class="vnx-purchase-metrics">'
       +'<article><span>Productos a comprar</span><b>'+ordered.length+'</b><small>referencias</small></article>'
       +'<article><span>Sin stock</span><b>'+noStock+'</b><small>acción inmediata</small></article>'
-      +'<article><span>Riesgo de rotura</span><b>'+risk+'</b><small>menos de 5 días / revisar</small></article>'
+      +'<article><span>Riesgo de rotura</span><b>'+risk+'</b><small>menos de '+policy.urgentDays+' días / revisar</small></article>'
       +'<article><span>Unidades propuestas</span><b>'+fmt(totalUnits)+'</b><small>según el análisis</small></article>'
       +'</div>'
-      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas del periodo ('+policy.windowDays+' días)</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
       +(tableRows||'<tr><td colspan="9" class="purchase-empty">No hay referencias que necesiten compra ahora.</td></tr>')
       +'</tbody></table></div>'
       +'<div class="vnx-purchase-foot">Ordenado por fabricante. Fabricante y EAN solo aparecen cuando la fuente los proporciona; nunca se inventan.</div>'
@@ -2913,7 +2914,7 @@ function emailListItem(m,i,selected){
       return {...r,supplierStock:available,supplierCanSupply:canSupply,supplyStatus,supplierProduct:supplierRow?.product||supplierRow?.title||'',supplierMatched:Boolean(supplierRow)};
     });
     return {
-      ok:true,combined:true,windowDays:demand.windowDays||180,rows,
+      ok:true,combined:true,windowDays:demand.windowDays||180,targetDays:demand.targetDays||25,noHistoryMin:demand.noHistoryMin||0,urgentDays:demand.urgentDays||autoUrgentDaysForPolicy(demand.targetDays||25),rows,
       sourceLabel:sourceLabelOf(demandSource)+' + '+sourceLabelOf(supplierSource),
       demandLabel:sourceLabelOf(demandSource),supplierLabel:sourceLabelOf(supplierSource),
       generatedAt:new Date().toISOString(),cacheHit:Boolean(a.cacheHit||b.cacheHit),
@@ -2926,7 +2927,7 @@ function emailListItem(m,i,selected){
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
     const lines=['# Cruce de stock · '+summary.demandLabel+' → '+summary.supplierLabel,'',
       '**Demanda:** '+summary.demandLabel+' · **Disponibilidad del proveedor:** '+summary.supplierLabel+'. El cruce se hace por SKU y EAN; no se mezclan otras conexiones.','',
-      '| Código | Producto | Stock propio | Ventas 6 meses | Necesito comprar | Stock proveedor | Puede servir | Estado proveedor |',
+      '| Código | Producto | Stock propio | Ventas del periodo ('+Number(summary.windowDays||180)+' días) | Necesito comprar | Stock proveedor | Puede servir | Estado proveedor |',
       '|---|---|---:|---:|---:|---:|---:|---|'];
     for(const r of rows){
       lines.push('| '+(r.sku||r.ean||'—')+' | '+String(r.product||'').replace(/\|/g,'/')+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.qty)+' | '+(r.supplierStock==null?'—':fmt(r.supplierStock))+' | '+fmt(r.supplierCanSupply)+' | '+r.supplyStatus+' |');
@@ -3305,8 +3306,9 @@ function emailListItem(m,i,selected){
             ]);
             const purchaseData={headers:['sku','ean','fabricante','producto','stock_propio','ventas_periodo','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
             const sourceLabel=combined.sourceLabel,purchaseAnalyzedAt=combined.generatedAt;
-            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
-            await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
+            const combinedPolicy=normalizedPurchasePolicy({targetDays:combined.targetDays,windowDays:combined.windowDays,noHistoryMin:combined.noHistoryMin,urgentDays:combined.urgentDays});
+            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchasePolicy:combinedPolicy,scopeKey:activeScopeKey});
+            await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,combinedPolicy);
             window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Cruce-Stock-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
           }catch(e){
             masterMessages.push({role:'assistant',content:'No he hecho un cruce parcial. Para cruzar dos conexiones necesito leer **las dos** correctamente. '+String(e?.message||e),scopeKey:activeScopeKey});
@@ -3328,11 +3330,11 @@ function emailListItem(m,i,selected){
             realManufacturer(r),
             String(r.product||''),
             Number(r.stock||0),
-            Number(r.soldWindow||0),
-            Number(r.avgDaily||0),
-            r.daysRemaining==null?'':Number(r.daysRemaining),
+            r.noSalesData?'':Number(r.soldWindow||0),
+            r.noSalesData?'':Number(r.avgDaily||0),
+            r.noSalesData||r.daysRemaining==null?'':Number(r.daysRemaining),
             Number(r.qty||0),
-            r.urgent?'URGENTE <5 DIAS':'REPOSICION'
+            r.noSalesData?'REVISAR SIN HISTORICO':r.urgent?'URGENTE <'+Number(summary.urgentDays||policy.effectiveUrgentDays)+' DIAS':'REPOSICION'
           ]);
           const purchaseData={
             headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
