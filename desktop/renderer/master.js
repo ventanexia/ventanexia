@@ -1752,7 +1752,6 @@ function emailListItem(m,i,selected){
         try{
           await window.vnx.externalAgentRemove(b.dataset.id);
           await refreshRuntimeConnections();
-    try{masterErpStatus=await window.vnx.erpStatus()||{connected:false}}catch{masterErpStatus={connected:false}}
           await refreshChatConnections();
           await refreshOwnAgentsCard();
           const agentsNow=await window.vnx.externalAgentList()||[];
@@ -2172,6 +2171,7 @@ function emailListItem(m,i,selected){
   async function refreshChatConnections(){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
     await refreshRuntimeConnections();
+    try{masterErpStatus=await window.vnx.erpStatus()||{connected:false}}catch{masterErpStatus={connected:false}}
     await refreshAgentMetrics();
     const items=chatConnections(),previous=normalizeAgentSelectorValue(sel.value),saved=normalizeAgentSelectorValue(localStorage.getItem('vnx_master_chat_agent')||'');
     sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(agentDisplayName(x)+' — '+agentStatusText(x))+'</option>').join('');
