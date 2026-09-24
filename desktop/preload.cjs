@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld('vnx',{
   directionResolveTask:(token,taskId,payload={})=>ipcRenderer.invoke('direction:resolve-task',{token,taskId,...payload}),
   directionSettings:(token,payload=null)=>ipcRenderer.invoke('direction:settings',payload?{token,update:true,...payload}:{token}),
   directionAiQueue:(token,options={})=>ipcRenderer.invoke('direction:ai-queue',{token,...options}),
+  directionReport:(token,options={})=>ipcRenderer.invoke('direction:report',{token,...options}),
   startOAuth:(payload)=>ipcRenderer.invoke('oauth:start',payload),
   connectGenericEmail:(payload)=>ipcRenderer.invoke('email:connect-generic',payload),
   pollOAuth:(payload)=>ipcRenderer.invoke('oauth:status',payload),
