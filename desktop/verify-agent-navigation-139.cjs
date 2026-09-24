@@ -28,7 +28,7 @@ need(home,/sourceTabs:\['Bandeja conectada','Necesitan respuesta','Buscar correo
 need(home,/\['Cuenta',\['Todas las cuentas','Cuenta seleccionada'\]\]/,'email account filter missing');
 need(home,/sourceTabs:\['Calendario','Publicaciones','Creatividades'\]/,'social-specific controls missing');
 need(home,/sourceTabs:\['Datos conectados','Comparativas','Importar Excel\/CSV'\]/,'reports-specific controls missing');
-need(home,/data\.vnxHomeAgent=key[\s\S]{0,120}applyAgentScreenUi\(key,cfg\)/,'agent change must repaint the full workspace');
+need(home,/dataset\.vnxHomeAgent=key[\s\S]{0,120}applyAgentScreenUi\(key,cfg\)/,'agent change must repaint the full workspace');
 need(home,/selectAgentInWorkbench\(cfg\.chatKey/,'opening workbench must switch to the requested agent');
 need(home,/startsWith\('agent:'\+wanted\+':'\)/,'agent selector must support suffixed account values');
 need(html,/id="vnxAhConfigTitle"/,'dynamic configuration title hook missing');
