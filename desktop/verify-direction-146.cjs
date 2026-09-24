@@ -36,16 +36,27 @@ ok(Array.isArray(report.employees[0].roleFit.contextQuestions),'El informe debe 
 ok(['insuficiente','baja','media','alta'].includes(report.employees[0].roleFit.confidence),'La lectura de encaje debe declarar su confianza');
 ok(/hechos operativos registrados/i.test(report.note),'El informe debe explicar sus límites de interpretación');
 
+const policy=dir.setManagementPolicy(d,{approach:'results_first',profitability:100,peopleDevelopment:25,requireEmployeeConversation:true,employeeVoiceRequired:true,requireSupportTrial:false,requireRoleAlternativeReview:true,improvementWindowDays:14});
+ok(policy.approach==='results_first','Dirección debe poder declarar un enfoque de resultados primero');
+ok(policy.requireEmployeeConversation===true&&policy.employeeVoiceRequired===true,'El criterio debe poder exigir conversación y voz de la persona');
+ok(policy.improvementWindowDays===14,'El criterio debe guardar un periodo de mejora');
+const reportPolicy=dir.operationalReport(d,{businessId:'biz1',now});
+ok(reportPolicy.employees[0].humanContext.management.approachLabel==='Resultados empresariales primero','El informe debe reflejar el enfoque declarado por Dirección');
+ok(reportPolicy.employees[0].humanContext.management.reviewSteps.some(x=>x.key==='employee_voice'&&x.required),'La ruta debe incluir la voz de la persona cuando Dirección la exige');
+ok(reportPolicy.employees[0].humanContext.management.reviewSteps.some(x=>x.key==='human_decision'&&x.required),'La decisión final debe seguir siendo humana');
+
 const preload=read('preload.cjs'),main=read('main.cjs'),html=read('renderer/index.html'),ui=read('renderer/direction-control.js'),health=read('runtime-health.cjs');
-for(const name of ['directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'])ok(preload.includes(name+':'),'Preload no expone '+name);
-for(const ch of ['direction:access-status','direction:set-pin','direction:unlock','direction:lock','direction:summary','direction:employees','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue','direction:report'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
-for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm','vnxDirReportForm','vnxDirReportEmployee','vnxDirReportPeriod','vnxDirReportRows','vnxDirReportExcel','vnxDirReportPdf'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
+for(const name of ['directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionImportCv','directionUpdateCv','directionCompareTeamRole','directionAddEmployeeObservation','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'])ok(preload.includes(name+':'),'Preload no expone '+name);
+for(const ch of ['direction:access-status','direction:set-pin','direction:unlock','direction:lock','direction:summary','direction:employees','direction:update-employee-context','direction:import-cv','direction:update-cv','direction:compare-team-role','direction:add-employee-observation','direction:management-policy','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue','direction:report'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
+for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm','vnxDirCvForm','vnxDirCvEmployee','vnxDirCvCompare','vnxDirHumanForm','vnxDirObservationForm','vnxDirManagementForm','vnxDirApproach','vnxDirRequireConversation','vnxDirEmployeeVoice','vnxDirRequireSupport','vnxDirRequireRoleReview','vnxDirImprovementDays','vnxDirReportForm','vnxDirReportEmployee','vnxDirReportPeriod','vnxDirReportRows','vnxDirReportExcel','vnxDirReportPdf'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
 ok(html.includes('data-tab="direction"')&&html.includes('Agente privado protegido por PIN'),'Falta acceso privado de Dirección en menú');
 ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&html.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
 ok(ui.includes('directionReport')&&ui.includes('generateEmployeeReport')&&ui.includes('exportEmployeeReport'),'La UI no genera/exporta informes de empleados');
 ok(ui.includes('Lectura de encaje')&&ui.includes('Fortalezas observadas')&&ui.includes('Posibles funciones a explorar'),'La UI no explica el encaje cualitativo por empleado');
 ok(ui.includes('Qué debería comprobar Dirección antes de concluir'),'Faltan preguntas de contexto antes de inferir capacidad');
-ok(html.includes('Qué está fallando y dónde')&&html.includes('No genera rankings ni sanciones automáticas'),'El informe debe explicar su finalidad y límites');
+ok(html.includes('Entender el desempeño sin reducir a nadie a una nota')&&html.includes('No genera una nota global ni un ranking'),'El informe debe explicar su finalidad y límites');
+ok(html.includes('Fórmula intermedia')&&html.includes('Resultados empresariales primero')&&html.includes('Desarrollo y recuperación primero'),'Dirección debe preguntar cómo equilibrar resultados y personas');
+ok(ui.includes('approachLabel')&&ui.includes('Ruta de decisión equilibrada'),'El informe debe mostrar el contrato de Dirección y su ruta de revisión');
 ok(ui.includes("let directionToken=''")&&!/localStorage\s*\.\s*setItem\s*\(|sessionStorage\s*\.\s*setItem\s*\(/.test(ui),'El token privado de Dirección no debe persistirse en el navegador');
 ok(ui.includes('directionAccessStatus')&&ui.includes('directionUnlock')&&ui.includes('directionLock'),'La UI no aplica bloqueo/desbloqueo privado');
 ok(main.includes('DIRECTION_PIN_ITERATIONS=210000')&&main.includes('pbkdf2Sync('),'El PIN de Dirección debe almacenarse mediante hash robusto');
@@ -56,4 +67,4 @@ ok(!/pinHash\s*:\s*pin\b/.test(main),'El PIN de Dirección no puede guardarse en
 ok(health.includes('Agente privado de Dirección')&&health.includes('directionControl')&&health.includes('protección privada de Dirección'),'Autoreparación no cubre Dirección privada');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, informes por empleado, encaje cualitativo, fortalezas, fricciones, recuperación IA, evidencia y autoreparación verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, CV, códigos personales, tiempos, evaluación multidimensional, contrato de Dirección, voz del empleado, encaje, evidencia y autoreparación verificados.');
