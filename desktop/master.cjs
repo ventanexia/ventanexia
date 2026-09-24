@@ -268,7 +268,7 @@ ipcMain.handle('shopify:replenishment-summary',async(_e,payload={})=>{
   if(!integration)throw new Error(requested?'La tienda Shopify seleccionada ya no está conectada.':'Conecta Shopify para calcular la previsión de stock.');
   const force=typeof payload==='object'?payload?.force!==false:true;
   const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
-  const result=await shopifyReplenishmentSummary(integration,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+  const result=await shopifyReplenishmentSummary(integration,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentAuto?null:policy.urgentDays});
   return {shop:integration.shopName||integration.shop,shopDomain:integration.shop,sourceLabel:'Shopify · '+(integration.shopName||integration.shop),generatedAt:new Date().toISOString(),...result};
 });
 
@@ -282,18 +282,18 @@ function findStockColumn(headers,candidates){
   for(const c of candidates){const i=normHeaders.findIndex(h=>h===c||h.includes(c));if(i>=0)return i}
   return -1;
 }
-function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
-  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
+function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN,urgentDays=null}={}){
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin,windowDays,urgentDays});
   return products.map(p=>{
-    const sold=Number(p.soldWindow||0),avgDaily=sold/windowDays,noSalesData=Boolean(p.noSalesData??(sold===0));
+    const sold=Number(p.soldWindow||0),avgDaily=sold/policy.windowDays,noSalesData=Boolean(p.noSalesData??false);
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
     const targetStock=noSalesData?policy.noHistoryMin:Math.ceil(avgDaily*policy.targetDays);
     const qty=Math.max(0,targetStock-p.stock);
-    const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
+    const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<policy.urgentDays);
     return {sku:p.sku,ean:p.ean||'',manufacturer:String(p.manufacturer||'').trim(),product:p.title,stock:p.stock,soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
       daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData,targetStock,
       replenishmentBasis:noSalesData?(policy.noHistoryMin>0?'minimum':'review'):'history',
-      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays};
+      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays,windowDays:policy.windowDays,urgentDays:policy.urgentDays};
   });
 }
 ipcMain.handle('document:analyze-select',async()=>{
@@ -308,9 +308,10 @@ ipcMain.handle('document:analyze-select',async()=>{
     rows:Array.isArray(extracted.rows)?extracted.rows.length:null};
 });
 
-ipcMain.handle('stock:import-file',async()=>{
+ipcMain.handle('stock:import-file',async(_e,payload={})=>{
+  const policy=normalizeStockPolicy(payload||{});
   const win=BrowserWindow.getFocusedWindow()||BrowserWindow.getAllWindows()[0]||null;
-  const picked=await dialog.showOpenDialog(win,{title:'Archivo de stock y ventas de los últimos 6 meses',properties:['openFile'],
+  const picked=await dialog.showOpenDialog(win,{title:'Archivo de stock y ventas del periodo',properties:['openFile'],
     filters:[{name:'Excel o CSV',extensions:['xlsx','csv']}]});
   if(picked.canceled||!picked.filePaths?.length)return {ok:false,cancelled:true};
   const filePath=picked.filePaths[0],name=path.basename(filePath);
@@ -320,25 +321,26 @@ ipcMain.handle('stock:import-file',async()=>{
   catch(e){throw new Error('No he podido leer ese archivo: '+String(e?.message||e))}
   if(!rows.length)throw new Error('El archivo está vacío.');
   const headers=rows[0].map(String);
-  const iSku=findStockColumn(headers,['sku','referencia','ref']);
-  const iEan=findStockColumn(headers,['ean','codigo de barras','barcode']);
-  const iName=findStockColumn(headers,['producto','nombre del producto','nombre','descripcion']);
-  const iStock=findStockColumn(headers,['stock actual','stock']);
-  const iSold=findStockColumn(headers,['ventas 6 meses','unidades vendidas','ventas periodo','ventas','vendido','vendidas']);
+  const iSku=findStockColumn(headers,['sku','referencia','ref','codigo articulo','codigo producto']);
+  const iEan=findStockColumn(headers,['ean','ean13','codigo de barras','barcode','gtin']);
+  const iName=findStockColumn(headers,['producto','nombre del producto','nombre','descripcion','articulo']);
+  const iStock=findStockColumn(headers,['stock actual','stock','existencias','disponible']);
+  const iSold=findStockColumn(headers,['ventas del periodo','ventas periodo','ventas 6 meses','ventas 180 dias','unidades vendidas','uds vendidas','cantidad vendida','ventas','vendido','vendidas']);
   if(iName<0||iStock<0||iSold<0||(iSku<0&&iEan<0)){
-    throw new Error('No reconozco las columnas necesarias. Hacen falta: SKU o EAN, Producto, Stock actual y Ventas 6 meses. Cabeceras encontradas: '+headers.join(', '));
+    throw new Error('No reconozco las columnas necesarias. Hacen falta: SKU o EAN, Producto, Stock actual y Ventas del periodo. Cabeceras encontradas: '+headers.join(', '));
   }
   const products=rows.slice(1).filter(r=>r&&(r[iName]||r[iSku]||r[iEan])).map(r=>({
     sku:iSku>=0?String(r[iSku]||'').trim():'',
     ean:iEan>=0?String(r[iEan]||'').trim():'',
     title:String(r[iName]||'').trim(),
     stock:Number(String(r[iStock]||'0').replace(',','.'))||0,
-    soldWindow:Number(String(r[iSold]||'0').replace(',','.'))||0
+    soldWindow:Number(String(r[iSold]||'0').replace(',','.'))||0,
+    noSalesData:false
   })).filter(p=>p.title&&(p.sku||p.ean));
   if(!products.length)throw new Error('No encuentro filas válidas con producto y SKU/EAN.');
-  const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,noHistoryMin:STOCK_NO_HISTORY_DEFAULT_MIN});
-  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,noHistoryMin:STOCK_NO_HISTORY_DEFAULT_MIN,rows:replen,productsSeen:products.length,
-    urgent:replen.filter(r=>r.urgent),withSales:replen.filter(r=>!r.noSalesData).length,truncated:false,catalogTruncated:false};
+  const replen=buildReplenishmentFromRows(products,{windowDays:policy.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,urgentDays:policy.urgentAuto?null:policy.urgentDays});
+  return {ok:true,fileName:name,windowDays:policy.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,urgentDays:policy.urgentDays,rows:replen,productsSeen:products.length,
+    urgent:replen.filter(r=>r.urgent),withSales:replen.length,structuredSales:true,salesLookReliable:true,truncated:false,catalogTruncated:false};
 });
 
 async function collectShopifyContext(integration,question=''){
