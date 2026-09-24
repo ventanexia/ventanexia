@@ -417,6 +417,7 @@ function get(){
 }
 async function handleChat(text){return get().handleChat(text)}
 async function reviewOrders({force=true,max=250}={}){
+  const statusText={nuevo:'nuevo',sin_stock:'sin stock suficiente',esperando_compras:'esperando respuesta de Compras',listo:'listo para introducir',falta_datos:'faltan datos del cliente',revisar:'hay que revisarlo',esperando_cliente:'esperando respuesta del cliente',introducido:'introducido',error:'error al introducir',descartado:'descartado'};
   const engine=get();
   let scanResult={found:[],notOrders:0,skipped:0,errors:[],accounts:0,limit:false,monthly:null};
   if(force){
@@ -443,7 +444,7 @@ async function reviewOrders({force=true,max=250}={}){
     ];
     return {
       id:String(o.id||''),seq:Number(o.seq||0),internalRef:String(o.internalRef||''),status:String(o.status||'nuevo'),
-      statusText:STATUS_TEXT[String(o.status||'nuevo')]||String(o.status||'nuevo'),
+      statusText:statusText[String(o.status||'nuevo')]||String(o.status||'nuevo'),
       createdAt:Number(o.createdAt||0),createdDate:String(o.createdDate||''),
       orderRef:String(ex.orderRef||''),orderDate:String(ex.orderDate||''),
       customer:String(c.name||src.from||'Cliente sin identificar'),taxId:String(c.taxId||''),email:String(c.email||src.fromEmail||''),
