@@ -21,6 +21,6 @@ need(home,/lastStockView=\{summary,rows:\[\.\.\.rows\],orderMode:orderMode&&!unr
 need(home,/data-home-stock-retry/,'retry historical-sales action missing');
 need(home,/data-home-stock-continue/,'continue-with-stock action missing');
 need(home,/lastStockRun\?\.summary\?\.salesLookReliable!==false/,'unverified history must force a fresh purchase-data read');
-need(home,/exportHomeStock\(lastStockRun\.summary,false,'excel'/,'stock preview export button must execute');
+need(home,/exportHomeStock\(view\.summary,view\.orderMode,'excel'/,'stock preview export button must execute with the visible filtered view');
 need(home,/const previewActions=\$\$\('#vnxAhPreviewActions button'\)/,'preview action NodeList bug must be fixed');
 console.log('VERIFY_142_OK');
