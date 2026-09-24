@@ -375,10 +375,11 @@
     const rows=[];
     try{for(const x of await window.vnx.listConnections()||[]){const module=String(x.module||x.key||'').toLowerCase(),label=String(x.label||x.account||x.shopName||x.shop||module||'Conexión').trim();if(label)rows.push({id:String(x.id||x.key||x.shop||module||label),type:'connection',module,label,shop:String(x.shop||''),raw:x})}}catch{}
     try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado'),raw:p})}}catch{}
+    try{const erp=await window.vnx.erpStatus();if(erp?.connected&&erp?.hasSalesHistory)rows.push({id:'erp:'+erp.id,type:'erp',module:'erp',label:String(erp.name||'Programa de gestión'),raw:{programId:erp.id}})}catch{}
     const seen=new Set(),unique=rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
     const profile=window.vnxBusiness?.activeProfile?.(),refs=new Set(profile?.connectionRefs||[]);
     if(!refs.size)return unique;
-    return unique.filter(x=>refs.has((x.type==='portal'?'portal:':'connection:')+String(x.id||'')));
+    return unique.filter(x=>x.type==='erp'||refs.has((x.type==='portal'?'portal:':'connection:')+String(x.id||'')));
   }
   let lastOrdersRun=null;
   function orderFilterValues(){
@@ -493,7 +494,7 @@
   function sameHomeSource(a,b){return Boolean(a&&b&&a.type===b.type&&String(a.id||'')===String(b.id||''))}
   async function stockCapableSources(){
     const all=await homeCompanySources();
-    return all.filter(x=>x.type==='portal'||x.module==='portal'||x.module==='shopify');
+    return all.filter(x=>x.type==='portal'||x.module==='portal'||x.module==='shopify'||x.module==='erp'||x.type==='erp');
   }
   async function populateStockSourceSelect(){
     const sel=$('#vnxAhStockSourceSelect');if(!sel||document.body.dataset.vnxHomeAgent!=='web_ecommerce')return [];
@@ -682,6 +683,11 @@
       const shop=src.shop||src.raw?.shop||null;
       const r=await window.vnx?.shopifyReplenishmentSummary?.(shop,opts);
       if(!r?.rows)throw new Error('Shopify no ha devuelto el catálogo de stock.');
+      return {...r,sourceLabel:src.label||r.sourceLabel};
+    }
+    if(src.module==='erp'||src.type==='erp'){
+      const r=await window.vnx?.erpReplenishmentSummary?.(opts);
+      if(!r?.rows)throw new Error('El programa de gestión no ha devuelto el catálogo de stock.');
       return {...r,sourceLabel:src.label||r.sourceLabel};
     }
     throw new Error('La conexión seleccionada no admite todavía análisis estructurado de stock.');
