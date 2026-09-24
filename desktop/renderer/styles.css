@@ -1906,3 +1906,30 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
   #home.vnx-agent-home-tab .vnx-ah-rail{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr))}
   #home.vnx-agent-home-tab .vnx-ah-email-paper{grid-template-columns:minmax(0,1fr) 180px}
 }
+
+
+/* VentaNexIA 0.6.136 · estados reales de conexión */
+.connection-account-row{grid-template-columns:8px minmax(0,1fr) auto;align-items:center}
+.connection-account-main{display:grid;gap:2px;min-width:0}
+.connection-row-actions{display:flex!important;flex-direction:row!important;gap:6px;align-items:center;justify-content:flex-end}
+.connection-row-actions .mini{white-space:nowrap;padding:5px 8px}
+.connection-account-row.connected{border:1px solid rgba(50,211,137,.18)}
+.connection-account-row.reconnect{border:1px solid rgba(255,93,104,.45);background:#2a1520}
+.connection-account-row.reconnect .connection-dot{background:#ff5d68;box-shadow:0 0 9px rgba(255,93,104,.55)}
+.connection-account-row.reconnect b{color:#fff1f3}
+.connection-account-row.reconnect small{color:#ffb4ba}
+.connection-account-row.manual{border:1px solid rgba(255,190,77,.35);background:#2b2515}
+.connection-account-row.manual .connection-dot{background:#ffbe4d;box-shadow:0 0 9px rgba(255,190,77,.45)}
+.connection-count-mixed{color:#ff9a9f}
+.connection-count-manual{color:#ffd47a}
+.connection-empty-red{color:#ff9ea5}
+.connection-empty-red i{background:#ff5d68;box-shadow:0 0 8px rgba(255,93,104,.45)}
+.connection-reconnect{border-color:#9b3d46!important;background:#5b2028!important;color:#ffdfe2!important}
+.connection-disconnect,.connection-portal-disconnect,.connection-shopify-disconnect{border-color:#66313a!important;color:#ffc4c9!important}
+.connection-btn-live{border-color:#21895f!important;color:#82edbd!important}
+.connection-btn-reconnect{border-color:#a3444e!important;background:#3a1820!important;color:#ffb5bb!important}
+.vnx-side-group-title{cursor:pointer}
+@media(max-width:720px){
+  .connection-account-row{grid-template-columns:8px minmax(0,1fr)}
+  .connection-row-actions{grid-column:2;justify-content:flex-start}
+}
