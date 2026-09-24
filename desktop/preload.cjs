@@ -67,6 +67,8 @@ contextBridge.exposeInMainWorld('vnx',{
   directionLock:(token)=>ipcRenderer.invoke('direction:lock',{token}),
   directionSummary:(token,options={})=>ipcRenderer.invoke('direction:summary',{token,...options}),
   directionEmployees:(token,options={})=>ipcRenderer.invoke('direction:employees',{token,...options}),
+  directionUpdateEmployeeContext:(token,employeeId,context={})=>ipcRenderer.invoke('direction:update-employee-context',{token,employeeId,context}),
+  directionManagementPolicy:(token,payload=null)=>ipcRenderer.invoke('direction:management-policy',payload?{token,update:true,policy:payload}:{token}),
   directionSaveEmployee:(token,payload={})=>ipcRenderer.invoke('direction:save-employee',{token,...payload}),
   directionCreateTask:(token,payload={})=>ipcRenderer.invoke('direction:create-task',{token,...payload}),
   directionUpdateTask:(token,id,patch={})=>ipcRenderer.invoke('direction:update-task',{token,id,patch}),
