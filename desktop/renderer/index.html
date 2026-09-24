@@ -549,6 +549,27 @@
           <div class="vnx-dir-note"><b>Importante:</b> “sin actividad operativa registrada” no equivale automáticamente a “sin trabajar”. VentaNexIA muestra hechos y evidencias para que dirección pueda revisar el contexto antes de tomar decisiones.</div>
         </section>
 
+        <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-report-panel">
+          <div class="vnx-dir-panel-head">
+            <div><span class="eyebrow">INFORMES DE EMPLEADOS</span><h2>Qué está fallando y dónde</h2><p>Analiza hechos registrados: plazos, bloqueos, retrasos, evidencias y trabajo recuperado por VentaNexIA. No genera rankings ni sanciones automáticas.</p></div>
+            <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirReportExcel" type="button" disabled>Excel</button><button class="btn primary" id="vnxDirReportPdf" type="button" disabled>PDF</button></div>
+          </div>
+          <form id="vnxDirReportForm" class="vnx-dir-report-form">
+            <label><span>Empleado</span><select id="vnxDirReportEmployee"><option value="">Toda la plantilla</option></select></label>
+            <label><span>Periodo</span><select id="vnxDirReportPeriod"><option value="7">Últimos 7 días</option><option value="30" selected>Últimos 30 días</option><option value="90">Últimos 90 días</option><option value="all">Todo el histórico</option></select></label>
+            <button class="btn primary" type="submit">Generar informe</button>
+          </form>
+          <div id="vnxDirReportSummary" class="vnx-dir-report-summary"><div class="vnx-dir-empty">Genera un informe global o selecciona un empleado para ver sus desviaciones operativas.</div></div>
+          <div class="vnx-dir-table-wrap" id="vnxDirReportTableWrap" hidden>
+            <table class="vnx-dir-table">
+              <thead><tr><th>Empleado</th><th>Tareas</th><th>A tiempo</th><th>Fuera de plazo</th><th>Terminadas tarde</th><th>Recuperadas IA</th><th>Bloqueadas</th><th>Sin evidencia</th><th>Retraso medio</th><th>Principal área</th></tr></thead>
+              <tbody id="vnxDirReportRows"></tbody>
+            </table>
+          </div>
+          <div id="vnxDirReportDetail" class="vnx-dir-report-detail"></div>
+          <div class="vnx-dir-note"><b>Lectura correcta:</b> el informe identifica desviaciones operativas documentadas. “Sin actividad registrada”, “fuera de plazo” o “recuperada por IA” no deben interpretarse automáticamente como falta de trabajo sin revisar el contexto y la evidencia.</div>
+        </section>
+
         <section class="card vnx-dir-panel vnx-dir-wide">
           <div class="vnx-dir-panel-head"><div><span class="eyebrow">POLÍTICA DE RECUPERACIÓN</span><h2>Cuándo puede intervenir la IA</h2></div></div>
           <form id="vnxDirSettingsForm" class="vnx-dir-settings">
