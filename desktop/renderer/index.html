@@ -36,6 +36,7 @@
         <button class="vnx-agent-side-btn" data-agent-home="administration"><span class="vnx-nav-icon">▤</span><span>Documentos e IA</span></button>
         <button class="vnx-agent-side-btn" data-agent-home="agenda"><span class="vnx-nav-icon">▦</span><span>Agenda</span></button>
         <button class="nav" data-tab="files"><span class="vnx-nav-icon">▧</span><span>Archivos</span></button>
+        <button class="nav vnx-direction-nav" data-tab="direction"><span class="vnx-nav-icon">⌁</span><span>Dirección</span></button>
         <button class="vnx-agent-side-btn" data-agent-home="reports"><span class="vnx-nav-icon">▥</span><span>Informes</span></button>
         <button class="vnx-agent-side-btn" data-agent-home="automation"><span class="vnx-nav-icon">↻</span><span>Automatizaciones</span></button>
       </div>
@@ -481,6 +482,71 @@
 <div class="notice"><b>Ayuda remota con una persona:</b> si necesitamos ver tu pantalla, Microsoft Asistencia rápida sigue pidiendo un código y tu aceptación. Ese acceso no se activa solo.</div>
 <div class="supportbox"><div><b>Ayuda con un técnico</b><span>Nosotros generamos el código y tú decides si aceptas la conexión.</span></div><button id="supportBtn" class="btn primary">Abrir Asistencia rápida</button></div><button id="supportStop" class="btn danger">Registrar fin de asistencia</button><div id="supportMsg" class="notice"></div></div></section>
 
+    <section class="tab vnx-direction-tab" id="direction">
+      <div class="vnx-dir-wrap">
+        <div class="vnx-dir-head">
+          <div><span class="eyebrow">CONTROL OPERATIVO DE DIRECCIÓN</span><h1>Qué debía ocurrir, qué ocurrió y qué tuvo que recuperar VentaNexIA</h1><p>Seguimiento basado en tareas, plazos y eventos registrados. “Sin actividad” significa sin actividad operativa registrada en las tareas asignadas; no mide teclado, ratón ni presencia física.</p></div>
+          <div class="vnx-dir-actions"><button class="btn outline" id="vnxDirRefresh">Actualizar</button><button class="btn primary" id="vnxDirExport">Exportar control</button></div>
+        </div>
+
+        <div class="vnx-dir-kpis" id="vnxDirKpis">
+          <article><span>Empleados</span><strong>0</strong><small>con seguimiento activo</small></article>
+          <article><span>Tareas abiertas</span><strong>0</strong><small>pendientes o en curso</small></article>
+          <article><span>Fuera de plazo</span><strong>0</strong><small>requieren atención</small></article>
+          <article><span>Recuperadas por IA</span><strong>0</strong><small>finalizadas por VentaNexIA</small></article>
+          <article><span>IA puede asumir</span><strong>0</strong><small>vencidas y autorizadas</small></article>
+        </div>
+
+        <div class="vnx-dir-grid">
+          <section class="card vnx-dir-panel">
+            <div class="vnx-dir-panel-head"><div><span class="eyebrow">PERSONAS</span><h2>Responsables</h2></div><button class="btn outline" id="vnxDirAddEmployeeBtn">+ Añadir</button></div>
+            <div id="vnxDirEmployees" class="vnx-dir-employee-list"></div>
+            <form id="vnxDirEmployeeForm" class="vnx-dir-form" hidden>
+              <label>Nombre<input id="vnxDirEmpName" required placeholder="Ej.: Laura Gómez"></label>
+              <label>Rol<input id="vnxDirEmpRole" placeholder="Ej.: Administración"></label>
+              <label>Email<input id="vnxDirEmpEmail" type="email" placeholder="laura@empresa.com"></label>
+              <div class="row"><button class="btn primary" type="submit">Guardar responsable</button><button class="btn outline" id="vnxDirEmpCancel" type="button">Cancelar</button></div>
+            </form>
+          </section>
+
+          <section class="card vnx-dir-panel">
+            <div class="vnx-dir-panel-head"><div><span class="eyebrow">NUEVA RESPONSABILIDAD</span><h2>Asignar tarea con SLA</h2></div></div>
+            <form id="vnxDirTaskForm" class="vnx-dir-form">
+              <label>Responsable<select id="vnxDirTaskEmployee" required><option value="">Selecciona una persona</option></select></label>
+              <label>Qué debía hacer<input id="vnxDirTaskTitle" required placeholder="Ej.: revisar oportunidades sin seguimiento"></label>
+              <label>Área<select id="vnxDirTaskModule"><option value="email">Correo</option><option value="crm">Ventas y clientes</option><option value="orders">Pedidos</option><option value="web_ecommerce">Stock y compras</option><option value="administration">Documentos</option><option value="agenda">Agenda</option><option value="reports">Informes</option><option value="other">Otra</option></select></label>
+              <label>Prioridad<select id="vnxDirTaskPriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option><option value="low">Baja</option></select></label>
+              <label>Plazo<input id="vnxDirTaskDue" type="datetime-local" required></label>
+              <label class="vnx-dir-check"><input id="vnxDirTaskAi" type="checkbox"> <span>Si vence, permitir que VentaNexIA la marque como candidata para ser asumida por IA</span></label>
+              <label>Detalle<textarea id="vnxDirTaskDesc" rows="3" placeholder="Resultado esperado, criterios y contexto"></textarea></label>
+              <button class="btn primary" type="submit">Asignar y empezar seguimiento</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="card vnx-dir-panel vnx-dir-wide">
+          <div class="vnx-dir-panel-head"><div><span class="eyebrow">CONTROL POR PERSONA</span><h2>Desviaciones operativas</h2></div><div class="vnx-dir-legend"><span>● humano</span><span>✦ IA</span><span>⚠ vencido</span></div></div>
+          <div class="vnx-dir-table-wrap"><table class="vnx-dir-table"><thead><tr><th>Responsable</th><th>Asignadas</th><th>Hechas</th><th>Pendientes</th><th>Vencidas</th><th>Resueltas IA</th><th>Sin actividad registrada</th><th>Retraso acumulado</th></tr></thead><tbody id="vnxDirEmployeeRows"></tbody></table></div>
+        </section>
+
+        <section class="card vnx-dir-panel vnx-dir-wide">
+          <div class="vnx-dir-panel-head"><div><span class="eyebrow">EVIDENCIA</span><h2>Tareas y cumplimiento</h2><p>Cada fila conserva responsable, plazo, último evento y quién resolvió el trabajo.</p></div><select id="vnxDirFilter"><option value="all">Todas</option><option value="open">Abiertas</option><option value="overdue">Fuera de plazo</option><option value="ai">Resueltas por IA</option><option value="done">Completadas</option></select></div>
+          <div class="vnx-dir-table-wrap"><table class="vnx-dir-table vnx-dir-task-table"><thead><tr><th>Tarea</th><th>Responsable</th><th>Área</th><th>Plazo</th><th>Estado</th><th>Última actividad</th><th>Resultado</th><th>Acciones</th></tr></thead><tbody id="vnxDirTaskRows"></tbody></table></div>
+          <div class="vnx-dir-note"><b>Importante:</b> “sin actividad operativa registrada” no equivale automáticamente a “sin trabajar”. VentaNexIA muestra hechos y evidencias para que dirección pueda revisar el contexto antes de tomar decisiones.</div>
+        </section>
+
+        <section class="card vnx-dir-panel vnx-dir-wide">
+          <div class="vnx-dir-panel-head"><div><span class="eyebrow">POLÍTICA DE RECUPERACIÓN</span><h2>Cuándo puede intervenir la IA</h2></div></div>
+          <form id="vnxDirSettingsForm" class="vnx-dir-settings">
+            <label><span>SLA por defecto (minutos)</span><input id="vnxDirDefaultSla" type="number" min="1" value="480"></label>
+            <label><span>Gracia tras vencimiento (minutos)</span><input id="vnxDirAiGrace" type="number" min="0" value="60"></label>
+            <label class="vnx-dir-check"><input id="vnxDirAiGlobal" type="checkbox"> <span>Activar cola de recuperación por IA para tareas autorizadas</span></label>
+            <button class="btn outline" type="submit">Guardar política</button>
+          </form>
+        </section>
+      </div>
+    </section>
+
     <section class="tab" id="activity"><div class="card"><h2>Lo que ha hecho VentaNexIA</h2><p>Aquí puedes ver qué ha consultado, conectado o cambiado VentaNexIA.</p><button id="refreshActivity" class="btn outline">Actualizar</button><div id="activityList" class="list"></div></div></section>
   </main>
 </div>
@@ -538,4 +604,5 @@
 <script src="business-onboarding.js"></script>
 <script src="master.js"></script>
 <script src="agent-home.js"></script>
+<script src="direction-control.js"></script>
 </body></html>
