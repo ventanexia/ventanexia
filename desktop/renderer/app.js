@@ -42,7 +42,7 @@ document.addEventListener('pointerdown',e=>{
 },true);
 
 function openTab(name){
-  $$$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+  $$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
   $$('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
   const active=document.getElementById(name);
   ensureEditableControls(active||document);
