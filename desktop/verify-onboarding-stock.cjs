@@ -15,7 +15,7 @@ need(backend,/readTableBuffer/,'local stock import must use the existing Excel\/
 need(preload,/stockImportFile:\(\)=>ipcRenderer\.invoke\('stock:import-file'\)/,'preload must expose stock import');
 need(renderer,/function isPortalStockRequest/,'portal stock route missing');
 need(renderer,/data-import-stock-file/,'stock file picker button missing');
-need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'SKU and EAN must remain separate in import exports');
+need(renderer,/headers:\['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'manufacturer, SKU and EAN must remain separate in import exports');
 need(renderer,/if\(key==='shopify'\)return Boolean\(shop\?\.connected\)/,'Shopify connected indicator must use backend connected boolean');
 need(html,/id="homeOnboardingCard"/,'first-run checklist HTML missing');
 need(agentHome,/< 5 días/,'agent home stock copy must match the 5-day calculation');
