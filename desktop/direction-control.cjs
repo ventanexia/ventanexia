@@ -92,14 +92,21 @@ function sanitizeTask(raw={},settings={}){
     assigneeId:clampText(raw.assigneeId,80),
     assigneeName:clampText(raw.assigneeName,120),
     module:clampText(raw.module,80),
+    workType:clampText(raw.workType||raw.module||'other',80),
+    requesterType:clampText(raw.requesterType||'internal',40),
+    requesterName:clampText(raw.requesterName,160),
     sourceRef:clampText(raw.sourceRef,220),
     priority:PRIORITIES.has(raw.priority)?raw.priority:'normal',
     status,
     createdAt,
     assignedAt,
-    dueAt,
-    lastActivityAt:raw.lastActivityAt?iso(raw.lastActivityAt):assignedAt,
+    receivedAt:raw.receivedAt?iso(raw.receivedAt):assignedAt,
+    firstActionAt:raw.firstActionAt?iso(raw.firstActionAt):null,
+    firstResponseAt:raw.firstResponseAt?iso(raw.firstResponseAt):null,
+    blockedSince:raw.blockedSince?iso(raw.blockedSince):null,
+    blockedMinutes:clampNum(raw.blockedMinutes,0,60*24*3650,0),
     completedAt:raw.completedAt?iso(raw.completedAt):null,
+    lastActivityAt:raw.lastActivityAt?iso(raw.lastActivityAt):assignedAt,
     completedBy:['human','ai'].includes(raw.completedBy)?raw.completedBy:null,
     aiTakeoverEligible:raw.aiTakeoverEligible!==false,
     aiTakeoverEnabled:Boolean(raw.aiTakeoverEnabled),
@@ -135,6 +142,52 @@ function takeoverDue(t,settings,now){
   return new Date(now).getTime()>=new Date(t.dueAt).getTime()+grace*60000;
 }
 
+
+function timingForTask(t,now=new Date().toISOString()){
+  const received=t.receivedAt||t.assignedAt||t.createdAt;
+  const first=t.firstActionAt||null,response=t.firstResponseAt||null,completed=t.completedAt||null;
+  const end=completed||now;
+  return {
+    reactionMinutes:first?minutesBetween(received,first):null,
+    responseMinutes:response?minutesBetween(received,response):null,
+    resolutionMinutes:completed?minutesBetween(received,completed):null,
+    ageMinutes:isOpen(t)?minutesBetween(received,now):minutesBetween(received,end),
+    blockedMinutes:Math.max(0,Number(t.blockedMinutes||0)+(t.blockedSince?minutesBetween(t.blockedSince,now):0)),
+    activeElapsedMinutes:Math.max(0,minutesBetween(received,end)-Math.max(0,Number(t.blockedMinutes||0)+(t.blockedSince?minutesBetween(t.blockedSince,completed||now):0)))
+  };
+}
+function avgKnown(xs){const a=xs.filter(x=>Number.isFinite(x));return a.length?Math.round(a.reduce((s,x)=>s+x,0)/a.length):null}
+function medianKnown(xs){const a=xs.filter(x=>Number.isFinite(x)).sort((x,y)=>x-y);if(!a.length)return null;const m=Math.floor(a.length/2);return a.length%2?a[m]:Math.round((a[m-1]+a[m])/2)}
+function timingSummary(tasks,now=new Date().toISOString()){
+  const rows=tasks.map(t=>({task:t,...timingForTask(t,now)}));
+  const groups=new Map();
+  for(const r of rows){
+    const key=r.task.workType||r.task.module||'other';
+    const g=groups.get(key)||{key,label:MODULE_LABELS[key]||key,count:0,reaction:[],response:[],resolution:[],blocked:[],age:[]};
+    g.count++;g.reaction.push(r.reactionMinutes);g.response.push(r.responseMinutes);g.resolution.push(r.resolutionMinutes);g.blocked.push(r.blockedMinutes);g.age.push(r.ageMinutes);groups.set(key,g);
+  }
+  return {
+    averageReactionMinutes:avgKnown(rows.map(x=>x.reactionMinutes)),
+    averageResponseMinutes:avgKnown(rows.map(x=>x.responseMinutes)),
+    averageResolutionMinutes:avgKnown(rows.map(x=>x.resolutionMinutes)),
+    medianResponseMinutes:medianKnown(rows.map(x=>x.responseMinutes)),
+    totalBlockedMinutes:rows.reduce((s,x)=>s+(x.blockedMinutes||0),0),
+    byType:[...groups.values()].map(g=>({
+      key:g.key,label:g.label,count:g.count,
+      averageReactionMinutes:avgKnown(g.reaction),
+      averageResponseMinutes:avgKnown(g.response),
+      averageResolutionMinutes:avgKnown(g.resolution),
+      medianResponseMinutes:medianKnown(g.response),
+      totalBlockedMinutes:g.blocked.reduce((s,x)=>s+(x||0),0)
+    })).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,'es')),
+    items:rows.map(r=>({
+      taskId:r.task.id,title:r.task.title,assigneeId:r.task.assigneeId,assigneeName:r.task.assigneeName,
+      workType:r.task.workType||r.task.module||'other',requesterType:r.task.requesterType||'internal',requesterName:r.task.requesterName||'',
+      receivedAt:r.task.receivedAt||r.task.assignedAt,firstActionAt:r.task.firstActionAt,firstResponseAt:r.task.firstResponseAt,completedAt:r.task.completedAt,
+      reactionMinutes:r.reactionMinutes,responseMinutes:r.responseMinutes,resolutionMinutes:r.resolutionMinutes,blockedMinutes:r.blockedMinutes,ageMinutes:r.ageMinutes
+    }))
+  };
+}
 function summarize(d,{businessId='',now=new Date().toISOString()}={}){
   const tasks=d.tasks.filter(t=>!businessId||t.businessId===businessId);
   const employees=d.employees.filter(e=>e.active!==false&&(!businessId||e.businessId===businessId));
@@ -546,6 +599,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
     const humanContext=humanContextAnalysis(emp,mine,roleFit,peers,managementPolicy,now);
     const employeeEvents=d.events.filter(e=>e.employeeId===emp.id&&(!businessId||e.businessId===businessId)&&taskActiveInPeriod({assignedAt:e.at,updatedAt:e.at,status:'done'},fromDate,toDate,now));
     const evaluation=employeeEvaluation(emp,mine,roleFit,humanContext,employeeEvents,now);
+    const timing=timingSummary(mine,now);
     return {
       employeeId:emp.id,name:emp.name,role:emp.role,email:emp.email,assigned:mine.length,done:done.length,
       doneHuman:done.filter(t=>t.completedBy==='human').length,doneAI:ai.length,open:open.length,
@@ -553,7 +607,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       deviations:deviations.length,onTimeRate:done.length?Math.round(onTimeDone.length/done.length*100):null,
       aiRecoveryRate:mine.length?Math.round(ai.length/mine.length*100):0,
       averageDelayMinutes:delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0,
-      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext,evaluation
+      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext,evaluation,timing
     };
   }).sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
@@ -583,7 +637,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
 
   return {
     generatedAt:now,period:{from:fromDate?fromDate.toISOString():null,to:toDate?toDate.toISOString():null},
-    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,managementPolicy,
+    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,managementPolicy,timing:timingSummary(tasks,now),
     note:'Este informe describe hechos operativos registrados (tareas, plazos, bloqueos, evidencias y recuperaciones por IA). No equivale por sí solo a una valoración laboral de la persona ni autoriza decisiones automáticas.'
   };
 }
@@ -622,6 +676,32 @@ function addEmployeeObservation(d,employeeId,raw={}){
   return e;
 }
 
+function upsertTrackedWork(d,raw={}){
+  const externalRef=clampText(raw.externalRef||raw.sourceRef,220);
+  const businessId=clampText(raw.businessId,120);
+  let t=externalRef?d.tasks.find(x=>x.externalRef===externalRef&&(!businessId||x.businessId===businessId)):null;
+  if(!t){
+    t=sanitizeTask(raw,d.settings);
+    if(!t.title)throw new Error('Falta la descripción del trabajo');
+    d.tasks.unshift(t);d.tasks=d.tasks.slice(0,5000);
+    d.events.unshift(taskEvent(t,{actor:'system',type:'received',detail:'Trabajo recibido desde '+(t.workType||t.module||'fuente')}));d.events=d.events.slice(0,20000);
+    return t;
+  }
+  const keep={id:t.id,createdAt:t.createdAt,assignedAt:t.assignedAt,receivedAt:t.receivedAt};
+  Object.assign(t,sanitizeTask({...t,...raw,...keep},d.settings),keep);
+  return t;
+}
+function recordTrackedTiming(d,taskId,kind,at=new Date().toISOString(),detail=''){
+  const t=d.tasks.find(x=>x.id===taskId);if(!t)throw new Error('Trabajo no encontrado');
+  const when=iso(at);
+  if(kind==='first_action'){if(!t.firstActionAt)t.firstActionAt=when;return recordEvent(d,t.id,{actor:'human',type:'started',detail:detail||'Primera acción registrada',at:when,status:t.status==='pending'?'in_progress':t.status})}
+  if(kind==='response'){if(!t.firstActionAt)t.firstActionAt=when;if(!t.firstResponseAt)t.firstResponseAt=when;return recordEvent(d,t.id,{actor:'human',type:'first_response',detail:detail||'Primera respuesta registrada',at:when,status:t.status==='pending'?'in_progress':t.status})}
+  if(kind==='blocked')return recordEvent(d,t.id,{actor:'human',type:'blocked',detail:detail||'Trabajo bloqueado',at:when,status:'blocked'});
+  if(kind==='unblocked')return recordEvent(d,t.id,{actor:'human',type:'unblocked',detail:detail||'Bloqueo resuelto',at:when,status:'in_progress'});
+  if(kind==='completed')return resolveTask(d,t.id,{actor:'human',detail:detail||'Trabajo completado',outcome:detail});
+  throw new Error('Tipo de marca temporal no válido');
+}
+
 function addTask(d,raw={}){
   const t=sanitizeTask(raw,d.settings);
   if(!t.title)throw new Error('Indica qué trabajo debía realizarse');
@@ -645,6 +725,10 @@ function recordEvent(d,taskId,raw={}){
   const t=d.tasks.find(x=>x.id===taskId);if(!t)throw new Error('Tarea no encontrada');
   const e=taskEvent(t,raw);d.events.unshift(e);d.events=d.events.slice(0,20000);
   t.lastActivityAt=e.at;t.updatedAt=new Date().toISOString();
+  if(!t.firstActionAt&&['activity','started','response','first_response','evidence'].includes(e.type))t.firstActionAt=e.at;
+  if(['response','first_response'].includes(e.type)&&!t.firstResponseAt)t.firstResponseAt=e.at;
+  if(e.type==='blocked'&&!t.blockedSince)t.blockedSince=e.at;
+  if(['unblocked','resumed'].includes(e.type)&&t.blockedSince){t.blockedMinutes=Math.max(0,Number(t.blockedMinutes||0)+minutesBetween(t.blockedSince,e.at));t.blockedSince=null}
   if(raw.status&&TASK_STATES.has(raw.status))t.status=raw.status;
   return e;
 }
@@ -652,6 +736,8 @@ function recordEvent(d,taskId,raw={}){
 function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={}){
   const t=d.tasks.find(x=>x.id===taskId);if(!t)throw new Error('Tarea no encontrada');
   const who=actor==='ai'?'ai':'human',now=new Date().toISOString();
+  if(!t.firstActionAt)t.firstActionAt=now;
+  if(t.blockedSince){t.blockedMinutes=Math.max(0,Number(t.blockedMinutes||0)+minutesBetween(t.blockedSince,now));t.blockedSince=null}
   t.status='done';t.completedAt=now;t.completedBy=who;t.lastActivityAt=now;t.updatedAt=now;
   t.outcome=clampText(outcome||detail,3000);t.evidence=clampText(evidence,3000);
   if(who==='ai')t.aiTakeoverAt=now;
@@ -660,4 +746,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,employeeEvaluation,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
