@@ -9,7 +9,7 @@ const calls=[];
 for(const file of runtimeFiles){
   const src=fs.readFileSync(path.join(__dirname,file),'utf8');
   for(const kind of ['handle','on']){
-    const re=new RegExp("ipcMain\\\\."+kind+"\\\\(\\\\s*['\\\"\\x60]([^'\\\"\\x60]+)['\\\"\\x60]","g");
+    const re=new RegExp("ipcMain\\."+kind+"\\(\\s*['\"\x60]([^'\"\x60]+)['\"\x60]","g");
     let m;while((m=re.exec(src)))calls.push({kind,channel:m[1],file,index:m.index});
   }
 }
