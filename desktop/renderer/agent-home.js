@@ -261,11 +261,14 @@
     };
     if(days)days.oninput=paint;if(min)min.oninput=paint;paint();
     if(save)save.onclick=()=>{
-      if(!src){alert('Selecciona primero la empresa o conexión en “Tu empresa”.');return}
-      const ok=saveStockPolicyForSource(src,{targetDays:days?.value,noHistoryMin:min?.value});
+      const selected=selectedHomeSource();
+      if(!selected){alert('Selecciona primero la empresa o conexión que quieres analizar.');return}
+      const ok=saveStockPolicyForSource(selected,{targetDays:days?.value,noHistoryMin:min?.value});
       if(!ok){alert('No se ha podido guardar la política de stock.');return}
+      lastStockRun=null;
       const old=save.textContent;save.textContent='Guardado ✓';setTimeout(()=>{if(save.isConnected)save.textContent=old},1400);
     };
+    populateStockSourceSelect().catch(()=>{});
   }
   function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName();renderStockPolicyUi()}
   function agentKeyForRequest(question='',fallback='core_ai'){
@@ -296,9 +299,147 @@
   }
   async function homeCompanySources(){
     const rows=[];
-    try{for(const x of await window.vnx.listConnections()||[]){const module=String(x.module||x.key||'').toLowerCase(),label=String(x.label||x.account||x.shop||module||'Conexión').trim();if(label)rows.push({id:String(x.key||module||label),type:'connection',module,label})}}catch{}
-    try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado')})}}catch{}
+    try{for(const x of await window.vnx.listConnections()||[]){const module=String(x.module||x.key||'').toLowerCase(),label=String(x.label||x.account||x.shopName||x.shop||module||'Conexión').trim();if(label)rows.push({id:String(x.id||x.key||x.shop||module||label),type:'connection',module,label,shop:String(x.shop||''),raw:x})}}catch{}
+    try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado'),raw:p})}}catch{}
     const seen=new Set();return rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+  }
+  let lastStockRun=null;
+  function sameHomeSource(a,b){return Boolean(a&&b&&a.type===b.type&&String(a.id||'')===String(b.id||''))}
+  async function stockCapableSources(){
+    const all=await homeCompanySources();
+    return all.filter(x=>x.type==='portal'||x.module==='portal'||x.module==='shopify');
+  }
+  async function populateStockSourceSelect(){
+    const sel=$('#vnxAhStockSourceSelect');if(!sel||document.body.dataset.vnxHomeAgent!=='web_ecommerce')return [];
+    const sources=await stockCapableSources();let selected=selectedHomeSource();
+    let match=sources.find(x=>sameHomeSource(x,selected));
+    if(!match&&sources.length===1){
+      match=sources[0];selected=match;
+      try{localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(match))}catch{}
+      const m=$('#vnxAhCompanyName');if(m)m.textContent=match.label;
+    }
+    sel.innerHTML='<option value="">Selecciona una conexión…</option>'+sources.map((src,i)=>'<option value="'+i+'">'+esc(src.label)+' · '+esc(src.module==='shopify'?'Shopify':'Portal privado')+'</option>').join('');
+    if(match){const index=sources.findIndex(x=>sameHomeSource(x,match));if(index>=0)sel.value=String(index)}
+    sel.onchange=()=>{
+      const src=sources[Number(sel.value)];
+      if(src){saveHomeSource(src);lastStockRun=null}
+    };
+    const sourceLabel=$('#vnxAhStockPolicySource');if(sourceLabel)sourceLabel.textContent=match?.label||(sources.length?'Selecciona una conexión':'No hay fuente de stock conectada');
+    return sources;
+  }
+  function stockPolicyFromForm(src){
+    const stored=stockPolicyForSource(src||{}),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin');
+    return {
+      targetDays:Math.max(1,Math.min(365,Math.round(Number(days?.value)||stored.targetDays||25))),
+      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(min?.value)||stored.noHistoryMin||0)))
+    };
+  }
+  async function resolveStockSource(){
+    const sources=await stockCapableSources(),selected=selectedHomeSource();
+    let src=sources.find(x=>sameHomeSource(x,selected));
+    if(!src&&sources.length===1){
+      src=sources[0];
+      try{localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src))}catch{}
+      const m=$('#vnxAhCompanyName');if(m)m.textContent=src.label;
+    }
+    if(!src){
+      if(!sources.length)throw new Error('No hay ninguna conexión de stock disponible. Conecta Shopify o un portal privado primero.');
+      throw new Error('Selecciona la empresa o conexión que quieres analizar en “Empresa / conexión a analizar”.');
+    }
+    return src;
+  }
+  function stockSortRows(rows=[]){
+    return [...rows].sort((a,b)=>{
+      const am=String(a?.manufacturer||'').trim(),bm=String(b?.manufacturer||'').trim();
+      if(am&&!bm)return -1;if(!am&&bm)return 1;
+      const by=am.localeCompare(bm,'es',{sensitivity:'base'});if(by)return by;
+      return String(a?.product||'').localeCompare(String(b?.product||''),'es',{sensitivity:'base'});
+    });
+  }
+  function stockFmt(n){const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):'—'}
+  function stockQtyLabel(r,summary){
+    if(Number(r?.qty||0)>0)return stockFmt(r.qty);
+    if(r?.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r?.stock||0)<=0)return 'REVISAR';
+    return '0';
+  }
+  function stockSalesLabel(r){return r?.noSalesData?'Sin histórico':stockFmt(r?.soldWindow||0)}
+  function stockCoverageLabel(r){return r?.noSalesData?'—':r?.daysRemaining==null?'Sin ventas':String(r.daysRemaining)}
+  function stockStateLabel(r,summary){
+    if(r?.noSalesData){
+      if(Number(summary?.noHistoryMin||0)>0)return Number(r?.qty||0)>0?'MÍNIMO SIN HISTÓRICO':'MÍNIMO CUBIERTO';
+      return Number(r?.stock||0)<=0?'REVISAR · SIN HISTÓRICO':'SIN HISTÓRICO';
+    }
+    if(Number(r?.stock||0)<=0)return 'SIN STOCK';
+    if(r?.urgent)return 'ROTURA < 5 DÍAS';
+    if(Number(r?.qty||0)>0)return 'REPONER';
+    return 'CORRECTO';
+  }
+  function stockRowsForView(summary,question='',orderMode=false){
+    const rows=Array.isArray(summary?.rows)?summary.rows:[],q=normalizedText(question);
+    if(orderMode)return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
+    if(/sin stock|stock 0|agotad/.test(q))return rows.filter(r=>Number(r.stock||0)<=0);
+    if(/menos de 5|< ?5|rotura/.test(q))return rows.filter(r=>r.urgent);
+    if(/reponer|comprar|compra|pedido/.test(q))return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
+    return rows;
+  }
+  function renderStockResult(summary,question='',orderMode=false){
+    const preview=$('#vnxAhPreview');if(!preview)return;
+    const rows=stockSortRows(stockRowsForView(summary,question,orderMode));
+    const all=Array.isArray(summary?.rows)?summary.rows:[],toBuy=all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
+    const totalUnits=toBuy.reduce((n,r)=>n+Math.max(0,Number(r.qty||0)),0);
+    const source=esc(summary?.sourceLabel||'Fuente seleccionada'),target=Number(summary?.targetDays||25),min=Number(summary?.noHistoryMin||0);
+    const title=orderMode?'Pedido propuesto':'Análisis de stock';
+    const note=min>0?'Sin histórico: mínimo configurado de '+min+' uds.':'Sin histórico: se marca REVISAR y no se inventa cantidad.';
+    preview.innerHTML='<div class="vnx-stock-live">'
+      +'<div class="vnx-stock-live-head"><div><small>'+esc(title.toUpperCase())+'</small><b>'+source+'</b><span>Objetivo '+target+' días · '+esc(note)+'</span></div><div><strong>'+stockFmt(orderMode?totalUnits:all.length)+'</strong><small>'+(orderMode?'unidades propuestas':'productos analizados')+'</small></div></div>'
+      +'<div class="vnx-stock-live-table"><table><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +(rows.length?rows.map(r=>'<tr class="'+(Number(r.stock||0)<=0?'loss':'')+'"><td>'+esc(String(r.manufacturer||'—'))+'</td><td>'+esc(String(r.sku||'—'))+'</td><td>'+esc(String(r.ean||'—'))+'</td><td><b>'+esc(String(r.product||''))+'</b></td><td>'+stockFmt(r.stock)+'</td><td>'+esc(stockSalesLabel(r))+'</td><td>'+esc(stockCoverageLabel(r))+'</td><td><strong>'+esc(stockQtyLabel(r,summary))+'</strong></td><td>'+esc(stockStateLabel(r,summary))+'</td></tr>').join(''):'<tr><td colspan="9">No hay referencias que cumplan este filtro.</td></tr>')
+      +'</tbody></table></div>'
+      +'<div class="vnx-stock-live-foot"><span>'+rows.length+' referencias mostradas</span><span>'+toBuy.length+' necesitan compra/revisión</span><span>'+stockFmt(totalUnits)+' unidades propuestas</span></div>'
+      +'</div>';
+    const metric=$('#vnxAhMetricValue'),review=$('#vnxAhReviewValue'),metricLabel=$('#vnxAhMetricLabel'),reviewLabel=$('#vnxAhReviewLabel');
+    if(metric)metric.textContent=String(all.length);if(review)review.textContent=String(toBuy.length);
+    if(metricLabel)metricLabel.textContent='Productos analizados';if(reviewLabel)reviewLabel.textContent='Necesitan compra/revisión';
+    const previewTitle=$('#vnxAhPreviewTitle'),previewSub=$('#vnxAhPreviewSub');
+    if(previewTitle)previewTitle.textContent=orderMode?'3. Pedido de compra calculado':'3. Resultado del análisis real';
+    if(previewSub)previewSub.textContent=orderMode?'Cantidades calculadas con la política de esta empresa.':'Stock y ventas reales de la conexión seleccionada, por SKU/EAN.';
+  }
+  async function fetchStockSummary(src,policy,force=true){
+    if(src.type==='portal'||src.module==='portal'){
+      const r=await window.vnx?.portalReplenishmentSummary?.(src.id,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      if(!r?.ok){
+        const why=r?.reason==='login_required'?'La sesión del portal necesita volver a iniciarse.':r?.reason==='catalog_scan_incomplete'?'No he podido verificar el catálogo completo.':r?.reason==='stock_not_structured'?'No encuentro una tabla verificable de stock en el portal.':'No he podido leer los datos de stock.';
+        throw new Error(why);
+      }
+      return {...r,sourceLabel:src.label};
+    }
+    if(src.module==='shopify'){
+      const shop=src.shop||src.raw?.shop||null;
+      const r=await window.vnx?.shopifyReplenishmentSummary?.(shop,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+      if(!r?.rows)throw new Error('Shopify no ha devuelto el catálogo de stock.');
+      return {...r,sourceLabel:src.label||r.sourceLabel};
+    }
+    throw new Error('La conexión seleccionada no admite todavía análisis estructurado de stock.');
+  }
+  async function runStockAnalysis(orderMode=false){
+    const analyze=$('#vnxAhSearchBtn'),order=$('#vnxAhGenerateOrder'),preview=$('#vnxAhPreview');
+    try{
+      const src=await resolveStockSource(),policy=stockPolicyFromForm(src);
+      saveStockPolicyForSource(src,policy);
+      const question=$('#vnxAhSearchInput')?.value?.trim()||'';
+      if(analyze){analyze.disabled=true;analyze.textContent=orderMode?'Calculando…':'Analizando…'}
+      if(order){order.disabled=true;order.textContent=orderMode?'Generando…':'Generar pedido'}
+      if(preview)preview.innerHTML='<div class="vnx-stock-loading">Leyendo stock y ventas reales de '+esc(src.label)+'…</div>';
+      const sameRun=lastStockRun&&sameHomeSource(lastStockRun.src,src)&&lastStockRun.policy.targetDays===policy.targetDays&&lastStockRun.policy.noHistoryMin===policy.noHistoryMin;
+      const summary=orderMode&&sameRun?lastStockRun.summary:await fetchStockSummary(src,policy,true);
+      lastStockRun={src,policy,summary,at:Date.now()};
+      renderStockResult(summary,question,orderMode);
+    }catch(e){
+      if(preview)preview.innerHTML='<div class="vnx-stock-error"><b>No se ha podido completar el análisis.</b><span>'+esc(String(e?.message||e))+'</span></div>';
+    }finally{
+      if(analyze){analyze.disabled=false;analyze.textContent='Analizar'}
+      if(order){order.disabled=false;order.textContent='Generar pedido'}
+    }
   }
   function closeCompanyMenu(){const menu=$('#vnxAhCompanyMenu');if(menu){menu.hidden=true;menu.innerHTML=''}}
   async function toggleCompanyMenu(){
@@ -408,6 +549,7 @@
     $('#vnxAhItemLabel').textContent=cfg.itemLabel;
     $('#vnxAhItemInput').placeholder=cfg.itemPlaceholder;
     const brandBlock=$('#vnxAhBrandBlock');if(brandBlock)brandBlock.style.display=['prospecting','content','social','campaigns'].includes(key)?'block':'none';
+    const orderBtn=$('#vnxAhGenerateOrder');if(orderBtn)orderBtn.style.display=key==='web_ecommerce'?'':'none';
     $('#vnxAhSearchTitle').textContent=cfg.searchTitle;
     $('#vnxAhSearchSub').textContent=cfg.searchSub;
     $('#vnxAhSearchInput').placeholder=cfg.searchPlaceholder;
@@ -480,13 +622,15 @@
     }));
     $('#vnxAhSearchBtn')?.addEventListener('click',()=>{
       const key=document.body.dataset.vnxHomeAgent||'prospecting';
+      if(key==='web_ecommerce'){runStockAnalysis(false);return}
       const cfg=cfgFor(key),q=$('#vnxAhSearchInput')?.value?.trim();
       openWorkbench(key,q||cfg.primaryPrompt,false);
     });
+    $('#vnxAhGenerateOrder')?.addEventListener('click',()=>runStockAnalysis(true));
     $('#vnxAhSearchInput')?.addEventListener('keydown',e=>{
       if(e.key==='Enter'){e.preventDefault();$('#vnxAhSearchBtn')?.click()}
     });
-    const runPrimary=()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';openWorkbench(key,cfgFor(key).primaryPrompt,true)};
+    const runPrimary=()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';if(key==='web_ecommerce'){runStockAnalysis(true);return}openWorkbench(key,cfgFor(key).primaryPrompt,true)};
     $('#vnxAhPrimary')?.addEventListener('click',runPrimary);
     $('#vnxAhPrimaryMirror')?.addEventListener('click',runPrimary);
     $$('.vnx-ah-preview-actions button').forEach((b,i)=>b.addEventListener('click',()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';const cfg=cfgFor(key);const prompts=['Regenera este trabajo con otro enfoque manteniendo los datos reales y sin inventar.','Quiero ajustar este trabajo para un caso concreto. Pregúntame solo lo imprescindible.','Ayúdame a guardar este enfoque como plantilla reutilizable.'];openWorkbench(key,prompts[i]||cfg.primaryPrompt,false)}));
