@@ -84,7 +84,7 @@
 
           <div class="vnx-ah-workgrid">
             <aside class="vnx-ah-config vnx-ah-panel">
-              <div class="vnx-ah-step-title"><b>1. Configura tu estrategia</b><small>Define qué, a quién y cómo quieres trabajar.</small></div>
+              <div class="vnx-ah-step-title"><b id="vnxAhConfigTitle">1. Configura tu estrategia</b><small id="vnxAhConfigSub">Define qué, a quién y cómo quieres trabajar.</small></div>
 
               <div class="vnx-ah-field">
                 <label id="vnxAhObjectiveLabel">Tipo de clientes objetivo</label>
@@ -104,13 +104,13 @@
                 <small class="vnx-ah-field-help">Puedes añadir una o varias marcas reales de la empresa seleccionada. VentaNexIA no inventará marcas.</small>
               </div>
 
-              <div class="vnx-ah-field"><label>Estilo del trabajo</label><select><option>Profesional y cercano</option><option>Directo y comercial</option><option>Formal</option><option>Breve y claro</option></select></div>
-              <div class="vnx-ah-field"><label>Idioma</label><select><option>Español</option><option>Català</option><option>English</option><option>Français</option><option>Deutsch</option></select></div>
-              <label class="vnx-ah-toggle"><span>Incluir firma y estilo de marca</span><input type="checkbox" checked><i></i></label>
-              <div class="vnx-ah-brand-preview"><div class="vnx-ah-mini-logo"><span>V</span><b>Venta<span>NexIA</span></b></div><button type="button">Cambiar identidad</button></div>
-              <div class="vnx-ah-field"><label>Frecuencia</label><select><option>Cada día (recomendado)</option><option>Una vez</option><option>Cada semana</option><option>Personalizada</option></select></div>
-              <div class="vnx-ah-field"><label>Qué hacer con el trabajo preparado</label>
-                <div class="vnx-ah-radios">
+              <div class="vnx-ah-field" id="vnxAhStyleField"><label id="vnxAhStyleLabel">Estilo del trabajo</label><select id="vnxAhStyleSelect"><option>Profesional y cercano</option><option>Directo y comercial</option><option>Formal</option><option>Breve y claro</option></select></div>
+              <div class="vnx-ah-field" id="vnxAhLanguageField"><label>Idioma</label><select id="vnxAhLanguageSelect"><option>Español</option><option>Català</option><option>English</option><option>Français</option><option>Deutsch</option></select></div>
+              <label class="vnx-ah-toggle" id="vnxAhBrandToggle"><span id="vnxAhBrandToggleLabel">Incluir firma y estilo de marca</span><input type="checkbox" checked><i></i></label>
+              <div class="vnx-ah-brand-preview" id="vnxAhBrandPreview"><div class="vnx-ah-mini-logo"><span>V</span><b>Venta<span>NexIA</span></b></div><button type="button">Cambiar identidad</button></div>
+              <div class="vnx-ah-field" id="vnxAhFrequencyField"><label id="vnxAhFrequencyLabel">Frecuencia</label><select id="vnxAhFrequencySelect"><option>Cada día (recomendado)</option><option>Una vez</option><option>Cada semana</option><option>Personalizada</option></select></div>
+              <div class="vnx-ah-field" id="vnxAhActionField"><label id="vnxAhActionLabel">Qué hacer con el trabajo preparado</label>
+                <div class="vnx-ah-radios" id="vnxAhActionRadios">
                   <label><input type="radio" name="ahAction" checked> Dejarlo preparado para revisar</label>
                   <label><input type="radio" name="ahAction"> Ejecutar solo lo que tenga autorización</label>
                   <label><input type="radio" name="ahAction"> Preparar y avisarme</label>
@@ -122,15 +122,15 @@
             <main class="vnx-ah-center">
               <section class="vnx-ah-source vnx-ah-panel">
                 <div class="vnx-ah-step-title"><b id="vnxAhSearchTitle">2. Selecciona o genera la lista de contactos</b><small id="vnxAhSearchSub">Puedes usar tus propias listas o pedir a Carla que busque nuevas empresas.</small></div>
-                <div class="vnx-ah-source-tabs"><button type="button">▧ Mis listas</button><button class="active" type="button">✦ Buscar con IA</button><button type="button">▤ Desde archivo (Excel/CSV)</button></div>
+                <div class="vnx-ah-source-tabs" id="vnxAhSourceTabs"><button type="button">▧ Mis listas</button><button class="active" type="button">✦ Buscar con IA</button><button type="button">▤ Desde archivo (Excel/CSV)</button></div>
                 <div class="vnx-ah-search-row"><span>⌕</span><input id="vnxAhSearchInput" placeholder="Ej.: farmacias en Barcelona"><button id="vnxAhSearchBtn" type="button">Buscar</button></div>
-                <div class="vnx-ah-filters"><label><small>Ubicación</small><select><option>Toda España</option><option>Barcelona</option><option>Madrid</option><option>Valencia</option></select></label><label><small>Sector</small><select><option>Todos</option><option>Farmacias</option><option>Clínicas</option><option>Distribuidores</option></select></label><label><small>Tamaño</small><select><option>Todos</option><option>Pequeña</option><option>Mediana</option><option>Grande</option></select></label><button type="button">✦ Más filtros</button></div>
+                <div class="vnx-ah-filters" id="vnxAhFilters"><label><small>Ubicación</small><select><option>Toda España</option><option>Barcelona</option><option>Madrid</option><option>Valencia</option></select></label><label><small>Sector</small><select><option>Todos</option><option>Farmacias</option><option>Clínicas</option><option>Distribuidores</option></select></label><label><small>Tamaño</small><select><option>Todos</option><option>Pequeña</option><option>Mediana</option><option>Grande</option></select></label><button type="button" id="vnxAhMoreFilters">✦ Más filtros</button></div>
               </section>
 
               <section class="vnx-ah-preview-panel vnx-ah-panel">
                 <div class="vnx-ah-step-title"><b id="vnxAhPreviewTitle">3. Genera los correos con IA</b><small id="vnxAhPreviewSub">Carla analiza cada empresa y crea un mensaje adaptado a sus necesidades.</small></div>
                 <div id="vnxAhPreview" class="vnx-ah-preview"></div>
-                <div class="vnx-ah-preview-actions"><button type="button">↻ Regenerar con otro enfoque</button><button type="button">✦ Ajustar para este caso</button><button type="button">▧ Guardar como plantilla</button></div>
+                <div class="vnx-ah-preview-actions" id="vnxAhPreviewActions"><button type="button">↻ Regenerar con otro enfoque</button><button type="button">✦ Ajustar para este caso</button><button type="button">▧ Guardar como plantilla</button></div>
               </section>
             </main>
 
@@ -141,7 +141,7 @@
               <section class="vnx-ah-review-card vnx-ah-panel">
                 <div class="vnx-ah-ready"><span>✓</span><div><b id="vnxAhReviewValue">—</b><small id="vnxAhReviewLabel">Correos preparados</small></div></div>
                 <button id="vnxAhPrimaryMirror" type="button">Revisar trabajo preparado</button>
-                <div class="vnx-ah-switches"><label><span>Ejecutar hoy</span><input type="checkbox"><i></i></label><label><span>Programar</span><input type="checkbox"><i></i></label><label><span>Dejar en borrador</span><input type="checkbox" checked><i></i></label></div>
+                <div class="vnx-ah-switches" id="vnxAhSwitches"><label><span>Ejecutar hoy</span><input type="checkbox"><i></i></label><label><span>Programar</span><input type="checkbox"><i></i></label><label><span>Dejar en borrador</span><input type="checkbox" checked><i></i></label></div>
                 <div class="vnx-ah-recipient-title">Vista previa</div>
                 <div id="vnxAhRecipients" class="vnx-ah-recipients"></div>
                 <button class="vnx-ah-see-all" type="button">Ver todo →</button>

@@ -303,9 +303,58 @@
       :['Trabajo preparado 1','Trabajo preparado 2','Trabajo preparado 3','Trabajo preparado 4'];
     return rows.map((x,i)=>'<div><span class="vnx-ah-recipient-icon">'+(cfg.icon||'•')+'</span><p><b>'+esc(x)+'</b><small>'+esc(cfg.crumb.split('›').pop().trim())+'</small></p><em>'+(i<2?'Listo':'Pendiente')+'</em></div>').join('');
   }
+  function agentScreenUi(key){
+    const commonAction=['Dejarlo preparado para revisar','Ejecutar solo lo que tenga autorización','Preparar y avisarme','Solo generar, sin ejecutar'];
+    const map={
+      core_ai:{configTitle:'1. Define el foco',configSub:'Elige qué quieres priorizar y qué puede adelantar Carla.',sourceTabs:['Fuentes conectadas','Prioridades','Pendientes'],filters:[['Periodo',['Hoy','Esta semana','Este mes']],['Área',['Todas','Correo','Pedidos','Stock','Clientes']],['Prioridad',['Todas','Urgente','Importante','Normal']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo del trabajo',frequency:['Una vez','Cada día','Cada semana','Personalizada'],actions:commonAction,previewActions:['↻ Recalcular prioridades','✦ Ajustar criterio','▧ Guardar enfoque'],switches:['Preparar ahora','Programar revisión','Avisarme al terminar'],itemDefault:'Contexto o asunto'},
+      email:{configTitle:'1. Configura la revisión',configSub:'Define qué correos revisar y cómo quieres que Carla prepare las respuestas.',sourceTabs:['Bandeja conectada','Necesitan respuesta','Buscar correo'],filters:[['Cuenta',['Todas las cuentas','Cuenta seleccionada']],['Estado',['Todos','Sin leer','Necesita respuesta','Informativo']],['Fecha',['Hoy','Últimas 24 h','7 días','30 días']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo de la respuesta',frequency:['Cada día (recomendado)','Una vez','Cada hora','Personalizada'],actions:['Dejar respuesta en borrador','Crear borrador solo con autorización','Preparar y avisarme','Solo clasificar, sin redactar'],previewActions:['↻ Redactar otro enfoque','✦ Ajustar respuesta','▧ Guardar como plantilla'],switches:['Revisar ahora','Programar','Dejar en borrador'],itemDefault:'Cuenta o asunto'},
+      orders:{configTitle:'1. Define qué pedidos revisar',configSub:'Filtra pedidos y decide qué puede preparar Carla antes de que los confirmes.',sourceTabs:['Pedidos conectados','Incidencias','Importar Excel/CSV'],filters:[['Estado',['Todos','Nuevos','Pendientes','Incompletos','Preparados']],['Fecha',['Hoy','7 días','30 días']],['Canal',['Todos','Tienda online','Email','Portal','Archivo']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada hora','Una vez','Personalizada'],actions:['Dejar pedidos preparados','Procesar solo los autorizados','Preparar y avisarme','Solo detectar incidencias'],previewActions:['↻ Volver a comprobar','✦ Ajustar pedido','▧ Exportar / guardar'],switches:['Revisar nuevos','Programar revisión','Dejar preparados'],itemDefault:'Pedido o referencia'},
+      web_ecommerce:{configTitle:'1. Define el análisis de stock',configSub:'Elige qué productos revisar y el criterio de reposición que quieres controlar.',sourceTabs:['Stock actual','Ventas 6 meses','Importar Excel/CSV'],filters:[['Estado',['Todos','Sin stock','< 5 días','Bajo stock','Exceso']],['Fabricante',['Todos los fabricantes','Fabricante seleccionado']],['Cobertura',['Todas','0 días','< 5 días','< 20 días','≥ 20 días']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:['Dejar propuesta de compra para revisar','Generar pedido solo con autorización','Preparar y avisarme','Solo analizar, sin generar pedido'],previewActions:['↻ Recalcular stock','✦ Ajustar cobertura','▧ Exportar pedido'],switches:['Calcular ahora','Programar revisión','Dejar como propuesta'],itemDefault:'Producto, SKU o familia'},
+      crm:{configTitle:'1. Define el seguimiento comercial',configSub:'Elige clientes u oportunidades y cómo quieres preparar la siguiente acción.',sourceTabs:['Clientes conectados','Oportunidades','Importar Excel/CSV'],filters:[['Estado',['Todos','Nuevo','Seguimiento','Oferta','Negociación','Ganado']],['Responsable',['Todos','Yo','Sin responsable']],['Actividad',['Hoy','7 días','30 días','Sin actividad']]],showStyle:true,showLanguage:true,showBrand:false,styleLabel:'Estilo comercial',frequency:['Cada día','Cada semana','Una vez','Personalizada'],actions:commonAction,previewActions:['↻ Otra propuesta','✦ Ajustar seguimiento','▧ Guardar plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Cliente u oportunidad'},
+      prospecting:{configTitle:'1. Configura tu estrategia',configSub:'Define qué vendes, a quién quieres llegar y con qué marca.',sourceTabs:['Mis listas','Buscar con IA','Desde archivo (Excel/CSV)'],filters:[['Ubicación',['Toda España','Barcelona','Madrid','Valencia']],['Sector',['Todos','Farmacias','Clínicas','Distribuidores']],['Tamaño',['Todos','Pequeña','Mediana','Grande']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo del trabajo',frequency:['Cada día (recomendado)','Una vez','Cada semana','Personalizada'],actions:commonAction,previewActions:['↻ Regenerar con otro enfoque','✦ Ajustar para este caso','▧ Guardar como plantilla'],switches:['Ejecutar hoy','Programar','Dejar en borrador'],itemDefault:'Tu producto o servicio'},
+      content:{configTitle:'1. Define qué contenido crear',configSub:'Indica tema, marca, canal y tono antes de generar la pieza.',sourceTabs:['Ideas','Contenido de marca','Desde archivo'],filters:[['Canal',['Todos','Blog','LinkedIn','Instagram','Email']],['Formato',['Todos','Texto corto','Artículo','Ficha producto','Landing']],['Estado',['Todos','Idea','Borrador','Aprobado']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Tono del contenido',frequency:['Una vez','Cada semana','Cada día','Personalizada'],actions:['Dejar contenido para revisar','Preparar solo lo autorizado','Preparar y avisarme','Solo generar ideas'],previewActions:['↻ Crear otra versión','✦ Ajustar contenido','▧ Guardar como plantilla'],switches:['Generar ahora','Programar','Dejar borrador'],itemDefault:'Producto, servicio o tema'},
+      social:{configTitle:'1. Configura la publicación',configSub:'Elige red, marca, tema y estilo antes de preparar las publicaciones.',sourceTabs:['Calendario','Publicaciones','Creatividades'],filters:[['Red',['Todas','LinkedIn','Instagram','Facebook','X']],['Estado',['Todos','Borrador','Pendiente','Aprobado']],['Fecha',['Hoy','Esta semana','Este mes']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Tono de la publicación',frequency:['Cada semana','Cada día','Una vez','Personalizada'],actions:['Dejar publicaciones para revisar','Publicar solo con autorización','Preparar y avisarme','Solo generar borradores'],previewActions:['↻ Crear otra versión','✦ Adaptar a esta red','▧ Guardar como plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Campaña o tema'},
+      campaigns:{configTitle:'1. Define la campaña',configSub:'Marca, objetivo, audiencia y canales quedan separados antes de generar acciones.',sourceTabs:['Campañas','Audiencias','Desde archivo'],filters:[['Canal',['Todos','Email','LinkedIn','Instagram','Web']],['Audiencia',['Todas','Clientes','Prospectos','Inactivos']],['Estado',['Todos','Diseño','Activa','Pausada','Finalizada']]],showStyle:true,showLanguage:true,showBrand:true,styleLabel:'Estilo de campaña',frequency:['Una vez','Cada semana','Mensual','Personalizada'],actions:commonAction,previewActions:['↻ Otro enfoque','✦ Ajustar campaña','▧ Guardar plantilla'],switches:['Preparar ahora','Programar','Dejar borrador'],itemDefault:'Producto o campaña'},
+      administration:{configTitle:'1. Define el trabajo documental',configSub:'Selecciona qué archivo analizar y qué resultado necesitas.',sourceTabs:['Archivos autorizados','Documentos recientes','Seleccionar archivo'],filters:[['Tipo',['Todos','PDF','Excel','Word','Imagen']],['Fecha',['Hoy','7 días','30 días','Todos']],['Origen',['Todas las carpetas','Carpeta seleccionada','Archivo seleccionado']]],showStyle:false,showLanguage:true,showBrand:false,styleLabel:'Estilo',frequency:['Una vez','Cada día','Cada semana','Personalizada'],actions:['Dejar análisis para revisar','Procesar solo lo autorizado','Preparar y avisarme','Solo extraer datos'],previewActions:['↻ Reanalizar','✦ Ajustar extracción','▧ Exportar resultado'],switches:['Analizar ahora','Programar','Guardar resultado'],itemDefault:'Archivo o instrucción'},
+      agenda:{configTitle:'1. Elige las reuniones',configSub:'Define periodo y tipo de reunión para que Carla prepare el contexto.',sourceTabs:['Agenda conectada','Reuniones de hoy','Pendientes'],filters:[['Periodo',['Hoy','Mañana','Esta semana','Este mes']],['Tipo',['Todas','Clientes','Internas','Seguimiento']],['Estado',['Todas','Confirmada','Pendiente','Realizada']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada día','Una vez','Cada semana','Personalizada'],actions:['Dejar preparación para revisar','Crear recordatorios autorizados','Preparar y avisarme','Solo resumir agenda'],previewActions:['↻ Actualizar contexto','✦ Ajustar preparación','▧ Guardar notas'],switches:['Preparar hoy','Programar','Avisarme'],itemDefault:'Reunión o persona'},
+      reports:{configTitle:'1. Define qué quieres medir',configSub:'Selecciona área, periodo y comparación antes de generar el informe.',sourceTabs:['Datos conectados','Comparativas','Importar Excel/CSV'],filters:[['Área',['Todas','Ventas','Clientes','Stock','Pedidos']],['Periodo',['Hoy','Este mes','Mes anterior','Este año']],['Comparación',['Sin comparar','Periodo anterior','Año anterior']]],showStyle:false,showLanguage:true,showBrand:false,styleLabel:'Estilo',frequency:['Una vez','Cada semana','Cada mes','Personalizada'],actions:['Dejar informe para revisar','Generar solo con autorización','Preparar y avisarme','Solo calcular indicadores'],previewActions:['↻ Actualizar informe','✦ Ajustar comparación','▧ Exportar informe'],switches:['Generar ahora','Programar','Guardar informe'],itemDefault:'Periodo o pregunta'},
+      automation:{configTitle:'1. Define la automatización',configSub:'Elige módulo, disparador y nivel de autorización antes de activarla.',sourceTabs:['Flujos','Disparadores','Historial'],filters:[['Módulo',['Todos','Correo','Pedidos','Stock','Clientes','Informes']],['Estado',['Todos','Borrador','Activo','Pausado']],['Frecuencia',['Todas','Horaria','Diaria','Semanal','Mensual']]],showStyle:false,showLanguage:false,showBrand:false,styleLabel:'Estilo',frequency:['Cada hora','Cada día','Cada semana','Personalizada'],actions:['Dejar flujo para revisar','Activar solo tras autorización','Preparar y avisarme','Solo diseñar el flujo'],previewActions:['↻ Rediseñar flujo','✦ Ajustar pasos','▧ Guardar como plantilla'],switches:['Activar autorizado','Programar','Dejar en borrador'],itemDefault:'Tarea repetitiva'}
+    };
+    return map[key]||map.core_ai;
+  }
+  function renderFilterField(field){
+    const label=field?.[0]||'Filtro',options=Array.isArray(field?.[1])?field[1]:['Todos'];
+    return '<label><small>'+esc(label)+'</small><select>'+options.map(x=>'<option>'+esc(x)+'</option>').join('')+'</select></label>';
+  }
+  function applyAgentScreenUi(key,cfg){
+    const ui=agentScreenUi(key);
+    const configTitle=$('#vnxAhConfigTitle'),configSub=$('#vnxAhConfigSub');
+    if(configTitle)configTitle.textContent=ui.configTitle;if(configSub)configSub.textContent=ui.configSub;
+    const style=$('#vnxAhStyleField'),language=$('#vnxAhLanguageField'),brandToggle=$('#vnxAhBrandToggle'),brandPreview=$('#vnxAhBrandPreview');
+    if(style)style.style.display=ui.showStyle?'':'none';if(language)language.style.display=ui.showLanguage?'':'none';
+    if(brandToggle)brandToggle.style.display=ui.showBrand?'':'none';if(brandPreview)brandPreview.style.display=ui.showBrand?'':'none';
+    const styleLabel=$('#vnxAhStyleLabel');if(styleLabel)styleLabel.textContent=ui.styleLabel||'Estilo del trabajo';
+    const frequency=$('#vnxAhFrequencySelect');if(frequency)frequency.innerHTML=(ui.frequency||[]).map(x=>'<option>'+esc(x)+'</option>').join('');
+    const radios=$('#vnxAhActionRadios');if(radios)radios.innerHTML=(ui.actions||[]).map((x,i)=>'<label><input type="radio" name="ahAction"'+(i===0?' checked':'')+'> '+esc(x)+'</label>').join('');
+    const sourceTabs=$('#vnxAhSourceTabs');if(sourceTabs)sourceTabs.innerHTML=(ui.sourceTabs||[]).map((x,i)=>'<button type="button" class="'+(i===0?'active':'')+'">'+esc(x)+'</button>').join('');
+    const filters=$('#vnxAhFilters');if(filters)filters.innerHTML=(ui.filters||[]).map(renderFilterField).join('')+'<button type="button" id="vnxAhMoreFilters">✦ Más filtros</button>';
+    const previewActions=$('#vnxAhPreviewActions button');(ui.previewActions||[]).forEach((x,i)=>{if(previewActions[i])previewActions[i].textContent=x});
+    const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
+    const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
+    $('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
+    $('#vnxAhSourceTabs button').forEach(btn=>btn.addEventListener('click',()=>{
+      $('#vnxAhSourceTabs button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+      const label=String(btn.textContent||'').trim();
+      if(/archivo|excel|csv|documento/i.test(label)){openAppTab('files');return}
+      const input=$('#vnxAhSearchInput');if(input){input.focus();input.select?.()}
+    }));
+    $('#vnxAhMoreFilters')?.addEventListener('click',()=>{const first=$('#vnxAhFilters select');if(first)first.focus()});
+  }
+
   function applyConfig(key){
     const cfg=cfgFor(key);
     document.body.dataset.vnxHomeAgent=key;
+    applyAgentScreenUi(key,cfg);
     $('#vnxAhBreadcrumb').textContent=cfg.crumb;
     $('#vnxAhAgentIcon').textContent=cfg.icon;
     $('#vnxAhAgentTitle').textContent=cfg.title;
@@ -346,7 +395,7 @@
       const prompt='Quiero trabajar en la sección “'+label+'” de '+cfg.title+'. Usa solo datos reales de mis conexiones autorizadas y muéstrame o prepara lo correspondiente.';
       openWorkbench(key,prompt,false);
     }));
-    $$$('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
+    $('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
     try{localStorage.setItem('vnx_agent_home_key',key)}catch{}
   }
   function openAppTab(name){
@@ -359,8 +408,11 @@
   function selectAgentInWorkbench(chatKey){
     const sel=$('#chatConnectionSelect');
     if(!sel)return false;
-    const candidates=['agent:'+chatKey,chatKey];
-    const opt=[...sel.options].find(o=>candidates.includes(o.value));
+    const wanted=String(chatKey||'').trim();
+    const opt=[...sel.options].find(o=>{
+      const v=String(o.value||'');
+      return v===wanted||v==='agent:'+wanted||v.startsWith('agent:'+wanted+':');
+    });
     if(!opt)return false;
     sel.value=opt.value;
     sel.dispatchEvent(new Event('change',{bubbles:true}));
@@ -377,7 +429,7 @@
     },180);
   }
   function bind(){
-    $$$('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    $('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
       openAppTab('home');
       applyConfig(btn.dataset.agentHome);
     }));
@@ -396,7 +448,6 @@
     const runPrimary=()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';openWorkbench(key,cfgFor(key).primaryPrompt,true)};
     $('#vnxAhPrimary')?.addEventListener('click',runPrimary);
     $('#vnxAhPrimaryMirror')?.addEventListener('click',runPrimary);
-    $$('.vnx-ah-source-tabs button').forEach(b=>b.addEventListener('click',()=>{$$('.vnx-ah-source-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active')}));
     $$('.vnx-ah-preview-actions button').forEach((b,i)=>b.addEventListener('click',()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';const cfg=cfgFor(key);const prompts=['Regenera este trabajo con otro enfoque manteniendo los datos reales y sin inventar.','Quiero ajustar este trabajo para un caso concreto. Pregúntame solo lo imprescindible.','Ayúdame a guardar este enfoque como plantilla reutilizable.'];openWorkbench(key,prompts[i]||cfg.primaryPrompt,false)}));
     $('#vnxAhCtaBtn')?.addEventListener('click',()=>{
       const key=document.body.dataset.vnxHomeAgent||'automation';
@@ -417,7 +468,6 @@
     $('#vnxAhAccount')?.addEventListener('click',()=>openAppTab('license'));
     $('.vnx-ah-brand-preview>button')?.addEventListener('click',()=>openAppTab('license'));
     $('.vnx-ah-see-all')?.addEventListener('click',()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';openWorkbench(key,cfgFor(key).primaryPrompt,false)});
-    $('.vnx-ah-filters>button')?.addEventListener('click',()=>{$('.vnx-ah-filters select')?.focus()});
     const quick=$('#vnxAhGlobalInput'),send=$('#vnxAhGlobalSend');
     const globalSend=()=>{
       const q=quick?.value?.trim();if(!q)return;

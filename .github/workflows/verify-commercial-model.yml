@@ -78,7 +78,7 @@ jobs:
           must(plans.includes("/constructor.html?plan=")&&plans.includes("Empezar demo completa 15 días"),'Trial cart must lead to active trial flow');
           must(home.includes('129 €')&&home.includes('299 €')&&home.includes('599 €'),'Home pricing stale');
           must(home.includes('VNX Negocio')&&home.includes('Todos los asistentes estándar incluidos'),'Home positioning stale');
-          must(home.includes('VENTANEXIA DESKTOP 0.6.138')&&home.includes('15 días gratis sin tarjeta'),'Home must state current desktop and trial availability');
+          must(home.includes('VENTANEXIA DESKTOP 0.6.139')&&home.includes('15 días gratis sin tarjeta'),'Home must state current desktop and trial availability');
           must(contract.includes("termAck")&&contract.includes("límites medidos")&&contract.includes("49 €/mes"),'Customer contract limits/term model missing');
           must(!contract.includes("workUnits={inicio:1500")&&!contract.includes("trabajos/mes · Conexiones"),'Customer contract still exposes obsolete global work units');
           must(accept.includes('price:129')&&accept.includes('price:299')&&accept.includes('price:599'),'Contract server prices mismatch');
