@@ -1927,8 +1927,18 @@ function emailListItem(m,i,selected){
     refreshWorkbenchConnections();
     refreshAgentSourceSelector(selectedAgent);
     const sourceSelect=$m('#chatSourceSelect'),sourceSecond=$m('#chatSourceSecondSelect');
-    const updateSourceHint=()=>{const hint2=$m('#chatSourceHint');if(!hint2)return;const combined=sourceSelect?.value!==''&&sourceSecond?.value!==''&&sourceSelect?.value!==sourceSecond?.value;hint2.textContent=combined?'Combinaré únicamente estas dos conexiones porque tú lo has indicado. No usaré ninguna otra.':'Usaré únicamente la conexión seleccionada.';keepChatComposerUsable({focus:true})};
-    if(sourceSelect)sourceSelect.onchange=updateSourceHint;if(sourceSecond)sourceSecond.onchange=updateSourceHint;
+    const updateSourceHint=changed=>{
+      const hint2=$m('#chatSourceHint');if(!hint2)return;
+      if(sourceSelect?.value!==''&&sourceSecond?.value!==''&&sourceSelect.value===sourceSecond.value){
+        if(changed==='second')sourceSecond.value='';
+        else sourceSecond.value='';
+      }
+      const combined=sourceSelect?.value!==''&&sourceSecond?.value!==''&&sourceSelect?.value!==sourceSecond?.value;
+      hint2.textContent=combined?'Combinaré únicamente estas dos conexiones porque tú lo has indicado. No usaré ninguna otra.':'Usaré únicamente la conexión seleccionada.';
+      keepChatComposerUsable({focus:true});
+    };
+    if(sourceSelect)sourceSelect.onchange=()=>updateSourceHint('first');
+    if(sourceSecond)sourceSecond.onchange=()=>updateSourceHint('second');
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -2285,7 +2295,7 @@ function emailListItem(m,i,selected){
         if(!summary?.ok)throw new Error('No he podido procesar el archivo.');
         const sourceLabel=masterMessages[msgIndex]?.stockSourceLabel||'Archivo de stock y ventas';
         const reply=shopifyStockTable({...summary,sourceLabel});
-        const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
+        const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
           String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
           Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
           Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
@@ -2533,14 +2543,14 @@ function emailListItem(m,i,selected){
   function isShopifyStockRequest(text='',scope=null){
     if(!stockIntentText(text))return false;
     if(scope?.type==='shopify')return true;
-    if(scope?.selectedSource?.module==='shopify'||scope?.selectedSource?.type==='shopify')return true;
-    return false;
+    const sources=[scope?.selectedSource,scope?.source,...(Array.isArray(scope?.selectedSources)?scope.selectedSources:[])].filter(Boolean);
+    return sources.some(x=>String(x.module||x.type||x.raw?.module||'')==='shopify'||x.type==='shopify');
   }
   function isPortalStockRequest(text='',scope=null){
-    if(!stockIntentText(text)||isShopifyStockRequest(text,scope))return false;
+    if(!stockIntentText(text))return false;
     if(scope?.type==='portal')return true;
-    if(scope?.selectedSource?.module==='portal'||scope?.selectedSource?.type==='portal')return true;
-    return false;
+    const sources=[scope?.selectedSource,scope?.source,...(Array.isArray(scope?.selectedSources)?scope.selectedSources:[])].filter(Boolean);
+    return sources.some(x=>String(x.module||x.type||x.raw?.module||'')==='portal'||x.type==='portal');
   }
   function wantsFreshStock(text=''){
     return /\b(actualiza|actualizar|refresca|refrescar|recarga|recargar|vuelve a entrar|lee de nuevo|ahora mismo)\b/i.test(String(text||''));
@@ -2622,21 +2632,27 @@ function emailListItem(m,i,selected){
   }
   function shopifyStockTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const urgent=[...rows].filter(r=>r.urgent).sort((a,b)=>Number(a.stock||0)-Number(b.stock||0)||Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999)||String(a.product||'').localeCompare(String(b.product||'')));
+    const targetDays=Number(summary.targetDays||20);
+    const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData))
+      .sort((a,b)=>Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999)||Number(a.stock||0)-Number(b.stock||0)||String(a.product||'').localeCompare(String(b.product||'')));
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
     const ref=r=>r.sku||r.ean||'—';
     const coverage=r=>r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
     const qtyLabel=r=>Number(r.qty||0)>0?fmt(r.qty):(Number(r.stock||0)<=0&&r.noSalesData?'Revisar':'0');
-    const status=r=>Number(r.stock||0)<=0?(r.noSalesData?'🔴 SIN STOCK · sin ventas para calcular cantidad':'🔴 SIN STOCK'):'🟠 ROTURA < 5 DÍAS';
+    const status=r=>{
+      if(Number(r.stock||0)<=0)return r.noSalesData?'🔴 SIN STOCK · sin histórico para calcular':'🔴 SIN STOCK';
+      if(r.urgent)return '🟠 URGENTE · < 5 DÍAS';
+      return '🟡 REPONER · < '+targetDays+' DÍAS';
+    };
     const label=summary.sourceLabel||summary.shop||'Shopify';
-    const lines=['# Pedido para Compras · '+label,'','**Solo aparecen productos sin stock o con menos de 5 días de cobertura.** Datos actualizados al solicitar el análisis.','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
-    for(const r of urgent){const product=String(r.product||'').replace(/\|/g,'/');lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |')}
-    if(!urgent.length)lines.push('| — | No hay referencias con stock 0 ni riesgo de rotura en menos de 5 días | — | — | — | — | — | 🟢 Correcto |');
-    const units=urgent.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=urgent.filter(r=>Number(r.stock||0)<=0).length,under5=urgent.filter(r=>Number(r.stock||0)>0).length;
-    lines.push('','**Resumen del pedido:** '+urgent.length+' referencias · '+zero+' sin stock · '+under5+' con rotura prevista en menos de 5 días · '+fmt(units)+' unidades calculadas para pedir.');
-    lines.push('**Criterio:** ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN y reposición hasta aproximadamente 30 días de cobertura.');
-    if(urgent.some(r=>Number(r.stock||0)<=0&&r.noSalesData))lines.push('⚠️ Las referencias agotadas sin ventas registradas aparecen igualmente, pero su cantidad queda en **Revisar** porque VentaNexIA no inventará una compra sin histórico.');
-    if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar pedidos; el histórico puede no ser exhaustivo.');
+    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
+    for(const r of toBuy){const product=String(r.product||'').replace(/\|/g,'/');lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |')}
+    if(!toBuy.length)lines.push('| — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
+    const units=toBuy.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=toBuy.filter(r=>Number(r.stock||0)<=0).length,under5=toBuy.filter(r=>Number(r.stock||0)>0&&r.urgent).length,normal=toBuy.filter(r=>Number(r.stock||0)>0&&!r.urgent).length;
+    lines.push('','**Resumen del pedido:** '+toBuy.length+' referencias · '+zero+' sin stock · '+under5+' urgentes (<5 días) · '+normal+' a reponer para completar '+targetDays+' días · '+fmt(units)+' unidades calculadas.');
+    lines.push('**Fórmula:** media diaria = ventas de '+(summary.windowDays||180)+' días ÷ '+(summary.windowDays||180)+'; stock objetivo = media diaria × '+targetDays+'; cantidad a pedir = stock objetivo − stock actual, redondeando hacia arriba.');
+    if(toBuy.some(r=>Number(r.stock||0)<=0&&r.noSalesData))lines.push('⚠️ Las referencias agotadas sin ventas registradas aparecen como **Revisar**, sin inventar una cantidad.');
+    if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar el histórico; puede no ser exhaustivo.');
     if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
     lines.push('','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
@@ -2728,7 +2744,7 @@ function emailListItem(m,i,selected){
       lines.push('| '+sku+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
     }
     if(!rows.length)lines.push('| — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
-    lines.push('','**Resumen del pedido:** '+rows.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 30 días cuando existe histórico suficiente.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
+    lines.push('','**Resumen del pedido:** '+rows.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 20 días cuando existe histórico suficiente.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
   function enrichBusinessRequest(text,scope){
@@ -2736,7 +2752,7 @@ function emailListItem(m,i,selected){
     const stockIntent=(/\b(stock|inventario|sin stock|reposici[oó]n|reponer|compr\w*|rotura|previsi[oó]n|se me acaba|quedar(?:me|nos)? sin)\b/.test(q)||/agot/.test(q))&&(/\b(revis|analiz|nivel|objetiv|m[ií]nim|pedido|comprar|reposici[oó]n|stock|rotura|previsi[oó]n|d[ií]as)\b/.test(q)||/agot/.test(q));
     const meetingIntent=/\b(reuni[oó]n|visita|cita)\b/.test(q)&&/\b(prepar|informe|dossier|cliente|agenda|datos|revis)\b/.test(q);
     if(stockIntent){
-      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK, REPOSICIÓN Y RIESGO DE ROTURA: Si hay una fuente con path que empiece por "Shopify" y contenga "reposición y previsión de rotura", esos números YA están calculados por el programa a partir de ventas reales de los últimos 6 meses (180 días) por cada SKU o EAN por separado. No recalcules nada ni inventes cifras: explica y prioriza exactamente los valores recibidos. Si la consulta alcanzó el límite de seguridad, indícalo. FORMATO OBLIGATORIO: # Resumen rápido; ## Riesgo de rotura en menos de 5 días — una línea por producto con urgent=true, aunque todavía tenga stock; ## Reposición propuesta para cubrir 30 días — una línea por producto con qty>0 e incluye SKU/EAN, producto, stock actual, ventas 6 meses, media diaria, días de cobertura y cantidad a pedir; ## Productos sin ventas registradas — no propongas cantidad para ellos salvo que el stock ya esté agotado; ## Acción para Compras. Si Compras o un ERP está conectado, no hagas el pedido sin permiso: deja "Listo para enviar a Compras" y pide autorización. El resultado debe poder exportarse directamente a Excel y PDF.';
+      return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — ANÁLISIS DE STOCK, REPOSICIÓN Y RIESGO DE ROTURA: Si hay una fuente con path que empiece por "Shopify" y contenga "reposición y previsión de rotura", esos números YA están calculados por el programa a partir de ventas reales de los últimos 6 meses (180 días) por cada SKU o EAN por separado. No recalcules nada ni inventes cifras: explica y prioriza exactamente los valores recibidos. Si la consulta alcanzó el límite de seguridad, indícalo. FORMATO OBLIGATORIO: # Resumen rápido; ## Riesgo de rotura en menos de 5 días — una línea por producto con urgent=true, aunque todavía tenga stock; ## Reposición propuesta para cubrir 20 días — una línea por producto con qty>0 e incluye SKU/EAN, producto, stock actual, ventas 6 meses, media diaria, días de cobertura y cantidad a pedir; ## Productos sin ventas registradas — no propongas cantidad para ellos salvo que el stock ya esté agotado; ## Acción para Compras. Si Compras o un ERP está conectado, no hagas el pedido sin permiso: deja "Listo para enviar a Compras" y pide autorización. El resultado debe poder exportarse directamente a Excel y PDF.';
     }
     if(meetingIntent){
       return raw+'\n\nINSTRUCCIÓN INTERNA VENTANEXIA — PREPARACIÓN DE REUNIÓN: Localiza la reunión relevante en la Agenda conectada y usa título, asistentes, organizador, descripción y fecha. Cruza únicamente datos reales disponibles de Email, Ventas y clientes/CRM, Pedidos, tienda/Shopify y demás fuentes autorizadas que correspondan al cliente o a sus asistentes. No confundas clientes con nombres parecidos. FORMATO OBLIGATORIO PARA PDF: # Dossier de reunión; ## Resumen ejecutivo; ## Datos de la reunión; ## Cliente y relación comercial; ## Compras e historial; ## Facturación disponible; ## Pedidos y situación actual; ## Emails y asuntos pendientes; ## Incidencias o riesgos; ## Oportunidades detectadas; ## Temas que conviene tratar; ## Recomendaciones para la reunión; ## Preguntas que conviene hacer; ## Fuentes consultadas. En cada apartado resume, no vuelques correos ni datos en bruto. Incluye cifras solo si están verificadas. Si una fuente no está conectada, indica "Dato no disponible". Las recomendaciones deben derivarse de los datos observados y diferenciarse claramente de los hechos. El resultado debe estar listo para exportar a PDF.';
@@ -2838,7 +2854,7 @@ function emailListItem(m,i,selected){
             const second=await stockSummaryForSource(combinedSources[1],text);
             const combined=buildCombinedStockSummary(first,second,combinedSources);
             const content=combinedStockTable(combined);
-            const purchaseRows=(combined.rows||[]).filter(r=>r.urgent||Number(r.qty||0)>0).map(r=>[
+            const purchaseRows=(combined.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
               String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),Number(r.qty||0),
               r.supplierStock==null?'':Number(r.supplierStock),Number(r.supplierCanSupply||0),String(r.supplyStatus||'')
             ]);
@@ -2860,7 +2876,7 @@ function emailListItem(m,i,selected){
           const summary=await window.vnx.shopifyReplenishmentSummary(selectedShop,{force:true});
           const stockListing=isStockListingRequest(text);
           const reply=stockListing?stockInventoryTable(summary):shopifyStockTable(summary);
-          const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
+          const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
             String(r.sku||''),
             String(r.ean||''),
             String(r.product||''),
@@ -2898,7 +2914,7 @@ function emailListItem(m,i,selected){
               const stockListing=isStockListingRequest(text);
               const portalSummary={...summary,sourceLabel};
               const reply=stockListing?stockInventoryTable(portalSummary):shopifyStockTable(portalSummary);
-              const purchaseRows=(summary.rows||[]).filter(r=>r.urgent).map(r=>[
+              const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
                 String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
                 Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
                 Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
