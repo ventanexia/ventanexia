@@ -36,7 +36,7 @@
         <button class="vnx-agent-side-btn" data-agent-home="administration"><span class="vnx-nav-icon">▤</span><span>Documentos e IA</span></button>
         <button class="vnx-agent-side-btn" data-agent-home="agenda"><span class="vnx-nav-icon">▦</span><span>Agenda</span></button>
         <button class="nav" data-tab="files"><span class="vnx-nav-icon">▧</span><span>Archivos</span></button>
-        <button class="nav vnx-direction-nav" data-tab="direction"><span class="vnx-nav-icon">⌁</span><span>Dirección</span></button>
+        <button class="nav vnx-direction-nav" data-tab="direction" title="Agente privado protegido por PIN"><span class="vnx-nav-icon">🔒</span><span>Dirección</span><small>PIN</small></button>
         <button class="vnx-agent-side-btn" data-agent-home="reports"><span class="vnx-nav-icon">▥</span><span>Informes</span></button>
         <button class="vnx-agent-side-btn" data-agent-home="automation"><span class="vnx-nav-icon">↻</span><span>Automatizaciones</span></button>
       </div>
@@ -484,9 +484,23 @@
 
     <section class="tab vnx-direction-tab" id="direction">
       <div class="vnx-dir-wrap">
+        <section id="vnxDirGate" class="vnx-dir-gate card">
+          <div class="vnx-dir-shield">🔒</div>
+          <span class="eyebrow">AGENTE PRIVADO</span>
+          <h1>Dirección</h1>
+          <p id="vnxDirGateText">Este espacio contiene información operativa sensible: responsables, tareas, incumplimientos, actividad registrada y trabajo recuperado por IA.</p>
+          <form id="vnxDirPinForm" class="vnx-dir-pin-form">
+            <label>PIN de Dirección<input id="vnxDirPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required></label>
+            <label id="vnxDirPinConfirmWrap" hidden>Repite el PIN<input id="vnxDirPinConfirm" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••"></label>
+            <button class="btn primary" id="vnxDirPinSubmit" type="submit">Desbloquear Dirección</button>
+          </form>
+          <div id="vnxDirPinMsg" class="vnx-dir-pin-msg">Solo la persona que conozca el PIN podrá acceder.</div>
+        </section>
+
+        <div id="vnxDirProtected" hidden>
         <div class="vnx-dir-head">
           <div><span class="eyebrow">CONTROL OPERATIVO DE DIRECCIÓN</span><h1>Qué debía ocurrir, qué ocurrió y qué tuvo que recuperar VentaNexIA</h1><p>Seguimiento basado en tareas, plazos y eventos registrados. “Sin actividad” significa sin actividad operativa registrada en las tareas asignadas; no mide teclado, ratón ni presencia física.</p></div>
-          <div class="vnx-dir-actions"><button class="btn outline" id="vnxDirRefresh">Actualizar</button><button class="btn primary" id="vnxDirExport">Exportar control</button></div>
+          <div class="vnx-dir-actions"><button class="btn outline" id="vnxDirRefresh">Actualizar</button><button class="btn primary" id="vnxDirExport">Exportar control</button><button class="btn outline vnx-dir-lock" id="vnxDirLock">🔒 Bloquear Dirección</button></div>
         </div>
 
         <div class="vnx-dir-kpis" id="vnxDirKpis">
@@ -544,6 +558,7 @@
             <button class="btn outline" type="submit">Guardar política</button>
           </form>
         </section>
+        </div>
       </div>
     </section>
 
