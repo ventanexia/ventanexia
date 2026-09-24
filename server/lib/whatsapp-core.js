@@ -2,6 +2,9 @@ import crypto from "node:crypto";
 import {pdb} from "../../lib/portal-auth.js";
 import {createAIResponse,aiConfigured} from "../../lib/ai-client.js";
 
+export const META_GRAPH_VERSION="v26.0";
+const META_GRAPH_BASE=`https://graph.facebook.com/${META_GRAPH_VERSION}`;
+
 function secretKey(){
   const raw=String(process.env.WHATSAPP_TOKEN_ENCRYPTION_KEY||"");
   if(raw.length<32) throw new Error("WHATSAPP_TOKEN_ENCRYPTION_KEY_NOT_CONFIGURED");
@@ -20,7 +23,7 @@ export function decryptToken(row){
 }
 export async function sendWhatsAppText(channel,to,text){
   const token=decryptToken(channel);
-  const r=await fetch("https://graph.facebook.com/v20.0/"+encodeURIComponent(channel.phone_number_id)+"/messages",{
+  const r=await fetch(META_GRAPH_BASE+"/"+encodeURIComponent(channel.phone_number_id)+"/messages",{
     method:"POST",
     headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"},
     body:JSON.stringify({messaging_product:"whatsapp",to:String(to),type:"text",text:{preview_url:false,body:String(text).slice(0,4000)}})
