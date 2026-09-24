@@ -264,6 +264,11 @@
                 <label class="vnx-chat-privacy-toggle"><input id="vnxClearChatOnExit" type="checkbox"> Borrar conversación de Carla al cerrar VentaNexIA</label>
               </div>
 
+              <div class="agent-picker vnx-global-agent" id="chatScopeBar">
+                <label><span class="agent-picker-label">Agente</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label>
+                <small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small>
+              </div>
+
               <div class="vnx-global-source" id="chatSourceGlobal">
                 <label id="chatSourceWrap" style="display:none"><span class="agent-picker-label">¿De qué conexión quieres la información?</span><select id="chatSourceSelect"><option value="">Elige una conexión…</option></select></label>
                 <label id="chatSourceSecondWrap" style="display:none"><span class="agent-picker-label">Combinar con otra conexión <small>(opcional)</small></span><select id="chatSourceSecondSelect"><option value="">No combinar</option></select></label>
@@ -287,10 +292,6 @@
               </div>
 
               <div id="freeModePanel" style="display:none">
-                <div class="agent-picker" id="chatScopeBar">
-                  <label><span class="agent-picker-label">Especialista</span><select id="chatConnectionSelect"><option value="">Elige un agente…</option></select></label>
-                  <small id="chatConnectionHint">Elige el especialista que mejor encaja con lo que quieres hacer.</small>
-                </div>
                 <div id="messages" class="messages vnx-message-canvas"><div class="msg ai">Elige un especialista arriba y dime qué necesitas. Usaré únicamente las herramientas y datos que tengas autorizados.</div></div>
                 <form id="chatForm" class="vnx-composer">
                   <textarea id="chatInput" rows="3" placeholder="Escribe aquí lo que necesitas… Ej.: prepárame el día · qué tengo pendiente · prepara una respuesta al cliente en inglés"></textarea>
