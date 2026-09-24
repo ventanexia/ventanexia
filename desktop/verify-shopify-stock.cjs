@@ -8,7 +8,8 @@ const renderer=fs.readFileSync(path.join(__dirname,'renderer','master.js'),'utf8
 const stores=fs.readFileSync(path.join(__dirname,'shopify-stores.cjs'),'utf8');
 function need(src,re,msg){if(!re.test(src)){console.error('SHOPIFY_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
 need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'sales window must stay at 180 days');
-need(backend,/const SHOPIFY_TARGET_COVER_DAYS=20;/,'purchase provisioning target must stay at 20 days');
+need(backend,/const SHOPIFY_TARGET_COVER_DAYS=25;/,'default purchase provisioning target must be 25 days');
+need(backend,/function normalizeStockPolicy\(options=\{\}\)/,'coverage days and no-history minimum must be configurable');
 need(backend,/const SHOPIFY_URGENT_DAYS=5;/,'urgent threshold must stay at 5 days');
 need(backend,/orders\(first:100, after:\$cursor[\s\S]*created_at:>=\$\{since\}/,'sales query must paginate by date');
 need(backend,/if\(o\.cancelledAt\)\{cancelledSkipped\+\+;continue\}/,'cancelled orders must be excluded');
@@ -37,10 +38,10 @@ need(renderer,/stockListing\?stockInventoryTable\(portalSummary\):shopifyStockTa
   if(fn('analiza el stock')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: phrase "analiza el stock" must stay in replenishment analysis, not plain listing');process.exit(1)}
   if(fn('dime qué tengo que comprar')){console.error('SHOPIFY_STOCK_VERIFY_FAIL: purchase intent must not be treated as a plain stock listing');process.exit(1)}
 }
-need(renderer,/async function latestPurchaseAnalysis\(scopeKey\)/,'purchase analysis loader must support persisted cache');
+need(renderer,/async function latestPurchaseAnalysis\(scopeKey,targetDays=25\)/,'purchase analysis loader must support the active coverage policy');
 need(renderer,/purchaseAnalysisGet\?\.\(scopeKey\)/,'purchase order must restore persisted analysis');
 need(renderer,/rememberPurchaseAnalysis/,'verified purchase analysis must be persisted');
-need(renderer,/Si no existe un análisis válido de 20 días, lo calculamos ahora/,'purchase request must auto-calculate a missing 20-day analysis');
+need(renderer,/Si no existe un análisis válido con la política actual, lo calculamos ahora/,'purchase request must auto-calculate a missing analysis using the active policy');
 need(renderer,/Basado en análisis verificado/,'purchase order must show analysis timestamp');
 need(renderer,/ageHours>=24/,'stale analysis must be visibly flagged without being discarded');
 need(preload,/purchaseAnalysisGet:\(scopeKey\)=>ipcRenderer\.invoke\('purchase-analysis:get',scopeKey\)/,'preload must expose purchase analysis read');
@@ -48,11 +49,11 @@ need(preload,/purchaseAnalysisSet:\(payload\)=>ipcRenderer\.invoke\('purchase-an
 need(desktopMain,/ipcMain\.handle\('purchase-analysis:get'/,'desktop main must expose encrypted purchase analysis read');
 need(desktopMain,/ipcMain\.handle\('purchase-analysis:set'/,'desktop main must expose encrypted purchase analysis write');
 need(renderer,/const direct=\/\\b\(haz/,'direct "hazme el pedido" intent must be detected before stock analysis');
-need(renderer,/shopifyReplenishmentSummary\(selectedShop,\{force:true\}\)/,'renderer must calculate stock from the explicitly selected Shopify store');
-need(renderer,/portalReplenishmentSummary\(portalId,\{force:true\}\)/,'a direct purchase request must calculate the selected portal when no valid cached analysis exists');
+need(renderer,/shopifyReplenishmentSummary\(selectedShop,\{force:true,targetDays:policy\.targetDays,noHistoryMin:policy\.noHistoryMin\}\)/,'renderer must calculate stock from the explicitly selected Shopify store and policy');
+need(renderer,/portalReplenishmentSummary\(portalId,\{force:true,targetDays:policy\.targetDays,noHistoryMin:policy\.noHistoryMin\}\)/,'a direct purchase request must calculate the selected portal with the active policy');
 need(renderer,/\| Fabricante \| SKU \| EAN \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must expose manufacturer, SKU and EAN separately');
 need(renderer,/URGENTE · < 5 DÍAS/i,'visible urgent rule must stay at 5 days');
-need(renderer,/REPONER · < '\+targetDays\+' DÍAS/,'purchase table must include non-urgent rows that still need stock to reach 20 days');
+need(renderer,/REPONER · < '\+targetDays\+' DÍAS/,'purchase table must include non-urgent rows that still need stock to reach the configured target');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
 need(renderer,/CSV importable/,'purchase actions must expose importable CSV');
 need(stores,/function listShopifyStores\(state\)/,'multi-store Shopify state helper must list all connected stores');
@@ -92,3 +93,6 @@ const exportCode=fs.readFileSync(path.join(__dirname,'export.cjs'),'utf8');
 need(exportCode,/function csvBuffer\(data\)/,'CSV exporter must exist');
 need(exportCode,/payload\.format==='csv'/,'CSV format must be routed by exporter');
 console.log('SHOPIFY_STOCK_VERIFY_OK');
+
+need(backend,/const STOCK_NO_HISTORY_DEFAULT_MIN=0;/,'no-history default must never invent a quantity');
+need(renderer,/Sin histórico/,'stock UI must distinguish missing sales history from real zero sales');
