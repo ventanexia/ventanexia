@@ -14,6 +14,9 @@ need(home,/Esto no significa que los productos no tengan histórico/,'UI must no
 need(home,/data-home-stock-export="excel"/,'Excel stock export missing');
 need(home,/data-home-stock-export="csv"/,'CSV stock export missing');
 need(home,/data-home-stock-export="pdf"/,'PDF stock export missing');
+need(home,/data-home-stock-retry/,'retry historical-sales action missing');
+need(home,/data-home-stock-continue/,'continue-with-stock action missing');
+need(home,/lastStockRun\?\.summary\?\.salesLookReliable!==false/,'unverified history must force a fresh purchase-data read');
 need(home,/exportHomeStock\(lastStockRun\.summary,false,'excel'/,'stock preview export button must execute');
 need(home,/const previewActions=\$\$\('#vnxAhPreviewActions button'\)/,'preview action NodeList bug must be fixed');
 console.log('VERIFY_142_OK');
