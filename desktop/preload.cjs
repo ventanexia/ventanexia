@@ -91,6 +91,21 @@ contextBridge.exposeInMainWorld('vnx',{
   prospectingCatalogStatus:()=>ipcRenderer.invoke('prospecting:catalog-status'),
   emailAction:(payload)=>ipcRenderer.invoke('email:action',payload),
   emailMarkAllRead:(payload={})=>ipcRenderer.invoke('email:mark-all-read',payload),
+  financeAccessStatus:()=>ipcRenderer.invoke('finance:access-status'),
+  financeSetPin:(payload)=>ipcRenderer.invoke('finance:set-pin',payload),
+  financeUnlock:(pin)=>ipcRenderer.invoke('finance:unlock',{pin}),
+  financeLock:(token)=>ipcRenderer.invoke('finance:lock',{token}),
+  financeReport:(token)=>ipcRenderer.invoke('finance:report',{token}),
+  financeAnalyzePortal:(token,portalId)=>ipcRenderer.invoke('finance:analyze-portal',{token,portalId}),
+  financeAnalyzeFile:(token)=>ipcRenderer.invoke('finance:analyze-file',{token}),
+  financeReviewAlert:(token,payload)=>ipcRenderer.invoke('finance:review-alert',{token,...payload}),
+  financeSendAlert:(token,payload)=>ipcRenderer.invoke('finance:send-alert',{token,...payload}),
+  financeStartupCheck:()=>ipcRenderer.invoke('finance:startup-check'),
+  onFinanceAlertsChanged:(handler)=>{
+    const fn=(_event,status)=>{try{handler(status)}catch{}};
+    electronIpc.on('finance:alerts-changed',fn);
+    return ()=>electronIpc.removeListener('finance:alerts-changed',fn);
+  },
   emailMetrics:(payload={})=>ipcRenderer.invoke('email:metrics',payload),
   emailInbox:(payload)=>ipcRenderer.invoke('email:inbox',payload),
   emailSentBody:(payload)=>ipcRenderer.invoke('email:sent-body',payload),
