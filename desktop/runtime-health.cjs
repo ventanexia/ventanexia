@@ -6,7 +6,7 @@ const CRITICAL_PRELOAD=[
   'listConnections','ordersReview','ordersExportReady','shopifyReplenishmentSummary','portalReplenishmentSummary',
   'erpStatus','erpReplenishmentSummary','stockImportFile','exportData','businessList','businessSaveAll','businessSetActive',
   'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair',
-  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
+  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
 ];
 const RUNTIME_FILES=[
   'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs','direction-control.cjs',
@@ -53,8 +53,8 @@ function staticRuntimeChecks(base=__dirname){
   const erpOk=preload.includes('erpStatus:')&&preload.includes('erpReplenishmentSummary:')&&read(base,'master.cjs').includes("ipcMain.handle('erp:replenishment-summary'");
   add('Stock desde ERP',erpOk,erpOk?'Bridge y backend disponibles':'Integración ERP incompleta');
   const directionSrc=read(base,'renderer/direction-control.js');
-  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport');
-  add('Agente privado de Dirección',directionUi,directionUi?'PIN, sesión privada, responsables, SLA, informes de empleados y evidencia disponibles':'Módulo privado de Dirección incompleto');
+  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&html.includes('id="vnxDirHumanForm"')&&html.includes('id="vnxDirManagementForm"')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport')&&directionSrc.includes('directionUpdateEmployeeContext')&&directionSrc.includes('directionManagementPolicy');
+  add('Agente privado de Dirección',directionUi,directionUi?'PIN, contexto humano, criterio de Dirección, SLA, informes de empleados y evidencia disponibles':'Módulo privado de Dirección incompleto');
   return checks;
 }
 
@@ -105,6 +105,11 @@ function sanitizeState(state){
     if(!Array.isArray(d.events)){d.events=[];set('Se reparó el historial de evidencias de Dirección.')}
     if(!d.settings||typeof d.settings!=='object'){d.settings={defaultSlaMinutes:480,aiTakeoverGraceMinutes:60,aiTakeoverEnabled:false};set('Se reparó la política de recuperación por IA.')}
     if(!d.access||typeof d.access!=='object'||Array.isArray(d.access)){d.access={};set('Se reparó la protección privada de Dirección.')}
+    if(!d.managementPolicy||typeof d.managementPolicy!=='object'||Array.isArray(d.managementPolicy)){d.managementPolicy={profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50};set('Se reparó el criterio de Dirección.')}
+    for(const e of d.employees){
+      if(!e||typeof e!=='object')continue;
+      if(!e.workProfile||typeof e.workProfile!=='object'||Array.isArray(e.workProfile)){e.workProfile={source:'agreed',declaredStrengths:[],preferredTasks:[],trainingNeeds:[],roleInterests:[],motivators:[],preferredAutonomy:'balanced',collaborationPreference:'balanced',workContext:''};set('Se reparó el contexto laboral de una persona.')}
+    }
   }
   if(!s.support||typeof s.support!=='object'){s.support={};set('Se reconstruyó la configuración de asistencia automática.')}
   return {state:s,changed,actions};
