@@ -505,7 +505,7 @@
       try{localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(match))}catch{}
       const m=$('#vnxAhCompanyName');if(m)m.textContent=match.label;
     }
-    sel.innerHTML='<option value="">Selecciona una conexión…</option>'+sources.map((src,i)=>'<option value="'+i+'">'+esc(src.label)+' · '+esc(src.module==='shopify'?'Shopify':'Portal privado')+'</option>').join('');
+    sel.innerHTML='<option value="">Selecciona una conexión…</option>'+sources.map((src,i)=>'<option value="'+i+'">'+esc(src.label)+' · '+esc(src.module==='shopify'?'Shopify':src.module==='erp'?'ERP / programa de gestión':'Portal privado')+'</option>').join('');
     if(match){const index=sources.findIndex(x=>sameHomeSource(x,match));if(index>=0)sel.value=String(index)}
     sel.onchange=()=>{
       const src=sources[Number(sel.value)];
@@ -531,7 +531,7 @@
       try{localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src))}catch{}
     }
     if(!src){
-      if(!sources.length)throw new Error('No hay ninguna conexión de stock disponible. Conecta Shopify o un portal privado primero.');
+      if(!sources.length)throw new Error('No hay ninguna conexión de stock disponible. Conecta Shopify, un portal privado o tu programa de gestión desde Pedidos.');
       throw new Error('Selecciona la empresa o conexión que quieres analizar en “Empresa / conexión a analizar”.');
     }
     return src;
