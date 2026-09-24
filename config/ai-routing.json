@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "policy": "decision-first",
+  "decision_model": {
+    "provider": "typesafe",
+    "model": "jev-latest",
+    "env_key": "TYPESAFE_API_KEY",
+    "endpoint": "https://api.typesafe.ai/v1/systemone",
+    "use_for": [
+      "classification",
+      "routing",
+      "scoring",
+      "prioritization",
+      "intent_detection",
+      "next_action_choice",
+      "yes_no_gates",
+      "risk_or_urgency_labels"
+    ],
+    "primitives": {
+      "choice": "Choose one option from a closed set.",
+      "score": "Score against a bounded rubric.",
+      "noul": "Return a calibrated yes/no probability."
+    },
+    "fallback": "existing_safe_classifier_or_generative_model",
+    "fail_closed": true
+  },
+  "generative_model": {
+    "use_for": [
+      "writing",
+      "summarization",
+      "open_ended_reasoning",
+      "content_generation",
+      "email_drafting",
+      "reports",
+      "natural_language_explanations"
+    ]
+  },
+  "rule": "Never use a generative LLM for a closed classification task when Jev is configured and the decision can be expressed as Choice, Score or Noul."
+}
