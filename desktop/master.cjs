@@ -362,7 +362,7 @@ async function collectShopifyContext(integration,question=''){
   if(wantStock&&productRows.length){
     const summary=await shopifyReplenishmentSummary(integration,{force:true});
     files.push({path:'Shopify · '+integration.shop+' · reposición y previsión de rotura (calculado, no lo recalcules)',
-      content:'FUENTE EXCLUSIVA SHOPIFY. Estos números YA están calculados por el programa a partir de ventas reales de los últimos '+summary.windowDays+' días ('+summary.ordersSeen+' pedidos revisados; '+summary.cancelledSkipped+' cancelados excluidos'+(summary.truncated?', límite de seguridad alcanzado -- indícalo si se pide precisión total':'')+'). NO recalcules ni inventes cifras. daysRemaining=null significa que no hay ventas registradas en la ventana. urgent=true significa stock agotado o menos de '+SHOPIFY_URGENT_DAYS+' días de cobertura al ritmo de venta actual.\\n'+JSON.stringify({productosConVentas:summary.withSales,productosUrgentes:summary.urgent.length,detalle:summary.rows})});
+      content:'FUENTE EXCLUSIVA SHOPIFY. Estos números YA están calculados por el programa a partir de ventas reales de los últimos '+summary.windowDays+' días ('+summary.ordersSeen+' pedidos revisados; '+summary.cancelledSkipped+' cancelados excluidos'+(summary.truncated?', límite de seguridad alcanzado -- indícalo si se pide precisión total':'')+'). NO recalcules ni inventes cifras. daysRemaining=null significa que no hay ventas registradas en la ventana. urgent=true significa stock agotado o menos de '+summary.urgentDays+' días de cobertura al ritmo de venta actual.\\n'+JSON.stringify({productosConVentas:summary.withSales,productosUrgentes:summary.urgent.length,detalle:summary.rows})});
   }
   return files;
 }
