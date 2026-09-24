@@ -285,8 +285,16 @@
     $('#vnxAhReviewValue').textContent='—';
     $('.vnx-agent-side-btn').forEach(b=>b.classList.toggle('active',b.dataset.agentHome===key));
     const homeNav=$('.nav[data-tab="home"]');if(homeNav)homeNav.classList.toggle('active',key==='core_ai');
-    $$('#vnxAhTabs button').forEach(b=>b.addEventListener('click',()=>{
-      $$('#vnxAhTabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    $('#vnxAhTabs button').forEach((b,index)=>b.addEventListener('click',()=>{
+      $('#vnxAhTabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+      const label=String(b.textContent||'').trim(),key=document.body.dataset.vnxHomeAgent||'prospecting',cfg=cfgFor(key);
+      if(index===0)return;
+      if(/buscar|localiza|selecciona/i.test(label)){const q=$('#vnxAhSearchInput');if(q){q.focus();q.select?.()}return}
+      if(/lista|archivo|document/i.test(label)&&!/an[aá]lisis/i.test(label)){openAppTab('files');return}
+      if(/campa[nñ]a/i.test(label)&&key!=='campaigns'){applyConfig('campaigns');return}
+      if(/agenda|reuni[oó]n/i.test(label)&&key!=='agenda'){applyConfig('agenda');return}
+      const prompt='Quiero trabajar en la sección “'+label+'” de '+cfg.title+'. Usa solo datos reales de mis conexiones autorizadas y muéstrame o prepara lo correspondiente.';
+      openWorkbench(key,prompt,false);
     }));
     $$('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
     try{localStorage.setItem('vnx_agent_home_key',key)}catch{}
