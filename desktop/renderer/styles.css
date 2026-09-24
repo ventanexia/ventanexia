@@ -2064,3 +2064,17 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
   .finance-section-head{align-items:stretch;flex-direction:column}.finance-responsible{min-width:0}
   .finance-pin-row{grid-template-columns:1fr;width:100%}
 }
+
+/* 0.6.138 · marca real, selector de empresa y captación por marca */
+.brand-logo-real{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 0 14px rgba(35,166,255,.35));flex:0 0 auto}
+.brand .brand-version{font-size:10px!important;color:#4ebff3!important;margin-top:2px!important;font-weight:700}
+.splash-logo{top:8%;width:310px;height:310px;font-size:0;letter-spacing:0;-webkit-text-stroke:0;transform:none;display:grid;place-items:center}
+.splash-logo img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 24px rgba(35,151,255,.58)) drop-shadow(0 0 45px rgba(128,62,255,.38))}
+.vnx-ah-field-help{display:block;color:#789db5;font-size:9px;line-height:1.35;margin-top:2px}
+.vnx-ah-company-menu{position:fixed;z-index:15000;width:min(380px,calc(100vw - 24px));max-height:480px;overflow:auto;background:#061b2e;border:1px solid #276185;border-radius:12px;box-shadow:0 18px 55px rgba(0,0,0,.48);padding:9px;color:#eaf6ff}
+.vnx-ah-company-menu-head{display:grid;gap:2px;padding:6px 7px 10px;border-bottom:1px solid #174966}.vnx-ah-company-menu-head b{font-size:12px}.vnx-ah-company-menu-head small{font-size:9px;color:#7fa7bd}
+.vnx-ah-company-loading,.vnx-ah-company-empty{padding:15px 9px;color:#8fb2c4;font-size:10px;line-height:1.4}
+.vnx-ah-company-list{display:grid;gap:5px;padding:7px 0}
+.vnx-ah-company-list>button{display:grid;grid-template-columns:14px 1fr 16px;gap:8px;align-items:center;text-align:left;border:1px solid #194b68;background:#08243a;color:#e9f7ff;border-radius:9px;padding:9px;cursor:pointer}
+.vnx-ah-company-list>button>span{color:#2bd08e}.vnx-ah-company-list>button p{margin:0;min-width:0}.vnx-ah-company-list>button b{display:block;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.vnx-ah-company-list>button small{display:block;color:#84a8bb;font-size:8.5px;margin-top:2px}.vnx-ah-company-list>button i{opacity:0;color:#46e7a7;font-style:normal}.vnx-ah-company-list>button.active{border-color:#20bde5;background:#0a3048}.vnx-ah-company-list>button.active i{opacity:1}
+.vnx-ah-company-manage{width:100%;border:1px solid #245977;background:#0a2942;color:#d9edf8;border-radius:8px;padding:9px;cursor:pointer;font-size:10px}
