@@ -341,9 +341,9 @@
     const previewActions=$('#vnxAhPreviewActions button');(ui.previewActions||[]).forEach((x,i)=>{if(previewActions[i])previewActions[i].textContent=x});
     const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
     const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
-    $('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
-    $('#vnxAhSourceTabs button').forEach(btn=>btn.addEventListener('click',()=>{
-      $('#vnxAhSourceTabs button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+    document.querySelectorAll('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
+    document.querySelectorAll('#vnxAhSourceTabs button').forEach(btn=>btn.addEventListener('click',()=>{
+      document.querySelectorAll('#vnxAhSourceTabs button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
       const label=String(btn.textContent||'').trim();
       if(/archivo|excel|csv|documento/i.test(label)){openAppTab('files');return}
       const input=$('#vnxAhSearchInput');if(input){input.focus();input.select?.()}
@@ -395,7 +395,7 @@
       const prompt='Quiero trabajar en la sección “'+label+'” de '+cfg.title+'. Usa solo datos reales de mis conexiones autorizadas y muéstrame o prepara lo correspondiente.';
       openWorkbench(key,prompt,false);
     }));
-    $('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
+    document.querySelectorAll('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
     try{localStorage.setItem('vnx_agent_home_key',key)}catch{}
   }
   function openAppTab(name){
@@ -429,7 +429,7 @@
     },180);
   }
   function bind(){
-    $('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
+    document.querySelectorAll('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
       openAppTab('home');
       applyConfig(btn.dataset.agentHome);
     }));
