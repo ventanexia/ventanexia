@@ -8,7 +8,7 @@ const css=fs.readFileSync(path.join(__dirname,'renderer','styles.css'),'utf8');
 const agentHome=fs.readFileSync(path.join(__dirname,'renderer','agent-home.js'),'utf8');
 function need(src,re,msg){if(!re.test(src)){console.error('ONBOARDING_STOCK_VERIFY_FAIL:',msg);process.exit(1)}}
 need(backend,/const SHOPIFY_SALES_WINDOW_DAYS=180;/,'stock sales window must remain 180 days');
-need(backend,/const SHOPIFY_TARGET_COVER_DAYS=30;/,'replenishment target must remain 30 days');
+need(backend,/const SHOPIFY_TARGET_COVER_DAYS=20;/,'replenishment target must remain 20 days');
 need(backend,/const SHOPIFY_URGENT_DAYS=5;/,'urgent threshold must remain 5 days');
 need(backend,/ipcMain\.handle\('stock:import-file'/,'local stock import IPC missing');
 need(backend,/readTableBuffer/,'local stock import must use the existing Excel\/CSV parser');
