@@ -217,7 +217,7 @@ function setupServiceConnectionWizard(){
   const providers={
     email:[['gmail','Gmail / Google Workspace'],['microsoft_365','Outlook / Hotmail / Live / Microsoft'],['yahoo_mail','Yahoo Mail'],['icloud_mail','iCloud Mail'],['generic_imap','Correo de empresa / otro proveedor']],
     whatsapp:[['whatsapp_personal','WhatsApp normal'],['whatsapp_business','WhatsApp para empresa']],
-    social:[['instagram','Instagram'],['facebook','Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
+    social:[['meta_social','Meta · Facebook + Instagram'],['instagram','Solo Instagram'],['facebook','Solo Facebook'],['linkedin','LinkedIn'],['x_twitter','X / Twitter']],
     crm:[['hubspot','HubSpot']],
     agenda:[['google_calendar','Google Calendar'],['microsoft_calendar','Microsoft / Outlook Calendar']]
   };
@@ -260,7 +260,26 @@ function setupServiceConnectionWizard(){
     if(p==='yahoo_mail'){imapHost.value='imap.mail.yahoo.com';imapPort.value='993';smtpHost.value='smtp.mail.yahoo.com';smtpPort.value='465';}
     else if(p==='icloud_mail'){imapHost.value='imap.mail.me.com';imapPort.value='993';smtpHost.value='smtp.mail.me.com';smtpPort.value='587';}
   }
-  if(provider)provider.onchange=()=>{updateEmailProviderFields();updateWhatsappFields();};
+  function updateSocialFields(){
+    if(activeKey!=='social')return;
+    const isMeta=provider.value==='meta_social';
+    if(providerLabel)providerLabel.textContent='Red o plataforma';
+    if(accountLabel)accountLabel.textContent=isMeta?'Cuenta (opcional)':'Cuenta que quieres conectar';
+    if(account){
+      account.placeholder=isMeta?'VentaNexIA detectará tus páginas y tu Instagram profesional':'Ej.: nombre de la cuenta';
+      account.disabled=isMeta;
+      if(isMeta)account.value='';
+    }
+    if(isMeta){
+      prepare.textContent='Conectar con Meta';
+      notice.innerHTML='<b>Meta · conexión oficial.</b> Una sola autorización detectará tus páginas de Facebook y, si está vinculada, tu cuenta profesional de Instagram. No pedimos tu contraseña: iniciarás sesión directamente en Meta.';
+    }else if(activeKey==='social'){
+      account.disabled=false;
+      prepare.textContent='Conectar ahora';
+      notice.innerHTML='<b>Autorización oficial.</b> Se abrirá la página del proveedor para que inicies sesión y aceptes el acceso.';
+    }
+  }
+  if(provider)provider.onchange=()=>{updateEmailProviderFields();updateWhatsappFields();updateSocialFields();};
   if(account)account.addEventListener('input',()=>{if(genericUser&&genericBox?.style.display!=='none'&&!genericUser.value)genericUser.value=account.value.trim()});
   function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   cancel.onclick=()=>{stopPoll();modal.style.display='none';activeKey=null;activeButton=null;oauthState=null;currentAddAnother=false;renderConnectionSummaries()};
@@ -360,9 +379,10 @@ function setupServiceConnectionWizard(){
   };
   return async(key,button,options={})=>{
     activeKey=key;activeButton=button;oauthState=null;stopPoll();
+    if(account)account.disabled=false;
     currentAddAnother=Boolean(options?.addAnother&&key==='email');
     const addAnother=currentAddAnother;
-    title.textContent=key==='whatsapp'?'Conectar WhatsApp':'Autorizar '+labels[key];
+    title.textContent=key==='whatsapp'?'Conectar WhatsApp':key==='social'?'Conectar Meta y redes sociales':'Autorizar '+labels[key];
     text.textContent=key==='whatsapp'?'Escribe tu número y elige cómo quieres usar WhatsApp. VentaNexIA te guiará en el resto.':'Elige la cuenta que quieres conectar. Se abrirá su página oficial para que inicies sesión y aceptes el acceso.';
     if(providerLabel)providerLabel.textContent=key==='whatsapp'?'Tipo de WhatsApp':'Proveedor';
     if(accountLabel)accountLabel.textContent=key==='whatsapp'?'Número de teléfono':'Cuenta que quieres conectar';
@@ -383,10 +403,12 @@ function setupServiceConnectionWizard(){
         ?'<b>♛ Maestro: cuentas de email ilimitadas.</b> Puedes añadir tantas cuentas como necesites. Una nueva conexión no sustituye las anteriores.'
         :'<b>Elige tu proveedor.</b> Gmail y Outlook/Hotmail usan autorización oficial. Para Yahoo, iCloud o un correo corporativo puedes usar la conexión segura IMAP/SMTP.')
       :key==='whatsapp'
-        ?'<b>Elige qué WhatsApp utilizas.</b><br><small><b>WhatsApp normal:</b> VentaNexIA prepara la respuesta y tú la envías.<br><b>WhatsApp para empresa:</b> permite conexión y automatización cuando esté configurado.</small>'
-        :'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
+        ?'<b>Elige qué WhatsApp utilizas.</b><br><small><b>WhatsApp normal:</b> VentaNexIA prepara la respuesta y tú la envías.<br><b>WhatsApp Business · Meta:</b> permite leer mensajes reales, usar webhooks y responder con autorización o en automático.</small>'
+        :key==='social'
+          ?'<b>Meta recomendado.</b> Con “Meta · Facebook + Instagram” una sola autorización detecta tu página de Facebook y la cuenta profesional de Instagram asociada. También puedes conectar cada red por separado.'
+          :'<b>No necesitas copiar códigos raros ni contraseñas.</b> Escribe la cuenta que quieres conectar y pulsa “Conectar ahora”.';
     if(key==='whatsapp')updateWhatsappFields();else prepare.textContent='Conectar ahora';
-    updateEmailProviderFields();
+    updateEmailProviderFields();updateSocialFields();
     try{
       const st=await window.vnx.integrationStatus(key);
       if(st?.connected){
@@ -502,7 +524,8 @@ function connectionProviderLabel(provider=''){
     yahoo_mail:'Yahoo Mail',
     icloud_mail:'iCloud Mail',
     generic_imap:'Correo de empresa',
-    whatsapp_business:'WhatsApp Business',
+    whatsapp_business:'WhatsApp Business · Meta',
+    meta_social:'Meta · Facebook + Instagram',
     instagram:'Instagram',
     facebook:'Facebook',
     linkedin:'LinkedIn',
@@ -608,7 +631,14 @@ async function renderConnectionSummaries(){
   try{[email,wa,social,crm,agenda]=await Promise.all(['email','whatsapp','social','crm','agenda'].map(m=>window.vnx.integrationStatus(m).catch(()=>({connected:false,configured:false,module:m}))))}catch{}
 
   set('email',connectionSummaryHtml(email.accounts||[],'🔴 No hay ninguna cuenta de correo conectada.',{module:'email'}));
-  set('social',connectionSummaryHtml(social.configured?[{...social,module:'social'}]:[],'🔴 Redes sociales no conectadas.',{module:'social'}));
+  let socialExtra='';
+  if(social.connected&&social.meta){
+    const m=social.meta||{},parts=[];
+    if(m.pageName)parts.push('<span><b>Facebook</b>'+esc(m.pageName)+'</span>');
+    if(m.instagramUsername||m.instagramName)parts.push('<span><b>Instagram</b>'+esc(m.instagramUsername?'@'+m.instagramUsername:m.instagramName)+'</span>');
+    if(parts.length)socialExtra='<div class="connection-detail-grid">'+parts.join('')+'</div>';
+  }
+  set('social',connectionSummaryHtml(social.configured?[{...social,module:'social'}]:[],'🔴 Redes sociales no conectadas.',{module:'social'})+socialExtra);
   set('crm',connectionSummaryHtml(crm.configured?[{...crm,module:'crm'}]:[],'🔴 Ventas y clientes no conectado.',{module:'crm'}));
   set('agenda',connectionSummaryHtml(agenda.configured?[{...agenda,module:'agenda'}]:[],'🔴 Agenda no conectada.',{module:'agenda'}));
   updateConnectionManageButton('email',email);
