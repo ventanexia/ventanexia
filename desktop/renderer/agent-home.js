@@ -291,6 +291,13 @@
     $$('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
     try{localStorage.setItem('vnx_agent_home_key',key)}catch{}
   }
+  function openAppTab(name){
+    const nav=$('.nav[data-tab="'+name+'"]');
+    if(nav){nav.click();return true}
+    $('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+    $('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
+    return Boolean($('#'+name));
+  }
   function selectAgentInWorkbench(chatKey){
     const sel=$('#chatConnectionSelect');
     if(!sel)return false;
@@ -303,8 +310,7 @@
   }
   function openWorkbench(key,prompt='',guided=false){
     const cfg=cfgFor(key);
-    const chatBtn=$('.nav[data-tab="chat"]');
-    if(chatBtn)chatBtn.click();
+    openAppTab('chat');
     setTimeout(()=>{
       selectAgentInWorkbench(cfg.chatKey||alias[key]||key);
       const mode=guided?$('#guidedModeBtn'):$('#freeModeBtn');
@@ -319,7 +325,7 @@
   }
   function bind(){
     $$('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
-      const home=$('.nav[data-tab="home"]');if(home)home.click();
+      openAppTab('home');
       applyConfig(btn.dataset.agentHome);
     }));
     $('.vnx-main-nav .nav').forEach(btn=>btn.addEventListener('click',()=>{
@@ -351,9 +357,12 @@
       chip.querySelector('button').addEventListener('click',()=>chip.remove());box?.appendChild(chip);input.value='';
     });
     $('#vnxAhItemInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#vnxAhAddItem')?.click()}});
-    $('#vnxAhCompanyBtn')?.addEventListener('click',()=>$('.nav[data-tab="agents"]')?.click());
-    $('#vnxAhBell')?.addEventListener('click',()=>$('.nav[data-tab="activity"]')?.click());
-    $('#vnxAhAccount')?.addEventListener('click',()=>$('.nav[data-tab="license"]')?.click());
+    $('#vnxAhCompanyBtn')?.addEventListener('click',()=>openAppTab('agents'));
+    $('#vnxAhBell')?.addEventListener('click',()=>openAppTab('activity'));
+    $('#vnxAhAccount')?.addEventListener('click',()=>openAppTab('license'));
+    $('.vnx-ah-brand-preview>button')?.addEventListener('click',()=>openAppTab('license'));
+    $('.vnx-ah-see-all')?.addEventListener('click',()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';openWorkbench(key,cfgFor(key).primaryPrompt,false)});
+    $('.vnx-ah-filters>button')?.addEventListener('click',()=>{$('.vnx-ah-filters select')?.focus()});
     const quick=$('#vnxAhGlobalInput'),send=$('#vnxAhGlobalSend');
     const globalSend=()=>{
       const q=quick?.value?.trim();if(!q)return;
@@ -373,7 +382,7 @@
     applyConfig(configs[saved]?saved:'prospecting');
     bind();
     syncCompany();
-    window.vnxAgentHome={open:(key)=>{const k=configs[key]?key:'core_ai';$('.nav[data-tab="home"]')?.click();applyConfig(k)},openWorkbench};
+    window.vnxAgentHome={open:(key)=>{const k=configs[key]?key:'core_ai';openAppTab('home');applyConfig(k)},openWorkbench};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();
