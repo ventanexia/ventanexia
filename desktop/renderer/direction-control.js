@@ -2,6 +2,8 @@
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
   let snapshot=null,employees=[],settings=null,currentFilter='all';
+  // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
+  let directionToken='',accessState=null;
 
   function esc(v=''){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
   function businessId(){try{return String(window.vnxBusiness?.activeProfile?.()?.id||'')}catch{return ''}}
@@ -27,17 +29,61 @@
     return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
   }
 
+  function clearSensitiveUi(){
+    snapshot=null;employees=[];settings=null;
+    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee');
+    if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
+    if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
+    $$('#vnxDirKpis article strong').forEach(x=>x.textContent='0');
+  }
+  function setGateMessage(msg='',error=false){
+    const box=$('#vnxDirPinMsg');if(!box)return;
+    box.textContent=msg||'Solo la persona que conozca el PIN podrá acceder.';
+    box.classList.toggle('error',Boolean(error));
+  }
+  function renderGate(){
+    const gate=$('#vnxDirGate'),protectedView=$('#vnxDirProtected'),confirm=$('#vnxDirPinConfirmWrap'),submit=$('#vnxDirPinSubmit'),text=$('#vnxDirGateText');
+    if(gate)gate.hidden=false;if(protectedView)protectedView.hidden=true;
+    const configured=Boolean(accessState?.configured);
+    if(confirm)confirm.hidden=configured;
+    if(submit)submit.textContent=configured?'Desbloquear Dirección':'Crear PIN privado';
+    if(text)text.textContent=configured
+      ?'Este agente está protegido. Introduce el PIN de Dirección para acceder a responsables, cumplimiento, retrasos y trabajo recuperado por IA.'
+      :'Primera configuración: crea un PIN de 4 dígitos. Se guardará protegido y no podrá verse desde la interfaz.';
+    const lockedUntil=Number(accessState?.lockedUntil||0);
+    if(lockedUntil>Date.now()){
+      const mins=Math.max(1,Math.ceil((lockedUntil-Date.now())/60000));
+      setGateMessage('Acceso bloqueado temporalmente por intentos fallidos. Espera aproximadamente '+mins+' min.',true);
+    }else setGateMessage(configured?'Solo Dirección puede acceder a este espacio.':'Crea un PIN que conozca únicamente Dirección.');
+  }
+  function renderProtected(){
+    const gate=$('#vnxDirGate'),protectedView=$('#vnxDirProtected');
+    if(gate)gate.hidden=true;if(protectedView)protectedView.hidden=false;
+  }
+  async function refreshAccessStatus(){
+    accessState=await window.vnx.directionAccessStatus();
+    renderGate();
+    return accessState;
+  }
+  function isSessionError(e){
+    return /Dirección está bloqueada|DIRECTION_LOCKED|acceso.*caducado/i.test(String(e?.message||e||''));
+  }
+
   async function load(){
+    if(!directionToken){await refreshAccessStatus();return}
     try{
       const opts={businessId:businessId()};
       [snapshot,employees,settings]=await Promise.all([
-        window.vnx.directionSummary(opts),
-        window.vnx.directionEmployees(opts),
-        window.vnx.directionSettings()
+        window.vnx.directionSummary(directionToken,opts),
+        window.vnx.directionEmployees(directionToken,opts),
+        window.vnx.directionSettings(directionToken)
       ]);
-      render();
+      renderProtected();render();
     }catch(e){
-      const rows=$('#vnxDirTaskRows');if(rows)rows.innerHTML='<tr><td colspan="8">No se ha podido cargar el control de dirección: '+esc(e.message||e)+'</td></tr>';
+      if(isSessionError(e)){
+        directionToken='';clearSensitiveUi();await refreshAccessStatus().catch(()=>{});setGateMessage('La sesión de Dirección ha caducado. Introduce de nuevo el PIN.',true);return;
+      }
+      const rows=$('#vnxDirTaskRows');if(rows)rows.innerHTML='<tr><td colspan="8">No se ha podido cargar Dirección: '+esc(e.message||e)+'</td></tr>';
     }
   }
 
@@ -90,27 +136,28 @@
   function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings()}
 
   async function promptEvent(taskId,kind){
-    const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task)return;
+    const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
     const detail=window.prompt(kind==='done'?'Resultado o evidencia de que la tarea se hizo:':'Describe brevemente la actividad realizada:','')||'';
     if(!detail.trim())return;
-    if(kind==='done')await window.vnx.directionResolveTask(taskId,{actor:'human',detail,outcome:detail});
-    else await window.vnx.directionAddEvent(taskId,{actor:'human',type:'activity',detail,status:'in_progress'});
+    if(kind==='done')await window.vnx.directionResolveTask(directionToken,taskId,{actor:'human',detail,outcome:detail});
+    else await window.vnx.directionAddEvent(directionToken,taskId,{actor:'human',type:'activity',detail,status:'in_progress'});
     await load();
   }
   async function markAi(taskId){
-    const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task)return;
+    const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
     const detail=window.prompt('Indica qué hizo VentaNexIA y qué evidencia quedó preparada:','VentaNexIA completó la tarea tras vencer el plazo asignado.')||'';
     if(!detail.trim())return;
-    await window.vnx.directionResolveTask(taskId,{actor:'ai',detail,outcome:detail,evidence:detail});
+    await window.vnx.directionResolveTask(directionToken,taskId,{actor:'ai',detail,outcome:detail,evidence:detail});
     await load();
   }
   async function addEvidence(taskId){
+    if(!directionToken)return;
     const detail=window.prompt('Añade una evidencia o anotación a esta tarea:','')||'';if(!detail.trim())return;
-    await window.vnx.directionAddEvent(taskId,{actor:'human',type:'evidence',detail});
+    await window.vnx.directionAddEvent(directionToken,taskId,{actor:'human',type:'evidence',detail});
     await load();
   }
   function openInCarla(taskId){
-    const t=snapshot?.tasks?.find(x=>x.id===taskId);if(!t)return;
+    const t=snapshot?.tasks?.find(x=>x.id===taskId);if(!t||!directionToken)return;
     document.querySelector('[data-tab="chat"]')?.click();
     setTimeout(()=>{
       const input=$('#chatInput');if(!input)return;
@@ -126,39 +173,81 @@
     $$('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
   }
 
+  async function lockDirection(){
+    const token=directionToken;directionToken='';clearSensitiveUi();
+    try{if(token)await window.vnx.directionLock(token)}catch{}
+    await refreshAccessStatus().catch(()=>{});
+  }
+
   function bind(){
+    const pinForm=$('#vnxDirPinForm');
+    if(pinForm)pinForm.onsubmit=async e=>{
+      e.preventDefault();
+      const pin=String($('#vnxDirPin')?.value||''),confirm=String($('#vnxDirPinConfirm')?.value||''),btn=$('#vnxDirPinSubmit');
+      if(!/^\d{4}$/.test(pin)){setGateMessage('El PIN debe tener exactamente 4 números.',true);return}
+      if(!accessState?.configured&&pin!==confirm){setGateMessage('Los dos PIN no coinciden.',true);return}
+      if(btn){btn.disabled=true;btn.textContent=accessState?.configured?'Comprobando…':'Creando PIN…'}
+      try{
+        if(!accessState?.configured){
+          await window.vnx.directionSetPin(pin);
+          accessState={...(accessState||{}),configured:true,lockedUntil:null};
+        }
+        const unlocked=await window.vnx.directionUnlock(pin);
+        directionToken=String(unlocked?.token||'');
+        if(!directionToken)throw new Error('No se ha podido abrir la sesión privada de Dirección.');
+        $('#vnxDirPin').value='';if($('#vnxDirPinConfirm'))$('#vnxDirPinConfirm').value='';
+        setGateMessage('Acceso concedido.');
+        await load();
+      }catch(err){
+        directionToken='';
+        await refreshAccessStatus().catch(()=>{});
+        setGateMessage(String(err?.message||err),true);
+      }finally{
+        if(btn){btn.disabled=false;btn.textContent=accessState?.configured?'Desbloquear Dirección':'Crear PIN privado'}
+      }
+    };
+
+    const lock=$('#vnxDirLock');if(lock)lock.onclick=lockDirection;
     const refresh=$('#vnxDirRefresh');if(refresh)refresh.onclick=load;
     const add=$('#vnxDirAddEmployeeBtn'),form=$('#vnxDirEmployeeForm'),cancel=$('#vnxDirEmpCancel');
-    if(add)add.onclick=()=>{form.hidden=false;$('#vnxDirEmpName')?.focus()};
+    if(add)add.onclick=()=>{if(!directionToken)return;form.hidden=false;$('#vnxDirEmpName')?.focus()};
     if(cancel)cancel.onclick=()=>{form.hidden=true;form.reset()};
     if(form)form.onsubmit=async e=>{
-      e.preventDefault();
-      await window.vnx.directionSaveEmployee({businessId:businessId(),name:$('#vnxDirEmpName').value,role:$('#vnxDirEmpRole').value,email:$('#vnxDirEmpEmail').value});
-      form.reset();form.hidden=true;await load();
+      e.preventDefault();if(!directionToken)return;
+      try{
+        await window.vnx.directionSaveEmployee(directionToken,{businessId:businessId(),name:$('#vnxDirEmpName').value,role:$('#vnxDirEmpRole').value,email:$('#vnxDirEmpEmail').value});
+        form.reset();form.hidden=true;await load();
+      }catch(err){alert(err.message||err)}
     };
     const tf=$('#vnxDirTaskForm');if(tf){
       const due=$('#vnxDirTaskDue');if(due&&!due.value)due.value=defaultDue();
       tf.onsubmit=async e=>{
-        e.preventDefault();
+        e.preventDefault();if(!directionToken)return;
         const employee=employees.find(x=>x.id===$('#vnxDirTaskEmployee').value);if(!employee)return;
-        await window.vnx.directionCreateTask({
-          businessId:businessId(),assigneeId:employee.id,assigneeName:employee.name,
-          title:$('#vnxDirTaskTitle').value,description:$('#vnxDirTaskDesc').value,module:$('#vnxDirTaskModule').value,
-          priority:$('#vnxDirTaskPriority').value,dueAt:new Date($('#vnxDirTaskDue').value).toISOString(),
-          aiTakeoverEligible:true,aiTakeoverEnabled:$('#vnxDirTaskAi').checked
-        });
-        tf.reset();$('#vnxDirTaskDue').value=defaultDue();await load();
+        try{
+          await window.vnx.directionCreateTask(directionToken,{
+            businessId:businessId(),assigneeId:employee.id,assigneeName:employee.name,
+            title:$('#vnxDirTaskTitle').value,description:$('#vnxDirTaskDesc').value,module:$('#vnxDirTaskModule').value,
+            priority:$('#vnxDirTaskPriority').value,dueAt:new Date($('#vnxDirTaskDue').value).toISOString(),
+            aiTakeoverEligible:true,aiTakeoverEnabled:$('#vnxDirTaskAi').checked
+          });
+          tf.reset();$('#vnxDirTaskDue').value=defaultDue();await load();
+        }catch(err){alert(err.message||err)}
       };
     }
     const filter=$('#vnxDirFilter');if(filter)filter.onchange=()=>{currentFilter=filter.value;renderTasks()};
     const sf=$('#vnxDirSettingsForm');if(sf)sf.onsubmit=async e=>{
-      e.preventDefault();settings=await window.vnx.directionSettings({
-        defaultSlaMinutes:Number($('#vnxDirDefaultSla').value)||480,
-        aiTakeoverGraceMinutes:Number($('#vnxDirAiGrace').value)||0,
-        aiTakeoverEnabled:$('#vnxDirAiGlobal').checked
-      });await load();
+      e.preventDefault();if(!directionToken)return;
+      try{
+        settings=await window.vnx.directionSettings(directionToken,{
+          defaultSlaMinutes:Number($('#vnxDirDefaultSla').value)||480,
+          aiTakeoverGraceMinutes:Number($('#vnxDirAiGrace').value)||0,
+          aiTakeoverEnabled:$('#vnxDirAiGlobal').checked
+        });await load();
+      }catch(err){alert(err.message||err)}
     };
     const exportBtn=$('#vnxDirExport');if(exportBtn)exportBtn.onclick=async()=>{
+      if(!directionToken)return;
       const rows=(snapshot?.tasks||[]).map(t=>[t.title,t.assigneeName||'',t.module||'',fmtDate(t.assignedAt),fmtDate(t.dueAt),statusLabel(t),fmtDate(t.lastActivityAt),t.completedBy||'',t.outcome||'',t.evidence||'']);
       if(!rows.length){alert('Todavía no hay tareas para exportar.');return}
       exportBtn.disabled=true;const old=exportBtn.textContent;exportBtn.textContent='Preparando Excel…';
@@ -166,9 +255,9 @@
       catch(e){alert('No se pudo exportar: '+(e.message||e));exportBtn.textContent=old}
       finally{setTimeout(()=>{if(exportBtn.isConnected){exportBtn.disabled=false;exportBtn.textContent=old}},1500)}
     };
-    document.querySelector('[data-tab="direction"]')?.addEventListener('click',()=>setTimeout(load,40));
+    document.querySelector('[data-tab="direction"]')?.addEventListener('click',()=>setTimeout(()=>directionToken?load():refreshAccessStatus(),40));
   }
 
-  document.addEventListener('DOMContentLoaded',()=>{bind();load()});
-  window.vnxDirection={refresh:load};
+  document.addEventListener('DOMContentLoaded',()=>{bind();refreshAccessStatus().catch(()=>{})});
+  window.vnxDirection={refresh:load,lock:lockDirection};
 })();
