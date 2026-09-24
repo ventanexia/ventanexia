@@ -46,6 +46,9 @@ need(desktopMain,/windowDays:windowDays||null,urgentDays:urgentDays||null,noHist
 need(home,/data-home-stock-export="excel"/,'direct Excel download missing under Stock y compras');
 need(home,/data-home-stock-export="csv"/,'direct importable CSV download missing under Stock y compras');
 need(home,/data-home-stock-export="pdf"/,'direct PDF download missing under Stock y compras');
+need(home,/data-home-stock-retry/,'unverified history must offer a retry action');
+need(home,/data-home-stock-continue/,'unverified history must allow continuing with stock only');
+need(home,/lastStockRun\?\.summary\?\.salesLookReliable!==false/,'Generate order must not reuse an unverified historical result');
 need(home,/Importar ventas Excel/CSV/,'historical-sales import fallback missing');
 need(preload,/stockImportFile:(options={})=>ipcRenderer.invoke('stock:import-file',options)/,'policy-aware historical-sales import bridge missing');
 need(master,/ventas_periodo/,'generic sales-period export column missing');
