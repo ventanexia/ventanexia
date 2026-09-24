@@ -928,6 +928,29 @@ ipcMain.handle('direction:update-employee-context',async(_e,payload={})=>{
   return employee;
 });
 
+ipcMain.handle('direction:import-cv',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  let employee=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s);
+    employee=direction.importEmployeeCv(d,String(payload.employeeId||''),{fileName:payload.fileName||'',text:payload.text||''});
+    return s;
+  });
+  await audit('direction.cv_imported',(employee?.name||'Empleado')+' · '+String(employee?.cvProfile?.fileName||'CV').slice(0,160));
+  return employee;
+});
+ipcMain.handle('direction:update-cv',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  let employee=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s);
+    employee=direction.updateEmployeeCv(d,String(payload.employeeId||''),payload.cv||{});
+    return s;
+  });
+  await audit('direction.cv_updated',(employee?.name||'Empleado')+' · expediente profesional actualizado');
+  return employee;
+});
+
 ipcMain.handle('direction:add-employee-observation',async(_e,payload={})=>{
   directionRequireSession(payload);
   let event=null,employeeName='';
