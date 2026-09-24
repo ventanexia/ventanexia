@@ -15,8 +15,8 @@ need(backend,/qtyStrong:[/,'strong historical-sales quantity aliases missing');
 need(backend,/qtyGeneric:[/,'generic quantity aliases for order/invoice history missing');
 need(backend,/fecha pedido|fecha albaran|fecha factura/,'historical date aliases missing');
 need(backend,/pedidos anteriores|albaranes facturas|salidas consumo/,'portal historical-sales navigation terms missing');
-need(backend,/const nameHit=Boolean(nk&&sales.has('NAME:'+nk))/,'exact product-name fallback missing after SKU/EAN');
-need(backend,/noSalesData:!skuHit&&!eanHit&&!nameHit/,'true no-history must require failure of SKU, EAN and exact-name matches');
+need(backend,/function portalSalesQtyForProduct/,'normalized SKU/EAN/name historical-sales matcher missing');
+need(backend,/noSalesData:!hit\.match/,'true no-history must require failure of the normalized matcher');
 
 // Fail closed: zero matches across a meaningful catalog is not equivalent to "all products have no history".
 need(backend,/const salesLookReliable=!(products.length>=5&&withSalesCount===0)/,'zero-match historical-sales reliability guard missing');
@@ -28,7 +28,7 @@ need(master,/No he generado un pedido de compra/,'portal chat must refuse a purc
 need(master,/Presentar todas como “sin histórico” sería incorrecto/,'portal chat must distinguish unread history from genuine no-history');
 need(home,/summary?.salesLookReliable===false/,'Stock y compras page must check historical-sales reliability');
 need(home,/HISTÓRICO NO LEÍDO/,'Stock y compras page must label unread history explicitly');
-need(home,/No he podido verificar el histórico de ventas/,'Stock y compras page must show a visible hard warning');
+need(home,/Histórico de ventas no verificado/,'Stock y compras page must show a visible hard warning');
 need(home,/0 pedidos calculados/,'unverified history must display zero calculated orders');
 
 // Full policy: sales period and urgency are not hard-coded.
