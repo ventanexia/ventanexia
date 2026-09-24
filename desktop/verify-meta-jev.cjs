@@ -29,7 +29,7 @@ ok(html.includes('Meta y redes sociales')&&html.includes('WhatsApp Business · M
 
 ok(routing.decision_model?.provider==='typesafe'&&routing.decision_model?.model==='jev-latest','La política de IA no prioriza Jev');
 ok(routing.decision_model?.use_for?.includes('classification')&&routing.decision_model?.use_for?.includes('routing')&&routing.decision_model?.use_for?.includes('scoring'),'Faltan tareas de decisión asignadas a Jev');
-ok(jev.includes('https://api.typesafe.ai/v1/systemone')&&jev.includes('jev-latest'),'Cliente Jev no apunta al endpoint/modelo esperado');
+ok(jev.includes('https://api.typesafe.ai/v1/systemone')&&jev.includes('https://api.typesafe.ai/v1/models')&&jev.includes('resolveModel'),'Cliente Jev no apunta al endpoint esperado o no autodetecta el modelo');
 ok(jev.includes('TYPESAFE_API_KEY')&&!jev.includes('tsf_'),'La clave Jev debe venir del entorno, no del código');
 ok(wa.includes('createJevDecision')&&wa.includes('requires_human_approval')&&wa.includes('Fail closed'),'WhatsApp no usa Jev como puerta de aprobación segura');
 ok(leadQualification.includes('createJevDecision')&&leadQualification.includes('decisionSource:"jev"'),'Qualify no usa Jev para la clasificación comercial');
