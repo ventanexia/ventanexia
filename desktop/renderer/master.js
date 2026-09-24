@@ -2303,7 +2303,7 @@ function emailListItem(m,i,selected){
         const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
         const importScopeKey=masterMessages[msgIndex]?.scopeKey||'stock-import',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
         masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:importScopeKey});
-        await rememberPurchaseAnalysis(importScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+        await rememberPurchaseAnalysis(importScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
         renderMasterMessages({focusIndex:masterMessages.length-1});
       }catch(e){alert('No he podido leer el archivo: '+(e.message||e))}
       finally{if(btn.isConnected){btn.disabled=false;btn.textContent=old}}
@@ -2702,18 +2702,18 @@ function emailListItem(m,i,selected){
   async function latestPurchaseAnalysis(scopeKey){
     for(let i=masterMessages.length-1;i>=0;i--){
       const m=masterMessages[i];
-      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
+      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&m?.purchaseTargetDays===20&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
     }
     try{
       const saved=await window.vnx?.purchaseAnalysisGet?.(scopeKey);
-      if(saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)){
-        return {role:'assistant',scopeKey,purchaseExport:true,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
+      if(saved?.targetDays===20&&saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)){
+        return {role:'assistant',scopeKey,purchaseExport:true,purchaseTargetDays:20,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
       }
     }catch{}
     return null;
   }
-  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString()){
-    const payload={scopeKey,purchaseData,sourceLabel,analyzedAt};
+  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString(),targetDays=20){
+    const payload={scopeKey,purchaseData,sourceLabel,analyzedAt,targetDays};
     try{await window.vnx?.purchaseAnalysisSet?.(payload)}catch{}
     return payload;
   }
@@ -2833,16 +2833,59 @@ function emailListItem(m,i,selected){
         if(isPurchaseOrderRequest(text)){
           const previous=await latestPurchaseAnalysis(activeScopeKey);
           const src=scope?.selectedSource||scope?.source||scope;
+          const sourceModule=String(src?.module||src?.type||scope?.type||'');
           const sourceLabel=previous?.stockSourceLabel||src?.label||src?.name||scope?.shop||scope?.name||'Fuente seleccionada';
           if(previous){
             const content=purchaseTableFromData(previous.purchaseData,sourceLabel,previous.purchaseAnalyzedAt||null);
-            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData:previous.purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt:previous.purchaseAnalyzedAt||null,scopeKey:activeScopeKey});
+            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData:previous.purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt:previous.purchaseAnalyzedAt||null,purchaseTargetDays:20,scopeKey:activeScopeKey});
             window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             renderMasterMessages({focusIndex:masterMessages.length-1});
             btn.disabled=false;btn.textContent='Enviar';
             return;
           }
-          masterMessages.push({role:'assistant',content:'No tengo todavía un análisis de stock guardado para **'+sourceLabel+'**. No voy a inventar cantidades ni reutilizar datos de otra conexión. Pídeme **“analiza el stock”** en esta misma fuente y, cuando termine, podrás decir simplemente **“hazme el pedido”** aunque cierres y vuelvas a abrir VentaNexIA.',scopeKey:activeScopeKey});
+
+          // Si no existe un análisis válido de 20 días, lo calculamos ahora en la fuente seleccionada.
+          try{
+            let summary=null;
+            if(sourceModule==='portal'&&window.vnx?.portalReplenishmentSummary){
+              const portalId=src?.id||scope?.id||null;
+              if(portalId)summary=await window.vnx.portalReplenishmentSummary(portalId,{force:true});
+            }else if(sourceModule==='shopify'&&window.vnx?.shopifyReplenishmentSummary){
+              const shop=src?.raw?.shop||src?.shop||scope?.shop||null;
+              summary=await window.vnx.shopifyReplenishmentSummary(shop,{force:true});
+            }
+            if(summary?.ok===false){
+              const reason=summary.reason==='login_required'?'la sesión necesita reconectarse':summary.reason==='read_error'?'no he podido leer el portal':summary.reason==='stock_not_structured'?'no encuentro una tabla verificable de stock':'la fuente no ha devuelto datos suficientes';
+              masterMessages.push({role:'assistant',content:'No puedo preparar todavía el pedido de **'+sourceLabel+'** porque '+reason+'. No voy a inventar cantidades.',scopeKey:activeScopeKey});
+              renderMasterMessages({focusIndex:masterMessages.length-1});
+              btn.disabled=false;btn.textContent='Enviar';
+              return;
+            }
+            if(summary?.rows&&Array.isArray(summary.rows)){
+              const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
+                String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+                Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),
+                Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
+                Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'URGENTE <5 DIAS':'REPOSICION <20 DIAS'
+              ]);
+              const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+              const analyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
+              await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,analyzedAt,20);
+              const content=purchaseTableFromData(purchaseData,sourceLabel,analyzedAt);
+              masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt:analyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
+              window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Pedido-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
+              renderMasterMessages({focusIndex:masterMessages.length-1});
+              btn.disabled=false;btn.textContent='Enviar';
+              return;
+            }
+          }catch(e){
+            masterMessages.push({role:'assistant',content:'No he podido calcular el pedido de **'+sourceLabel+'** con su histórico real: '+String(e?.message||e)+'. No voy a inventar cantidades.',scopeKey:activeScopeKey});
+            renderMasterMessages({focusIndex:masterMessages.length-1});
+            btn.disabled=false;btn.textContent='Enviar';
+            return;
+          }
+
+          masterMessages.push({role:'assistant',content:'No tengo datos estructurados suficientes de **'+sourceLabel+'** para calcular un pedido fiable a 20 días. Necesito stock actual e histórico de ventas por SKU/EAN; no usaré datos de otra conexión ni inventaré cantidades.',scopeKey:activeScopeKey});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
           return;
@@ -2860,8 +2903,8 @@ function emailListItem(m,i,selected){
             ]);
             const purchaseData={headers:['sku','ean','producto','stock_propio','ventas_180_dias','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
             const sourceLabel=combined.sourceLabel,purchaseAnalyzedAt=combined.generatedAt;
-            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
-            await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+            masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
+            await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
             window.vnx?.saveWorkspaceItem?.({category:'Compras',name:'Cruce-Stock-Compras-'+new Date().toISOString().slice(0,10),content}).catch(()=>{});
           }catch(e){
             masterMessages.push({role:'assistant',content:'No he hecho un cruce parcial. Para cruzar dos conexiones necesito leer **las dos** correctamente. '+String(e?.message||e),scopeKey:activeScopeKey});
@@ -2893,8 +2936,8 @@ function emailListItem(m,i,selected){
           };
           const sourceLabel=summary.sourceLabel||summary.shop||scope?.name||'Shopify',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
           const stockData=stockListing?stockExportData(summary):null;
-          masterMessages.push({role:'assistant',content:reply,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
-          await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+          masterMessages.push({role:'assistant',content:reply,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
+          await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
           window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content:reply}).catch(()=>{});
           renderMasterMessages({focusIndex:masterMessages.length-1});
           btn.disabled=false;btn.textContent='Enviar';
@@ -2925,8 +2968,8 @@ function emailListItem(m,i,selected){
               if(summary.cacheHit){const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));content+='\n\nℹ️ Datos leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** si quieres que vuelva a entrar ahora mismo.';}
               const purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
               const stockData=stockListing?stockExportData(portalSummary):null;
-              masterMessages.push({role:'assistant',content,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:activeScopeKey});
-              await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
+              masterMessages.push({role:'assistant',content,purchaseExport:!stockListing,purchaseData:stockListing?null:purchaseData,stockExport:stockListing,stockData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
+              await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
               window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
               const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0),liveChecked=Boolean(summary?.liveWindowChecked),rehydrated=Boolean(summary?.autoRehydrated),portalOpened=Boolean(summary?.portalOpened);
