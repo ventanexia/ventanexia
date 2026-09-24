@@ -744,6 +744,7 @@ async function init(){
   if(sys){
     $('#encState').textContent=sys.encrypted?'Cifrado':'Protección limitada';
     $('#appVersion').textContent=sys.version;
+    document.querySelectorAll('[data-brand-app-version]').forEach(el=>{el.textContent=sys.version});
   }
   await safeUi('estado local',()=>refresh());
   await safeUi('fuentes del chat',()=>refreshChatConnections());

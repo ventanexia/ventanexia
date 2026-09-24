@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title desc">
+  <title id="title">VentaNexIA</title>
+  <desc id="desc">Símbolo animado de VentaNexIA con gradiente tecnológico</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#031523"/>
+      <stop offset="1" stop-color="#0a2540"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#2fe6ff"/>
+      <stop offset="0.34" stop-color="#1b9cff"/>
+      <stop offset="0.68" stop-color="#6a64ff"/>
+      <stop offset="1" stop-color="#b13cff"/>
+      <animateTransform attributeName="gradientTransform" type="rotate" from="0 .5 .5" to="360 .5 .5" dur="9s" repeatCount="indefinite"/>
+    </linearGradient>
+    <linearGradient id="flow2" x1="0" y1="1" x2="1" y2="0" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#57f4ff"/>
+      <stop offset="0.5" stop-color="#2f91ff"/>
+      <stop offset="1" stop-color="#9d46ff"/>
+      <animateTransform attributeName="gradientTransform" type="rotate" from="360 .5 .5" to="0 .5 .5" dur="11s" repeatCount="indefinite"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.8" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="2" y="2" width="96" height="96" rx="22" fill="url(#bg)"/>
+  <rect x="2.75" y="2.75" width="94.5" height="94.5" rx="21.25" fill="none" stroke="#44dfff" stroke-opacity=".22" stroke-width="1.5"/>
+
+  <path d="M14 24 L31 70 Q34 78 39 69 L52 38 Q56 28 62 38 L79 70" fill="none" stroke="url(#flow)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+  <path d="M60 39 C69 53 76 62 85 34" fill="none" stroke="url(#flow2)" stroke-width="7" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M78 23 L88 18 L88 31" fill="none" stroke="url(#flow2)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+
+  <path d="M21 35 C35 34 42 47 53 50 C65 54 73 50 82 43" fill="none" stroke="#5ceeff" stroke-opacity=".9" stroke-width="2.2" stroke-linecap="round"/>
+
+  <g fill="#74f2ff" stroke="#d7fbff" stroke-width="1.1" filter="url(#glow)">
+    <circle cx="22" cy="35" r="3.3"/>
+    <circle cx="53" cy="50" r="3.8"/>
+    <circle cx="72" cy="51" r="3.2"/>
+    <circle cx="82" cy="43" r="3.1"/>
+  </g>
+
+  <circle cx="22" cy="35" r="7" fill="#39e8ff" opacity=".08">
+    <animate attributeName="r" values="5;8;5" dur="3.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values=".05;.18;.05" dur="3.8s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="53" cy="50" r="8" fill="#4ab7ff" opacity=".08">
+    <animate attributeName="r" values="6;9;6" dur="4.6s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values=".06;.2;.06" dur="4.6s" repeatCount="indefinite"/>
+  </circle>
+</svg>
