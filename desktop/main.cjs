@@ -9,6 +9,7 @@ const {EDITION,assertModuleIncluded,isMaster,connectionLimit,ownAgentLimit,emplo
 const {storeFile,readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {gmailCall}=require('./gmail-auth.cjs');
 const {shopifyCall,requestOwnedToken}=require('./shopify-auth.cjs');
+const {listShopifyStores,getShopifyStore,hasShopifyStore,upsertShopifyStore,setActiveShopifyStore,removeShopifyStore,publicShopifyStore}=require('./shopify-stores.cjs');
 const calendar=require('./calendar.cjs');
 const externalAgents=require('./external-agent.cjs');
 
@@ -79,7 +80,7 @@ function assertConnectionCapacity(s,{adding=1}={}){
 }
 function orderChannelUsageFromState(s){
   const items=[];
-  if(s.secret?.integrations?.shopify?.shop)items.push({type:'shopify',label:'Shopify · '+s.secret.integrations.shopify.shop});
+  for(const x of listShopifyStores(s))items.push({type:'shopify',label:'Shopify · '+(x.shopName||x.shop),shop:x.shop});
   for(const [key,x] of Object.entries(s.secret?.ordersErp?.stores||{})){
     const type=String(x?.id||String(key).split(':')[0]||'tienda');
     let host='';try{host=new URL(String(x?.url||'')).host}catch{}
@@ -613,9 +614,10 @@ async function oauthStatusOnce(payload={}){
   if(!token)throw new Error('El proveedor no devolvió un token de acceso');
   if(provider==='shopify'){
     const shop=String(result.shop||'').trim();
+    if(!hasShopifyStore(s,shop))assertOrderChannelCapacity(s);
     const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
     const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
-    await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};fresh.secret.integrations.shopify={shop,token,refreshToken:result.token?.refresh_token||null,mode:'write',connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes};return fresh});
+    await updateState(fresh=>{upsertShopifyStore(fresh,{shop,token,refreshToken:result.token?.refresh_token||null,mode:'write',connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes},{makeActive:true});return fresh});
     await audit('integration.shopify_connected',(data.shop?.name||shop)+' · OAuth');
     return done({status:'connected',module:'shopify',provider:'shopify',label:data.shop?.name||shop,shop,shopName:data.shop?.name||shop,mode:'write',scopes});
   }
@@ -697,42 +699,54 @@ ipcMain.handle('whatsapp:runtime',async(_e,payload={})=>{
 });
 
 ipcMain.handle('shopify:connect-owned',async(_e,payload={})=>{
-  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertOrderChannelCapacity(preState);
+  const preState=await readState();
   const s=await readState();
   if(!isMaster(s.license))throw new Error('La conexión directa de tienda propia requiere la edición Maestro');
   assertModuleIncluded(s.license,'shopify');
-  const shop=await resolveShopifyShop(payload.shop);
+  const shop=await resolveShopifyShop(payload.shop);if(!hasShopifyStore(preState,shop))assertOrderChannelCapacity(preState);
   if(!s.secret?.customerId||!s.secret?.activationCode)throw new Error('Activa primero la licencia de VentaNexIA');
   const {token,expiresIn}=await requestOwnedToken(shop,postJson);
   const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
   const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
-  const fresh=await readState();fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};
-  fresh.secret.integrations.shopify={shop,token,mode:'write',connectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+Number(expiresIn||86399)*1000).toISOString(),shopName:data.shop?.name||shop,scopes,authMode:'client_credentials'};
+  const fresh=await readState();upsertShopifyStore(fresh,{shop,token,mode:'write',connectedAt:new Date().toISOString(),expiresAt:new Date(Date.now()+Number(expiresIn||86399)*1000).toISOString(),shopName:data.shop?.name||shop,scopes,authMode:'client_credentials'},{makeActive:true});
   await writeState(fresh);await audit('integration.shopify_connected',(data.shop?.name||shop)+' · client credentials');
   return {connected:true,shop,shopName:data.shop?.name||shop,mode:'write',scopes,expiresIn:Number(expiresIn||86399)};
 });
 
 ipcMain.handle('shopify:connect',async(_e,payload={})=>{
-  const preState=await readState();if(!preState.secret?.integrations?.shopify)assertOrderChannelCapacity(preState);
+  const preState=await readState();
   const policyState=await readState();assertModuleIncluded(policyState.license,'shopify');
-  const shop=await resolveShopifyShop(payload.shop);
+  const shop=await resolveShopifyShop(payload.shop);if(!hasShopifyStore(preState,shop))assertOrderChannelCapacity(preState);
   const token=String(payload.token||'').trim();
   const mode=payload.mode==='write'?'write':'read';
   if(!token)throw new Error('Indica el token de Admin API');
   const data=await shopifyGraphql(shop,token,`query VentaNexIAConnectionCheck { shop { name myshopifyDomain } currentAppInstallation { accessScopes { handle } } }`);
   const scopes=(data.currentAppInstallation?.accessScopes||[]).map(x=>x.handle).filter(Boolean);
-  const s=await readState();s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
-  s.secret.integrations.shopify={shop,token,mode,connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes};
+  const s=await readState();upsertShopifyStore(s,{shop,token,mode,connectedAt:new Date().toISOString(),shopName:data.shop?.name||shop,scopes},{makeActive:true});
   await writeState(s);await audit('integration.shopify_connected',`${data.shop?.name||shop} · ${mode==='write'?'lectura/escritura':'solo lectura'}`);
   return {connected:true,shop,shopName:data.shop?.name||shop,mode,scopes};
 });
-ipcMain.handle('shopify:status',async()=>{
-  const s=await readState(),x=s.secret?.integrations?.shopify;
-  if(!x)return {connected:false};
-  return {connected:true,shop:x.shop,shopName:x.shopName||x.shop,mode:x.mode||'read',scopes:x.scopes||[],connectedAt:x.connectedAt||null};
+ipcMain.handle('shopify:list',async()=>{
+  const s=await readState(),active=getShopifyStore(s);
+  return listShopifyStores(s).map(x=>({...publicShopifyStore(x),active:Boolean(active?.shop&&String(active.shop).toLowerCase()===String(x.shop).toLowerCase())}));
 });
-ipcMain.handle('shopify:disconnect',async()=>{
-  const s=await readState();if(s.secret?.integrations?.shopify)delete s.secret.integrations.shopify;await writeState(s);await audit('integration.shopify_disconnected','Shopify desconectado');return true;
+ipcMain.handle('shopify:set-active',async(_e,shop)=>{
+  const s=await readState(),x=setActiveShopifyStore(s,shop);await writeState(s);
+  await audit('integration.shopify_active',(x.shopName||x.shop)+' · activa');
+  return {connected:true,...publicShopifyStore(x)};
+});
+ipcMain.handle('shopify:status',async()=>{
+  const s=await readState(),x=getShopifyStore(s),stores=listShopifyStores(s);
+  if(!x)return {connected:false,stores:[]};
+  return {connected:true,...publicShopifyStore(x),stores:stores.map(publicShopifyStore)};
+});
+ipcMain.handle('shopify:disconnect',async(_e,shop)=>{
+  const s=await readState(),target=shop||getShopifyStore(s)?.shop;
+  if(!target)return {ok:true,connected:false,stores:[]};
+  removeShopifyStore(s,target);await writeState(s);
+  await audit('integration.shopify_disconnected','Shopify · '+target);
+  const active=getShopifyStore(s),stores=listShopifyStores(s);
+  return {ok:true,connected:Boolean(active),active:publicShopifyStore(active),stores:stores.map(publicShopifyStore)};
 });
 
 ipcMain.handle('provisioning:list',async()=>{
@@ -966,8 +980,11 @@ ipcMain.handle('connection:list',async()=>{
   for(let i=0;i<emailAccounts.length;i++){
     const x=emailAccounts[i];out.push({key:'integration:email:'+i,type:'integration',module:'email',accountIndex:i,provider:x.provider||'',label:x.label||x.meta?.email||x.account||('Correo '+(i+1))});
   }
+  for(const x of listShopifyStores(s)){
+    out.push({key:'integration:shopify:'+encodeURIComponent(x.shop),type:'integration',module:'shopify',provider:'shopify',label:x.shopName||x.shop,shop:x.shop,shopName:x.shopName||x.shop,mode:x.mode||'read'});
+  }
   for(const [module,x] of Object.entries(s.secret?.integrations||{})){
-    if(!x||module==='email')continue;
+    if(!x||module==='email'||module==='shopify')continue;
     out.push({key:'integration:'+module,type:'integration',module,provider:x.provider||'',label:x.label||x.meta?.email||x.account||module});
   }
   for(const folder of s.permissions?.folders||[])out.push({key:'folder:'+folder,type:'folder',folder,label:'Carpeta · '+path.basename(folder)});
