@@ -1472,7 +1472,7 @@ function emailListItem(m,i,selected){
         const days=x.daysRemaining==null?'Sin ventas':x.daysRemaining+' días';
         return '<button type="button" class="vnx-stock-row '+cls+'" data-home-stock><span><b>'+escM(x.sku||x.ean||'Sin SKU/EAN')+'</b><small>'+escM(x.product||'Producto')+'</small></span><span>'+Number(x.stock||0)+' uds</span><span>'+escM(days)+'</span><span>'+state+'</span></button>';
       }).join('');
-      root.querySelectorAll('[data-home-stock]').forEach(b=>b.onclick=()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify para los próximos 20 días';input.focus()}});
+      root.querySelectorAll('[data-home-stock]').forEach(b=>b.onclick=()=>{selectAgentKey('web_ecommerce',{preserve:true});setWorkspaceMode('free');document.querySelector('[data-tab="chat"]')?.click();const input=$m('#chatInput');if(input){input.value='Analiza stock, riesgo de rotura y reposición de mi Shopify usando la política de stock configurada';input.focus()}});
       if(card)card.classList.toggle('has-urgent',(r?.urgent||[]).length>0);
     }catch(e){
       if(meta)meta.textContent='Conecta Shopify para ver una previsión real.';
