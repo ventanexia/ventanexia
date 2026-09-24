@@ -2311,3 +2311,15 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-settings{display:grid;grid-template-columns:220px 260px 1fr auto;gap:12px;align-items:end}
 .vnx-dir-note{margin-top:10px;line-height:1.45}
 @media(max-width:1100px){.vnx-dir-kpis{grid-template-columns:repeat(2,1fr)}.vnx-dir-grid{grid-template-columns:1fr}.vnx-dir-settings{grid-template-columns:1fr 1fr}}
+
+
+.vnx-direction-nav small{margin-left:auto;font-size:9px;letter-spacing:.08em;color:#68e5ff;border:1px solid #256186;border-radius:999px;padding:2px 5px}
+.vnx-dir-gate{max-width:520px;margin:9vh auto 0;padding:34px;text-align:center;border-color:#235d87!important;background:linear-gradient(150deg,#081d35,#0b2b4c)!important}
+.vnx-dir-shield{width:68px;height:68px;margin:0 auto 14px;border-radius:20px;display:grid;place-items:center;font-size:31px;background:#07182b;border:1px solid #28688f;box-shadow:0 0 36px #1ccfff22}
+.vnx-dir-gate h1{font-size:31px;margin:5px 0 8px}.vnx-dir-gate p{color:#9db6cb;line-height:1.55;margin:0 auto 20px}
+.vnx-dir-pin-form{display:grid;gap:10px;max-width:300px;margin:0 auto}
+.vnx-dir-pin-form label{display:grid;gap:6px;text-align:left;color:#adbed0;font-size:12px}
+.vnx-dir-pin-form input{font-size:24px;letter-spacing:.45em;text-align:center;background:#06182b;color:#eef9ff;border:1px solid #23608a;border-radius:11px;padding:12px}
+.vnx-dir-pin-msg{margin-top:13px;color:#8facbf;font-size:12px}.vnx-dir-pin-msg.error{color:#ff9ca3}
+.vnx-dir-lock{border-color:#74515b!important}
+#vnxDirProtected[hidden],#vnxDirGate[hidden]{display:none!important}
