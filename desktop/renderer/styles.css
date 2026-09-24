@@ -1741,3 +1741,168 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
   .vnx-ah-hero{grid-template-columns:1fr}.vnx-ah-carla-card{display:none}
   .vnx-ah-workgrid{grid-template-columns:250px 1fr}.vnx-ah-rail{grid-column:1/-1;grid-template-columns:repeat(3,1fr)}
 }
+
+
+/* VentaNexIA 0.6.136 · agent-home proportion and contrast correction */
+#home.vnx-agent-home-tab .vnx-ah-body{
+  max-width:1540px;
+  margin:0 auto;
+  padding:14px 20px 22px;
+}
+#home.vnx-agent-home-tab .vnx-ah-hero{
+  grid-template-columns:minmax(430px,1.35fr) minmax(320px,.92fr) minmax(245px,.73fr);
+  gap:16px;
+  min-height:116px;
+}
+#home.vnx-agent-home-tab .vnx-ah-workgrid{
+  grid-template-columns:minmax(280px,300px) minmax(600px,1fr) minmax(250px,275px);
+  gap:14px;
+}
+#home.vnx-agent-home-tab .vnx-ah-config,
+#home.vnx-agent-home-tab .vnx-ah-source,
+#home.vnx-agent-home-tab .vnx-ah-preview-panel,
+#home.vnx-agent-home-tab .vnx-ah-review-card{
+  padding:14px;
+}
+#home.vnx-agent-home-tab .vnx-ah-step-title b{font-size:15px}
+#home.vnx-agent-home-tab .vnx-ah-step-title small{font-size:11px;line-height:1.45}
+#home.vnx-agent-home-tab .vnx-ah-field>label{font-size:11px}
+#home.vnx-agent-home-tab .vnx-ah-field select,
+#home.vnx-agent-home-tab .vnx-ah-field input,
+#home.vnx-agent-home-tab .vnx-ah-add-row input{font-size:11px}
+#home.vnx-agent-home-tab .vnx-ah-source-tabs button{font-size:10px}
+#home.vnx-agent-home-tab .vnx-ah-search-row input{font-size:11px}
+#home.vnx-agent-home-tab .vnx-ah-preview-actions button{font-size:10px;min-height:35px}
+
+/* El editor de correo deja de ser un bloque blanco y mantiene contraste alto. */
+#home.vnx-agent-home-tab .vnx-ah-email{
+  background:linear-gradient(145deg,#08243c,#061b2f);
+  border:1px solid #205a82;
+  color:#eaf6ff;
+  border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.18);
+}
+#home.vnx-agent-home-tab .vnx-ah-email-subject{
+  padding:11px 14px;
+  border-bottom:1px solid #1d4c6c;
+  background:#0a2b48;
+  color:#f3f9ff;
+  font-size:11.5px;
+}
+#home.vnx-agent-home-tab .vnx-ah-email-paper{
+  grid-template-columns:minmax(0,1fr) minmax(185px,220px);
+  gap:12px;
+  min-height:320px;
+  padding:12px;
+}
+#home.vnx-agent-home-tab .vnx-ah-mail-copy{
+  padding:14px 16px;
+  border:1px solid #184a6c;
+  border-radius:9px;
+  background:#071f35;
+  color:#dcecf7;
+  font-size:12px;
+  line-height:1.62;
+}
+#home.vnx-agent-home-tab .vnx-ah-mail-copy p{margin:0 0 12px}
+#home.vnx-agent-home-tab .vnx-ah-mail-copy b{color:#fff}
+#home.vnx-agent-home-tab .vnx-ah-mail-copy .vnx-ah-mini-logo{
+  margin-bottom:8px;
+  background:#0d3558;
+  border:1px solid #23638d;
+  color:#fff;
+  padding:6px 8px;
+}
+#home.vnx-agent-home-tab .vnx-ah-mail-copy .vnx-ah-mini-logo b{color:#eaf7ff}
+#home.vnx-agent-home-tab .vnx-ah-mail-copy .vnx-ah-mini-logo b span{color:#58c7ff}
+
+/* Creatividad lateral proporcionada: evita imágenes/creatividades estiradas. */
+#home.vnx-agent-home-tab .vnx-ah-product-card{
+  width:100%;
+  max-width:220px;
+  aspect-ratio:4/5;
+  min-height:0;
+  margin:0;
+  align-self:center;
+  justify-self:center;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  box-sizing:border-box;
+  overflow:hidden;
+  background:linear-gradient(165deg,#0d3b50,#0b2d43);
+  border:1px solid #2a6f86;
+  color:#dffaff;
+  padding:18px 14px;
+  border-radius:10px;
+}
+#home.vnx-agent-home-tab .vnx-ah-product-card small{font-size:8.5px;color:#83d8e8}
+#home.vnx-agent-home-tab .vnx-ah-product-card strong{font-size:22px;color:#fff}
+#home.vnx-agent-home-tab .vnx-ah-product-card p{font-size:10px;line-height:1.45;color:#b9d9df}
+#home.vnx-agent-home-tab .vnx-ah-product-boxes{margin-top:16px}
+#home.vnx-agent-home-tab .vnx-ah-product-boxes i{
+  width:48px;
+  height:72px;
+  background:linear-gradient(180deg,#dff8fb,#9fd5de);
+  border:1px solid #70b4c1;
+  box-shadow:0 5px 12px rgba(0,0,0,.22);
+}
+
+/* Las demás vistas de agente usan la misma lectura oscura y no rompen el tema. */
+#home.vnx-agent-home-tab .vnx-ah-incoming,
+#home.vnx-agent-home-tab .vnx-ah-ai-draft,
+#home.vnx-agent-home-tab .vnx-ah-stock-table,
+#home.vnx-agent-home-tab .vnx-ah-order-preview,
+#home.vnx-agent-home-tab .vnx-ah-crm-preview,
+#home.vnx-agent-home-tab .vnx-ah-campaign-preview,
+#home.vnx-agent-home-tab .vnx-ah-report-preview,
+#home.vnx-agent-home-tab .vnx-ah-content-preview,
+#home.vnx-agent-home-tab .vnx-ah-doc-preview,
+#home.vnx-agent-home-tab .vnx-ah-priority-preview,
+#home.vnx-agent-home-tab .vnx-ah-agenda-preview,
+#home.vnx-agent-home-tab .vnx-ah-flow-preview{
+  background:#071f35;
+  color:#e6f4fd;
+  border-color:#205474;
+}
+#home.vnx-agent-home-tab .vnx-ah-incoming small,
+#home.vnx-agent-home-tab .vnx-ah-ai-draft small,
+#home.vnx-agent-home-tab .vnx-ah-order-preview small,
+#home.vnx-agent-home-tab .vnx-ah-crm-preview small,
+#home.vnx-agent-home-tab .vnx-ah-content-preview small,
+#home.vnx-agent-home-tab .vnx-ah-campaign-preview small,
+#home.vnx-agent-home-tab .vnx-ah-doc-preview small{color:#83b7d1}
+#home.vnx-agent-home-tab .vnx-ah-incoming p,
+#home.vnx-agent-home-tab .vnx-ah-ai-draft p,
+#home.vnx-agent-home-tab .vnx-ah-content-preview p,
+#home.vnx-agent-home-tab .vnx-ah-doc-preview p{color:#c7deeb}
+#home.vnx-agent-home-tab .vnx-ah-ai-draft{background:#082d36;border-color:#1b6a68}
+#home.vnx-agent-home-tab .vnx-ah-ai-draft>b{color:#6ae0bd}
+#home.vnx-agent-home-tab .vnx-ah-stock-table>div{border-bottom-color:#17445f;color:#dcebf5}
+#home.vnx-agent-home-tab .vnx-ah-stock-table .head{background:#0a3150;color:#9bc9de}
+#home.vnx-agent-home-tab .vnx-ah-stock-table p{color:#8fb0c2}
+#home.vnx-agent-home-tab .vnx-ah-order-lines p,
+#home.vnx-agent-home-tab .vnx-ah-next-action,
+#home.vnx-agent-home-tab .vnx-ah-content-visual,
+#home.vnx-agent-home-tab .vnx-ah-campaign-grid span,
+#home.vnx-agent-home-tab .vnx-ah-agenda-preview>div,
+#home.vnx-agent-home-tab .vnx-ah-kpis span,
+#home.vnx-agent-home-tab .vnx-ah-flow-preview>div,
+#home.vnx-agent-home-tab .vnx-ah-priority-preview>div{
+  background:#0a2b47;
+  color:#dcecf7;
+}
+#home.vnx-agent-home-tab .vnx-ah-doc-sheet{background:#0a2b47;box-shadow:none;border:1px solid #285c7d}
+
+@media(max-width:1380px){
+  #home.vnx-agent-home-tab .vnx-ah-workgrid{
+    grid-template-columns:minmax(260px,285px) minmax(520px,1fr) minmax(225px,250px);
+    gap:11px;
+  }
+  #home.vnx-agent-home-tab .vnx-ah-email-paper{grid-template-columns:minmax(0,1fr) 185px}
+}
+@media(max-width:1160px){
+  #home.vnx-agent-home-tab .vnx-ah-workgrid{grid-template-columns:270px minmax(0,1fr)}
+  #home.vnx-agent-home-tab .vnx-ah-rail{grid-column:1/-1;grid-template-columns:repeat(3,minmax(0,1fr))}
+  #home.vnx-agent-home-tab .vnx-ah-email-paper{grid-template-columns:minmax(0,1fr) 180px}
+}
