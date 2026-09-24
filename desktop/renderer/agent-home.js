@@ -260,11 +260,11 @@
     try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado')})}}catch{}
     const seen=new Set();return rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
   }
-  function closeCompanyMenu(){$('#vnxAhCompanyMenu')?.remove()}
+  function closeCompanyMenu(){const menu=$('#vnxAhCompanyMenu');if(menu){menu.hidden=true;menu.innerHTML=''}}
   async function toggleCompanyMenu(){
-    if($('#vnxAhCompanyMenu')){closeCompanyMenu();return}
+    const existing=$('#vnxAhCompanyMenu');if(existing&&!existing.hidden){closeCompanyMenu();return}
     const btn=$('#vnxAhCompanyBtn');if(!btn)return;
-    const menu=document.createElement('div');menu.id='vnxAhCompanyMenu';menu.className='vnx-ah-company-menu';menu.innerHTML='<div class="vnx-ah-company-menu-head"><b>Tu empresa / conexión</b><small>Cada fuente se mantiene separada.</small></div><div class="vnx-ah-company-loading">Cargando conexiones reales…</div>';document.body.appendChild(menu);
+    const menu=existing||document.createElement('div');menu.id='vnxAhCompanyMenu';menu.className='vnx-ah-company-menu';menu.hidden=false;menu.innerHTML='<div class="vnx-ah-company-menu-head"><b>Tu empresa / conexión</b><small>Cada fuente se mantiene separada.</small></div><div class="vnx-ah-company-loading">Cargando conexiones reales…</div>';if(!existing)document.body.appendChild(menu);
     const r=btn.getBoundingClientRect();menu.style.top=(r.bottom+7)+'px';menu.style.right=Math.max(10,window.innerWidth-r.right)+'px';
     const sources=await homeCompanySources(),selected=selectedHomeSource();
     const body=sources.length?sources.map(src=>'<button type="button" class="'+(selected?.id===src.id&&selected?.type===src.type?'active':'')+'" data-home-source="'+esc(src.type+':'+src.id)+'"><span>●</span><p><b>'+esc(src.label)+'</b><small>'+esc(src.module==='portal'?'Portal privado conectado':src.module||'Conexión')+'</small></p><i>✓</i></button>').join(''):'<div class="vnx-ah-company-empty">No hay conexiones activas. Ve a Conexiones para añadir una.</div>';
