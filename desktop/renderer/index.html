@@ -552,6 +552,28 @@
           <div class="vnx-dir-note"><b>Importante:</b> “sin actividad operativa registrada” no equivale automáticamente a “sin trabajar”. VentaNexIA muestra hechos y evidencias para que dirección pueda revisar el contexto antes de tomar decisiones.</div>
         </section>
 
+        <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-cv-panel">
+          <div class="vnx-dir-panel-head">
+            <div><span class="eyebrow">EXPEDIENTE PROFESIONAL</span><h2>CV + puesto + evidencia real</h2><p>El CV aporta contexto profesional, pero VentaNexIA mantiene separado lo declarado de lo confirmado por Dirección y de lo observado en el trabajo.</p></div>
+            <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirCvImport" type="button">Importar CV PDF / Word</button><button class="btn primary" id="vnxDirCvCompare" type="button">Comparar persona ↔ puesto</button></div>
+          </div>
+          <form id="vnxDirCvForm" class="vnx-dir-cv-form">
+            <label>Empleado<select id="vnxDirCvEmployee" required><option value="">Selecciona una persona</option></select></label>
+            <div class="vnx-dir-cv-file" id="vnxDirCvFile">Sin CV importado</div>
+            <label>Experiencia declarada en CV<textarea id="vnxDirCvExperience" rows="4" placeholder="Se extrae del CV. Una entrada por línea."></textarea></label>
+            <label>Formación / estudios<textarea id="vnxDirCvEducation" rows="4" placeholder="Titulaciones y formación profesional relevante."></textarea></label>
+            <label>Competencias y herramientas<textarea id="vnxDirCvSkills" rows="4" placeholder="Herramientas, sistemas, conocimientos técnicos."></textarea></label>
+            <label>Idiomas<textarea id="vnxDirCvLanguages" rows="4" placeholder="Idiomas declarados en el CV."></textarea></label>
+            <label>Certificaciones / cursos<textarea id="vnxDirCvCertifications" rows="4" placeholder="Certificaciones o cursos profesionales relevantes."></textarea></label>
+            <label>Confirmado por Dirección<textarea id="vnxDirCvConfirmed" rows="4" placeholder="Una entrada por línea. Ej.: dominio de SAP confirmado en trabajo real."></textarea></label>
+            <label>Puesto a comparar<input id="vnxDirCvRoleTarget" placeholder="Ej.: Responsable de grandes cuentas"></label>
+            <label class="vnx-dir-cv-wide">Requisitos reales del puesto<textarea id="vnxDirCvRequirements" rows="5" placeholder="Uno por línea. Ej.: negociación B2B&#10;gestión de grandes cuentas&#10;Excel avanzado&#10;inglés B2"></textarea></label>
+            <div class="vnx-dir-human-warning">El importador descarta del análisis profesional líneas relativas a edad, fecha de nacimiento, estado civil, nacionalidad, domicilio, salud, fotografía y otros datos personales que no deben decidir el encaje profesional.</div>
+            <button class="btn primary" type="submit">Guardar expediente profesional</button>
+          </form>
+          <div id="vnxDirCvComparison" class="vnx-dir-cv-comparison"><div class="vnx-dir-empty">Selecciona una persona, importa su CV y define los requisitos del puesto para comparar declaraciones, confirmaciones y evidencias observadas.</div></div>
+        </section>
+
         <div class="vnx-dir-human-grid">
           <section class="card vnx-dir-panel vnx-dir-human-panel">
             <div class="vnx-dir-panel-head"><div><span class="eyebrow">CONTEXTO HUMANO</span><h2>Entender antes de juzgar</h2><p>Registra preferencias y necesidades laborales declaradas o acordadas. Se mantienen separadas de los hechos observados.</p></div></div>
