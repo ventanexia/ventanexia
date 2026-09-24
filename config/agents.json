@@ -14,6 +14,13 @@
         "credential_rotation",
         "data_delete",
         "new_channel_publish"
+      ],
+      "decision_model": "jev-latest",
+      "decision_provider": "typesafe",
+      "decision_tasks": [
+        "risk_classification",
+        "approval_gate",
+        "policy_routing"
       ]
     },
     {
@@ -50,6 +57,14 @@
         "legal_sensitive",
         "complaint",
         "pricing_exception"
+      ],
+      "decision_model": "jev-latest",
+      "decision_provider": "typesafe",
+      "decision_tasks": [
+        "message_classification",
+        "intent_detection",
+        "priority",
+        "routing"
       ]
     },
     {
@@ -57,7 +72,15 @@
       "name": "VNX Qualify",
       "mission": "Puntuar, priorizar y decidir siguiente acción comercial.",
       "mode": "AUTONOMOUS",
-      "approval_actions": []
+      "approval_actions": [],
+      "decision_model": "jev-latest",
+      "decision_provider": "typesafe",
+      "decision_tasks": [
+        "lead_scoring",
+        "priority",
+        "next_best_action",
+        "routing"
+      ]
     },
     {
       "id": "scheduler",
@@ -115,5 +138,26 @@
         "production_install"
       ]
     }
-  ]
+  ],
+  "model_routing": {
+    "decision_policy": "Use Jev for closed decisions whenever TYPESAFE_API_KEY is configured.",
+    "decision_model": "jev-latest",
+    "decision_tasks": [
+      "classification",
+      "routing",
+      "scoring",
+      "prioritization",
+      "intent_detection",
+      "next_action_choice",
+      "yes_no_gates"
+    ],
+    "generative_tasks": [
+      "writing",
+      "summarization",
+      "open_ended_reasoning",
+      "content_generation",
+      "reports"
+    ],
+    "fallback": "Existing deterministic classifier first; generative fallback only where needed. Never fabricate a decision when model output is invalid."
+  }
 }
