@@ -1656,6 +1656,7 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-side-group .vnx-agent-side-btn.sub{padding:8px 11px 8px 24px;font-size:12px;color:#a9c3d9}
 .vnx-side-group .vnx-agent-side-btn.sub>span:first-child{width:18px;text-align:center}
 .vnx-side-group .vnx-agent-side-btn.sub.active{color:#6cc7ff}
+.vnx-side-group:has(.vnx-agent-side-btn.active)>.vnx-side-group-title{background:linear-gradient(90deg,#0a4f90,#0b335d);border:1px solid #1979cd;border-radius:9px;color:#66c8ff;box-shadow:inset 3px 0 0 #1b9cff}
 .vnx-side-divider{margin:8px 10px}
 .vnx-side-clean .sidefoot{margin-top:10px;padding:11px 12px;border-radius:10px;background:#071b31;border:1px solid #123d61}
 
