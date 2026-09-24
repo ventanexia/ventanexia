@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.146",
+  "version": "0.6.147",
   "private": true,
-  "description": "VentaNexIA Desktop · Control Operativo de Dirección con SLA y recuperación IA · 0.6.146",
+  "description": "VentaNexIA Desktop · Agente Dirección privado con PIN, SLA y recuperación IA · 0.6.147",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
@@ -31,7 +31,8 @@
     "verify:stock-142": "node verify-stock-history-142.cjs",
     "verify:release": "node verify-ipc-handlers.cjs && node verify-release-readiness.cjs && node verify-web-sellability.cjs && node verify-erp-synthetic.cjs && node verify-meta-jev.cjs && node verify-direction-146.cjs && node verify-ui.cjs && node verify-agent-navigation-139.cjs && node verify-stock-history-142.cjs && node verify-142.cjs",
     "verify:meta-jev": "node verify-meta-jev.cjs",
-    "verify:direction-146": "node verify-direction-146.cjs"
+    "verify:direction-146": "node verify-direction-146.cjs",
+    "verify:direction-private": "node verify-direction-146.cjs"
   },
   "devDependencies": {
     "electron": "^38.1.2",
