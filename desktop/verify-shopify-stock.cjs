@@ -42,7 +42,7 @@ need(renderer,/stockListing\?stockInventoryTable\(portalSummary\):shopifyStockTa
 need(renderer,/async function latestPurchaseAnalysis\(scopeKey,policy=\{\}\)/,'purchase analysis loader must support the full active policy');
 need(renderer,/purchaseAnalysisGet\?\.\(scopeKey\)/,'purchase order must restore persisted analysis');
 need(renderer,/rememberPurchaseAnalysis/,'verified purchase analysis must be persisted');
-need(renderer,/Si no existe un análisis válido con la política actual, lo calculamos ahora/,'purchase request must auto-calculate a missing analysis using the active policy');
+need(renderer,/Sin un análisis válido para TODA la política actual, releemos la fuente/,'purchase request must auto-calculate a missing analysis using the full active policy');
 need(renderer,/Basado en análisis verificado/,'purchase order must show analysis timestamp');
 need(renderer,/ageHours>=24/,'stale analysis must be visibly flagged without being discarded');
 need(preload,/purchaseAnalysisGet:\(scopeKey\)=>ipcRenderer\.invoke\('purchase-analysis:get',scopeKey\)/,'preload must expose purchase analysis read');
