@@ -22,7 +22,7 @@ need(home,/title:'Agente de Correo con IA'/,'email screen title missing');
 need(home,/title:'Agente de Stock y Compras'/,'stock screen title missing');
 need(home,/title:'Agente de Redes Sociales'/,'social screen title missing');
 need(home,/title:'Agente de Informes'/,'reports screen title missing');
-need(home,/sourceTabs:\['Stock actual','Ventas 6 meses','Importar Excel\/CSV'\]/,'stock-specific source tabs missing');
+need(home,/sourceTabs:\['Stock actual','Ventas del periodo','Importar Excel\/CSV'\]/,'stock-specific source tabs missing');
 need(home,/\['Fabricante',\['Todos los fabricantes','Fabricante seleccionado'\]\]/,'stock manufacturer filter missing');
 need(home,/sourceTabs:\['Bandeja conectada','Necesitan respuesta','Buscar correo'\]/,'email-specific source tabs missing');
 need(home,/\['Cuenta',\['Todas las cuentas','Cuenta seleccionada'\]\]/,'email account filter missing');
