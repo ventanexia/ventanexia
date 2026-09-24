@@ -489,12 +489,39 @@ function connectionProviderLabel(provider=''){
     microsoft_calendar:'Microsoft / Outlook Calendar'
   }[provider]||String(provider||'').replace(/_/g,' ');
 }
-function connectionSummaryHtml(items=[],emptyText='No hay ninguna cuenta conectada.'){
-  if(!items.length)return '<div class="connection-empty"><i></i><span>'+esc(emptyText)+'</span></div>';
-  return '<div class="connection-count">🟢 '+items.length+' '+(items.length===1?'conexión activa':'conexiones activas')+'</div>'
-    +'<div class="connection-account-list">'
-    +items.map(x=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(x.label||'Conectado')+'</b><small>'+esc(connectionProviderLabel(x.provider||x.module))+'</small></div></div>').join('')
-    +'</div>';
+function connectionStateLabel(x={}){
+  if(x.connected)return 'Conectado y verificado';
+  if(x.state==='reconnect'||x.configured)return 'Necesita reconectar';
+  return 'No conectado';
+}
+function connectionSummaryHtml(items=[],emptyText='No conectado.',opts={}){
+  if(!items.length)return '<div class="connection-empty connection-empty-red"><i></i><span>'+esc(emptyText)+'</span></div>';
+  const live=items.filter(x=>x.connected).length,bad=items.length-live;
+  const countClass=bad?' connection-count-mixed':'';
+  const head=live===items.length
+    ?'🟢 '+live+' '+(live===1?'conexión verificada':'conexiones verificadas')
+    :live
+      ?'🟠 '+live+' verificadas · '+bad+' para reconectar'
+      :'🔴 '+bad+' '+(bad===1?'conexión necesita reconectar':'conexiones necesitan reconectar');
+  return '<div class="connection-count'+countClass+'">'+head+'</div><div class="connection-account-list">'
+    +items.map(x=>{
+      const state=x.connected?'connected':'reconnect';
+      const account=String(x.account||x.label||'');
+      const module=opts.module||x.module||'';
+      const disconnectAttr=module==='email'&&account
+        ?' data-conn-disconnect-email="'+esc(account)+'"'
+        :module&&module!=='shopify'&&module!=='portal'
+          ?' data-conn-disconnect-module="'+esc(module)+'"'
+          :'';
+      const reconnectAttr=!x.connected&&module&&module!=='shopify'&&module!=='portal'
+        ?' data-conn-reconnect-module="'+esc(module)+'"'
+        :'';
+      const actions=(reconnectAttr||disconnectAttr)
+        ?'<div class="connection-row-actions">'+(!x.connected&&reconnectAttr?'<button class="mini connection-reconnect"'+reconnectAttr+'>Reconectar</button>':'')+(disconnectAttr?'<button class="mini connection-disconnect"'+disconnectAttr+'>Desconectar</button>':'')+'</div>'
+        :'';
+      const detail=[connectionProviderLabel(x.provider||x.module),connectionStateLabel(x),!x.connected&&x.reason?x.reason:''].filter(Boolean).join(' · ');
+      return '<div class="connection-account-row '+state+'"><span class="connection-dot"></span><div class="connection-account-main"><b>'+esc(x.label||'Conexión')+'</b><small>'+esc(detail)+'</small></div>'+actions+'</div>';
+    }).join('')+'</div>';
 }
 async function renderConnectionCapacity(){
   const text=$('#connectionCapacityText'),btn=$('#connectionCapacityPlansBtn');if(!text)return;
@@ -506,55 +533,119 @@ async function renderConnectionCapacity(){
   }catch{ text.textContent='No se ha podido comprobar ahora el límite de conexiones.'; }
   if(btn&&!btn.dataset.bound){btn.dataset.bound='1';btn.onclick=()=>window.vnx.openExternal('https://www.ventanexia.es/planes.html#mi-equipo');}
 }
+function updateConnectionManageButton(module,status){
+  const buttons=$$('[data-real-module="'+module+'"]');
+  const labels={email:'correo',whatsapp:'WhatsApp',social:'redes sociales',crm:'ventas y clientes',agenda:'agenda',shopify:'Shopify'};
+  buttons.forEach(btn=>{
+    btn.classList.remove('connection-btn-live','connection-btn-reconnect');
+    if(status?.connected){btn.classList.add('connection-btn-live');btn.textContent='🟢 Gestionar '+labels[module]}
+    else if(status?.configured){btn.classList.add('connection-btn-reconnect');btn.textContent='🔴 Reconectar '+labels[module]}
+    else btn.textContent='Conectar '+labels[module];
+  });
+}
+function bindConnectionSummaryActions(){
+  $$('.connection-reconnect[data-conn-reconnect-module]').forEach(b=>b.onclick=()=>{
+    const module=b.dataset.connReconnectModule;
+    const manage=$('[data-real-module="'+module+'"]');if(manage)manage.click();
+  });
+  $$('.connection-disconnect[data-conn-disconnect-module]').forEach(b=>b.onclick=async()=>{
+    const module=b.dataset.connDisconnectModule;
+    if(!confirm('¿Desconectar esta conexión de VentaNexIA?'))return;
+    b.disabled=true;
+    try{await window.vnx.disconnectIntegration(module);await refreshChatConnections();await renderConnectionSummaries()}catch(e){alert(e.message||'No se pudo desconectar')}finally{b.disabled=false}
+  });
+  $$('.connection-disconnect[data-conn-disconnect-email]').forEach(b=>b.onclick=async()=>{
+    const account=b.dataset.connDisconnectEmail;
+    if(!confirm('¿Desconectar solo '+account+'?'))return;
+    b.disabled=true;
+    try{await window.vnx.disconnectEmailAccount(account);await refreshChatConnections();await renderConnectionSummaries()}catch(e){alert(e.message||'No se pudo desconectar')}finally{b.disabled=false}
+  });
+  $$('.connection-portal-reconnect').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    try{await window.vnx.connectPortal(b.dataset.id);await renderConnectionSummaries()}catch(e){alert(e.message||'No se pudo abrir la reconexión')}finally{b.disabled=false}
+  });
+  $$('.connection-portal-disconnect').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Desconectar '+(b.dataset.name||'este portal')+'?'))return;
+    b.disabled=true;
+    try{await window.vnx.disconnectPortal(b.dataset.id);await refreshChatConnections();await renderConnectionSummaries()}catch(e){alert(e.message||'No se pudo desconectar')}finally{b.disabled=false}
+  });
+  $$('.connection-shopify-disconnect').forEach(b=>b.onclick=async()=>{
+    if(!confirm('¿Desconectar '+b.dataset.shop+'?'))return;
+    b.disabled=true;
+    try{await window.vnx.disconnectShopify(b.dataset.shop);await refreshChatConnections();await renderConnectionSummaries()}catch(e){alert(e.message||'No se pudo desconectar')}finally{b.disabled=false}
+  });
+  $$('.connection-shopify-reconnect').forEach(b=>b.onclick=()=>{
+    const manage=$('[data-real-module="shopify"]');
+    if(manage){manage.click();setTimeout(()=>{const input=$('#shopifyShop');if(input){input.value=b.dataset.shop;input.focus()}},80)}
+  });
+}
 async function renderConnectionSummaries(){
-  let connections=[];try{connections=await window.vnx.listConnections()||[]}catch{}
-  const byModule=module=>connections.filter(x=>(x.module||'')===module);
-  const email=byModule('email'),wa=byModule('whatsapp'),social=byModule('social'),crm=byModule('crm'),agenda=byModule('agenda');
   const set=(key,html)=>{const el=$('[data-connection-summary="'+key+'"]');if(el)el.innerHTML=html};
+  let email={connected:false,configured:false,accounts:[]},wa={connected:false,configured:false},social={connected:false,configured:false},crm={connected:false,configured:false},agenda={connected:false,configured:false};
+  try{[email,wa,social,crm,agenda]=await Promise.all(['email','whatsapp','social','crm','agenda'].map(m=>window.vnx.integrationStatus(m).catch(()=>({connected:false,configured:false,module:m}))))}catch{}
 
-  set('email',connectionSummaryHtml(email,'No hay ninguna cuenta de correo conectada.'));
-  set('social',connectionSummaryHtml(social,'No hay ninguna red social conectada.'));
-  set('crm',connectionSummaryHtml(crm,'No hay ningún sistema de ventas y clientes conectado.'));
-  set('agenda',connectionSummaryHtml(agenda,'No hay ningún calendario conectado.'));
+  set('email',connectionSummaryHtml(email.accounts||[],'🔴 No hay ninguna cuenta de correo conectada.',{module:'email'}));
+  set('social',connectionSummaryHtml(social.configured?[{...social,module:'social'}]:[],'🔴 Redes sociales no conectadas.',{module:'social'}));
+  set('crm',connectionSummaryHtml(crm.configured?[{...crm,module:'crm'}]:[],'🔴 Ventas y clientes no conectado.',{module:'crm'}));
+  set('agenda',connectionSummaryHtml(agenda.configured?[{...agenda,module:'agenda'}]:[],'🔴 Agenda no conectada.',{module:'agenda'}));
+  updateConnectionManageButton('email',email);
+  updateConnectionManageButton('social',social);
+  updateConnectionManageButton('crm',crm);
+  updateConnectionManageButton('agenda',agenda);
 
   const savedWhatsApp=getRealModuleSources()?.whatsapp;
   if(savedWhatsApp?.provider==='whatsapp_personal'&&savedWhatsApp?.status==='manual_ready'){
     const label=savedWhatsApp.account?('WhatsApp · '+savedWhatsApp.account):'WhatsApp normal';
-    set('whatsapp','<div class="connection-count">🟢 Listo en modo manual</div><div class="connection-account-list"><div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(label)+'</b><small>VentaNexIA prepara la respuesta · tú decides cuándo enviarla</small></div></div></div>');
-  }else if(wa.length){
+    set('whatsapp','<div class="connection-count connection-count-manual">🟠 Modo manual · no conectado a la API de WhatsApp</div><div class="connection-account-list"><div class="connection-account-row manual"><span class="connection-dot"></span><div class="connection-account-main"><b>'+esc(label)+'</b><small>VentaNexIA solo prepara texto; no puede leer ni enviar mensajes reales.</small></div><div class="connection-row-actions"><button class="mini connection-reconnect" data-conn-reconnect-module="whatsapp">Conectar Business</button></div></div></div>');
+    updateConnectionManageButton('whatsapp',{connected:false,configured:true});
+  }else{
+    const waItems=wa.configured?[{...wa,module:'whatsapp'}]:[];
     let extra='';
-    try{
-      const st=await window.vnx.whatsappRuntime({action:'status'});
-      const ch=st?.channel||{};
-      extra='<div class="connection-detail-grid">'
-        +(ch.displayPhone?'<span><b>Número</b>'+esc(ch.displayPhone)+'</span>':'')
-        +(ch.verifiedName?'<span><b>Empresa</b>'+esc(ch.verifiedName)+'</span>':'')
-        +'<span><b>Modo</b>'+(ch.replyMode==='automatic'?'Automático':'Con autorización')+'</span>'
-        +'<span><b>Conexión automática</b>'+(ch.webhookReady?'Activo':'Pendiente')+'</span>'
-        +'</div>';
-    }catch{}
-    set('whatsapp',connectionSummaryHtml(wa,'No hay WhatsApp conectado.')+extra);
-  }else set('whatsapp',connectionSummaryHtml([],'No hay ningún WhatsApp Business conectado.'));
+    if(wa.connected){
+      try{
+        const st=await window.vnx.whatsappRuntime({action:'status'}),ch=st?.channel||{};
+        extra='<div class="connection-detail-grid">'
+          +(ch.displayPhone?'<span><b>Número</b>'+esc(ch.displayPhone)+'</span>':'')
+          +(ch.verifiedName?'<span><b>Empresa</b>'+esc(ch.verifiedName)+'</span>':'')
+          +'<span><b>Modo</b>'+(ch.replyMode==='automatic'?'Automático':'Con autorización')+'</span>'
+          +'<span><b>Webhook</b>'+(ch.webhookReady?'Activo':'Pendiente')+'</span></div>';
+      }catch{}
+    }
+    set('whatsapp',connectionSummaryHtml(waItems,'🔴 WhatsApp Business no conectado.',{module:'whatsapp'})+extra);
+    updateConnectionManageButton('whatsapp',wa);
+  }
 
   const folders=state?.permissions?.folders||[];
   set('local',folders.length
-    ?'<div class="connection-count">🟢 '+folders.length+' '+(folders.length===1?'carpeta autorizada':'carpetas autorizadas')+'</div><div class="connection-account-list">'+folders.map(f=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(String(f).split(/[\\/]/).pop()||f)+'</b><small>'+esc(f)+'</small></div></div>').join('')+'</div>'
-    :'<div class="connection-empty"><i></i><span>No hay carpetas autorizadas.</span></div>');
+    ?'<div class="connection-count">🟢 '+folders.length+' '+(folders.length===1?'carpeta autorizada':'carpetas autorizadas')+'</div><div class="connection-account-list">'+folders.map(f=>'<div class="connection-account-row connected"><span class="connection-dot"></span><div class="connection-account-main"><b>'+esc(String(f).split(/[\\/]/).pop()||f)+'</b><small>'+esc(f)+'</small></div></div>').join('')+'</div>'
+    :'<div class="connection-empty connection-empty-red"><i></i><span>🔴 No hay carpetas autorizadas.</span></div>');
 
   let portals=[];try{portals=await window.vnx.listPortals()||[]}catch{}
-  set('portal',portals.length
-    ?'<div class="connection-count">🟢 '+portals.length+' '+(portals.length===1?'portal conectado':'páginas privadas conectados')+'</div><div class="connection-account-list">'+portals.map(p=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(p.name||'Portal')+'</b><small>'+esc(p.url||'')+' · '+(p.lastStatus==='connected'?'Conectado':'Revisar conexión')+'</small></div></div>').join('')+'</div>'
-    :'<div class="connection-empty"><i></i><span>No hay páginas privadas conectados.</span></div>');
+  if(portals.length){
+    const checked=await Promise.all(portals.map(async p=>{
+      const h=await window.vnx.portalHealth?.(p.id).catch(e=>({connected:false,state:'reconnect',reason:e.message||'No se pudo verificar'}))||{connected:false,state:'reconnect'};
+      return {...p,...h};
+    }));
+    const live=checked.filter(x=>x.connected).length,bad=checked.length-live;
+    set('portal','<div class="connection-count'+(bad?' connection-count-mixed':'')+'">'+(bad?(live?'🟠 '+live+' verificadas · '+bad+' para reconectar':'🔴 '+bad+' para reconectar'):'🟢 '+live+' '+(live===1?'portal verificado':'portales verificados'))+'</div><div class="connection-account-list">'+checked.map(p=>'<div class="connection-account-row '+(p.connected?'connected':'reconnect')+'"><span class="connection-dot"></span><div class="connection-account-main"><b>'+esc(p.name||'Portal')+'</b><small>'+esc(p.url||'')+' · '+esc(p.connected?'Conectado y verificado':(p.reason||'Necesita reconectar'))+'</small></div><div class="connection-row-actions">'+(!p.connected?'<button class="mini connection-portal-reconnect" data-id="'+esc(p.id)+'">Reconectar</button>':'')+'<button class="mini connection-portal-disconnect" data-id="'+esc(p.id)+'" data-name="'+esc(p.name||'Portal')+'">Desconectar</button></div></div>').join('')+'</div>');
+  }else set('portal','<div class="connection-empty connection-empty-red"><i></i><span>🔴 No hay páginas privadas conectadas.</span></div>');
 
   try{
     const stores=await window.vnx.shopifyStores?.()||[];
     const target=$('[data-connection-summary="shopify"]');
     if(target){
-      target.innerHTML=stores.length
-        ?'<div class="connection-count">🟢 '+stores.length+' '+(stores.length===1?'tienda Shopify conectada':'tiendas Shopify conectadas')+'</div><div class="connection-account-list">'+stores.map(x=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(x.shopName||x.shop||'Tienda Shopify')+'</b><small>'+esc(x.shop||'')+(x.active?' · activa':'')+'</small></div></div>').join('')+'</div>'
-        :'<div class="connection-empty"><i></i><span>Shopify no está conectado.</span></div>';
+      if(!stores.length)target.innerHTML='<div class="connection-empty connection-empty-red"><i></i><span>🔴 Shopify no está conectado.</span></div>';
+      else{
+        const live=stores.filter(x=>x.connected).length,bad=stores.length-live;
+        target.innerHTML='<div class="connection-count'+(bad?' connection-count-mixed':'')+'">'+(bad?(live?'🟠 '+live+' verificadas · '+bad+' para reconectar':'🔴 '+bad+' tiendas para reconectar'):'🟢 '+live+' '+(live===1?'tienda verificada':'tiendas verificadas'))+'</div><div class="connection-account-list">'+stores.map(x=>'<div class="connection-account-row '+(x.connected?'connected':'reconnect')+'"><span class="connection-dot"></span><div class="connection-account-main"><b>'+esc(x.shopName||x.shop||'Tienda Shopify')+'</b><small>'+esc(x.shop||'')+(x.active?' · activa':'')+' · '+esc(x.connected?'Conectada y verificada':(x.reason||'Necesita reconectar'))+'</small></div><div class="connection-row-actions">'+(!x.connected?'<button class="mini connection-shopify-reconnect" data-shop="'+esc(x.shop)+'">Reconectar</button>':'')+'<button class="mini connection-shopify-disconnect" data-shop="'+esc(x.shop)+'">Desconectar</button></div></div>').join('')+'</div>';
+      }
+      updateConnectionManageButton('shopify',{connected:stores.some(x=>x.connected),configured:stores.length>0});
     }
-  }catch{}
+  }catch{
+    const target=$('[data-connection-summary="shopify"]');if(target)target.innerHTML='<div class="connection-empty connection-empty-red"><i></i><span>🔴 No se pudo verificar Shopify.</span></div>';
+    updateConnectionManageButton('shopify',{connected:false,configured:true});
+  }
+  bindConnectionSummaryActions();
 }
 window.vnxRefreshConnectionSummaries=renderConnectionSummaries;
 
