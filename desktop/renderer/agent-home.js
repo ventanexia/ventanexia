@@ -275,14 +275,34 @@
     }
     restoreProspectProfile();
   }
+  function autoUrgentDaysForPolicy(targetDays){
+    return Math.max(3,Math.min(15,Math.round(Number(targetDays||25)*0.3)));
+  }
   function stockPolicyForSource(src={}){
     const store=stockPolicyStore();
-    for(const key of stockPolicyKeys(src)){const x=store[key];if(x)return {targetDays:Math.max(1,Math.min(365,Number(x.targetDays)||25)),noHistoryMin:Math.max(0,Math.min(100000,Number(x.noHistoryMin)||0))}}
-    return {targetDays:25,noHistoryMin:0};
+    for(const key of stockPolicyKeys(src)){
+      const x=store[key];
+      if(x){
+        const targetDays=Math.max(1,Math.min(365,Number(x.targetDays)||25));
+        return {
+          targetDays,
+          noHistoryMin:Math.max(0,Math.min(100000,Number(x.noHistoryMin)||0)),
+          windowDays:Math.max(30,Math.min(730,Number(x.windowDays)||180)),
+          urgentDays:Math.max(0,Math.min(90,Number(x.urgentDays)||0))
+        };
+      }
+    }
+    return {targetDays:25,noHistoryMin:0,windowDays:180,urgentDays:0};
   }
   function saveStockPolicyForSource(src={},policy={}){
     const keys=stockPolicyKeys(src);if(!keys.length)return false;
-    const next={targetDays:Math.max(1,Math.min(365,Math.round(Number(policy.targetDays)||25))),noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(policy.noHistoryMin)||0))),updatedAt:new Date().toISOString()};
+    const next={
+      targetDays:Math.max(1,Math.min(365,Math.round(Number(policy.targetDays)||25))),
+      noHistoryMin:Math.max(0,Math.min(100000,Math.round(Number(policy.noHistoryMin)||0))),
+      windowDays:Math.max(30,Math.min(730,Math.round(Number(policy.windowDays)||180))),
+      urgentDays:Math.max(0,Math.min(90,Math.round(Number(policy.urgentDays)||0))),
+      updatedAt:new Date().toISOString()
+    };
     const store=stockPolicyStore();for(const key of keys)store[key]=next;
     try{localStorage.setItem(STOCK_POLICY_KEY,JSON.stringify(store));return true}catch{return false}
   }
@@ -290,19 +310,30 @@
     const panel=$('#vnxAhStockPolicy');if(!panel)return;
     const active=document.body.dataset.vnxHomeAgent==='web_ecommerce';panel.style.display=active?'grid':'none';if(!active)return;
     const src=selectedHomeSource(),policy=stockPolicyForSource(src||{});
-    const source=$('#vnxAhStockPolicySource'),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),save=$('#vnxAhSaveStockPolicy'),example=$('#vnxAhStockPolicyExample');
+    const source=$('#vnxAhStockPolicySource'),days=$('#vnxAhTargetDays'),min=$('#vnxAhNoHistoryMin'),windowDays=$('#vnxAhSalesWindowDays'),urgent=$('#vnxAhUrgentDays'),save=$('#vnxAhSaveStockPolicy'),example=$('#vnxAhStockPolicyExample');
     if(source)source.textContent=src?.label||'Selecciona “Tu empresa” arriba';
-    if(days)days.value=String(policy.targetDays);if(min)min.value=String(policy.noHistoryMin);
+    if(days)days.value=String(policy.targetDays);
+    if(min)min.value=String(policy.noHistoryMin);
+    if(windowDays){
+      const v=String(policy.windowDays);
+      if(![...windowDays.options].some(o=>o.value===v)){const o=document.createElement('option');o.value=v;o.textContent=v+' días';windowDays.appendChild(o)}
+      windowDays.value=v;
+    }
+    if(urgent)urgent.value=policy.urgentDays>0?String(policy.urgentDays):'';
     if(save)save.disabled=!src;
     const paint=()=>{
-      const d=Math.max(1,Math.min(365,Math.round(Number(days?.value)||25))),m=Math.max(0,Math.min(100000,Math.round(Number(min?.value)||0)));
-      if(example)example.textContent=m>0?'Sin histórico: se propondrá stock hasta alcanzar '+m+' unidad'+(m===1?'':'es')+'. Objetivo con histórico: '+d+' días.':'Sin histórico: no se propondrá una cantidad automática. Objetivo con histórico: '+d+' días.';
+      const d=Math.max(1,Math.min(365,Math.round(Number(days?.value)||25)));
+      const m=Math.max(0,Math.min(100000,Math.round(Number(min?.value)||0)));
+      const w=Math.max(30,Math.min(730,Math.round(Number(windowDays?.value)||180)));
+      const u=Math.max(0,Math.min(90,Math.round(Number(urgent?.value)||0)));
+      const effective=u||autoUrgentDaysForPolicy(d);
+      if(example)example.textContent=(m>0?'Sin histórico: mínimo '+m+' uds.':'Sin histórico: revisar, sin inventar cantidad.')+' · Rotación: últimos '+w+' días · Objetivo: '+d+' días · Urgente: < '+effective+' días'+(u?'':' (automático)')+'.';
     };
-    if(days)days.oninput=paint;if(min)min.oninput=paint;paint();
+    if(days)days.oninput=paint;if(min)min.oninput=paint;if(windowDays)windowDays.onchange=paint;if(urgent)urgent.oninput=paint;paint();
     if(save)save.onclick=()=>{
       const selected=selectedHomeSource();
       if(!selected){alert('Selecciona primero la empresa o conexión que quieres analizar.');return}
-      const ok=saveStockPolicyForSource(selected,{targetDays:days?.value,noHistoryMin:min?.value});
+      const ok=saveStockPolicyForSource(selected,{targetDays:days?.value,noHistoryMin:min?.value,windowDays:windowDays?.value,urgentDays:urgent?.value});
       if(!ok){alert('No se ha podido guardar la política de stock.');return}
       lastStockRun=null;
       const old=save.textContent;save.textContent='Guardado ✓';setTimeout(()=>{if(save.isConnected)save.textContent=old},1400);
@@ -327,7 +358,7 @@
   function promptWithHomeContext(key,prompt=''){
     const parts=[String(prompt||'').trim()],src=selectedHomeSource(),brands=tagTexts('#vnxAhBrands'),items=tagTexts('#vnxAhItems');
     if(src?.label)parts.push('Trabaja únicamente con la conexión/empresa seleccionada en la pantalla de inicio: '+src.label+'. No mezcles otras fuentes salvo que yo lo pida expresamente.');
-    if(key==='web_ecommerce'){const p=stockPolicyForSource(src||{});parts.push('Política de reposición de esta empresa: objetivo '+p.targetDays+' días; si una referencia no tiene histórico, stock mínimo '+p.noHistoryMin+' unidades. Si el mínimo es 0, no inventes cantidad y marca la referencia para revisión.');}
+    if(key==='web_ecommerce'){const p=stockPolicyForSource(src||{}),u=p.urgentDays||autoUrgentDaysForPolicy(p.targetDays);parts.push('Política de reposición de esta empresa: usar ventas de los últimos '+p.windowDays+' días; objetivo '+p.targetDays+' días de cobertura; aviso urgente por debajo de '+u+' días; si una referencia no tiene histórico, stock mínimo '+p.noHistoryMin+' unidades. Si el mínimo es 0, no inventes cantidad y marca la referencia para revisión.');}
     if(key==='prospecting'){
       const typed=String(prospectSegmentInput()?.value||'').trim(),saved=prospectProfileForSource(src||{}).targetSegments||'',segments=typed||saved;
       if(segments)parts.push('Tipo de cliente / sector objetivo indicado por el usuario: '+segments+'. Respeta estos segmentos y no los sustituyas por sectores genéricos.');
