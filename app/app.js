@@ -14,10 +14,11 @@ async function post(endpoint,body){
   if(!r.ok)throw new Error(j.error||j.message||'No se pudo conectar');
   return j;
 }
-function saveSession(v,remember=false){session=v;sessionStorage.setItem('vnx_mobile_session',JSON.stringify(v));if(remember)localStorage.setItem('vnx_mobile_saved_session',JSON.stringify(v));else localStorage.removeItem('vnx_mobile_saved_session')}
-function loadSession(){try{return JSON.parse(sessionStorage.getItem('vnx_mobile_session')||localStorage.getItem('vnx_mobile_saved_session')||'null')}catch{return null}}
-function showApp(){session=loadSession()||session;if(!session)return;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');}
-function showLogin(){session=null;sessionStorage.removeItem('vnx_mobile_session');localStorage.removeItem('vnx_mobile_saved_session');$('#app').classList.add('hidden');$('#login').classList.remove('hidden')}
+function saveSession(v,remember=false){session=v;sessionStorage.setItem('vnx_mobile_session',JSON.stringify(v));if(remember)localStorage.setItem('vnx_mobile_saved_id',String(v.customerId||''));else localStorage.removeItem('vnx_mobile_saved_id')}
+function loadSession(){try{return JSON.parse(sessionStorage.getItem('vnx_mobile_session')||'null')}catch{return null}}
+function savedCustomerId(){return String(localStorage.getItem('vnx_mobile_saved_id')||'').trim()}
+function showApp(){session=loadSession()||session;if(!session?.customerId||!session?.activationCode||!session?.deviceKey)return;$('#login').classList.add('hidden');$('#app').classList.remove('hidden');}
+function showLogin(){session=null;sessionStorage.removeItem('vnx_mobile_session');$('#app').classList.add('hidden');$('#login').classList.remove('hidden');const saved=savedCustomerId();if(saved)$('#customerId').value=saved}
 function openView(id){
   $$('.view').forEach(v=>v.classList.toggle('active',v.id===id));
   $$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===id));
@@ -31,7 +32,7 @@ $('#loginBtn').onclick=async()=>{
   try{
     const result=await post('device-register',{customerId,activationCode:password,deviceKey:deviceKey(),fingerprintHash:await fingerprint(),deviceName:'Móvil',platform:navigator.userAgent.slice(0,80),appVersion:'mobile-0.1'});
     const remember=Boolean($('#rememberMe')?.checked);
-    saveSession({customerId,deviceId:result.deviceId||null,plan:result.planKey||null,limit:result.limit||0},remember);
+    saveSession({customerId,activationCode:password,deviceKey:deviceKey(),deviceId:result.deviceId||null,plan:result.planKey||null,limit:result.limit||0},remember);
     $('#password').value='';showApp();
   }catch(e){msg.textContent=e.message||'No he podido entrar.'}
   finally{btn.disabled=false;btn.textContent='Entrar'}
@@ -39,7 +40,10 @@ $('#loginBtn').onclick=async()=>{
 $('#logoutBtn').onclick=showLogin;
 $('#menuBtn').onclick=()=>$('#drawer').classList.toggle('open');
 $$('[data-view]').forEach(b=>b.onclick=()=>openView(b.dataset.view));
-$$('[data-go]').forEach(b=>b.onclick=()=>openView(b.dataset.go));
+$('[data-go]').forEach(b=>b.onclick=()=>openView(b.dataset.go));
+$('[data-mobile-desktop]').forEach(b=>b.onclick=()=>{const info=$('#mobileInfo');if(info)info.textContent=(b.dataset.mobileDesktop||'Esta conexión')+' se configura y verifica en VentaNexIA Desktop. Desde el móvil no se guardan credenciales operativas.'});
+$('[data-mobile-chat]').forEach(b=>b.onclick=()=>{openView('chat');const input=$('#chatInput');if(input){input.value=b.dataset.mobileChat||'';input.focus()}});
+function privateChatBody(messages){if(!session?.customerId||!session?.activationCode||!session?.deviceKey)throw new Error('Tu sesión ha caducado. Vuelve a entrar con el código de activación.');return {messages,scope:'agent:core_ai',mobile:true,desktop:{customerId:session.customerId,activationCode:session.activationCode,deviceKey:session.deviceKey}}}
 
 let chat=[];
 function renderChat(){
@@ -50,7 +54,7 @@ $('#chatForm').onsubmit=async e=>{
   e.preventDefault();const input=$('#chatInput'),text=input.value.trim();if(!text)return;
   chat.push({role:'user',content:text});input.value='';renderChat();const btn=e.submitter;btn.disabled=true;btn.textContent='Mirándolo…';
   try{
-    const r=await post('chat',{messages:chat,desktop:false,mobile:true,customerId:session?.customerId});
+    const r=await post('chat',privateChatBody(chat));
     chat.push({role:'assistant',content:r.reply||'No tengo respuesta todavía.'});renderChat();
   }catch(err){chat.push({role:'assistant',content:'No he podido conectar: '+err.message});renderChat()}
   finally{btn.disabled=false;btn.textContent='Enviar'}
@@ -66,10 +70,10 @@ $$('[data-master]').forEach(btn=>btn.onclick=async()=>{
   };
   root.innerHTML='<div class="empty">Mirándolo…</div>';
   try{
-    const r=await post('chat',{messages:[{role:'user',content:prompts[key]}],desktop:false,mobile:true,customerId:session?.customerId});
+    const r=await post('chat',privateChatBody([{role:'user',content:prompts[key]}]));
     root.innerHTML='<div class="bubble ai">'+String(r.reply||'Todavía no hay datos compartidos con el móvil.').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])).replace(/\n/g,'<br>')+'</div>';
   }catch(e){root.innerHTML='<div class="empty">No he podido mostrar los datos: '+e.message+'</div>'}
 });
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/app/sw.js').catch(()=>{});
-session=loadSession();if(session){$('#customerId').value=session.customerId||'';showApp()}
+session=loadSession();const remembered=savedCustomerId();if(session?.customerId){$('#customerId').value=session.customerId;showApp()}else if(remembered){$('#customerId').value=remembered;$('#rememberMe').checked=true}
