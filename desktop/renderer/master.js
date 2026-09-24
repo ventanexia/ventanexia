@@ -376,6 +376,62 @@
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
+  const PROSPECTING_BRANDS_KEY='vnx_prospecting_brands_by_company_v1';
+  function prospectingCompanyOptions(savedValue=''){
+    const values=[];
+    for(const src of connectedDataSources()){
+      const name=String(src?.name||'').trim();
+      if(name)values.push(name);
+    }
+    const saved=String(savedValue||'').trim();
+    if(saved)values.push(saved);
+    return [...new Set(values)];
+  }
+  function prospectingCompanyFieldHtml(field={},value=''){
+    const options=prospectingCompanyOptions(value);
+    const req=field.required?' <em>obligatorio</em>':'';
+    return '<label class="guided-field"><span>'+escM(field.label||'TU EMPRESA')+req+'</span><select data-guided-field="company" data-prospecting-company>'
+      +'<option value="">Elige una empresa o conexión…</option>'
+      +options.map(x=>'<option value="'+escM(x)+'"'+(String(value)===x?' selected':'')+'>'+escM(x)+'</option>').join('')
+      +'</select><small class="guided-field-note">'+(options.length?'Opciones obtenidas de las conexiones reales activas.':'No hay conexiones de empresa activas. Ve a Conexiones para añadir una.')+'</small></label>';
+  }
+  function prospectingBrandsStore(){
+    try{
+      const x=JSON.parse(localStorage.getItem(PROSPECTING_BRANDS_KEY)||'{}');
+      return x&&typeof x==='object'&&!Array.isArray(x)?x:{};
+    }catch{return {}}
+  }
+  function prospectingCompanyBrandKey(company=''){
+    return String(company||'').trim().toLocaleLowerCase('es-ES');
+  }
+  function prospectingBrandOptions(company='',savedValue=''){
+    const store=prospectingBrandsStore(),key=prospectingCompanyBrandKey(company);
+    const values=Array.isArray(store[key])?store[key].map(x=>String(x||'').trim()).filter(Boolean):[];
+    const saved=String(savedValue||'').trim();
+    if(saved)values.push(saved);
+    return [...new Set(values)].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+  }
+  function prospectingSaveBrand(company='',brand=''){
+    const c=String(company||'').trim(),b=String(brand||'').trim();
+    if(!c||!b)return false;
+    const store=prospectingBrandsStore(),key=prospectingCompanyBrandKey(c);
+    const current=Array.isArray(store[key])?store[key].map(x=>String(x||'').trim()).filter(Boolean):[];
+    if(!current.some(x=>x.localeCompare(b,'es',{sensitivity:'base'})===0))current.push(b);
+    current.sort((a,z)=>a.localeCompare(z,'es',{sensitivity:'base'}));
+    store[key]=current;
+    try{localStorage.setItem(PROSPECTING_BRANDS_KEY,JSON.stringify(store));return true}catch{return false}
+  }
+  function prospectingBrandFieldHtml(field={},company='',value=''){
+    const options=prospectingBrandOptions(company,value),req=field.required?' <em>obligatorio</em>':'';
+    return '<label class="guided-field wide" data-prospecting-brand-field><span>'+escM(field.label||'MARCA QUE QUIERES PROMOCIONAR')+req+'</span>'
+      +'<div class="prospecting-brand-picker"><select data-guided-field="brand" data-prospecting-brand-select>'
+      +'<option value="">'+(company?'Elige una marca…':'Primero elige la empresa…')+'</option>'
+      +options.map(x=>'<option value="'+escM(x)+'"'+(String(value)===x?' selected':'')+'>'+escM(x)+'</option>').join('')
+      +'</select><button type="button" class="btn outline" data-prospecting-add-brand>＋ Añadir marca</button></div>'
+      +'<div class="prospecting-brand-add" data-prospecting-brand-add-box style="display:none"><input type="text" data-prospecting-new-brand placeholder="Nombre real de la marca"><button type="button" class="btn primary" data-prospecting-save-brand>Guardar marca</button><button type="button" class="btn outline" data-prospecting-cancel-brand>Cancelar</button></div>'
+      +'<small class="guided-field-note">'+(company?'Las marcas se guardan dentro de '+escM(company)+'. Añade solo marcas reales que distribuye esa empresa.':'Selecciona primero la empresa para asociar correctamente la marca.')+'</small></label>';
+  }
+
   function agentMetricHtml(key){
     const m=agentMetrics[key];if(!m||!m.connected)return '';
     return '<div class="agent-live-metrics">'
@@ -416,11 +472,27 @@
       automation:'ahorrar tiempo y repetir tareas'
     }[key]||'ayuda para tu negocio';
   }
-  function selectAgentKey(key,{preserve=false}={}){
-    const sel=$m('#chatConnectionSelect');if(!sel)return false;    const value=String(key||'').startsWith('external:')?String(key):'agent:'+key;
-    if(![...sel.options].some(o=>o.value===value))return false;
+  function normalizeAgentSelectorValue(value=''){
+    const v=String(value||'').trim();
+    const m=v.match(/^agent:([^:]+)(?::\d+)?$/);
+    return m?'agent:'+m[1]:v;
+  }
+  function resolveAgentByValue(items=[],value=''){
+    const normalized=normalizeAgentSelectorValue(value);
+    return items.find(x=>chatConnectionValue(x)===normalized)
+      ||(normalized.startsWith('agent:')?items.find(x=>String(x.key||'')===normalized.slice(6)):null)
+      ||(normalized.startsWith('external:')?items.find(x=>x.external&&('external:'+x.externalId)===normalized):null)
+      ||null;
+  }
+  function selectAgentKey(key,{preserve=false,showGuided=true}={}){
+    const sel=$m('#chatConnectionSelect');if(!sel)return false;
+    const wanted=String(key||'').startsWith('external:')?String(key):'agent:'+String(key||'');
+    const option=[...sel.options].find(o=>normalizeAgentSelectorValue(o.value)===normalizeAgentSelectorValue(wanted));
+    if(!option)return false;
     if(preserve)handoffAgentChange=true;
-    sel.value=value;sel.dispatchEvent(new Event('change',{bubbles:true}));
+    sel.value=option.value;
+    sel.dispatchEvent(new Event('change',{bubbles:true}));
+    if(showGuided&&!document.body.classList.contains('vnx-carla-window'))setWorkspaceMode('guided');
     return true;
   }
   function renderGuidedAgentTabs(items,selected){
@@ -435,13 +507,19 @@
     ];
     const visible=groups.map(g=>{const a=items.find(x=>x.key===g.key)||items.find(x=>x.key===g.fallback);return a?{...a,groupName:g.name,groupIcon:g.icon,groupDesc:g.desc}:null}).filter(Boolean);
     root.innerHTML=visible.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.groupIcon||a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.groupName||a.name)+'</b><small>'+escM(a.groupDesc||agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'</button>').join('');
-    $$m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
+    root.onclick=e=>{
+      const btn=e.target.closest('[data-guided-agent]');if(!btn||!root.contains(btn))return;
+      e.preventDefault();selectAgentKey(btn.dataset.guidedAgent,{showGuided:true});
+    };
   }
   function renderGuidedOtherCards(items,selected){
     const root=$m('#guidedOtherCards');if(!root)return;
     const list=items.filter(x=>x.key!==selected?.key).slice(0,5);
     root.innerHTML=list.map(a=>'<button type="button" data-guided-other="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'<i>›</i></button>').join('');
-    $$m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
+    root.onclick=e=>{
+      const btn=e.target.closest('[data-guided-other]');if(!btn||!root.contains(btn))return;
+      e.preventDefault();selectAgentKey(btn.dataset.guidedOther,{showGuided:true});
+    };
   }
   async function refreshGuidedCatalog(){
     const row=$m('#guidedCatalogRow'),txt=$m('#guidedCatalogText');if(!row||row.style.display==='none'||!txt)return;
@@ -513,7 +591,7 @@ function emailListItem(m,i,selected){
       let selected=0,filter='all',search='',topicFilter='all';
       const accountOptions=['Todas las cuentas',...accountNames];
       host.innerHTML='<div class="email-dashboard">'
-        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
+        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><button type="button" class="btn outline email-mark-all-read" data-email-mark-all-read>✓ Marcar todos como leídos</button><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
         +'<div class="email-metric-grid" data-email-metrics></div>'
         +'<div class="email-workspace"><div class="email-category-panel" data-email-topic-tabs></div><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
@@ -610,6 +688,29 @@ function emailListItem(m,i,selected){
       host.querySelectorAll('[data-email-filter]').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.emailFilter;host.querySelectorAll('[data-email-filter]').forEach(x=>x.classList.toggle('active',x===btn));renderList();renderDetail()});
       const searchEl=host.querySelector('[data-email-search]');searchEl.oninput=()=>{search=searchEl.value.trim();renderList();renderDetail()};
       const accountControl=host.querySelector('[data-email-account]');if(accountControl)accountControl.onchange=()=>refreshAccountData();
+      const markAllRead=host.querySelector('[data-email-mark-all-read]');
+      if(markAllRead)markAllRead.onclick=async()=>{
+        const account=String(accountControl?.value||'').trim();
+        const target=account||'todas las cuentas conectadas';
+        if(!confirm('¿Marcar como leídos en Gmail todos los correos sin leer de '+target+'?'))return;
+        const old=markAllRead.textContent;markAllRead.disabled=true;markAllRead.textContent='Marcando en Gmail…';
+        try{
+          const result=await window.vnx.emailMarkAllRead(account?{account}:{});
+          await refreshAccountData();
+          await refreshAgentMetrics();
+          if(!result?.ok&&result?.errors?.length){
+            markAllRead.textContent=result.partial?'Parcial · revisar':'No completado';
+            alert((result.message||'La acción no se completó en todas las cuentas.')+'\n\n'+result.errors.join('\n'));
+          }else{
+            markAllRead.textContent=(result?.count||0)+' leídos ✓';
+          }
+        }catch(err){
+          alert(err.message||'No se pudieron marcar los correos como leídos en Gmail.');
+          markAllRead.textContent=old;
+        }finally{
+          setTimeout(()=>{if(markAllRead.isConnected){markAllRead.disabled=false;markAllRead.textContent=old}},1800);
+        }
+      };
       await refreshAccountData();
     }catch(err){
       host.innerHTML='<div class="email-dashboard-empty">No he podido cargar la bandeja: '+escM(err.message||err)+'</div>';
@@ -649,7 +750,7 @@ function emailListItem(m,i,selected){
     if(result)result.style.display='none';
     const cfg=guidedConfig('prospecting'),saved=guidedSaved('prospecting');
     const byKey=Object.fromEntries((cfg.fields||[]).map(f=>[f.key,f]));
-    const field=k=>byKey[k]?guidedFieldHtml(byKey[k],saved[k]||''):'';
+    const field=k=>!byKey[k]?'':(k==='company'?prospectingCompanyFieldHtml(byKey[k],saved[k]||''):k==='brand'?prospectingBrandFieldHtml(byKey[k],saved.company||'',saved[k]||''):guidedFieldHtml(byKey[k],saved[k]||''));
     if(host)host.innerHTML=
       '<div class="prospecting-dashboard">'
       +'<section class="prospecting-hero">'
@@ -678,7 +779,51 @@ function emailListItem(m,i,selected){
     if(consent)consent.style.display='flex';
     if(cat)cat.style.display='flex';
     if(summary)summary.style.display='none';
-    $$m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+    const bindProspectingFields=()=>{
+      $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+      const company=$m('[data-prospecting-company]'),brandField=$m('[data-prospecting-brand-field]');
+      const rebuildBrand=()=>{
+        if(!brandField)return;
+        const current=String($m('[data-prospecting-brand-select]')?.value||'').trim();
+        const companyValue=String(company?.value||'').trim();
+        brandField.outerHTML=prospectingBrandFieldHtml(byKey.brand||{},companyValue,current);
+        bindBrandButtons();
+        guidedRead('prospecting');
+      };
+      const bindBrandButtons=()=>{
+        const add=$m('[data-prospecting-add-brand]'),box=$m('[data-prospecting-brand-add-box]'),input=$m('[data-prospecting-new-brand]'),save=$m('[data-prospecting-save-brand]'),cancel=$m('[data-prospecting-cancel-brand]');
+        if(add)add.onclick=()=>{
+          const companyValue=String($m('[data-prospecting-company]')?.value||'').trim();
+          if(!companyValue){alert('Primero elige la empresa a la que pertenece la marca.');return}
+          if(box)box.style.display='flex';
+          if(input){input.value='';input.focus()}
+        };
+        if(cancel)cancel.onclick=()=>{if(box)box.style.display='none';if(input)input.value=''};
+        if(save)save.onclick=()=>{
+          const companyValue=String($m('[data-prospecting-company]')?.value||'').trim(),brand=String(input?.value||'').trim();
+          if(!companyValue){alert('Primero elige la empresa.');return}
+          if(!brand){alert('Escribe el nombre real de la marca.');return}
+          if(!prospectingSaveBrand(companyValue,brand)){alert('No se ha podido guardar la marca.');return}
+          const field=$m('[data-prospecting-brand-field]');
+          if(field)field.outerHTML=prospectingBrandFieldHtml(byKey.brand||{},companyValue,brand);
+          bindBrandButtons();
+          const brandSel=$m('[data-prospecting-brand-select]');if(brandSel){brandSel.value=brand;brandSel.addEventListener('input',()=>guidedRead('prospecting'))}
+          guidedRead('prospecting');
+        };
+        const brandSel=$m('[data-prospecting-brand-select]');
+        if(brandSel)brandSel.addEventListener('input',()=>guidedRead('prospecting'));
+      };
+      if(company)company.onchange=()=>{
+        const data=guidedRead('prospecting');
+        const oldBrand=String(data.brand||'').trim();
+        const field=$m('[data-prospecting-brand-field]');
+        if(field)field.outerHTML=prospectingBrandFieldHtml(byKey.brand||{},company.value,'');
+        bindBrandButtons();
+        if(oldBrand)guidedSave('prospecting',{...guidedSaved('prospecting'),company:company.value,brand:''});
+      };
+      bindBrandButtons();
+    };
+    bindProspectingFields();
     const email=$m('[data-guided-field="email"]');if(email&&!email.value){const e=(runtimeConnections||[]).find(x=>(x.module||x.key)==='email');if(e)email.value=e.label||''}
     refreshGuidedCatalog();
   }
@@ -1537,10 +1682,9 @@ function emailListItem(m,i,selected){
       document.body.classList.add('vnx-detached-workbench','vnx-carla-window','vnx-focus-chat');
       document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
       $m('#chat')?.classList.add('active');
-      localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
-      const savedAgent=localStorage.getItem('vnx_master_chat_agent')||'agent:core_ai';
-      if(!savedAgent)localStorage.setItem('vnx_master_chat_agent','agent:core_ai');
-      setTimeout(()=>{setWorkspaceMode(savedAgent==='agent:email'?'guided':'free');},0);
+      const savedAgent=normalizeAgentSelectorValue(localStorage.getItem('vnx_master_chat_agent')||'agent:core_ai');
+      if(!localStorage.getItem('vnx_master_chat_agent'))localStorage.setItem('vnx_master_chat_agent',savedAgent);
+      setTimeout(()=>{setWorkspaceMode('free');},0);
     }
     const stored=Number(localStorage.getItem('vnx_ui_zoom')||1.1);
     setUiZoom(detached?Math.max(1.1,stored):stored);
@@ -1728,7 +1872,7 @@ function emailListItem(m,i,selected){
     for(const p of masterPortals||[]){
       const url=String(p.url||p.lastUrl||'').toLowerCase();
       const shopifyAdmin=/^https:\/\/admin\.shopify\.com\//.test(url)||(/\.myshopify\.com\//.test(url)&&(/\/admin(?:\/|$)/.test(url)||/\/settings(?:\/|$)/.test(url)));
-      if(!shopifyAdmin&&['read','write'].includes(p.mode))out.push({type:'portal',id:p.id,name:p.name,url:p.url});
+      if(!shopifyAdmin&&['read','write'].includes(p.mode)&&p.lastStatus==='connected')out.push({type:'portal',id:p.id,name:p.name,url:p.url});
     }
     const labels={email:'Email',whatsapp:'WhatsApp Business',social:'Redes sociales',prospecting:'Buscar clientes',crm:'Ventas y clientes',shopify:'Shopify',wordpress:'WordPress / WooCommerce',github_vercel:'GitHub / Vercel'};
     for(const x of runtimeConnections||[]){
@@ -1799,7 +1943,6 @@ function emailListItem(m,i,selected){
   function chatConnectionValue(x){
     if(!x?.key)return '';
     if(x.external)return 'external:'+x.externalId;
-    if(x.key==='email'&&Number.isInteger(x.accountIndex))return 'agent:email:'+x.accountIndex;
     return 'agent:'+x.key;
   }
   function sourceScope(source){
@@ -1814,19 +1957,24 @@ function emailListItem(m,i,selected){
   function refreshAgentSourceSelector(agent){
     const wrap=$m('#chatSourceWrap'),sel=$m('#chatSourceSelect'),secondWrap=$m('#chatSourceSecondWrap'),second=$m('#chatSourceSecondSelect'),hint=$m('#chatSourceHint');if(!wrap||!sel)return;
     const sources=sourcesForAgent(agent);
-    if(!sources.length){wrap.style.display='none';if(secondWrap)secondWrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';return}
+    if(!sources.length){wrap.style.display='none';if(secondWrap)secondWrap.style.display='none';if(hint)hint.style.display='none';sel.innerHTML='<option value=""></option>';sel.dataset.agent='';sel.dataset.sourceId='';return}
     wrap.style.display='grid';if(hint)hint.style.display='block';
-    const prev=sel.dataset.agent===agent.key?sel.value:'',prevSecond=second&&second.dataset.agent===agent.key?second.value:'';
+    const prevId=sel.dataset.agent===agent.key?sel.dataset.sourceId:'',prevSecondId=second&&second.dataset.agent===agent.key?second.dataset.sourceId:'';
     sel.innerHTML='<option value="">Elige una conexión…</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
     sel.dataset.agent=agent.key;
-    if(prev&&[...sel.options].some(o=>o.value===prev))sel.value=prev;else sel.value='';
+    let firstIndex=prevId?sources.findIndex(x=>String(x.id||x.label)===prevId):-1;
+    if(firstIndex<0&&sources.length===1)firstIndex=0;
+    sel.value=firstIndex>=0?String(firstIndex):'';
+    sel.dataset.sourceId=firstIndex>=0?String(sources[firstIndex].id||sources[firstIndex].label):'';
     if(second&&secondWrap){
       secondWrap.style.display=sources.length>1?'grid':'none';
       second.innerHTML='<option value="">No combinar</option>'+sources.map((x,i)=>'<option value="'+i+'">'+escM(x.label)+'</option>').join('');
       second.dataset.agent=agent.key;
-      if(prevSecond&&[...second.options].some(o=>o.value===prevSecond))second.value=prevSecond;else second.value='';
+      const secondIndex=prevSecondId?sources.findIndex(x=>String(x.id||x.label)===prevSecondId):-1;
+      second.value=secondIndex>=0?String(secondIndex):'';
+      second.dataset.sourceId=secondIndex>=0?String(sources[secondIndex].id||sources[secondIndex].label):'';
     }
-    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré únicamente esta conexión.';
+    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré automáticamente esta única conexión: '+sources[0].label+'.';
   }
   function agentStatusText(x){
     if(x?.external)return '🟢 Agente propio conectado';
@@ -1882,7 +2030,7 @@ function emailListItem(m,i,selected){
     const sel=$m('#chatConnectionSelect'),hint=$m('#chatConnectionHint');if(!sel)return;
     await refreshRuntimeConnections();
     await refreshAgentMetrics();
-    const items=chatConnections(),previous=sel.value,saved=localStorage.getItem('vnx_master_chat_agent')||'';
+    const items=chatConnections(),previous=normalizeAgentSelectorValue(sel.value),saved=normalizeAgentSelectorValue(localStorage.getItem('vnx_master_chat_agent')||'');
     sel.innerHTML='<option value="">Elige un agente…</option>'+items.map(x=>'<option value="'+escM(chatConnectionValue(x))+'">'+escM(agentDisplayName(x)+' — '+agentStatusText(x))+'</option>').join('');
     const values=[...sel.options].map(o=>o.value);
     if(previous&&values.includes(previous))sel.value=previous;
@@ -1907,7 +2055,7 @@ function emailListItem(m,i,selected){
       handoffAgentChange=false;
       activeAgentValue=nextValue;
       if(nextValue)localStorage.setItem('vnx_master_chat_agent',nextValue);
-      const chosen=items.find(x=>chatConnectionValue(x)===nextValue);
+      const chosen=resolveAgentByValue(chatConnections(),nextValue);
       updateAgentHint(chosen,hint);
       updateAgentInputExample(chosen);
       renderGuidedAgentTabs(items,chosen);
@@ -1917,7 +2065,7 @@ function emailListItem(m,i,selected){
       refreshAgentSourceSelector(chosen);
       if(nextValue&&input&&$m('#freeModePanel')?.style.display!=='none')setTimeout(()=>keepChatComposerUsable({focus:true}),30);
     };
-    const selectedAgent=items.find(x=>chatConnectionValue(x)===sel.value);
+    const selectedAgent=resolveAgentByValue(items,sel.value);
     keepChatComposerUsable();
     updateAgentHint(selectedAgent,hint);
     updateAgentInputExample(selectedAgent);
@@ -1937,8 +2085,18 @@ function emailListItem(m,i,selected){
       hint2.textContent=combined?'Combinaré únicamente estas dos conexiones porque tú lo has indicado. No usaré ninguna otra.':'Usaré únicamente la conexión seleccionada.';
       keepChatComposerUsable({focus:true});
     };
-    if(sourceSelect)sourceSelect.onchange=()=>updateSourceHint('first');
-    if(sourceSecond)sourceSecond.onchange=()=>updateSourceHint('second');
+    if(sourceSelect)sourceSelect.onchange=()=>{
+      const chosen=resolveAgentByValue(chatConnections(),$m('#chatConnectionSelect')?.value||'');
+      const sources=sourcesForAgent(chosen),src=sourceSelect.value!==''?sources[Number(sourceSelect.value)]:null;
+      sourceSelect.dataset.sourceId=src?String(src.id||src.label):'';
+      updateSourceHint('first');
+    };
+    if(sourceSecond)sourceSecond.onchange=()=>{
+      const chosen=resolveAgentByValue(chatConnections(),$m('#chatConnectionSelect')?.value||'');
+      const sources=sourcesForAgent(chosen),src=sourceSecond.value!==''?sources[Number(sourceSecond.value)]:null;
+      sourceSecond.dataset.sourceId=src?String(src.id||src.label):'';
+      updateSourceHint('second');
+    };
     renderHomeAgents(items);
     renderConnectionAgentCards(items);
     if($m('#masterSourceSelect'))renderMasterCenterSources();
@@ -1946,7 +2104,7 @@ function emailListItem(m,i,selected){
   window.vnxRefreshAgentUi=refreshChatConnections;
   function selectedChatScope(){
     const sel=$m('#chatConnectionSelect'),items=chatConnections();if(!sel||!sel.value)return null;
-    const item=items.find(x=>chatConnectionValue(x)===sel.value);if(!item)return null;
+    const item=resolveAgentByValue(items,sel.value);if(!item)return null;
     if(item.external)return {type:'external_agent',id:item.externalId,key:item.key,name:agentDisplayName(item),included:true,connected:true,ready:true};
     const sources=sourcesForAgent(item),sourceSel=$m('#chatSourceSelect'),secondSel=$m('#chatSourceSecondSelect'),choice=sourceSel&&sourceSel.dataset.agent===item.key?sourceSel.value:'',secondChoice=secondSel&&secondSel.dataset.agent===item.key?secondSel.value:'';
     const base={type:'agent',key:item.key,name:agentDisplayName(item),included:item.included,connected:item.connected,ready:item.ready,source:item.source||null,accountIndex:Number.isInteger(item.accountIndex)?item.accountIndex:null};
@@ -2188,30 +2346,36 @@ function emailListItem(m,i,selected){
     const get=(row,name)=>{const i=idx(name);return i>=0?row[i]:''};
     const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
     const fmt=v=>n(v).toLocaleString('es-ES',{maximumFractionDigits:2});
-    const totalUnits=rows.reduce((sum,row)=>sum+(typeof get(row,'cantidad_a_pedir')==='number'?n(get(row,'cantidad_a_pedir')):n(get(row,'cantidad_a_pedir'))),0);
-    const noStock=rows.filter(row=>/SIN STOCK/i.test(String(get(row,'estado')||''))||n(get(row,'stock_actual'))<=0).length;
-    const risk=Math.max(0,rows.length-noStock);
+    const ordered=[...rows].sort((a,b)=>{
+      const am=String(get(a,'fabricante')||'').trim(),bm=String(get(b,'fabricante')||'').trim();
+      if(am&&!bm)return -1;if(!am&&bm)return 1;
+      const m=am.localeCompare(bm,'es',{sensitivity:'base'});if(m)return m;
+      return String(get(a,'producto')||'').localeCompare(String(get(b,'producto')||''),'es',{sensitivity:'base'});
+    });
+    const totalUnits=ordered.reduce((sum,row)=>sum+n(get(row,'cantidad_a_pedir')),0);
+    const noStock=ordered.filter(row=>/SIN STOCK/i.test(String(get(row,'estado')||''))||n(get(row,'stock_actual'))<=0).length;
+    const risk=Math.max(0,ordered.length-noStock);
     const source=msg.stockSourceLabel||'Conexión seleccionada';
     const date=msg.purchaseAnalyzedAt?purchaseAnalysisDateLabel(msg.purchaseAnalyzedAt):'Ahora';
-    const tableRows=rows.slice(0,200).map(row=>{
-      const code=String(get(row,'sku')||get(row,'ean')||'—'),product=String(get(row,'producto')||'Producto');
+    const tableRows=ordered.map(row=>{
+      const manufacturer=String(get(row,'fabricante')||'—'),sku=String(get(row,'sku')||'—'),ean=String(get(row,'ean')||'—'),product=String(get(row,'producto')||'Producto');
       const stock=get(row,'stock_actual'),sold=get(row,'ventas_180_dias'),coverage=get(row,'dias_cobertura'),qty=get(row,'cantidad_a_pedir'),state=String(get(row,'estado')||'REVISAR');
       const cls=/SIN STOCK/i.test(state)?'danger':/ROTURA|REVISAR/i.test(state)?'warning':'ok';
       const qtyText=typeof qty==='number'||/^\d+(?:[.,]\d+)?$/.test(String(qty))?fmt(qty):escM(qty||'—');
-      return '<tr><td><strong>'+escM(product)+'</strong><small>'+escM(code)+'</small></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
+      return '<tr><td>'+escM(manufacturer)+'</td><td>'+escM(sku)+'</td><td>'+escM(ean)+'</td><td><strong>'+escM(product)+'</strong></td><td>'+fmt(stock)+'</td><td>'+fmt(sold)+'</td><td>'+(coverage===''?'—':escM(String(coverage)))+'</td><td class="purchase-qty">'+qtyText+'</td><td><span class="purchase-status '+cls+'">'+escM(state)+'</span></td></tr>';
     }).join('');
     return '<div class="vnx-purchase-panel">'
       +'<div class="vnx-purchase-head"><div><span class="vnx-purchase-kicker">STOCK Y COMPRAS</span><h3>Qué necesitas comprar ahora</h3><p>Fuente: <b>'+escM(source)+'</b> · análisis: '+escM(date)+'</p></div><span class="vnx-purchase-source">● Datos verificados</span></div>'
       +'<div class="vnx-purchase-metrics">'
-      +'<article><span>Productos a comprar</span><b>'+rows.length+'</b><small>referencias</small></article>'
+      +'<article><span>Productos a comprar</span><b>'+ordered.length+'</b><small>referencias</small></article>'
       +'<article><span>Sin stock</span><b>'+noStock+'</b><small>acción inmediata</small></article>'
       +'<article><span>Riesgo de rotura</span><b>'+risk+'</b><small>menos de 5 días / revisar</small></article>'
       +'<article><span>Unidades propuestas</span><b>'+fmt(totalUnits)+'</b><small>según el análisis</small></article>'
       +'</div>'
-      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
-      +(tableRows||'<tr><td colspan="6" class="purchase-empty">No hay referencias que necesiten compra ahora.</td></tr>')
+      +'<div class="vnx-purchase-table-wrap"><table class="vnx-purchase-table"><thead><tr><th>Fabricante</th><th>SKU</th><th>EAN</th><th>Producto</th><th>Stock</th><th>Ventas 6 meses</th><th>Cobertura</th><th>A comprar</th><th>Estado</th></tr></thead><tbody>'
+      +(tableRows||'<tr><td colspan="9" class="purchase-empty">No hay referencias que necesiten compra ahora.</td></tr>')
       +'</tbody></table></div>'
-      +(rows.length>200?'<div class="vnx-purchase-foot">Mostrando 200 de '+rows.length+' referencias. El Excel y CSV incluyen el pedido completo.</div>':'')
+      +'<div class="vnx-purchase-foot">Ordenado por fabricante. Fabricante y EAN solo aparecen cuando la fuente los proporciona; nunca se inventan.</div>'
       +'</div>';
   }
 
@@ -2296,11 +2460,11 @@ function emailListItem(m,i,selected){
         const sourceLabel=masterMessages[msgIndex]?.stockSourceLabel||'Archivo de stock y ventas';
         const reply=shopifyStockTable({...summary,sourceLabel});
         const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-          String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+          String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
           Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
           Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
         ]);
-        const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+        const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
         const importScopeKey=masterMessages[msgIndex]?.scopeKey||'stock-import',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
         masterMessages.push({role:'assistant',content:reply,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,scopeKey:importScopeKey});
         await rememberPurchaseAnalysis(importScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
@@ -2630,13 +2794,22 @@ function emailListItem(m,i,selected){
     }
     return lines.join('\n');
   }
+  function realManufacturer(row={}){
+    return String(row?.manufacturer||'').trim();
+  }
+  function stockManufacturerSort(a,b){
+    const am=realManufacturer(a),bm=realManufacturer(b);
+    if(am&&!bm)return -1;
+    if(!am&&bm)return 1;
+    const byManufacturer=am.localeCompare(bm,'es',{sensitivity:'base'});
+    if(byManufacturer)return byManufacturer;
+    return String(a?.product||'').localeCompare(String(b?.product||''),'es',{sensitivity:'base'});
+  }
   function shopifyStockTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
     const targetDays=Number(summary.targetDays||20);
-    const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData))
-      .sort((a,b)=>Number(a.daysRemaining??999999)-Number(b.daysRemaining??999999)||Number(a.stock||0)-Number(b.stock||0)||String(a.product||'').localeCompare(String(b.product||'')));
+    const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
-    const ref=r=>r.sku||r.ean||'—';
     const coverage=r=>r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
     const qtyLabel=r=>Number(r.qty||0)>0?fmt(r.qty):(Number(r.stock||0)<=0&&r.noSalesData?'Revisar':'0');
     const status=r=>{
@@ -2645,12 +2818,16 @@ function emailListItem(m,i,selected){
       return '🟡 REPONER · < '+targetDays+' DÍAS';
     };
     const label=summary.sourceLabel||summary.shop||'Shopify';
-    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|'];
-    for(const r of toBuy){const product=String(r.product||'').replace(/\|/g,'/');lines.push('| '+ref(r)+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |')}
-    if(!toBuy.length)lines.push('| — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
+    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|'];
+    for(const r of toBuy){
+      const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
+      lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |');
+    }
+    if(!toBuy.length)lines.push('| — | — | — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
     const units=toBuy.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=toBuy.filter(r=>Number(r.stock||0)<=0).length,under5=toBuy.filter(r=>Number(r.stock||0)>0&&r.urgent).length,normal=toBuy.filter(r=>Number(r.stock||0)>0&&!r.urgent).length;
     lines.push('','**Resumen del pedido:** '+toBuy.length+' referencias · '+zero+' sin stock · '+under5+' urgentes (<5 días) · '+normal+' a reponer para completar '+targetDays+' días · '+fmt(units)+' unidades calculadas.');
     lines.push('**Fórmula:** media diaria = ventas de '+(summary.windowDays||180)+' días ÷ '+(summary.windowDays||180)+'; stock objetivo = media diaria × '+targetDays+'; cantidad a pedir = stock objetivo − stock actual, redondeando hacia arriba.');
+    lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. VentaNexIA no los deduce ni los inventa.');
     if(toBuy.some(r=>Number(r.stock||0)<=0&&r.noSalesData))lines.push('⚠️ Las referencias agotadas sin ventas registradas aparecen como **Revisar**, sin inventar una cantidad.');
     if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar el histórico; puede no ser exhaustivo.');
     if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
@@ -2659,32 +2836,33 @@ function emailListItem(m,i,selected){
   }
   function stockInventoryTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const ordered=[...rows].sort((a,b)=>Number(a.stock||0)-Number(b.stock||0)||String(a.product||'').localeCompare(String(b.product||'')));
+    const ordered=[...rows].sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
     const label=summary.sourceLabel||summary.shop||'Fuente seleccionada';
     const hasStructuredSales=summary.structuredSales!==false;
-    const visible=ordered.slice(0,250);
-    const lines=['# Stock actual · '+label,'','**Referencias leídas:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Código | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---:|---:|---:|---|'];
-    for(const r of visible){
-      const code=r.sku||r.ean||'—',product=String(r.product||'').replace(/\|/g,'/');
+    const lines=['# Stock actual · '+label,'','**Referencias leídas del catálogo:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---|---|---:|---:|---:|---|'];
+    for(const r of ordered){
+      const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
       const sold=hasStructuredSales?fmt(r.soldWindow):'—';
       const coverage=hasStructuredSales?(r.daysRemaining==null?'Sin ventas':String(r.daysRemaining)):'—';
       const state=Number(r.stock||0)<=0?'🔴 Sin stock':r.urgent?'🟠 Menos de 5 días':'🟢 Disponible';
-      lines.push('| '+code+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
+      lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
     }
-    if(!visible.length)lines.push('| — | No se han recibido referencias de stock | — | — | — | — |');
-    if(rows.length>visible.length)lines.push('','**Mostrando '+visible.length+' de '+rows.length+' referencias en pantalla.** El Excel/CSV incluye el listado completo.');
+    if(!ordered.length)lines.push('| — | — | — | No se han recibido referencias de stock | — | — | — | — |');
     const zero=rows.filter(r=>Number(r.stock||0)<=0).length,urgent=rows.filter(r=>r.urgent&&Number(r.stock||0)>0).length;
     lines.push('','**Resumen:** '+zero+' sin stock · '+urgent+' con menos de 5 días de cobertura · '+Math.max(0,rows.length-zero-urgent)+' con stock sin alerta.');
+    lines.push('**Orden:** fabricante alfabético y, dentro de cada fabricante, producto.');
+    lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. Si faltan, aparece “—”; nunca se infieren por el nombre del producto.');
     if(!hasStructuredSales)lines.push('⚠️ Esta conexión ha proporcionado existencias, pero no un histórico de ventas estructurado suficiente; por eso Ventas 6 meses y Cobertura aparecen como “—”.');
     return lines.join('\n');
   }
   function stockExportData(summary={}){
     const hasStructuredSales=summary.structuredSales!==false;
+    const ordered=[...(summary.rows||[])].sort(stockManufacturerSort);
     return {
-      headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
-      rows:(summary.rows||[]).map(r=>[
-        String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),
+      headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
+      rows:ordered.map(r=>[
+        String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),
         hasStructuredSales?Number(r.soldWindow||0):'',hasStructuredSales?Number(r.avgDaily||0):'',
         hasStructuredSales?(r.daysRemaining==null?'':Number(r.daysRemaining)):'',
         Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <5 DIAS':'DISPONIBLE'
@@ -2727,6 +2905,12 @@ function emailListItem(m,i,selected){
     const rows=Array.isArray(data.rows)?data.rows:[];
     const idx=n=>headers.indexOf(n),at=(r,n)=>{const i=idx(n);return i>=0?r[i]:''};
     const fmt=n=>{const v=Number(n);return Number.isFinite(v)?v.toLocaleString('es-ES',{maximumFractionDigits:3}):String(n??'—')};
+    const ordered=[...rows].sort((a,b)=>{
+      const am=String(at(a,'fabricante')||'').trim(),bm=String(at(b,'fabricante')||'').trim();
+      if(am&&!bm)return -1;if(!am&&bm)return 1;
+      const m=am.localeCompare(bm,'es',{sensitivity:'base'});if(m)return m;
+      return String(at(a,'producto')||'').localeCompare(String(at(b,'producto')||''),'es',{sensitivity:'base'});
+    });
     const lines=['# Pedido para Compras · '+sourceLabel,'','**Preparado a partir del último análisis verificado de esta misma fuente.**','**Basado en análisis verificado:** '+purchaseAnalysisDateLabel(analyzedAt)+'.'];
     const stamp=analyzedAt?new Date(analyzedAt):null;
     if(stamp&&!Number.isNaN(stamp.getTime())){
@@ -2736,15 +2920,15 @@ function emailListItem(m,i,selected){
         lines.push('⚠️ **Este análisis tiene '+ageLabel+'.** El pedido sigue disponible, pero puedes pedirme **“actualiza el stock”** antes de enviarlo si quieres trabajar con existencias más recientes.');
       }
     }
-    lines.push('','| Código | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---:|---:|---:|---:|---:|---|');
+    lines.push('','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|');
     let units=0;
-    for(const r of rows){
-      const sku=at(r,'sku')||at(r,'ean')||'—',product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
+    for(const r of ordered){
+      const manufacturer=String(at(r,'fabricante')||'—').replace(/\|/g,'/'),sku=String(at(r,'sku')||'—').replace(/\|/g,'/'),ean=String(at(r,'ean')||'—').replace(/\|/g,'/'),product=String(at(r,'producto')||'—').replace(/\|/g,'/'),stock=at(r,'stock_actual'),sold=at(r,'ventas_180_dias'),avg=at(r,'media_diaria'),days=at(r,'dias_cobertura')===''?'Sin ventas':at(r,'dias_cobertura'),qty=at(r,'cantidad_a_pedir'),status=at(r,'estado')||'REPOSICIÓN';
       if(Number.isFinite(Number(qty)))units+=Math.max(0,Number(qty));
-      lines.push('| '+sku+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
+      lines.push('| '+manufacturer+' | '+sku+' | '+ean+' | '+product+' | '+fmt(stock)+' | '+fmt(sold)+' | '+fmt(avg)+' | '+fmt(days)+' | '+fmt(qty)+' | '+status+' |');
     }
-    if(!rows.length)lines.push('| — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
-    lines.push('','**Resumen del pedido:** '+rows.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 20 días cuando existe histórico suficiente.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
+    if(!ordered.length)lines.push('| — | — | — | No hay referencias pendientes en el último análisis | — | — | — | — | — | 🟢 Correcto |');
+    lines.push('','**Resumen del pedido:** '+ordered.length+' referencias · '+fmt(units)+' unidades calculadas para pedir.','**Criterio:** stock 0 o riesgo de rotura en menos de 5 días; reposición hasta aproximadamente 20 días cuando existe histórico suficiente.','**Fabricante y EAN:** solo se usan los valores reales recibidos de la fuente; no se deducen por el nombre del producto.','','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
   function enrichBusinessRequest(text,scope){
@@ -2863,12 +3047,12 @@ function emailListItem(m,i,selected){
             }
             if(summary?.rows&&Array.isArray(summary.rows)){
               const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-                String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+                String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
                 Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),
                 Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
                 Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'URGENTE <5 DIAS':'REPOSICION <20 DIAS'
               ]);
-              const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+              const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               const analyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
               await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,analyzedAt,20);
               const content=purchaseTableFromData(purchaseData,sourceLabel,analyzedAt);
@@ -2898,10 +3082,10 @@ function emailListItem(m,i,selected){
             const combined=buildCombinedStockSummary(first,second,combinedSources);
             const content=combinedStockTable(combined);
             const purchaseRows=(combined.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-              String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),Number(r.qty||0),
+              String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),Number(r.qty||0),
               r.supplierStock==null?'':Number(r.supplierStock),Number(r.supplierCanSupply||0),String(r.supplyStatus||'')
             ]);
-            const purchaseData={headers:['sku','ean','producto','stock_propio','ventas_180_dias','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
+            const purchaseData={headers:['sku','ean','fabricante','producto','stock_propio','ventas_180_dias','cantidad_necesaria','stock_proveedor','cantidad_servible','estado_proveedor'],rows:purchaseRows};
             const sourceLabel=combined.sourceLabel,purchaseAnalyzedAt=combined.generatedAt;
             masterMessages.push({role:'assistant',content,purchaseExport:true,purchaseData,stockSourceLabel:sourceLabel,purchaseAnalyzedAt,purchaseTargetDays:20,scopeKey:activeScopeKey});
             await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt,20);
@@ -2922,6 +3106,7 @@ function emailListItem(m,i,selected){
           const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
             String(r.sku||''),
             String(r.ean||''),
+            realManufacturer(r),
             String(r.product||''),
             Number(r.stock||0),
             Number(r.soldWindow||0),
@@ -2931,7 +3116,7 @@ function emailListItem(m,i,selected){
             r.urgent?'URGENTE <5 DIAS':'REPOSICION'
           ]);
           const purchaseData={
-            headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
+            headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
             rows:purchaseRows
           };
           const sourceLabel=summary.sourceLabel||summary.shop||scope?.name||'Shopify',purchaseAnalyzedAt=summary.generatedAt||summary.at||new Date().toISOString();
@@ -2958,11 +3143,11 @@ function emailListItem(m,i,selected){
               const portalSummary={...summary,sourceLabel};
               const reply=stockListing?stockInventoryTable(portalSummary):shopifyStockTable(portalSummary);
               const purchaseRows=(summary.rows||[]).filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).map(r=>[
-                String(r.sku||''),String(r.ean||''),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
+                String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),Number(r.soldWindow||0),
                 Number(r.avgDaily||0),r.daysRemaining==null?'':Number(r.daysRemaining),Number(r.qty||0)>0?Number(r.qty||0):(Number(r.stock||0)<=0&&r.noSalesData?'REVISAR':0),
                 Number(r.stock||0)<=0?'SIN STOCK':'ROTURA <5 DIAS'
               ]);
-              const purchaseData={headers:['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
+              const purchaseData={headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],rows:purchaseRows};
               let content=reply;
               if(!summary.structuredSales)content+='\n\n⚠️ **'+sourceLabel+' sí ha proporcionado stock estructurado, pero no he encontrado un histórico de ventas estructurado suficiente.** Los productos con stock 0 son reales; la previsión de rotura <5 días solo puede calcularse cuando la conexión proporciona ventas por referencia.';
               if(summary.cacheHit){const mins=Math.max(1,Math.floor(Number(summary.cacheAgeMs||0)/60000));content+='\n\nℹ️ Datos leídos hace '+mins+' minuto'+(mins===1?'':'s')+'. Di **“actualiza el stock”** si quieres que vuelva a entrar ahora mismo.';}
@@ -2977,6 +3162,8 @@ function emailListItem(m,i,selected){
                 ?'He entrado en **'+sourceLabel+'** pero la página ha devuelto contenido que no he podido procesar'+(summary?.error?' ('+summary.error+')':'')+'.'
                 :summary?.reason==='login_required'
                 ?'La sesión de **'+sourceLabel+'** ha caducado y necesita volver a iniciarse.'
+                :summary?.reason==='catalog_scan_incomplete'
+                ?'He podido leer parte de **'+sourceLabel+'**, pero no he podido verificar el catálogo completo. Para evitar darte una previsión parcial, **no voy a mostrar ese subconjunto como si fueran todos los productos**.'
                 :'He usado la sesión guardada de **'+sourceLabel+'**'+(rehydrated?' y he reconstruido automáticamente su ventana':'')+'. He intentado entrar en **Productos / Stock / Existencias / Inventario**'+(scanPages?' y he revisado '+scanPages+' pantalla'+(scanPages===1?'':'s'):'')+(scanTables?' con '+scanTables+' tablas o rejillas detectadas':'')+', pero todavía no encuentro una combinación verificable de **referencia + existencias**.';
               const next=summary?.reason==='login_required'
                 ?'Te he dejado la conexión preparada para que vuelvas a iniciar sesión.'

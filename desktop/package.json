@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.136",
+  "version": "0.6.137",
   "private": true,
-  "description": "VentaNexIA Desktop · lector Naturdesma ejecutable validado en navegador · 0.6.136",
+  "description": "VentaNexIA Desktop · catálogo completo, agentes sincronizados, Gmail masivo y marcas de captación · 0.6.137",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",

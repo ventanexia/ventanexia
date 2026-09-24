@@ -157,7 +157,7 @@ function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DA
     const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
     const qty=Math.max(0,targetStock-p.stock);
     const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
-    return {sku:p.sku,ean:p.ean||'',product:p.title,stock:p.stock,soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
+    return {sku:p.sku,ean:p.ean||'',manufacturer:String(p.manufacturer||'').trim(),product:p.title,stock:p.stock,soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
       daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData};
   });
 }
@@ -538,16 +538,19 @@ function chooseLinks(baseUrl,links=[],question=''){
   for(const x of ranked){if(seen.has(x.url))continue;seen.add(x.url);out.push(x);if(out.length>=8)break}
   return out;
 }
-function choosePortalActions(actions=[],question='',allowPaging=false){
+function choosePortalActions(actions=[],question='',allowPaging=false,preferFullCollection=false){
   const terms=queryTerms(question),ranked=[];
   for(const a of actions){
     if(a.disabled||portalActionDangerous(a.text))continue;
-    const hay=norm(a.text),paging=/^(siguiente|next|sig\.?|>+|›|→)$/.test(hay)||/pagina siguiente|next page/.test(hay);
-    let score=paging&&allowPaging?7:0;
+    const hay=norm(a.text);
+    const paging=/^(siguiente|next|sig\.?|>+|›|→|»)$/.test(hay)||/pagina siguiente|next page|cargar mas|mostrar mas|ver mas|load more/.test(hay)||/^(?:pagina\s*)?\d{1,4}$/.test(hay);
+    const reset=/^(todos|todas|all)$/.test(hay)||/todos los productos|todas las referencias|mostrar todos|ver todos|limpiar filtros|quitar filtros|restablecer filtros|sin filtros/.test(hay);
+    let score=paging&&allowPaging?12:0;
+    if(reset&&preferFullCollection)score+=20;
     for(const term of terms)if(hay.includes(term))score+=4;
     if(/producto|articulo|referencia|stock|existencia|inventario|almacen/.test(hay)&&terms.some(t=>['producto','productos','articulo','articulos','referencia','referencias','stock','existencia','existencias','inventario','almacen'].includes(t)))score+=5;
     if(/venta|historico|historial|movimiento/.test(hay)&&terms.some(t=>['venta','ventas','historico','historial','movimientos'].includes(t)))score+=5;
-    if(score>0)ranked.push({...a,score,paging});
+    if(score>0)ranked.push({...a,score,paging,reset});
   }
   return ranked.sort((a,b)=>b.score-a.score);
 }
@@ -565,13 +568,15 @@ function portalPageFingerprint(page){
   return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))+'|'+actions+'|'+body).digest('hex').slice(0,16);
 }
 async function readPortal(portal,question='',preferredUrl=null,existingWin=null,options={}){
-  const maxPages=Math.max(1,Math.min(150,Number(options?.maxPages||PORTAL_MAX_PAGES)));
+  const maxPages=Math.max(1,Math.min(300,Number(options?.maxPages||PORTAL_MAX_PAGES)));
+  const preferFullCollection=Boolean(options?.fullCollection);
+  const startFromBase=Boolean(options?.startFromBase);
   const ownsWindow=!existingWin;
   const win=existingWin||new BrowserWindow(portalWindowOptions(portal,{show:false}));
   if(ownsWindow)win.removeMenu();
   try{
     const preferred=preferredUrl&&sameOrigin(preferredUrl,portal.url)?preferredUrl:null;
-    const start=preferred||portalStartUrl(portal);
+    const start=preferred||(startFromBase?portal.url:portalStartUrl(portal));
     const current=(()=>{try{return win.webContents.getURL()}catch{return ''}})();
     if(ownsWindow||!current){await win.loadURL(start);await delay(1100)}
     else if(preferred&&current!==preferred){await win.loadURL(preferred);await delay(1100)}
@@ -596,9 +601,9 @@ async function readPortal(portal,question='',preferredUrl=null,existingWin=null,
       }
     };
     const exploreActions=async(p,depth=0)=>{
-      if(depth>=6||pages.length>=maxPages)return;
+      if(depth>=maxPages||pages.length>=maxPages)return;
       const allowPaging=(p.tables||[]).some(t=>Array.isArray(t)&&t.length>=2);
-      const ranked=choosePortalActions(p.actions||[],question,allowPaging);
+      const ranked=choosePortalActions(p.actions||[],question,allowPaging,preferFullCollection);
       for(const action of ranked.slice(0,4)){
         const key=portalPageFingerprint(p)+'|'+norm(action.text);
         if(usedActions.has(key))continue;usedActions.add(key);
@@ -639,7 +644,7 @@ async function readPortal(portal,question='',preferredUrl=null,existingWin=null,
     try{await session.fromPartition(partitionFor(portal.id)).cookies.flushStore()}catch{}
     const best=pages.find(p=>(p.tables||[]).some(t=>Array.isArray(t)&&t.length>=2))||pages[0]||first;
     await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:best.url||first.url});
-    return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0)};
+    return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0),limitReached:pages.length>=maxPages};
   }finally{if(ownsWindow&&!win.isDestroyed())win.destroy()}
 }
 function portalTableHeaders(rows=[]){return (rows[0]||[]).map(normStockHeader)}
@@ -659,6 +664,7 @@ function portalNumber(v){
 const PORTAL_STOCK_COLUMNS={
   sku:['sku','referencia','ref','codigo articulo','cod articulo','codigo de articulo','codigo producto','cod producto','codigo','cod. articulo'],
   ean:['ean','ean13','codigo de barras','cod barras','barcode','gtin'],
+  manufacturer:['fabricante','marca','laboratorio','laboratorio fabricante','manufacturer','brand','maker'],
   name:['producto','articulo','nombre','descripcion','denominacion','descripcion articulo','nombre articulo'],
   stock:['stock actual','existencias actuales','existencia actual','stock disponible','existencias disponibles','existencia disponible','existencias','existencia','disponible','disponibilidad','stock fisico','stock físico','existencia fisica','existencia física','unidades disponibles','uds disponibles','cantidad disponible','cantidad actual','unidades','uds','saldo','stock']
 };
@@ -672,10 +678,10 @@ function portalHeaderInfo(table,kind='stock'){
   for(let rowIndex=0;rowIndex<Math.min(6,table.length);rowIndex++){
     const headers=(table[rowIndex]||[]).map(normStockHeader);if(!headers.length)continue;
     if(kind==='stock'){
-      const sku=portalCol(headers,PORTAL_STOCK_COLUMNS.sku),ean=portalCol(headers,PORTAL_STOCK_COLUMNS.ean),name=portalCol(headers,PORTAL_STOCK_COLUMNS.name),stock=portalCol(headers,PORTAL_STOCK_COLUMNS.stock);
+      const sku=portalCol(headers,PORTAL_STOCK_COLUMNS.sku),ean=portalCol(headers,PORTAL_STOCK_COLUMNS.ean),manufacturer=portalCol(headers,PORTAL_STOCK_COLUMNS.manufacturer),name=portalCol(headers,PORTAL_STOCK_COLUMNS.name),stock=portalCol(headers,PORTAL_STOCK_COLUMNS.stock);
       const valid=stock>=0&&(sku>=0||ean>=0);
-      const score=(stock>=0?5:0)+(sku>=0||ean>=0?4:0)+(name>=0?2:0);
-      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,name,stock,score};
+      const score=(stock>=0?5:0)+(sku>=0||ean>=0?4:0)+(name>=0?2:0)+(manufacturer>=0?1:0);
+      if(valid&&(!best||score>best.score))best={headers,rowIndex,sku,ean,manufacturer,name,stock,score};
     }else{
       const sku=portalCol(headers,PORTAL_SALES_COLUMNS.sku),ean=portalCol(headers,PORTAL_SALES_COLUMNS.ean),qty=portalCol(headers,PORTAL_SALES_COLUMNS.qty);
       const valid=qty>=0&&(sku>=0||ean>=0),score=(qty>=0?5:0)+(sku>=0||ean>=0?4:0);
@@ -692,14 +698,27 @@ function extractPortalStockRows(portalResult){
     for(const row of table.slice(info.rowIndex+1)){
       const sku=info.sku>=0?String(row[info.sku]||'').trim():'',ean=info.ean>=0?String(row[info.ean]||'').trim():'';
       const stock=portalNumber(row[info.stock]);if(stock===null||(!sku&&!ean))continue;
+      const manufacturer=info.manufacturer>=0?String(row[info.manufacturer]||'').trim():'';
       const title=info.name>=0?String(row[info.name]||'').trim():(sku||ean);
       if(!title)continue;
       const key=sku||('EAN:'+ean);if(seen.has(key))continue;seen.add(key);
       if(!sourceUrl)sourceUrl=page.url||null;
-      rows.push({sku,ean,title,stock});
+      rows.push({sku,ean,manufacturer,title,stock});
     }
   }
   return {rows,sourceUrl,structuredTables};
+}
+function mergePortalReads(portal,reads=[]){
+  const pages=[],images=[],seen=new Set();let limitReached=false;
+  for(const read of reads||[]){
+    if(!read||read.status!=='connected')continue;
+    limitReached=limitReached||Boolean(read.limitReached);
+    for(const p of read.pages||[]){
+      const fp=portalPageFingerprint(p);if(seen.has(fp))continue;seen.add(fp);pages.push(p);
+    }
+    images.push(...(read.images||[]));
+  }
+  return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0),limitReached};
 }
 function extractPortalSalesRows(portalResult){
   const totals=new Map();let sourceUrl=null,structuredTables=0;
@@ -732,17 +751,29 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
   }
   const liveRead=await readLivePortal(portal);
   if(liveRead?.status==='login_required')return {ok:false,status:'login_required',sourceLabel:portal.name,reason:'login_required',liveWindowChecked:true};
-  let stockRead=liveRead&&liveRead.status==='connected'?liveRead:null;
-  let stockExtract=stockRead?extractPortalStockRows(stockRead):{rows:[],sourceUrl:null,structuredTables:0};
-  let products=stockExtract.rows;
-  let usedLiveWindow=products.length>0;
-  if(!products.length){
-    const persistentWin=livePortalWindow(portal.id);
-    const autoRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||portal.lastUrl||null,persistentWin||null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES});
-    if(autoRead.status!=='connected')return {ok:false,status:autoRead.status,sourceLabel:portal.name,reason:autoRead.status==='read_error'?'read_error':'login_required',error:autoRead.error||null,liveWindowChecked:Boolean(liveRead),autoRehydrated};
-    stockRead=autoRead;
-    stockExtract=extractPortalStockRows(stockRead);products=stockExtract.rows;
+  const stockReads=[];
+  if(liveRead?.status==='connected')stockReads.push(liveRead);
+  const stockCandidates=[];
+  if(portal.stockUrl&&sameOrigin(portal.stockUrl,portal.url))stockCandidates.push({url:portal.stockUrl,startFromBase:false});
+  stockCandidates.push({url:null,startFromBase:true});
+  const seenStockStarts=new Set();
+  let fullStockScanSucceeded=false,lastStockError=null;
+  for(const candidate of stockCandidates){
+    const key=String(candidate.url||'__BASE__');if(seenStockStarts.has(key))continue;seenStockStarts.add(key);
+    try{
+      const scan=await readPortal(portal,'todos los productos catalogo articulos referencias stock existencias inventario almacen fabricante marca ean',candidate.url,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:candidate.startFromBase});
+      if(scan.status==='connected'){stockReads.push(scan);fullStockScanSucceeded=true}
+      else if(scan.status==='login_required')return {ok:false,status:'login_required',sourceLabel:portal.name,reason:'login_required',liveWindowChecked:Boolean(liveRead),autoRehydrated};
+      else lastStockError=scan.error||scan.status;
+    }catch(e){lastStockError=String(e&&e.message||e)}
   }
+  if(!fullStockScanSucceeded){
+    return {ok:false,status:'connected',sourceLabel:portal.name,reason:'catalog_scan_incomplete',error:lastStockError||'No he podido recorrer el catálogo completo.',liveWindowChecked:Boolean(liveRead),autoRehydrated,needsUserNavigation:true};
+  }
+  let stockRead=mergePortalReads(portal,stockReads);
+  let stockExtract=extractPortalStockRows(stockRead);
+  let products=stockExtract.rows;
+  let usedLiveWindow=Boolean(liveRead?.status==='connected');
   if(!products.length){
     const win=livePortalWindow(portal.id);
     let portalOpened=false;
@@ -760,9 +791,19 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
     await patchPortal(portal.id,{stockUrl:stockExtract.sourceUrl});
     portal={...portal,stockUrl:stockExtract.sourceUrl};
   }
-  let salesRead;
-  try{salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias',portal.salesUrl||null,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES})}
-  catch(e){salesRead={name:portal.name,url:portal.url,status:'read_error',mode:portal.mode,pages:[],images:[],error:String(e&&e.message||e).slice(0,300)}}
+  const salesReads=[];
+  const salesCandidates=[];
+  if(portal.salesUrl&&sameOrigin(portal.salesUrl,portal.url))salesCandidates.push({url:portal.salesUrl,startFromBase:false});
+  salesCandidates.push({url:null,startFromBase:true});
+  const seenSalesStarts=new Set();
+  for(const candidate of salesCandidates){
+    const key=String(candidate.url||'__BASE__');if(seenSalesStarts.has(key))continue;seenSalesStarts.add(key);
+    try{
+      const scan=await readPortal(portal,'ventas historico historial movimientos pedidos productos referencias ultimos 6 meses 180 dias',candidate.url,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES,fullCollection:true,startFromBase:candidate.startFromBase});
+      if(scan.status==='connected')salesReads.push(scan);
+    }catch{}
+  }
+  const salesRead=mergePortalReads(portal,salesReads);
   const salesExtract=extractPortalSalesRows(salesRead),sales=salesExtract.totals;
   if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
   const soldFor=p=>{
@@ -775,7 +816,7 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
   const value={
     ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows,
     productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
-    structuredSales:sales.size>0,truncated:false,catalogTruncated:false,
+    structuredSales:sales.size>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
     generatedAt:new Date().toISOString(),
     pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
     tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
@@ -1252,6 +1293,41 @@ ipcMain.handle('email:inbox',async(_e,payload={})=>{
   if(!rows.length){const stale=gmailCacheStale(cacheKey);if(stale)return {...stale,stale:true,errors}}
   return result;
 });
+ipcMain.handle('email:mark-all-read',async(_e,payload={})=>{
+  clearGmailReadCache();
+  const s=await readState();assertAgentIncluded(s.license,'email');
+  const {accounts,requested}=gmailSelectAccounts(s,payload);
+  if(!accounts.length)return {ok:false,count:0,accounts:0,errors:[requested?'No encuentro esa cuenta de Gmail conectada.':'No hay cuentas de Gmail conectadas.']};
+  let count=0,okAccounts=0;const errors=[];
+  for(const integration of accounts){
+    const label=integration.meta?.email||integration.label||integration.account||'Gmail';
+    try{
+      if(!String(integration.token||'').trim()&&!integration.refreshToken)throw new Error('La conexión de Gmail ya no tiene acceso válido.');
+      const refs=await gmailListRefs(integration,'in:inbox is:unread',{maxPages:20});
+      const ids=[...new Set(refs.map(x=>String(x.id||'').trim()).filter(Boolean))];
+      for(let i=0;i<ids.length;i+=1000){
+        const chunk=ids.slice(i,i+1000);
+        if(!chunk.length)continue;
+        await gmailCall(integration,tok=>gmailWrite(tok,'messages/batchModify',{body:{ids:chunk,removeLabelIds:['UNREAD']}}));
+      }
+      const remaining=await countGmailMessages(integration,'in:inbox is:unread');
+      if(remaining>0)throw new Error('Gmail todavía devuelve '+remaining+' correo'+(remaining===1?'':'s')+' sin leer. No voy a mostrar la acción como completada.');
+      count+=ids.length;okAccounts++;
+      await audit('email.mark_all_read',label+' · '+ids.length+' correos marcados como leídos');
+    }catch(e){
+      errors.push(label+': '+String(e?.message||e));
+      await audit('email.mark_all_read_error',label+' · '+String(e?.message||e).slice(0,160));
+    }
+  }
+  clearGmailReadCache();
+  return {
+    ok:errors.length===0&&okAccounts===accounts.length,
+    partial:okAccounts>0&&errors.length>0,
+    count,accounts:okAccounts,errors,
+    message:count?count+' correo'+(count===1?'':'s')+' marcado'+(count===1?'':'s')+' como leído'+(count===1?'':'s')+' en Gmail.':'No había correos sin leer en la bandeja seleccionada.'
+  };
+});
+
 ipcMain.handle('email:sent-body',async(_e,payload={})=>{
   const s=await readState();assertAgentIncluded(s.license,'email');
   const account=String(payload.account||'').trim(),threadId=String(payload.threadId||'').trim();
