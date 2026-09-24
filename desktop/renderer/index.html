@@ -123,10 +123,13 @@
               <section class="vnx-ah-source vnx-ah-panel">
                 <div class="vnx-ah-step-title"><b id="vnxAhSearchTitle">2. Selecciona o genera la lista de contactos</b><small id="vnxAhSearchSub">Puedes usar tus propias listas o pedir a Carla que busque nuevas empresas.</small></div>
                 <div class="vnx-ah-source-tabs" id="vnxAhSourceTabs"><button type="button">▧ Mis listas</button><button class="active" type="button">✦ Buscar con IA</button><button type="button">▤ Desde archivo (Excel/CSV)</button></div>
-                <div class="vnx-ah-search-row"><span>⌕</span><input id="vnxAhSearchInput" placeholder="Ej.: farmacias en Barcelona"><button id="vnxAhSearchBtn" type="button">Buscar</button></div>
+                <div class="vnx-ah-search-row"><span>⌕</span><input id="vnxAhSearchInput" placeholder="Ej.: farmacias en Barcelona"><button id="vnxAhSearchBtn" type="button">Buscar</button><button id="vnxAhGenerateOrder" class="vnx-ah-generate-order" type="button" style="display:none">Generar pedido</button></div>
                 <div class="vnx-ah-filters" id="vnxAhFilters"><label><small>Ubicación</small><select><option>Toda España</option><option>Barcelona</option><option>Madrid</option><option>Valencia</option></select></label><label><small>Sector</small><select><option>Todos</option><option>Farmacias</option><option>Clínicas</option><option>Distribuidores</option></select></label><label><small>Tamaño</small><select><option>Todos</option><option>Pequeña</option><option>Mediana</option><option>Grande</option></select></label><button type="button" id="vnxAhMoreFilters">✦ Más filtros</button></div>
                 <div id="vnxAhStockPolicy" class="vnx-ah-stock-policy" style="display:none">
                   <div class="vnx-ah-stock-policy-head"><div><b>Política de reposición</b><small>Se guarda por empresa/conexión.</small></div><span id="vnxAhStockPolicySource">Sin fuente seleccionada</span></div>
+                  <div class="vnx-ah-stock-source-field">
+                    <label><small>Empresa / conexión a analizar</small><select id="vnxAhStockSourceSelect"><option value="">Selecciona una conexión…</option></select></label>
+                  </div>
                   <div class="vnx-ah-stock-policy-grid">
                     <label><small>Días objetivo de cobertura</small><input id="vnxAhTargetDays" type="number" min="1" max="365" step="1" value="25"></label>
                     <label><small>Stock mínimo sin histórico</small><input id="vnxAhNoHistoryMin" type="number" min="0" max="100000" step="1" value="0"></label>
