@@ -435,12 +435,12 @@ async function extractPage(win){
     for(const el of all('button,[role="button"],[role="menuitem"],[role="tab"],[role="treeitem"],a').slice(0,1600)){
       const text=clean(el.innerText||el.textContent||el.getAttribute('aria-label')||el.getAttribute('title'));
       if(!text||text.length>140)continue;
-      const cs=getComputedStyle(el);if(cs.display==='none'||cs.visibility==='hidden')continue;
+      let cs;try{const vw=el.ownerDocument?.defaultView||window;cs=vw.getComputedStyle(el)}catch{cs=null}if(cs&&(cs.display==='none'||cs.visibility==='hidden'))continue;
       const id='vnx_read_'+(++ai);try{el.setAttribute('data-vnx-read-action',id)}catch{}
       actions.push({id,text,disabled:Boolean(el.disabled||el.getAttribute('aria-disabled')==='true'),href:el.href||''});
     }
     const images=docs.flatMap(d=>[...d.images]).map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);
-    const text=docs.map(d=>String(d.body?.innerText||'')).join('\n').slice(0,160000);return {title:document.title||'',text,links,actions,images,tables:allTables,url:location.href};
+    const text=docs.map(d=>String(d.body?.innerText||'')).join(String.fromCharCode(10)).slice(0,160000);return {title:document.title||'',text,links,actions,images,tables:allTables,url:location.href};
   })()`,true);
 }
 async function extractLivePortalPage(portal){
