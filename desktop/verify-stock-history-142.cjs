@@ -11,8 +11,8 @@ function need(src,re,msg){if(!re.test(src)){console.error('STOCK_HISTORY_142_VER
 function forbid(src,re,msg){if(re.test(src)){console.error('STOCK_HISTORY_142_VERIFY_FAIL:',msg);process.exit(1)}}
 
 // Root cause: historical sales must be searched broadly and matched independently from stock.
-need(backend,/qtyStrong:\\[/,'strong historical-sales quantity aliases missing');
-need(backend,/qtyGeneric:\\[/,'generic quantity aliases for order/invoice history missing');
+need(backend,/qtyStrong:\[/,'strong historical-sales quantity aliases missing');
+need(backend,/qtyGeneric:\[/,'generic quantity aliases for order/invoice history missing');
 need(backend,/fecha pedido|fecha albaran|fecha factura/,'historical date aliases missing');
 need(backend,/pedidos anteriores|albaranes facturas|salidas consumo/,'portal historical-sales navigation terms missing');
 need(backend,/function portalSalesQtyForProduct/,'normalized SKU/EAN/name historical-sales matcher missing');
@@ -26,7 +26,7 @@ need(backend,/salesRowsSeen:/,'sales scan row diagnostics missing');
 need(master,/summary.salesLookReliable===false/,'master chat must check historical-sales reliability');
 need(master,/No he generado un pedido de compra/,'portal chat must refuse a purchase order when history is unread');
 need(master,/Presentar todas como “sin histórico” sería incorrecto/,'portal chat must distinguish unread history from genuine no-history');
-need(home,/summary\\?\\.salesLookReliable===false/,'Stock y compras page must check historical-sales reliability');
+need(home,/summary\?\.salesLookReliable===false/,'Stock y compras page must check historical-sales reliability');
 need(home,/HISTÓRICO NO LEÍDO/,'Stock y compras page must label unread history explicitly');
 need(home,/Histórico de ventas no verificado/,'Stock y compras page must show a visible hard warning');
 need(home,/0 pedidos calculados/,'unverified history must display zero calculated orders');
@@ -34,11 +34,11 @@ need(home,/0 pedidos calculados/,'unverified history must display zero calculate
 // Full policy: sales period and urgency are not hard-coded.
 need(backend,/function normalizeStockPolicy(options={})/,'full stock policy normalizer missing');
 need(backend,/windowDays,urgentDays,urgentAuto/,'sales window and urgency missing from stock policy');
-need(preload,/windowDays:options\\?\\.windowDays,urgentDays:options\\?\\.urgentDays/,'renderer must pass full stock policy through preload');
+need(preload,/windowDays:options\?\.windowDays,urgentDays:options\?\.urgentDays/,'renderer must pass full stock policy through preload');
 need(html,/id="vnxAhSalesWindowDays"/,'sales-window selector missing');
 need(html,/id="vnxAhUrgentDays"/,'urgent-threshold control missing');
-need(home,/windowDays:Math\\.max\\(30/,'sales window must persist per company/source');
-need(home,/urgentDays:Math\\.max\\(0/,'urgent threshold must persist per company/source');
+need(home,/windowDays:Math\.max\(30/,'sales window must persist per company/source');
+need(home,/urgentDays:Math\.max\(0/,'urgent threshold must persist per company/source');
 need(master,/samePurchasePolicy/,'cached purchase analysis must be policy-aware');
 need(desktopMain,/windowDays:windowDays||null,urgentDays:urgentDays||null,noHistoryMin/,'persisted purchase analysis must store the full policy');
 
@@ -50,7 +50,7 @@ need(home,/data-home-stock-retry/,'unverified history must offer a retry action'
 need(home,/data-home-stock-continue/,'unverified history must allow continuing with stock only');
 need(home,/lastStockRun\?\.summary\?\.salesLookReliable!==false/,'Generate order must not reuse an unverified historical result');
 need(home,/Importar ventas Excel/CSV/,'historical-sales import fallback missing');
-need(preload,/stockImportFile:\\(options=\\{\\}\\)=>ipcRenderer\\.invoke\\('stock:import-file',options\\)/,'policy-aware historical-sales import bridge missing');
+need(preload,/stockImportFile:\(options=\{\}\)=>ipcRenderer\.invoke\('stock:import-file',options\)/,'policy-aware historical-sales import bridge missing');
 need(backend,/erp:replenishment-summary/,'ERP replenishment IPC missing');
 need(preload,/erpStatus:/,'ERP status bridge missing');
 need(preload,/erpReplenishmentSummary:/,'ERP replenishment bridge missing');
