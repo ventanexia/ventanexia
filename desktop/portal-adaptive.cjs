@@ -4,6 +4,7 @@ const fs=require('node:fs/promises');
 const crypto=require('node:crypto');
 const {readState,writeState,updateState,audit}=require('./state-store.cjs');
 const {shopifyCall}=require('./shopify-auth.cjs');
+const {getShopifyStore}=require('./shopify-stores.cjs');
 const {gmailFetch,friendlyGmailError}=require('./gmail-auth.cjs');
 
 const CLOUD='https://www.ventanexia.es';
@@ -226,7 +227,7 @@ async function queryIntegrationData(scope,question,state){
 }
 
 async function queryShopifyAdmin(scope,question,state){
-  const cfg=state.secret?.integrations?.shopify;
+  const cfg=getShopifyStore(state,scope?.shop||null);
   if(!cfg?.shop||(!cfg?.token&&cfg?.authMode!=='client_credentials'))return {status:'not_connected',name:'Shopify'};
   const sg=(query,variables)=>shopifyCall(cfg,tok=>shopifyAdminGraphql(cfg.shop,tok,query,variables));
   let category=categoryForQuestion(question);if(category==='invoices')category='orders';
