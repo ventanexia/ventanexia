@@ -130,13 +130,20 @@ const SHOPIFY_SALES_WINDOW_DAYS=180;
 const SHOPIFY_TARGET_COVER_DAYS=25;
 const STOCK_NO_HISTORY_DEFAULT_MIN=0;
 const SHOPIFY_URGENT_DAYS=5;
+function autoUrgentDays(targetDays){
+  return Math.max(3,Math.min(15,Math.round(Number(targetDays||SHOPIFY_TARGET_COVER_DAYS)*0.3)));
+}
 function normalizeStockPolicy(options={}){
   const td=Math.round(Number(options?.targetDays));
   const mn=Math.round(Number(options?.noHistoryMin));
-  return {
-    targetDays:Number.isFinite(td)?Math.max(1,Math.min(365,td)):SHOPIFY_TARGET_COVER_DAYS,
-    noHistoryMin:Number.isFinite(mn)?Math.max(0,Math.min(100000,mn)):STOCK_NO_HISTORY_DEFAULT_MIN
-  };
+  const wd=Math.round(Number(options?.windowDays));
+  const targetDays=Number.isFinite(td)?Math.max(1,Math.min(365,td)):SHOPIFY_TARGET_COVER_DAYS;
+  const noHistoryMin=Number.isFinite(mn)?Math.max(0,Math.min(100000,mn)):STOCK_NO_HISTORY_DEFAULT_MIN;
+  const windowDays=Number.isFinite(wd)?Math.max(30,Math.min(730,wd)):SHOPIFY_SALES_WINDOW_DAYS;
+  const ud=Math.round(Number(options?.urgentDays));
+  const urgentAuto=!Number.isFinite(ud)||ud<=0;
+  const urgentDays=urgentAuto?autoUrgentDays(targetDays):Math.max(1,Math.min(90,ud));
+  return {targetDays,noHistoryMin,windowDays,urgentDays,urgentAuto};
 }
 const SHOPIFY_MAX_ORDERS=5000;
 const SHOPIFY_MAX_PRODUCTS=5000;
@@ -209,38 +216,38 @@ async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WIND
   return {salesBySku,windowDays,ordersSeen,cancelledSkipped,truncated,since};
 }
 
-function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
-  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
+function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN,urgentDays=null}={}){
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin,windowDays,urgentDays});
   return products.map(p=>{
     const hasSkuSale=Boolean(p.sku&&salesBySku.has(p.sku)),hasEanSale=Boolean(p.ean&&salesBySku.has('EAN:'+String(p.ean)));
     const sold=hasSkuSale?Number(salesBySku.get(p.sku)||0):hasEanSale?Number(salesBySku.get('EAN:'+String(p.ean))||0):0;
     const noSalesData=!hasSkuSale&&!hasEanSale;
-    const avgDaily=sold/windowDays;
+    const avgDaily=sold/policy.windowDays;
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
     const targetStock=noSalesData?policy.noHistoryMin:Math.ceil(avgDaily*policy.targetDays);
     const qty=Math.max(0,targetStock-p.stock);
-    const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
+    const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<policy.urgentDays);
     return {
       sku:p.sku,ean:p.ean||'',product:p.title,stock:p.stock,
       soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
       daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),
       qty,urgent,noSalesData,targetStock,
       replenishmentBasis:noSalesData?(policy.noHistoryMin>0?'minimum':'review'):'history',
-      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays
+      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays,windowDays:policy.windowDays,urgentDays:policy.urgentDays
     };
   });
 }
 
-async function shopifyReplenishmentSummary(integration,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
+async function shopifyReplenishmentSummary(integration,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN,windowDays=SHOPIFY_SALES_WINDOW_DAYS,urgentDays=null}={}){
   if(!integration?.shop)throw new Error('Shopify no está conectado.');
-  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
-  const key=String(integration.shop||'')+'|'+policy.targetDays+'|'+policy.noHistoryMin;
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin,windowDays,urgentDays});
+  const key=String(integration.shop||'')+'|'+policy.targetDays+'|'+policy.noHistoryMin+'|'+policy.windowDays+'|'+policy.urgentDays;
   if(!force&&shopifyReplenishmentCache.key===key&&shopifyReplenishmentCache.value&&(Date.now()-shopifyReplenishmentCache.at)<10*60*1000)return shopifyReplenishmentCache.value;
   const catalog=await fetchShopifyProducts(integration);
   const products=catalog.rows.filter(p=>p.sku||p.ean).map(p=>({sku:p.sku||'',ean:p.ean||'',title:p.product+(p.variant&&p.variant!=='Default Title'?' · '+p.variant:''),stock:p.stock,price:p.price,status:p.productStatus}));
-  const history=await fetchShopifySalesBySku(integration);
-  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
-  const value={...history,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
+  const history=await fetchShopifySalesBySku(integration,{windowDays:policy.windowDays});
+  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:policy.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,urgentDays:policy.urgentAuto?null:policy.urgentDays});
+  const value={...history,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentDays,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length,salesLookReliable:true,structuredSales:true};
   shopifyReplenishmentCache={key,at:Date.now(),value};
   return value;
 }
