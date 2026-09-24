@@ -29,8 +29,9 @@ need(home,/Empresa \/ conexión a analizar|vnxAhStockSourceSelect/,'direct stock
 need(master,/fecha venta|fecha pedido|fecha albaran/,'private portal sales date columns missing');
 need(master,/unidades vendidas|cantidad servida/,'private portal sales quantity columns missing');
 need(master,/rowsInWindow/,'six-month sales window metadata missing');
-need(master,/soldWindow:sold/,'sold units must be exposed per SKU/EAN');
-need(master,/noSalesData:\!skuHit&&\!eanHit&&\!nameHit/,'no-history must be distinguished from zero units after SKU, EAN and exact-name matching');
+need(master,/const hit=portalSalesQtyForProduct\(p,sales\)/,'sales must be matched through the normalized SKU/EAN/name resolver');
+need(master,/soldWindow:Number\(hit\.qty\|\|0\)/,'matched sold units must be exposed per product');
+need(master,/noSalesData:!hit\.match/,'no-history must be distinguished from zero units after normalized matching');
 
 // Orders: direct review path.
 need(orders,/async function reviewOrders/,'direct incoming-order snapshot missing');
