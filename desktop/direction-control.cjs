@@ -158,6 +158,76 @@ function delayMinutes(t,now){
   if(t.status==='done'){const done=validDate(t.completedAt);return done&&done>due?minutesBetween(due,done):0}
   return isOverdue(t,now)?minutesBetween(due,now):0;
 }
+
+const ROLE_FAMILIES={
+  email:['Atención al cliente','Administración comercial'],
+  crm:['Comercial / gestión de clientes','Key Account / ventas'],
+  prospecting:['Desarrollo de negocio','Prospección comercial'],
+  content:['Contenido / comunicación','Marketing'],
+  social:['Redes sociales / community management','Marketing digital'],
+  campaigns:['Marketing / campañas','Growth'],
+  orders:['Operaciones / gestión de pedidos','Administración comercial'],
+  web_ecommerce:['Compras / stock / ecommerce','Operaciones'],
+  administration:['Administración / back office','Gestión documental'],
+  agenda:['Coordinación / asistencia de dirección','Administración'],
+  reports:['Control / reporting','Administración analítica'],
+  other:['Funciones transversales']
+};
+function qualitativeFit(mine,areas,now){
+  if(!mine.length)return {
+    strengths:[],frictions:[],possibleMatches:[],interpretation:'No hay suficiente actividad registrada para valorar el encaje del puesto.',
+    confidence:'insuficiente',contextQuestions:['¿Las tareas reales de esta persona están registradas en VentaNexIA?']
+  };
+  const byModule=new Map();
+  for(const t of mine){
+    const key=t.module||'other',x=byModule.get(key)||{module:key,total:0,done:0,onTime:0,human:0,ai:0,blocked:0,withEvidence:0,delay:0};
+    x.total++;
+    if(t.status==='done'){x.done++;if(!completedLate(t))x.onTime++;if(t.completedBy==='human')x.human++;if(t.completedBy==='ai')x.ai++;if(String(t.evidence||t.outcome||'').trim())x.withEvidence++}
+    if(t.status==='blocked')x.blocked++;
+    x.delay+=delayMinutes(t,now);
+    byModule.set(key,x);
+  }
+  const stats=[...byModule.values()].map(x=>({
+    ...x,
+    completionRate:x.total?x.done/x.total:0,
+    onTimeRate:x.done?x.onTime/x.done:0,
+    humanRate:x.done?x.human/x.done:0,
+    evidenceRate:x.done?x.withEvidence/x.done:0,
+    avgDelay:x.total?x.delay/x.total:0,
+    label:MODULE_LABELS[x.module]||x.module
+  }));
+  const enough=stats.filter(x=>x.total>=3);
+  const strong=enough.filter(x=>x.completionRate>=.7&&x.onTimeRate>=.75&&x.ai<=Math.max(1,Math.floor(x.total*.2))).sort((a,b)=>b.onTimeRate-a.onTimeRate||b.total-a.total);
+  const weak=enough.filter(x=>(x.onTimeRate<.55&&x.done>=2)||(x.ai/x.total>=.35)||(x.blocked/x.total>=.35)).sort((a,b)=>(b.ai+b.blocked+b.avgDelay/60)-(a.ai+a.blocked+a.avgDelay/60));
+  const strengths=strong.slice(0,3).map(x=>'Buen desempeño observado en '+x.label+': tareas resueltas mayoritariamente a tiempo y con intervención humana.');
+  const frictions=weak.slice(0,3).map(x=>{
+    const reasons=[];
+    if(x.onTimeRate<.55)reasons.push('cumplimiento de plazo bajo');
+    if(x.ai/x.total>=.35)reasons.push('dependencia frecuente de recuperación por IA');
+    if(x.blocked/x.total>=.35)reasons.push('bloqueos recurrentes');
+    return 'Fricción recurrente en '+x.label+': '+reasons.join(', ')+'.';
+  });
+  const matches=[];
+  for(const x of strong.slice(0,3))for(const role of (ROLE_FAMILIES[x.module]||[]))if(!matches.includes(role))matches.push(role);
+  const contextQuestions=[];
+  if(weak.length){
+    contextQuestions.push('¿Las dificultades se deben a falta de formación, instrucciones poco claras o herramientas insuficientes?');
+    contextQuestions.push('¿La carga de trabajo y los plazos asignados son realistas para esta función?');
+    contextQuestions.push('¿Hay dependencias de terceros o bloqueos ajenos a la persona?');
+  }
+  if(strong.length&&weak.length)contextQuestions.push('¿El puesto actual mezcla tareas de perfiles distintos y convendría concentrar a la persona en las áreas donde muestra mejor encaje?');
+  if(!strong.length&&mine.length<8)contextQuestions.push('¿Hay suficiente volumen de tareas comparables para extraer una conclusión fiable?');
+
+  let interpretation='';
+  if(strong.length&&weak.length)interpretation='Se observa un patrón desigual por tipo de trabajo: la persona responde mejor en '+strong.slice(0,2).map(x=>x.label).join(' y ')+', mientras acumula más fricción en '+weak.slice(0,2).map(x=>x.label).join(' y ')+'. Esto puede indicar un desajuste parcial entre el puesto actual y sus fortalezas, pero también puede deberse a formación, carga, proceso o dependencias.';
+  else if(strong.length)interpretation='Las evidencias disponibles muestran mejor encaje operativo en '+strong.slice(0,3).map(x=>x.label).join(', ')+'. No se observan suficientes señales para afirmar un desajuste relevante en otras áreas.';
+  else if(weak.length)interpretation='Se observan dificultades repetidas en '+weak.slice(0,3).map(x=>x.label).join(', ')+'. Antes de atribuirlas a capacidad personal, Dirección debería revisar formación, carga, instrucciones, herramientas y dependencias.';
+  else interpretation='No hay un patrón suficientemente claro para inferir fortalezas o desajustes de función. Conviene seguir acumulando evidencias de tareas comparables.';
+
+  const confidence=mine.length>=15?'alta':mine.length>=8?'media':'baja';
+  return {strengths,frictions,possibleMatches:matches.slice(0,4),interpretation,confidence,contextQuestions,stats};
+}
+
 function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new Date().toISOString()}={}){
   const fromDate=validDate(from),toDate=validDate(to);
   if(toDate)toDate.setHours(23,59,59,999);
@@ -203,6 +273,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       if(t.status==='done'&&!String(t.evidence||'').trim()&&!String(t.outcome||'').trim())reasons.push('sin evidencia');
       return {taskId:t.id,title:t.title,module:t.module||'other',moduleLabel:MODULE_LABELS[t.module]||t.module||'Otra',status:t.status,dueAt:t.dueAt,completedAt:t.completedAt,lastActivityAt:t.lastActivityAt,completedBy:t.completedBy||'',delayMinutes:delayMinutes(t,now),reasons,outcome:t.outcome||'',evidence:t.evidence||''};
     });
+    const roleFit=qualitativeFit(mine,areas,now);
     return {
       employeeId:emp.id,name:emp.name,role:emp.role,email:emp.email,assigned:mine.length,done:done.length,
       doneHuman:done.filter(t=>t.completedBy==='human').length,doneAI:ai.length,open:open.length,
@@ -210,7 +281,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       deviations:deviations.length,onTimeRate:done.length?Math.round(onTimeDone.length/done.length*100):null,
       aiRecoveryRate:mine.length?Math.round(ai.length/mine.length*100):0,
       averageDelayMinutes:delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0,
-      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples
+      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit
     };
   }).sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
