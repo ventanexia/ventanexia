@@ -1293,6 +1293,41 @@ ipcMain.handle('email:inbox',async(_e,payload={})=>{
   if(!rows.length){const stale=gmailCacheStale(cacheKey);if(stale)return {...stale,stale:true,errors}}
   return result;
 });
+ipcMain.handle('email:mark-all-read',async(_e,payload={})=>{
+  clearGmailReadCache();
+  const s=await readState();assertAgentIncluded(s.license,'email');
+  const {accounts,requested}=gmailSelectAccounts(s,payload);
+  if(!accounts.length)return {ok:false,count:0,accounts:0,errors:[requested?'No encuentro esa cuenta de Gmail conectada.':'No hay cuentas de Gmail conectadas.']};
+  let count=0,okAccounts=0;const errors=[];
+  for(const integration of accounts){
+    const label=integration.meta?.email||integration.label||integration.account||'Gmail';
+    try{
+      if(!String(integration.token||'').trim()&&!integration.refreshToken)throw new Error('La conexión de Gmail ya no tiene acceso válido.');
+      const refs=await gmailListRefs(integration,'in:inbox is:unread',{maxPages:20});
+      const ids=[...new Set(refs.map(x=>String(x.id||'').trim()).filter(Boolean))];
+      for(let i=0;i<ids.length;i+=1000){
+        const chunk=ids.slice(i,i+1000);
+        if(!chunk.length)continue;
+        await gmailCall(integration,tok=>gmailWrite(tok,'messages/batchModify',{body:{ids:chunk,removeLabelIds:['UNREAD']}}));
+      }
+      const remaining=await countGmailMessages(integration,'in:inbox is:unread');
+      if(remaining>0)throw new Error('Gmail todavía devuelve '+remaining+' correo'+(remaining===1?'':'s')+' sin leer. No voy a mostrar la acción como completada.');
+      count+=ids.length;okAccounts++;
+      await audit('email.mark_all_read',label+' · '+ids.length+' correos marcados como leídos');
+    }catch(e){
+      errors.push(label+': '+String(e?.message||e));
+      await audit('email.mark_all_read_error',label+' · '+String(e?.message||e).slice(0,160));
+    }
+  }
+  clearGmailReadCache();
+  return {
+    ok:errors.length===0&&okAccounts===accounts.length,
+    partial:okAccounts>0&&errors.length>0,
+    count,accounts:okAccounts,errors,
+    message:count?count+' correo'+(count===1?'':'s')+' marcado'+(count===1?'':'s')+' como leído'+(count===1?'':'s')+' en Gmail.':'No había correos sin leer en la bandeja seleccionada.'
+  };
+});
+
 ipcMain.handle('email:sent-body',async(_e,payload={})=>{
   const s=await readState();assertAgentIncluded(s.license,'email');
   const account=String(payload.account||'').trim(),threadId=String(payload.threadId||'').trim();
