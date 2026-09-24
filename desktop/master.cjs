@@ -162,6 +162,20 @@ async function fetchShopifyProducts(integration,{maxProducts=SHOPIFY_MAX_PRODUCT
   return {rows,truncated,pages};
 }
 
+function businessSourceRefs(src={}){
+  const raw=src?.raw||{},isPortal=src?.type==='portal'||src?.module==='portal';
+  const prefix=isPortal?'portal:':'connection:';
+  const vals=[src?.id,src?.key,src?.shop,src?.account,src?.label,raw?.id,raw?.key,raw?.shop,raw?.account,raw?.label,raw?.shopName].map(x=>clean(x,260)).filter(Boolean);
+  return new Set(vals.map(v=>prefix+v));
+}
+function assertBusinessSourceCompatibility(profile,sources=[]){
+  const allowed=new Set(Array.isArray(profile?.connectionRefs)?profile.connectionRefs:[]);
+  if(!profile||!allowed.size||!sources.length)return;
+  for(const src of sources){
+    const refs=businessSourceRefs(src),ok=[...refs].some(x=>allowed.has(x));
+    if(!ok)throw new Error('La conexión seleccionada no está asociada a la empresa activa «'+(profile.tradeName||profile.legalName||'Empresa')+'». Cambia de empresa o asocia esta conexión desde Empresa activa → Gestionar perfiles.');
+  }
+}
 async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,maxOrders=SHOPIFY_MAX_ORDERS}={}){
   const since=new Date(Date.now()-windowDays*86400000).toISOString().slice(0,10);
   const salesBySku=new Map();
@@ -1945,6 +1959,8 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   let localContext=[],portalContext=[],portalFiles=[],centralErrors=[];
 
   const explicitSources=Array.isArray(scope?.selectedSources)&&scope.selectedSources.length?scope.selectedSources:(scope?.selectedSource?[scope.selectedSource]:[]);
+  const chatBusinessProfile=activeBusinessProfile(s,payload?.businessProfileId||null);
+  assertBusinessSourceCompatibility(chatBusinessProfile,explicitSources);
   // selected private portal must route through strict source isolation:
   // scope?.selectedSources -> scope?.selectedSource -> src?.module==='portal'||src?.type==='portal'.
   if(scope?.type==='agent'&&scope?.key!=='email'&&explicitSources.length){
