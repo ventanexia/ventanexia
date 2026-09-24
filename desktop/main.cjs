@@ -651,7 +651,8 @@ ipcMain.handle('integration:connect',async(_e,payload={})=>{
     const exists=emailAccountsFromState(preState).some(x=>String(x.meta?.email||x.label||x.account||x.username||'').trim().toLowerCase()===requested&&requested);
     if(!exists)assertConnectionCapacity(preState);
   }else if(preKey==='shopify'){
-    if(!preState.secret?.integrations?.shopify)assertOrderChannelCapacity(preState);
+    const requestedShop=String(payload.shop||payload.account||'').trim();
+    if(!requestedShop||!hasShopifyStore(preState,requestedShop))assertOrderChannelCapacity(preState);
   }else if(preKey&&!preState.secret?.integrations?.[preKey])assertConnectionCapacity(preState);
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   const s=await readState();assertModuleIncluded(s.license,module);
