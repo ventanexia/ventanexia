@@ -3,6 +3,7 @@
   const $m=s=>document.querySelector(s),$$m=s=>[...document.querySelectorAll(s)];
   const escM=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
   let masterPortals=[];
+  let masterErpStatus={connected:false};
   let masterMessages=[];
   const CHAT_STATE_KEY='vnx_master_chat_state_v1';
   const CHAT_DRAFT_KEY='vnx_master_chat_draft_v1';
@@ -1751,6 +1752,7 @@ function emailListItem(m,i,selected){
         try{
           await window.vnx.externalAgentRemove(b.dataset.id);
           await refreshRuntimeConnections();
+    try{masterErpStatus=await window.vnx.erpStatus()||{connected:false}}catch{masterErpStatus={connected:false}}
           await refreshChatConnections();
           await refreshOwnAgentsCard();
           const agentsNow=await window.vnx.externalAgentList()||[];
@@ -2062,6 +2064,9 @@ function emailListItem(m,i,selected){
     if(key==='core_ai'||key==='web_ecommerce'||key==='orders'){
       // Carla, Web y Pedidos muestran explícitamente los portales privados conectados.
       for(const p of masterPortals||[])if(p&&p.id&&['read','write'].includes(p.mode)&&p.lastStatus==='connected')mapped.push({id:p.id,module:'portal',type:'portal',label:p.name||p.url,url:p.url,raw:p});
+    }
+    if((key==='web_ecommerce'||key==='core_ai')&&masterErpStatus?.connected&&masterErpStatus?.hasSalesHistory){
+      mapped.push({id:'erp:'+masterErpStatus.id,module:'erp',type:'erp',label:masterErpStatus.name||'Programa de gestión',raw:{programId:masterErpStatus.id}});
     }
     const seen=new Set();
     return mapped.filter(x=>{const k=(x.module||x.type)+':'+(x.id||x.accountIndex||x.label);if(seen.has(k))return false;seen.add(k);return true});
@@ -2888,6 +2893,11 @@ function emailListItem(m,i,selected){
       if(r?.salesLookReliable===false)throw new Error(sourceLabelOf(src)+': he leído '+Number(r.productsSeen||r.rows?.length||0)+' referencias de stock, pero 0 han casado con el histórico de ventas. No voy a presentar un cruce parcial.');
       return {...r,sourceLabel:sourceLabelOf(src),sourceModule:'portal'};
     }
+    if(module==='erp'){
+      const r=await window.vnx.erpReplenishmentSummary({force:true,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentDays||undefined});
+      if(r?.salesLookReliable===false)throw new Error(sourceLabelOf(src)+': el catálogo se ha leído, pero el histórico de ventas del ERP no se ha podido cruzar de forma fiable. No voy a calcular compras con datos incompletos.');
+      return {...r,sourceLabel:sourceLabelOf(src),sourceModule:'erp'};
+    }
     throw new Error(sourceLabelOf(src)+': esta conexión no admite todavía el cruce de stock.');
   }
   function rowLookup(rows=[]){
@@ -3248,6 +3258,8 @@ function emailListItem(m,i,selected){
             }else if(sourceModule==='shopify'&&window.vnx?.shopifyReplenishmentSummary){
               const shop=src?.raw?.shop||src?.shop||scope?.shop||null;
               summary=await window.vnx.shopifyReplenishmentSummary(shop,stockOptions);
+            }else if(sourceModule==='erp'&&window.vnx?.erpReplenishmentSummary){
+              summary=await window.vnx.erpReplenishmentSummary(stockOptions);
             }
             if(summary?.ok===false){
               const reason=summary.reason==='login_required'?'la sesión necesita reconectarse':summary.reason==='read_error'?'no he podido leer el portal':summary.reason==='catalog_scan_incomplete'?'no encuentro el catálogo completo':summary.reason==='stock_not_structured'?'no encuentro una tabla verificable de stock':'la fuente no ha devuelto datos suficientes';
