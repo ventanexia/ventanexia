@@ -353,28 +353,58 @@ async function markConnectedIfAuthenticated(portal,win,url){
     await audit('portal.connected',`${portal.name} · sesión autenticada localmente`);
   }catch{}
 }
-async function openPortalLogin(id){
-  const portal=await getPortal(id);if(!portal)throw new Error('Portal no encontrado');
-  const existing=livePortalWindow(portal.id);
-  if(existing){
-    try{if(existing.isMinimized())existing.restore();existing.show();existing.focus()}catch{}
-    return {ok:true,id:portal.id,reused:true,message:'Conexión abierta. Deja visible la pantalla que quieras que Carla lea y vuelve a la consulta.'};
-  }
-  const win=registerLivePortalWindow(portal,new BrowserWindow(portalWindowOptions(portal,{show:true})));installEditing(win);win.removeMenu();
-  win.webContents.setWindowOpenHandler(({url})=>{if(sameOrigin(url,portal.url)){win.loadURL(url);return {action:'deny'}}if(/^https:\/\//i.test(url))shell.openExternal(url);return {action:'deny'}});
+function configureLivePortalWindow(portal,win){
+  installEditing(win);win.removeMenu();
+  win.webContents.setWindowOpenHandler(({url})=>{
+    if(sameOrigin(url,portal.url)){win.loadURL(url);return {action:'deny'}}
+    if(/^https:\/\//i.test(url))shell.openExternal(url);
+    return {action:'deny'};
+  });
   win.webContents.on('did-navigate',(_e,url)=>markConnectedIfAuthenticated(portal,win,url));
   win.webContents.on('did-navigate-in-page',(_e,url)=>markConnectedIfAuthenticated(portal,win,url));
   win.webContents.on('did-finish-load',()=>{const url=win.webContents.getURL();if(url)markConnectedIfAuthenticated(portal,win,url)});
-  await win.loadURL(portalStartUrl(portal,{forLogin:portal.lastStatus!=='connected'}));
-  return {ok:true,id:portal.id,message:'Ventana de conexión abierta. Entra en la pantalla que quieras que Carla lea; mientras la dejes abierta, Carla leerá esa misma vista.'};
+  return win;
+}
+async function ensureLivePortalWindow(portal,{show=false,focus=false}={}){
+  let win=livePortalWindow(portal?.id);
+  if(win){
+    try{if(show)win.show();if(focus){if(win.isMinimized())win.restore();win.show();win.focus()}}catch{}
+    return {win,reused:true,status:'connected'};
+  }
+  win=registerLivePortalWindow(portal,configureLivePortalWindow(portal,new BrowserWindow(portalWindowOptions(portal,{show}))));
+  const start=(portal.lastStatus==='connected'&&portal.lastUrl&&sameOrigin(portal.lastUrl,portal.url))
+    ?portal.lastUrl
+    :portalStartUrl(portal,{forLogin:portal.lastStatus!=='connected'});
+  await win.loadURL(start);
+  await delay(1200);
+  let page=null;
+  try{page=await extractPage(win)}catch{}
+  if(page&&likelyLogin(page.url,page.text)){
+    await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
+    if(show||focus){try{win.show();win.focus()}catch{}}
+    return {win,reused:false,status:'login_required'};
+  }
+  if(page){
+    await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:page.url});
+  }
+  if(!show&&!focus)try{win.hide()}catch{}
+  return {win,reused:false,status:'connected'};
+}
+async function openPortalLogin(id){
+  const portal=await getPortal(id);if(!portal)throw new Error('Portal no encontrado');
+  const r=await ensureLivePortalWindow(portal,{show:true,focus:true});
+  return {ok:true,id:portal.id,reused:r.reused,status:r.status,message:r.reused?'Conexión abierta. Deja visible la pantalla que quieras que Carla lea y vuelve a la consulta.':'Ventana de conexión abierta. Entra en la pantalla que quieras que Carla lea; mientras la dejes abierta, Carla leerá esa misma vista.'};
 }
 
 async function extractPage(win){
   return win.webContents.executeJavaScript(`(()=>{const clean=s=>String(s||'').replace(/\\s+/g,' ').trim();
+    const docs=[document];
+    for(const frame of [...document.querySelectorAll('iframe')].slice(0,30)){try{if(frame.contentDocument&&!docs.includes(frame.contentDocument))docs.push(frame.contentDocument)}catch{}}
+    const all=sel=>docs.flatMap(d=>{try{return [...d.querySelectorAll(sel)]}catch{return []}});
     const tableRows=t=>[...t.querySelectorAll('tr')].slice(0,5000).map(tr=>[...tr.querySelectorAll('th,td')].map(td=>clean(td.innerText||td.textContent))).filter(r=>r.length);
-    const tables=[...document.querySelectorAll('table')].slice(0,30).map(tableRows).filter(rows=>rows.length);
+    const tables=all('table').slice(0,60).map(tableRows).filter(rows=>rows.length);
     const semantic=[];
-    for(const root of [...document.querySelectorAll('[role="grid"],[role="table"],.ag-root,.MuiDataGrid-root,.dx-datagrid,.ant-table,.el-table,.v-data-table,.p-datatable,.k-grid,.handsontable')].slice(0,30)){
+    for(const root of all('[role="grid"],[role="table"],.ag-root,.MuiDataGrid-root,.dx-datagrid,.ant-table,.el-table,.v-data-table,.p-datatable,.k-grid,.handsontable').slice(0,60)){
       let rows=[...root.querySelectorAll('[role="row"]')].slice(0,5000).map(r=>[...r.querySelectorAll('[role="columnheader"],[role="gridcell"],[role="cell"]')].map(c=>clean(c.innerText||c.textContent))).filter(r=>r.length);
       if(rows.length<2&&root.matches('.ag-root')){
         const header=[...root.querySelectorAll('.ag-header-cell')].map(c=>clean(c.innerText||c.textContent)).filter(Boolean);
@@ -395,22 +425,22 @@ async function extractPage(win){
       seenTables.add(sig);allTables.push(rows);
     }
     const links=[];
-    for(const el of [...document.querySelectorAll('a[href],[data-href],[data-url],[routerlink]')].slice(0,800)){
+    for(const el of all('a[href],[data-href],[data-url],[routerlink]').slice(0,1600)){
       const raw=el.href||el.getAttribute('data-href')||el.getAttribute('data-url')||el.getAttribute('routerlink')||'';
       if(!raw)continue;
       try{links.push({text:clean(el.innerText||el.textContent||el.getAttribute('aria-label')||el.title),href:new URL(raw,location.href).href})}catch{}
     }
     const actions=[];
     let ai=0;
-    for(const el of [...document.querySelectorAll('button,[role="button"],[role="menuitem"],[role="tab"],[role="treeitem"],a')].slice(0,800)){
+    for(const el of all('button,[role="button"],[role="menuitem"],[role="tab"],[role="treeitem"],a').slice(0,1600)){
       const text=clean(el.innerText||el.textContent||el.getAttribute('aria-label')||el.getAttribute('title'));
       if(!text||text.length>140)continue;
       const cs=getComputedStyle(el);if(cs.display==='none'||cs.visibility==='hidden')continue;
       const id='vnx_read_'+(++ai);try{el.setAttribute('data-vnx-read-action',id)}catch{}
       actions.push({id,text,disabled:Boolean(el.disabled||el.getAttribute('aria-disabled')==='true'),href:el.href||''});
     }
-    const images=[...document.images].map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);
-    return {title:document.title||'',text:String(document.body?.innerText||'').slice(0,120000),links,actions,images,tables:allTables,url:location.href};
+    const images=docs.flatMap(d=>[...d.images]).map(img=>({src:img.currentSrc||img.src,alt:clean(img.alt),w:img.naturalWidth||0,h:img.naturalHeight||0})).filter(x=>x.src&&(x.w>=100||x.h>=100)).slice(0,30);
+    const text=docs.map(d=>String(d.body?.innerText||'')).join('\n').slice(0,160000);return {title:document.title||'',text,links,actions,images,tables:allTables,url:location.href};
   })()`,true);
 }
 async function extractLivePortalPage(portal){
@@ -495,7 +525,9 @@ async function clickPortalAction(win,action){
 }
 function portalPageFingerprint(page){
   const first=(page?.tables||[])[0]||[];
-  return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))).digest('hex').slice(0,16);
+  const actions=(page?.actions||[]).slice(0,30).map(a=>String(a.text||'')).join('|');
+  const body=String(page?.text||'').slice(0,1200);
+  return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))+'|'+actions+'|'+body).digest('hex').slice(0,16);
 }
 async function readPortal(portal,question='',preferredUrl=null){
   const win=new BrowserWindow(portalWindowOptions(portal,{show:false}));win.removeMenu();
@@ -533,10 +565,15 @@ async function readPortal(portal,question='',preferredUrl=null){
         }
         const before=portalPageFingerprint(p);
         if(!await clickPortalAction(win,action))continue;
-        await delay(650);
-        const next=await extractPage(win);
+        await delay(1100);
+        let next=await extractPage(win);
         if(likelyLogin(next.url,next.text))return;
-        const after=portalPageFingerprint(next);
+        let after=portalPageFingerprint(next);
+        if(after===before){
+          await delay(900);
+          next=await extractPage(win);
+          after=portalPageFingerprint(next);
+        }
         if(after===before)continue;
         addPage(next);queueLinks(next);
         await exploreActions(next,depth+1);
@@ -635,6 +672,12 @@ function extractPortalSalesRows(portalResult){
 }
 async function portalReplenishmentSummary(portal){
   if(!portal)throw new Error('Conexión privada no encontrada.');
+  let autoRehydrated=false;
+  if(!livePortalWindow(portal.id)&&portal.lastStatus==='connected'){
+    const ensured=await ensureLivePortalWindow(portal,{show:false,focus:false});
+    autoRehydrated=!ensured.reused;
+    if(ensured.status==='login_required')return {ok:false,status:'login_required',sourceLabel:portal.name,reason:'login_required',liveWindowChecked:true,autoRehydrated};
+  }
   const liveRead=await readLivePortal(portal);
   if(liveRead?.status==='login_required')return {ok:false,status:'login_required',sourceLabel:portal.name,reason:'login_required',liveWindowChecked:true};
   let stockRead=liveRead&&liveRead.status==='connected'?liveRead:null;
@@ -652,7 +695,7 @@ async function portalReplenishmentSummary(portal){
     pagesScanned:stockRead?.pagesScanned||stockRead?.pages?.length||0,
     tablesSeen:stockRead?.tablesSeen||0,
     structuredTables:stockExtract.structuredTables||0,
-    liveWindowChecked:Boolean(liveRead),liveWindowUrl:liveRead?.liveUrl||null
+    liveWindowChecked:Boolean(liveRead),liveWindowUrl:liveRead?.liveUrl||null,autoRehydrated
   };
   if(stockExtract.sourceUrl&&sameOrigin(stockExtract.sourceUrl,portal.url)){
     await patchPortal(portal.id,{stockUrl:stockExtract.sourceUrl});
@@ -671,7 +714,7 @@ async function portalReplenishmentSummary(portal){
     pagesScanned:(stockRead.pagesScanned||stockRead.pages?.length||0)+(salesRead.pagesScanned||salesRead.pages?.length||0),
     tablesSeen:(stockRead.tablesSeen||0)+(salesRead.tablesSeen||0),
     learnedStockRoute:Boolean(stockExtract.sourceUrl),
-    usedLiveWindow,liveWindowChecked:Boolean(liveRead)
+    usedLiveWindow,liveWindowChecked:Boolean(liveRead),autoRehydrated
   };
 }
 ipcMain.handle('portal:replenishment-summary',async(_e,id)=>{
