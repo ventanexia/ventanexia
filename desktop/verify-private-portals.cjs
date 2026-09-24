@@ -15,6 +15,14 @@ need(backend,/function livePortalWindow\(id\)/,'live private portal window looku
 need(backend,/function registerLivePortalWindow\(portal,win\)/,'private portal windows must be registered');
 need(backend,/event\.preventDefault\(\);[\s\S]*win\.hide\(\)/,'closing a private portal must hide it instead of destroying authenticated state');
 need(backend,/async function readLivePortal\(portal\)/,'Carla must be able to read the live private portal view');
+need(backend,/async function ensureLivePortalWindow\(portal,\{show=false,focus=false\}=\{\}\)/,'connected private portals must be rehydrated automatically after app restart');
+need(backend,/portal\.lastStatus==='connected'&&portal\.lastUrl/,'portal rehydration must reuse the persisted authenticated location');
+need(backend,/async function readPortal\(portal,question='',preferredUrl=null,existingWin=null\)/,'automatic navigation must be able to reuse the persistent live portal window');
+need(backend,/const ownsWindow=!existingWin/,'reused live portal windows must not be destroyed by automatic navigation');
+need(backend,/const docs=\[document\]/,'portal extraction must include same-origin iframe documents');
+need(backend,/autoRehydrated/,'stock diagnostics must expose automatic portal rehydration');
+need(backend,/portalOpened/,'failed automatic stock discovery must surface the real portal window directly');
+
 need(backend,/const liveRead=await readLivePortal\(portal\)/,'stock analysis must inspect the live portal before hidden navigation');
 need(backend,/usedLiveWindow/,'stock result must report when the live portal supplied the data');
 need(backend,/\.ant-table,[\s\S]*\.el-table,[\s\S]*\.p-datatable,[\s\S]*\.k-grid/,'private portal reader must support common ERP grid frameworks');
