@@ -549,6 +549,51 @@
           <div class="vnx-dir-note"><b>Importante:</b> “sin actividad operativa registrada” no equivale automáticamente a “sin trabajar”. VentaNexIA muestra hechos y evidencias para que dirección pueda revisar el contexto antes de tomar decisiones.</div>
         </section>
 
+        <div class="vnx-dir-human-grid">
+          <section class="card vnx-dir-panel vnx-dir-human-panel">
+            <div class="vnx-dir-panel-head"><div><span class="eyebrow">CONTEXTO HUMANO</span><h2>Entender antes de juzgar</h2><p>Registra preferencias y necesidades laborales declaradas o acordadas. Se mantienen separadas de los hechos observados.</p></div></div>
+            <form id="vnxDirHumanForm" class="vnx-dir-human-form">
+              <label>Empleado<select id="vnxDirHumanEmployee" required><option value="">Selecciona una persona</option></select></label>
+              <label>Origen del contexto<select id="vnxDirHumanSource"><option value="agreed">Acordado con la persona</option><option value="self_reported">Declarado por la persona</option><option value="manager_observed">Observación de Dirección</option></select></label>
+              <label>Fortalezas laborales declaradas<textarea id="vnxDirHumanStrengths" rows="3" placeholder="Una por línea. Ej.: trato con clientes&#10;resolver incidencias"></textarea></label>
+              <label>Tareas que prefiere o donde se siente más útil<textarea id="vnxDirHumanPreferred" rows="3" placeholder="Una por línea. Ej.: llamadas comerciales&#10;seguimiento de clientes"></textarea></label>
+              <label>Formación o apoyo que necesita<textarea id="vnxDirHumanTraining" rows="3" placeholder="Una por línea. Ej.: Excel avanzado&#10;procedimiento de compras"></textarea></label>
+              <label>Funciones que le interesaría explorar<textarea id="vnxDirHumanRoles" rows="3" placeholder="Una por línea. Ej.: atención al cliente&#10;gestión comercial"></textarea></label>
+              <label>Autonomía preferida<select id="vnxDirHumanAutonomy"><option value="guided">Más guía y seguimiento</option><option value="balanced" selected>Equilibrada</option><option value="autonomous">Alta autonomía</option></select></label>
+              <label>Forma de colaboración<select id="vnxDirHumanCollab"><option value="individual">Más individual</option><option value="balanced" selected>Equilibrada</option><option value="team">Más en equipo</option></select></label>
+              <fieldset class="vnx-dir-motivators"><legend>Qué le ayuda a rendir mejor</legend>
+                <label><input type="checkbox" value="learning"> Aprender</label>
+                <label><input type="checkbox" value="autonomy"> Autonomía</label>
+                <label><input type="checkbox" value="customer_contact"> Trato con clientes</label>
+                <label><input type="checkbox" value="problem_solving"> Resolver problemas</label>
+                <label><input type="checkbox" value="stability"> Estabilidad</label>
+                <label><input type="checkbox" value="recognition"> Reconocimiento</label>
+                <label><input type="checkbox" value="growth"> Crecimiento</label>
+                <label><input type="checkbox" value="variety"> Variedad</label>
+                <label><input type="checkbox" value="precision"> Precisión</label>
+                <label><input type="checkbox" value="teamwork"> Trabajo en equipo</label>
+              </fieldset>
+              <label class="vnx-dir-human-wide">Contexto laboral relevante<textarea id="vnxDirHumanContext" rows="3" placeholder="Solo contexto del trabajo: cambios de funciones, herramientas, dependencia de otros departamentos, instrucciones, etc."></textarea></label>
+              <div class="vnx-dir-human-warning">No introduzcas salud, ideología, religión, orientación sexual ni otros datos sensibles. VentaNexIA no intenta inferir emociones ni estados mentales.</div>
+              <button class="btn primary" type="submit">Guardar contexto laboral</button>
+            </form>
+          </section>
+
+          <section class="card vnx-dir-panel vnx-dir-policy-panel">
+            <div class="vnx-dir-panel-head"><div><span class="eyebrow">CRITERIO DE DIRECCIÓN</span><h2>Qué quiere priorizar esta empresa</h2><p>Los hechos no cambian. Estos pesos solo cambian el enfoque de las recomendaciones.</p></div></div>
+            <div class="vnx-dir-policy-presets"><button type="button" class="btn outline" data-dir-policy-preset="balanced">Equilibrado</button><button type="button" class="btn outline" data-dir-policy-preset="profit">Rentabilidad</button><button type="button" class="btn outline" data-dir-policy-preset="people">Personas</button></div>
+            <form id="vnxDirManagementForm" class="vnx-dir-management-form">
+              <label><span>Rentabilidad <b id="vnxDirProfitValue">50</b></span><input id="vnxDirProfit" type="range" min="0" max="100" value="50"></label>
+              <label><span>Servicio al cliente <b id="vnxDirServiceValue">50</b></span><input id="vnxDirService" type="range" min="0" max="100" value="50"></label>
+              <label><span>Desarrollo de personas <b id="vnxDirPeopleValue">50</b></span><input id="vnxDirPeople" type="range" min="0" max="100" value="50"></label>
+              <label><span>Crecimiento <b id="vnxDirGrowthValue">50</b></span><input id="vnxDirGrowth" type="range" min="0" max="100" value="50"></label>
+              <label><span>Estabilidad y riesgo <b id="vnxDirStabilityValue">50</b></span><input id="vnxDirStability" type="range" min="0" max="100" value="50"></label>
+              <button class="btn primary" type="submit">Guardar criterio de Dirección</button>
+            </form>
+            <div class="vnx-dir-note"><b>Regla fija:</b> aunque Rentabilidad esté al 100, VentaNexIA no altera los hechos ni decide automáticamente sanciones, despidos o contrataciones. Compara formación, proceso, carga, herramientas, automatización y reasignación antes de presentar opciones.</div>
+          </section>
+        </div>
+
         <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-report-panel">
           <div class="vnx-dir-panel-head">
             <div><span class="eyebrow">INFORMES DE EMPLEADOS</span><h2>Qué está fallando y dónde</h2><p>Analiza hechos registrados: plazos, bloqueos, retrasos, evidencias y trabajo recuperado por VentaNexIA. No genera rankings ni sanciones automáticas.</p></div>
