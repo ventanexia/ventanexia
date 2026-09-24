@@ -1,4 +1,4 @@
-// VentaNexIA Desktop 0.6.140 · Agent Workspace Home
+// VentaNexIA Desktop 0.6.141 · Agent Workspace Home
 (()=>{
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
