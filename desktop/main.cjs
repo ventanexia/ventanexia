@@ -839,6 +839,12 @@ ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
   let saved=null;
   await updateState(s=>{
     const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+    const email=String(payload.email||'').trim().toLowerCase(),id=String(payload.id||'');
+    const exists=d.employees.some(x=>x.id===id||(email&&x.email===email));
+    if(!exists){
+      const limit=employeeSlotLimit(s.license),used=d.employees.filter(x=>x.active!==false).length;
+      if(used>=limit){const e=new Error('Has alcanzado el número de empleados incluidos en tu plan.');e.code='EMPLOYEE_LIMIT_REACHED';e.limit=limit;throw e}
+    }
     saved=direction.addOrUpdateEmployee(d,{...payload,businessId:payload.businessId||businessId});
     return s;
   });
