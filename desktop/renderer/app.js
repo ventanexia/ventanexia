@@ -52,7 +52,7 @@ function openTab(name){
   }
 }
 function bindTabs(){
-  $('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
+  $$('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
   $$('[data-tab-jump]').forEach(b=>b.onclick=()=>openTab(b.dataset.tabJump));
 
   // Navegación lateral robusta: los agentes no son tabs independientes,
