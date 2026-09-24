@@ -853,6 +853,7 @@ function financeSecret(state){
   state.secret.finance.alerts=Array.isArray(state.secret.finance.alerts)?state.secret.finance.alerts:[];
   return state.secret.finance;
 }
+function financeAssertIncluded(state){assertAgentIncluded(state.license,'reports')}
 function financeConfigured(state){
   const access=state?.secret?.finance?.access||{};
   return Boolean(access.pinHash&&access.pinSalt);
@@ -1039,12 +1040,12 @@ async function financeBackgroundRescan(){
 }
 
 ipcMain.handle('finance:access-status',async()=>{
-  const state=await readState();return financePublicStatus(state);
+  const state=await readState();financeAssertIncluded(state);return financePublicStatus(state);
 });
 ipcMain.handle('finance:set-pin',async(_e,payload={})=>{
   const pin=String(payload.pin||''),currentPin=String(payload.currentPin||'');
   if(!/^\d{4}$/.test(pin))throw new Error('El PIN debe tener exactamente 4 dígitos.');
-  const state=await readState(),finance=financeSecret(state),access=finance.access;
+  const state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),access=finance.access;
   if(financeConfigured(state)){
     const lockedUntil=Number(access.lockedUntil||0);if(lockedUntil>Date.now())throw new Error('Acceso bloqueado temporalmente por demasiados intentos.');
     const currentHash=financeHashPin(currentPin,access.pinSalt);
@@ -1056,7 +1057,7 @@ ipcMain.handle('finance:set-pin',async(_e,payload={})=>{
   return {ok:true,configured:true};
 });
 ipcMain.handle('finance:unlock',async(_e,payload={})=>{
-  const pin=String(payload.pin||''),state=await readState(),finance=financeSecret(state),access=finance.access;
+  const pin=String(payload.pin||''),state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),access=finance.access;
   if(!financeConfigured(state))throw new Error('Primero configura el PIN de 4 dígitos.');
   if(Number(access.lockedUntil||0)>Date.now())throw new Error('Acceso bloqueado temporalmente. Inténtalo más tarde.');
   const hash=/^\d{4}$/.test(pin)?financeHashPin(pin,access.pinSalt):'';
@@ -1075,16 +1076,17 @@ ipcMain.handle('finance:lock',async(_e,payload={})=>{
 });
 ipcMain.handle('finance:report',async(_e,payload={})=>{
   financeRequireSession(payload);
-  const state=await readState(),finance=financeSecret(state);
+  const state=await readState();financeAssertIncluded(state);const finance=financeSecret(state);
   return {ok:true,status:financePublicStatus(state),analysis:finance.lastAnalysis||null,alerts:(finance.alerts||[]).filter(x=>x.status!=='resolved').slice(-500)};
 });
 ipcMain.handle('finance:analyze-portal',async(_e,payload={})=>{
-  financeRequireSession(payload);const state=await readState(),portal=await getPortal(clean(payload.portalId,80));
+  financeRequireSession(payload);const state=await readState();financeAssertIncluded(state);const portal=await getPortal(clean(payload.portalId,80));
   const analysis=await financeAnalyzePortalInternal(portal,state),fresh=await readState();
   return {ok:true,analysis,status:financePublicStatus(fresh),alerts:(financeSecret(fresh).alerts||[]).filter(x=>x.status!=='resolved').slice(-500)};
 });
 ipcMain.handle('finance:analyze-file',async(_e,payload={})=>{
   financeRequireSession(payload);
+  const accessState=await readState();financeAssertIncluded(accessState);
   const win=BrowserWindow.getFocusedWindow()||BrowserWindow.getAllWindows()[0]||null;
   const picked=await dialog.showOpenDialog(win,{title:'Rentabilidad por EAN · selecciona Excel o CSV',properties:['openFile'],filters:[{name:'Excel o CSV',extensions:['xlsx','xls','csv']}]});
   if(picked.canceled||!picked.filePaths?.length)return {ok:false,cancelled:true};
@@ -1093,7 +1095,7 @@ ipcMain.handle('finance:analyze-file',async(_e,payload={})=>{
 });
 ipcMain.handle('finance:review-alert',async(_e,payload={})=>{
   financeRequireSession(payload);
-  const id=String(payload.id||''),note=clean(payload.note||'',500),state=await readState(),finance=financeSecret(state),alert=finance.alerts.find(x=>x.id===id);
+  const id=String(payload.id||''),note=clean(payload.note||'',500),state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),alert=finance.alerts.find(x=>x.id===id);
   if(!alert)throw new Error('No encuentro esta alerta.');
   alert.status='reviewed';alert.reviewedAt=new Date().toISOString();alert.reviewedNote=note;
   await writeState(state);await audit('finance.alert_reviewed',(alert.ean||'EAN')+' · '+(alert.product||'producto'));
@@ -1103,7 +1105,7 @@ ipcMain.handle('finance:send-alert',async(_e,payload={})=>{
   financeRequireSession(payload);
   const id=String(payload.id||''),to=String(payload.to||'').trim(),mode=payload.mode==='send'?'send':'draft';
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to))throw new Error('Indica un email válido del responsable.');
-  const state=await readState(),finance=financeSecret(state),alert=finance.alerts.find(x=>x.id===id);
+  const state=await readState();financeAssertIncluded(state);const finance=financeSecret(state),alert=finance.alerts.find(x=>x.id===id);
   if(!alert)throw new Error('No encuentro esta alerta.');
   const accounts=emailAccountsForState(state),requested=String(payload.account||'').trim();
   const integration=accounts.find(x=>!requested||String(x.meta?.email||x.label||x.account||'')===requested)||accounts[0];
@@ -1137,7 +1139,7 @@ ipcMain.handle('finance:send-alert',async(_e,payload={})=>{
   return {ok:true,mode,message:mode==='send'?'Aviso enviado al responsable.':'Borrador preparado en Gmail para revisar antes de enviar.'};
 });
 ipcMain.handle('finance:startup-check',async()=>{
-  const state=await readState(),status=financePublicStatus(state);
+  const state=await readState();financeAssertIncluded(state);const status=financePublicStatus(state);
   setTimeout(()=>financeBackgroundRescan().catch(()=>{}),250);
   return status;
 });
