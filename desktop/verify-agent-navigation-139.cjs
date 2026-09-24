@@ -8,7 +8,7 @@ function need(src,re,msg){if(!re.test(src)){console.error('AGENT_139_VERIFY_FAIL
 function forbid(src,re,msg){if(re.test(src)){console.error('AGENT_139_VERIFY_FAIL:',msg);process.exit(1)}}
 
 forbid(home,/\$\$\$\(/,'undefined $$$ selector helper remains');
-need(home,/\$\$\('\.vnx-agent-side-btn'\)\.forEach/,'sidebar agent buttons must bind with the real list helper');
+need(home,/document\.querySelectorAll\('\.vnx-agent-side-btn'\)\.forEach/,'sidebar agent buttons must bind with a real NodeList selector');
 need(app,/closest\?\.\('\[data-agent-home\]'\)/,'app.js must keep delegated sidebar fallback');
 need(home,/function agentScreenUi\(key\)/,'agent-specific screen configuration missing');
 need(home,/function applyAgentScreenUi\(key,cfg\)/,'agent-specific UI renderer missing');
