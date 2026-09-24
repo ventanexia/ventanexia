@@ -10,6 +10,37 @@ function id(prefix='x'){return prefix+'_'+crypto.randomBytes(7).toString('hex')}
 function clampText(v,n=500){return String(v??'').trim().slice(0,n)}
 function clampNum(v,min=0,max=1e9,def=0){const n=Number(v);return Number.isFinite(n)?Math.max(min,Math.min(max,n)):def}
 
+const DEFAULT_MANAGEMENT_POLICY={profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50};
+const PROFILE_SOURCES=new Set(['self_reported','agreed','manager_observed']);
+const AUTONOMY_LEVELS=new Set(['guided','balanced','autonomous']);
+const COLLAB_LEVELS=new Set(['individual','balanced','team']);
+const MOTIVATORS=new Set(['learning','autonomy','customer_contact','problem_solving','stability','recognition','growth','variety','precision','teamwork']);
+
+function sanitizeTextList(v,maxItems=10,maxLen=160){
+  const arr=Array.isArray(v)?v:String(v||'').split(/\r?\n|,/);
+  return [...new Set(arr.map(x=>clampText(x,maxLen)).filter(Boolean))].slice(0,maxItems);
+}
+function sanitizeWorkProfile(raw={}){
+  return {
+    source:PROFILE_SOURCES.has(raw.source)?raw.source:'agreed',
+    declaredStrengths:sanitizeTextList(raw.declaredStrengths,12,180),
+    preferredTasks:sanitizeTextList(raw.preferredTasks,12,180),
+    trainingNeeds:sanitizeTextList(raw.trainingNeeds,12,180),
+    roleInterests:sanitizeTextList(raw.roleInterests,8,180),
+    motivators:(Array.isArray(raw.motivators)?raw.motivators:[]).filter(x=>MOTIVATORS.has(x)).slice(0,10),
+    preferredAutonomy:AUTONOMY_LEVELS.has(raw.preferredAutonomy)?raw.preferredAutonomy:'balanced',
+    collaborationPreference:COLLAB_LEVELS.has(raw.collaborationPreference)?raw.collaborationPreference:'balanced',
+    workContext:clampText(raw.workContext,1400),
+    updatedAt:raw.updatedAt?iso(raw.updatedAt):null
+  };
+}
+function sanitizeManagementPolicy(raw={}){
+  const p={};
+  for(const k of Object.keys(DEFAULT_MANAGEMENT_POLICY))p[k]=Math.round(clampNum(raw[k],0,100,DEFAULT_MANAGEMENT_POLICY[k]));
+  p.updatedAt=raw.updatedAt?iso(raw.updatedAt):new Date().toISOString();
+  return p;
+}
+
 function ensureDirection(state){
   state.secret=state.secret||{};
   const d=state.secret.directionControl&&typeof state.secret.directionControl==='object'?state.secret.directionControl:{};
@@ -18,6 +49,7 @@ function ensureDirection(state){
   d.events=Array.isArray(d.events)?d.events:[];
   d.settings=d.settings&&typeof d.settings==='object'?d.settings:{};
   d.access=d.access&&typeof d.access==='object'?d.access:{};
+  d.managementPolicy=sanitizeManagementPolicy(d.managementPolicy||DEFAULT_MANAGEMENT_POLICY);
   if(d.settings.defaultSlaMinutes==null)d.settings.defaultSlaMinutes=480;
   if(d.settings.aiTakeoverGraceMinutes==null)d.settings.aiTakeoverGraceMinutes=60;
   if(d.settings.aiTakeoverEnabled==null)d.settings.aiTakeoverEnabled=false;
@@ -33,6 +65,7 @@ function sanitizeEmployee(raw={}){
     email:clampText(raw.email,180).toLowerCase(),
     active:raw.active!==false,
     businessId:clampText(raw.businessId,120),
+    workProfile:sanitizeWorkProfile(raw.workProfile||{}),
     createdAt:iso(raw.createdAt),
     updatedAt:new Date().toISOString()
   };
@@ -228,12 +261,122 @@ function qualitativeFit(mine,areas,now){
   return {strengths,frictions,possibleMatches:matches.slice(0,4),interpretation,confidence,contextQuestions,stats};
 }
 
+
+function isDeviationTask(t,now){
+  return Boolean(isOverdue(t,now)||completedLate(t)||t.completedBy==='ai'||t.status==='blocked'||(t.status==='done'&&!String(t.evidence||'').trim()&&!String(t.outcome||'').trim()));
+}
+function peerModuleStats(tasks,employees,now){
+  const employeeIds=new Set(employees.map(x=>x.id)),map=new Map();
+  for(const t of tasks){
+    if(!employeeIds.has(t.assigneeId))continue;
+    const key=t.module||'other',x=map.get(key)||{module:key,total:0,deviations:0,blocked:0,ai:0,employees:new Set()};
+    x.total++;x.employees.add(t.assigneeId);
+    if(isDeviationTask(t,now))x.deviations++;
+    if(t.status==='blocked')x.blocked++;
+    if(t.completedBy==='ai')x.ai++;
+    map.set(key,x);
+  }
+  return new Map([...map].map(([k,x])=>[k,{...x,employees:x.employees.size,deviationRate:x.total?x.deviations/x.total:0}]));
+}
+function causeHypotheses(emp,mine,roleFit,peers,now){
+  const profile=sanitizeWorkProfile(emp.workProfile||{}),out=[];
+  const stats=roleFit?.stats||[],strong=stats.filter(x=>x.total>=3&&x.completionRate>=.7&&x.onTimeRate>=.75);
+  const weak=stats.filter(x=>x.total>=3&&((x.onTimeRate<.55&&x.done>=2)||(x.ai/x.total>=.35)||(x.blocked/x.total>=.35)));
+  const open=mine.filter(isOpen),blocked=mine.filter(t=>t.status==='blocked');
+  const overdueModules=new Set(mine.filter(t=>isOverdue(t,now)).map(t=>t.module||'other'));
+
+  if(strong.length&&weak.length)out.push({
+    key:'role_mismatch',label:'Posible desajuste parcial de funciones',confidence:mine.length>=10?'media':'baja',
+    evidence:['Rendimiento claramente diferente según el tipo de tarea','Hay áreas con buen desempeño y otras con fricción repetida'],
+    meaning:'Puede encajar mejor en unas funciones que en otras; no implica falta de capacidad general.'
+  });
+  if(profile.trainingNeeds.length&&weak.length)out.push({
+    key:'training_gap',label:'Formación o acompañamiento a revisar',confidence:'media',
+    evidence:['Existen necesidades de formación registradas','Coinciden con un periodo en el que aparecen fricciones operativas'],
+    meaning:'La dificultad puede ser corregible mediante formación, práctica guiada o mejores instrucciones.'
+  });
+  if(blocked.length>=2||mine.length>=5&&blocked.length/mine.length>=.25)out.push({
+    key:'dependencies',label:'Dependencias o bloqueos externos',confidence:'media',
+    evidence:[blocked.length+' tareas bloqueadas en el periodo'],
+    meaning:'Parte del resultado puede depender de terceros, autorizaciones, información o herramientas fuera del control de la persona.'
+  });
+  if(open.length>=5&&overdueModules.size>=2)out.push({
+    key:'workload',label:'Carga o priorización a revisar',confidence:'baja',
+    evidence:[open.length+' tareas abiertas','Los retrasos afectan a más de un área'],
+    meaning:'El patrón puede deberse a exceso de carga, prioridades incompatibles o plazos poco realistas.'
+  });
+  for(const w of weak){
+    const peer=peers.get(w.module);
+    if(peer&&peer.employees>=2&&peer.total>=6&&peer.deviationRate>=.35){
+      out.push({
+        key:'process_'+w.module,label:'Posible problema de proceso en '+w.label,confidence:'media',
+        evidence:['La misma área acumula desviaciones entre varias personas','Tasa de desviación del proceso: '+Math.round(peer.deviationRate*100)+'%'],
+        meaning:'Antes de atribuir el problema a una persona conviene revisar procedimiento, herramientas, instrucciones y dependencias del área.'
+      });
+    }
+  }
+  if(weak.length&&mine.length>=10&&!out.some(x=>x.key.startsWith('process_'))&&!out.some(x=>x.key==='training_gap')){
+    out.push({
+      key:'persistent_fit',label:'Desajuste funcional persistente a comprobar',confidence:'baja',
+      evidence:['La fricción se repite en tareas comparables y existe volumen suficiente para revisarla'],
+      meaning:'Puede existir un desajuste entre las exigencias de una parte del puesto y las fortalezas observadas, pero requiere revisión humana antes de concluir.'
+    });
+  }
+  if(!out.length)out.push({
+    key:'insufficient',label:'Sin causa dominante demostrada',confidence:'baja',
+    evidence:['Los datos no permiten separar con claridad persona, puesto, carga o proceso'],
+    meaning:'Conviene recopilar más evidencias comparables y hablar con la persona antes de modificar funciones.'
+  });
+  const seen=new Set();return out.filter(x=>!seen.has(x.key)&&seen.add(x.key)).slice(0,6);
+}
+function managementLens(policy,emp,roleFit,hypotheses){
+  const p=sanitizeManagementPolicy(policy||DEFAULT_MANAGEMENT_POLICY);
+  const labels={profitability:'rentabilidad',customerService:'servicio al cliente',peopleDevelopment:'desarrollo de personas',growth:'crecimiento',stability:'estabilidad y riesgo'};
+  const priorities=Object.entries(p).filter(([k])=>k!=='updatedAt').sort((a,b)=>b[1]-a[1]).slice(0,2).map(([key,value])=>({key,label:labels[key],value}));
+  const rec=[];
+  const has=k=>hypotheses.some(x=>x.key===k||x.key.startsWith(k+'_'));
+  if(has('process'))rec.push('Revisar el proceso antes de atribuir el problema a una persona; si varias personas fallan en la misma fase, corregir el sistema puede producir más efecto que cambiar al trabajador.');
+  if(has('dependencies'))rec.push('Eliminar o reducir bloqueos externos y volver a medir el desempeño con las mismas tareas.');
+  if(has('workload'))rec.push('Reequilibrar prioridades o volumen durante un periodo de prueba y comprobar si desaparecen los retrasos.');
+  if(has('training_gap'))rec.push('Aplicar formación concreta y volver a evaluar tras un número suficiente de tareas comparables.');
+  if(has('role_mismatch')||has('persistent_fit'))rec.push('Probar una reasignación parcial hacia las áreas donde existe mejor evidencia de encaje antes de concluir que la persona no sirve para la empresa.');
+
+  if(p.profitability>=70)rec.push('Criterio de Dirección: priorizar reducción de retrabajo, tareas recuperadas por IA y costes operativos; comparar formación, automatización y reasignación antes de aumentar estructura.');
+  if(p.customerService>=70)rec.push('Criterio de Dirección: proteger las funciones donde la persona aporta mejor respuesta al cliente y evitar que tareas de peor encaje deterioren el servicio.');
+  if(p.peopleDevelopment>=70)rec.push('Criterio de Dirección: priorizar aprendizaje, acompañamiento y rediseño del puesto antes de tomar decisiones irreversibles.');
+  if(p.growth>=70)rec.push('Criterio de Dirección: concentrar a la persona en las funciones con mejor evidencia de rendimiento que puedan escalar con el crecimiento.');
+  if(p.stability>=70)rec.push('Criterio de Dirección: reducir dependencia de una sola persona, documentar procesos y crear respaldos para tareas críticas.');
+
+  if((roleFit?.possibleMatches||[]).length)rec.push('Funciones a explorar según evidencias actuales: '+roleFit.possibleMatches.join(', ')+'.');
+  if(!rec.length)rec.push('Mantener el seguimiento y revisar nuevamente cuando exista más evidencia comparable.');
+  return {
+    policy:p,priorities,recommendations:[...new Set(rec)].slice(0,7),
+    principle:'Los hechos del informe no cambian con el criterio del jefe; solo cambia qué objetivos prioriza la recomendación. La decisión final corresponde a Dirección.'
+  };
+}
+function humanContextAnalysis(emp,mine,roleFit,peers,policy,now){
+  const profile=sanitizeWorkProfile(emp.workProfile||{});
+  const hypotheses=causeHypotheses(emp,mine,roleFit,peers,now);
+  const management=managementLens(policy,emp,roleFit,hypotheses);
+  return {
+    profile,
+    hypotheses,
+    management,
+    boundaries:[
+      'No se infieren emociones, salud, ideología, religión, orientación sexual ni otros rasgos sensibles.',
+      'No se generan rankings de personas ni sanciones o despidos automáticos.',
+      'Las preferencias laborales declaradas se mantienen separadas de los hechos observados.'
+    ]
+  };
+}
+
 function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new Date().toISOString()}={}){
   const fromDate=validDate(from),toDate=validDate(to);
   if(toDate)toDate.setHours(23,59,59,999);
   const employees=d.employees.filter(e=>e.active!==false&&(!businessId||e.businessId===businessId)&&(!employeeId||e.id===employeeId));
   const employeeIds=new Set(employees.map(e=>e.id));
   const tasks=d.tasks.filter(t=>(!businessId||t.businessId===businessId)&&employeeIds.has(t.assigneeId)&&taskActiveInPeriod(t,fromDate,toDate,now));
+  const peers=peerModuleStats(tasks,employees,now),managementPolicy=sanitizeManagementPolicy(d.managementPolicy||DEFAULT_MANAGEMENT_POLICY);
 
   const rows=employees.map(emp=>{
     const mine=tasks.filter(t=>t.assigneeId===emp.id);
@@ -274,6 +417,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       return {taskId:t.id,title:t.title,module:t.module||'other',moduleLabel:MODULE_LABELS[t.module]||t.module||'Otra',status:t.status,dueAt:t.dueAt,completedAt:t.completedAt,lastActivityAt:t.lastActivityAt,completedBy:t.completedBy||'',delayMinutes:delayMinutes(t,now),reasons,outcome:t.outcome||'',evidence:t.evidence||''};
     });
     const roleFit=qualitativeFit(mine,areas,now);
+    const humanContext=humanContextAnalysis(emp,mine,roleFit,peers,managementPolicy,now);
     return {
       employeeId:emp.id,name:emp.name,role:emp.role,email:emp.email,assigned:mine.length,done:done.length,
       doneHuman:done.filter(t=>t.completedBy==='human').length,doneAI:ai.length,open:open.length,
@@ -281,7 +425,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       deviations:deviations.length,onTimeRate:done.length?Math.round(onTimeDone.length/done.length*100):null,
       aiRecoveryRate:mine.length?Math.round(ai.length/mine.length*100):0,
       averageDelayMinutes:delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0,
-      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit
+      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext
     };
   }).sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
@@ -311,19 +455,30 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
 
   return {
     generatedAt:now,period:{from:fromDate?fromDate.toISOString():null,to:toDate?toDate.toISOString():null},
-    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,
-    note:'Este informe describe hechos operativos registrados (tareas, plazos, bloqueos, evidencias y recuperaciones por IA). No equivale por sí solo a una valoración laboral de la persona.'
+    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,managementPolicy,
+    note:'Este informe describe hechos operativos registrados (tareas, plazos, bloqueos, evidencias y recuperaciones por IA). No equivale por sí solo a una valoración laboral de la persona ni autoriza decisiones automáticas.'
   };
 }
 
 function addOrUpdateEmployee(d,raw={}){
-  const emp=sanitizeEmployee(raw);
+  const probe=sanitizeEmployee(raw),i=d.employees.findIndex(x=>x.id===probe.id||probe.email&&x.email===probe.email);
+  const existing=i>=0?d.employees[i]:null;
+  const merged=existing?{...existing,...raw,workProfile:raw.workProfile===undefined?existing.workProfile:{...(existing.workProfile||{}),...(raw.workProfile||{})}}:raw;
+  const emp=sanitizeEmployee(merged);
   if(!emp.name)throw new Error('Indica el nombre del empleado');
-  const i=d.employees.findIndex(x=>x.id===emp.id||emp.email&&x.email===emp.email);
-  if(i>=0)d.employees[i]={...d.employees[i],...emp,id:d.employees[i].id,createdAt:d.employees[i].createdAt||emp.createdAt};
+  if(i>=0)d.employees[i]={...existing,...emp,id:existing.id,createdAt:existing.createdAt||emp.createdAt};
   else d.employees.unshift(emp);
   d.employees=d.employees.slice(0,500);
   return i>=0?d.employees[i]:emp;
+}
+function updateEmployeeContext(d,employeeId,raw={}){
+  const e=d.employees.find(x=>x.id===employeeId);if(!e)throw new Error('Empleado no encontrado');
+  e.workProfile=sanitizeWorkProfile({...e.workProfile,...raw,updatedAt:new Date().toISOString()});
+  e.updatedAt=new Date().toISOString();return e;
+}
+function setManagementPolicy(d,raw={}){
+  d.managementPolicy=sanitizeManagementPolicy({...d.managementPolicy,...raw,updatedAt:new Date().toISOString()});
+  return d.managementPolicy;
 }
 
 function addTask(d,raw={}){
@@ -364,4 +519,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,summarize,operationalReport,addOrUpdateEmployee,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
