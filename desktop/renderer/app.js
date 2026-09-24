@@ -382,36 +382,49 @@ function setupServiceConnectionWizard(){
 function setupShopifyConnectionUi(){
   const modal=$('#shopifyConnectionModal'),shop=$('#shopifyShop'),msg=$('#shopifyConnectionMsg'),connect=$('#shopifyConnectBtn'),disconnect=$('#shopifyDisconnectBtn'),cancel=$('#shopifyCancelBtn');
   if(!modal)return ()=>{};
-  let activeButton=null,oauthState=null,pollTimer=null;
+  let activeButton=null,oauthState=null,pollTimer=null,activeShop=null;
   function stopPoll(){if(pollTimer){clearInterval(pollTimer);pollTimer=null}}
   async function refreshShopifyStatus(){
     try{
+      const stores=await window.vnx.shopifyStores?.()||[];
       const st=await window.vnx.shopifyStatus();
-      if(st?.connected){
-        shop.value=st.shop||'';
-        msg.innerHTML='<b>🟢 Conectado:</b> '+esc(st.shopName||st.shop)+' · '+(st.scopes||[]).length+' permisos concedidos.';
-        if(activeButton)activeButton.textContent='🟢 Shopify · '+(st.shopName||st.shop);
-      }else msg.innerHTML='<b>Sin conectar.</b> Indica tu dominio .myshopify.com y autoriza el acceso directamente en Shopify.';
+      activeShop=st?.connected?st.shop:null;
+      if(stores.length){
+        msg.innerHTML='<b>🟢 '+stores.length+' tienda'+(stores.length===1?'':'s')+' Shopify conectada'+(stores.length===1?'':'s')+'.</b>'
+          +'<div class="connection-account-list" style="margin-top:10px">'+stores.map(x=>'<div class="connection-account-row"><span class="connection-dot"></span><div style="flex:1"><b>'+esc(x.shopName||x.shop)+'</b><small>'+esc(x.shop)+(x.active?' · activa':'')+'</small></div><div class="row"><button type="button" class="mini shopify-make-active" data-shop="'+esc(x.shop)+'">'+(x.active?'Activa':'Usar')+'</button><button type="button" class="mini shopify-remove-one" data-shop="'+esc(x.shop)+'">Desconectar</button></div></div>').join('')+'</div>'
+          +'<small style="display:block;margin-top:8px">Puedes añadir otra tienda escribiendo su dominio abajo. Carla las mostrará por separado.</small>';
+        if(activeButton)activeButton.textContent='🟢 Shopify · '+stores.length+' tienda'+(stores.length===1?'':'s');
+        msg.querySelectorAll?.('.shopify-make-active').forEach(b=>b.onclick=async()=>{
+          if(b.textContent==='Activa')return;
+          await window.vnx.setActiveShopify(b.dataset.shop);await refreshShopifyStatus();await refreshChatConnections();await renderConnectionSummaries();
+        });
+        msg.querySelectorAll?.('.shopify-remove-one').forEach(b=>b.onclick=async()=>{
+          if(!confirm('¿Desconectar solo '+b.dataset.shop+'? Las demás tiendas seguirán conectadas.'))return;
+          await window.vnx.disconnectShopify(b.dataset.shop);await refreshShopifyStatus();await refreshChatConnections();await renderConnectionSummaries();
+        });
+      }else{
+        msg.innerHTML='<b>Sin conectar.</b> Indica tu dominio .myshopify.com y autoriza el acceso directamente en Shopify.';
+        if(activeButton)activeButton.textContent='Añadir tienda Shopify';
+      }
+      if(st?.connected&&!shop.value)shop.value=st.shop||'';
     }catch(e){msg.textContent=e.message||'No se pudo comprobar Shopify'}
   }
   cancel.onclick=()=>{stopPoll();modal.style.display='none';activeButton=null;oauthState=null};
   connect.onclick=async()=>{
-    const s=shop.value.trim();
-    if(!s){msg.innerHTML='<b>Falta la tienda.</b> Indica tu dominio interno, por ejemplo tienda.myshopify.com.';return;}
+    const store=shop.value.trim();
+    if(!store){msg.innerHTML='<b>Falta la tienda.</b> Indica tu dominio interno, por ejemplo tienda.myshopify.com.';return;}
     connect.disabled=true;connect.textContent='Abriendo Shopify…';msg.innerHTML='<b>Sigue los pasos dentro de Shopify.</b> VentaNexIA detectará la conexión cuando termines.';
     try{
       const masterOwned=Boolean(state.license?.master||state.license?.unlimited)||String(state.license?.edition||'').toLowerCase()==='master'||String(state.license?.plan||'').toLowerCase()==='master';
       if(masterOwned){
         msg.innerHTML='<b>Conectando directamente con Shopify…</b> Esta prueba usa la app de tu organización.';
-        const st=await window.vnx.connectOwnedShopify({shop:s});
+        const st=await window.vnx.connectOwnedShopify({shop:store});
         setRealModuleSource('shopify',{integration:'shopify',status:'connected',shop:st.shop,shopName:st.shopName||st.shop,mode:'write',connectedAt:new Date().toISOString()});
-        msg.innerHTML='<b>🟢 Shopify conectado.</b> '+esc(st.shopName||st.shop);
-        if(activeButton)activeButton.textContent='🟢 Shopify · '+esc(st.shopName||st.shop);
-        connect.disabled=false;connect.textContent='Autorizar con Shopify';
-        await refreshChatConnections();
+        connect.disabled=false;connect.textContent='Autorizar con Shopify';shop.value='';
+        await refreshShopifyStatus();await refreshChatConnections();await renderConnectionSummaries();
         return;
       }
-      const started=await window.vnx.startOAuth({module:'shopify',provider:'shopify',shop:s});
+      const started=await window.vnx.startOAuth({module:'shopify',provider:'shopify',shop:store});
       oauthState=started.state;stopPoll();
       pollTimer=setInterval(async()=>{
         try{
@@ -419,9 +432,8 @@ function setupShopifyConnectionUi(){
           if(st?.status==='connected'){
             stopPoll();
             setRealModuleSource('shopify',{integration:'shopify',status:'connected',shop:st.shop,shopName:st.shopName||st.label,mode:'write',connectedAt:new Date().toISOString()});
-            msg.innerHTML='<b>🟢 Shopify conectado.</b> '+esc(st.shopName||st.label||st.shop);
-            if(activeButton)activeButton.textContent='🟢 Shopify · '+esc(st.shopName||st.label||st.shop);
-            connect.disabled=false;connect.textContent='Autorizar con Shopify';
+            connect.disabled=false;connect.textContent='Autorizar con Shopify';shop.value='';
+            await refreshShopifyStatus();await refreshChatConnections();await renderConnectionSummaries();
           }else if(['denied','expired','error'].includes(st?.status)){
             stopPoll();connect.disabled=false;connect.textContent='Autorizar con Shopify';msg.innerHTML='<b>No se pudo terminar la conexión.</b> '+esc(st?.error||'Vuelve a intentarlo.');
           }
@@ -434,12 +446,13 @@ function setupShopifyConnectionUi(){
     }
   };
   disconnect.onclick=async()=>{
-    if(!confirm('¿Desconectar Shopify de VentaNexIA en este ordenador?'))return;
-    stopPoll();await window.vnx.disconnectShopify();
-    const all=getRealModuleSources();delete all.shopify;localStorage.setItem('vnx_real_module_sources',JSON.stringify(all));
-    shop.value='';msg.innerHTML='<b>Shopify desconectado.</b>';if(activeButton)activeButton.textContent='Añadir tienda Shopify';
+    const target=shop.value.trim()||activeShop;
+    if(!target){msg.innerHTML='<b>No hay una tienda activa que desconectar.</b>';return}
+    if(!confirm('¿Desconectar '+target+' de VentaNexIA en este ordenador?'))return;
+    stopPoll();await window.vnx.disconnectShopify(target);shop.value='';
+    await refreshShopifyStatus();await refreshChatConnections();await renderConnectionSummaries();
   };
-  return async button=>{activeButton=button;modal.style.display='flex';await refreshShopifyStatus()};
+  return async button=>{activeButton=button;shop.value='';modal.style.display='flex';await refreshShopifyStatus()};
 }
 
 async function enforcePurchasedFeatures(){
@@ -534,11 +547,11 @@ async function renderConnectionSummaries(){
     :'<div class="connection-empty"><i></i><span>No hay páginas privadas conectados.</span></div>');
 
   try{
-    const shop=await window.vnx.shopifyStatus();
+    const stores=await window.vnx.shopifyStores?.()||[];
     const target=$('[data-connection-summary="shopify"]');
     if(target){
-      target.innerHTML=shop?.status==='connected'
-        ?'<div class="connection-count">🟢 Shopify conectado</div><div class="connection-account-list"><div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(shop.shopName||shop.label||shop.shop||'Tienda Shopify')+'</b><small>'+esc(shop.shop||'')+'</small></div></div></div>'
+      target.innerHTML=stores.length
+        ?'<div class="connection-count">🟢 '+stores.length+' '+(stores.length===1?'tienda Shopify conectada':'tiendas Shopify conectadas')+'</div><div class="connection-account-list">'+stores.map(x=>'<div class="connection-account-row"><span class="connection-dot"></span><div><b>'+esc(x.shopName||x.shop||'Tienda Shopify')+'</b><small>'+esc(x.shop||'')+(x.active?' · activa':'')+'</small></div></div>').join('')+'</div>'
         :'<div class="connection-empty"><i></i><span>Shopify no está conectado.</span></div>';
     }
   }catch{}
