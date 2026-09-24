@@ -1974,7 +1974,7 @@ function emailListItem(m,i,selected){
       second.value=secondIndex>=0?String(secondIndex):'';
       second.dataset.sourceId=secondIndex>=0?String(sources[secondIndex].id||sources[secondIndex].label):'';
     }
-    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré automáticamente esta única conexión: '+sources[0].label+'.';
+    if(hint)hint.textContent=sources.length>1?'Elige una conexión. Si dos conexiones pertenecen al mismo negocio, puedes combinarlas de forma expresa en el segundo selector.':'Usaré únicamente esta conexión. '+sources[0].label+'.';
   }
   function agentStatusText(x){
     if(x?.external)return '🟢 Agente propio conectado';
