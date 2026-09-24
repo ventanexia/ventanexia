@@ -1,4 +1,4 @@
-// VentaNexIA Desktop 0.6.140 · Agent Workspace Home
+// VentaNexIA Desktop 0.6.141 · Agent Workspace Home
 (()=>{
   const $=(s,r=document)=>r.querySelector(s);
   const $$=(s,r=document)=>[...r.querySelectorAll(s)];
@@ -221,6 +221,8 @@
 
   function cfgFor(key){return configs[key]||configs[alias[key]]||configs.core_ai}
   function companyName(){
+    const active=window.vnxBusiness?.activeProfile?.();
+    if(active)return active.tradeName||active.legalName||'Empresa activa';
     const txt=$('#homeCompanyName')?.textContent?.trim();
     return txt&&txt!=='Tu empresa'?txt:'Tu empresa';
   }
@@ -253,10 +255,25 @@
   function restoreProspectProfile(){
     if(document.body.dataset.vnxHomeAgent!=='prospecting')return;
     const input=prospectSegmentInput();if(!input)return;
-    const src=selectedHomeSource(),profile=prospectProfileForSource(src||{});
-    input.value=profile.targetSegments||'';
+    const src=selectedHomeSource(),profile=prospectProfileForSource(src||{}),business=window.vnxBusiness?.activeProfile?.();
+    input.value=profile.targetSegments||business?.targetCustomers||'';
     input.onchange=()=>{if(src)saveProspectProfileForSource(src,{targetSegments:input.value})};
     input.onblur=input.onchange;
+  }
+  function businessValues(v='',max=6){
+    return String(v||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean).slice(0,max);
+  }
+  function applyBusinessAgentDefaults(key){
+    const business=window.vnxBusiness?.activeProfile?.();if(!business)return;
+    if(['prospecting','content','social','campaigns'].includes(key)){
+      const items=businessValues(business.productsServices,6),brands=businessValues(business.brands,6);
+      const itemBox=$('#vnxAhItems'),brandBox=$('#vnxAhBrands');
+      if(itemBox&&items.length)itemBox.innerHTML=items.map(x=>'<span class="vnx-ah-tag">'+esc(x)+' <button type="button" class="vnx-ah-remove-tag">×</button></span>').join('');
+      if(brandBox&&brands.length)brandBox.innerHTML=brands.map(x=>'<span class="vnx-ah-tag">'+esc(x)+' <button type="button" class="vnx-ah-remove-brand">×</button></span>').join('');
+      document.querySelectorAll('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.onclick=()=>b.parentElement?.remove());
+      document.querySelectorAll('#vnxAhBrands .vnx-ah-remove-brand').forEach(b=>b.onclick=()=>b.parentElement?.remove());
+    }
+    restoreProspectProfile();
   }
   function stockPolicyForSource(src={}){
     const store=stockPolicyStore();
@@ -292,7 +309,7 @@
     };
     populateStockSourceSelect().catch(()=>{});
   }
-  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}const m=$('#vnxAhCompanyName');if(m)m.textContent=src?.label||companyName();renderStockPolicyUi();restoreProspectProfile()}
+  function saveHomeSource(src){try{src?localStorage.setItem(HOME_SOURCE_KEY,JSON.stringify(src)):localStorage.removeItem(HOME_SOURCE_KEY)}catch{}renderStockPolicyUi();restoreProspectProfile()}
   function agentKeyForRequest(question='',fallback='core_ai'){
     const q=normalizedText(question);
     if(/\b(email|emails|correo|correos|gmail|bandeja)\b/.test(q))return 'email';
@@ -327,7 +344,10 @@
     const rows=[];
     try{for(const x of await window.vnx.listConnections()||[]){const module=String(x.module||x.key||'').toLowerCase(),label=String(x.label||x.account||x.shopName||x.shop||module||'Conexión').trim();if(label)rows.push({id:String(x.id||x.key||x.shop||module||label),type:'connection',module,label,shop:String(x.shop||''),raw:x})}}catch{}
     try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado'),raw:p})}}catch{}
-    const seen=new Set();return rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+    const seen=new Set(),unique=rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
+    const profile=window.vnxBusiness?.activeProfile?.(),refs=new Set(profile?.connectionRefs||[]);
+    if(!refs.size)return unique;
+    return unique.filter(x=>refs.has((x.type==='portal'?'portal:':'connection:')+String(x.id||'')));
   }
   let lastOrdersRun=null;
   function orderFilterValues(){
@@ -663,6 +683,7 @@
     const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
     const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
     document.querySelectorAll('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
+    applyBusinessAgentDefaults(key);
     document.querySelectorAll('#vnxAhSourceTabs button').forEach(btn=>btn.addEventListener('click',()=>{
       document.querySelectorAll('#vnxAhSourceTabs button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
       const label=String(btn.textContent||'').trim();
@@ -757,6 +778,21 @@
       const input=$('#chatInput');if(input&&finalPrompt){input.value=finalPrompt;input.dispatchEvent(new Event('input',{bubbles:true}));input.focus()}
     },180);
   }
+  function reconcileSourceWithBusiness(event){
+    const profile=window.vnxBusiness?.activeProfile?.(),current=selectedHomeSource();
+    if(!profile){return}
+    const refs=new Set(profile.connectionRefs||[]);
+    if(event?.detail?.changed&&current){
+      const ref=(current.type==='portal'?'portal:':'connection:')+String(current.id||'');
+      if(!refs.size||!refs.has(ref)){
+        try{localStorage.removeItem(HOME_SOURCE_KEY)}catch{}
+      }
+    }
+    const mirror=$('#vnxAhCompanyName');if(mirror)mirror.textContent=companyName();
+    renderStockPolicyUi();restoreProspectProfile();applyBusinessAgentDefaults(document.body.dataset.vnxHomeAgent||'core_ai');
+  }
+  window.addEventListener('vnx-business-changed',reconcileSourceWithBusiness);
+
   function bind(){
     document.querySelectorAll('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
       openAppTab('home');

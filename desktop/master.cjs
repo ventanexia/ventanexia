@@ -28,6 +28,91 @@ function clean(v,n=500){return String(v||'').trim().slice(0,n)}
 function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 function portalId(url){return crypto.createHash('sha256').update(String(url||'')).digest('hex').slice(0,16)}
 
+const BUSINESS_PROFILE_MAX=20;
+function businessText(v,n=1200){return clean(v,n)}
+function businessListText(v,n=1800){
+  if(Array.isArray(v))return v.map(x=>businessText(x,180)).filter(Boolean).join(', ').slice(0,n);
+  return businessText(v,n);
+}
+function businessConnectionRefs(v){
+  return [...new Set((Array.isArray(v)?v:[]).map(x=>clean(x,260)).filter(Boolean))].slice(0,40);
+}
+function sanitizeBusinessProfile(input={},previous={}){
+  const now=new Date().toISOString(),id=clean(input.id||previous.id||crypto.randomUUID(),80);
+  const p={
+    id,
+    legalName:businessText(input.legalName??previous.legalName,180),
+    tradeName:businessText(input.tradeName??previous.tradeName,180),
+    description:businessText(input.description??previous.description,1800),
+    sectors:businessListText(input.sectors??previous.sectors,1800),
+    productsServices:businessListText(input.productsServices??previous.productsServices,2600),
+    brands:businessListText(input.brands??previous.brands,1800),
+    businessModel:businessText(input.businessModel??previous.businessModel,80),
+    targetCustomers:businessListText(input.targetCustomers??previous.targetCustomers,2200),
+    salesArea:businessListText(input.salesArea??previous.salesArea,1000),
+    salesChannels:businessListText(input.salesChannels??previous.salesChannels,1600),
+    website:businessText(input.website??previous.website,500),
+    phone:businessText(input.phone??previous.phone,100),
+    address:businessText(input.address??previous.address,500),
+    goals:businessListText(input.goals??previous.goals,1800),
+    notes:businessText(input.notes??previous.notes,2200),
+    connectionRefs:businessConnectionRefs(input.connectionRefs??previous.connectionRefs),
+    createdAt:previous.createdAt||input.createdAt||now,
+    updatedAt:now
+  };
+  if(!p.tradeName)p.tradeName=p.legalName;
+  if(!p.legalName)p.legalName=p.tradeName;
+  return p;
+}
+function businessStore(state){
+  state.secret=state.secret||{};
+  state.secret.businessProfiles=Array.isArray(state.secret.businessProfiles)?state.secret.businessProfiles:[];
+  state.secret.activeBusinessProfileId=clean(state.secret.activeBusinessProfileId,80)||null;
+  return state.secret;
+}
+function activeBusinessProfile(state,requestedId=null){
+  const secret=businessStore(state),id=clean(requestedId,80)||secret.activeBusinessProfileId;
+  return secret.businessProfiles.find(x=>x&&x.id===id)||secret.businessProfiles[0]||null;
+}
+function publicBusinessProfile(p){
+  if(!p)return null;
+  return {
+    id:p.id,legalName:p.legalName||'',tradeName:p.tradeName||'',description:p.description||'',sectors:p.sectors||'',
+    productsServices:p.productsServices||'',brands:p.brands||'',businessModel:p.businessModel||'',targetCustomers:p.targetCustomers||'',
+    salesArea:p.salesArea||'',salesChannels:p.salesChannels||'',website:p.website||'',phone:p.phone||'',address:p.address||'',
+    goals:p.goals||'',notes:p.notes||'',connectionRefs:Array.isArray(p.connectionRefs)?p.connectionRefs:[],
+    createdAt:p.createdAt||null,updatedAt:p.updatedAt||null
+  };
+}
+function businessListPayload(state){
+  const secret=businessStore(state),profiles=secret.businessProfiles.map(publicBusinessProfile),active=activeBusinessProfile(state);
+  return {profiles,activeProfileId:active?.id||null,active:publicBusinessProfile(active),needsOnboarding:profiles.length===0};
+}
+function businessProfileContext(profile){
+  if(!profile)return null;
+  const rows=[
+    ['Empresa',profile.tradeName||profile.legalName],
+    ['Razón social',profile.legalName&&profile.legalName!==profile.tradeName?profile.legalName:''],
+    ['Actividad / qué hace',profile.description],
+    ['Sectores en los que trabaja',profile.sectors],
+    ['Productos o servicios',profile.productsServices],
+    ['Marcas propias o distribuidas',profile.brands],
+    ['Modelo comercial',profile.businessModel],
+    ['Clientes objetivo confirmados por el usuario',profile.targetCustomers],
+    ['Zona comercial',profile.salesArea],
+    ['Canales de venta',profile.salesChannels],
+    ['Web',profile.website],
+    ['Objetivos principales',profile.goals],
+    ['Notas del negocio',profile.notes]
+  ].filter(([,v])=>String(v||'').trim());
+  return [
+    'PERFIL DE NEGOCIO CONFIRMADO POR EL USUARIO.',
+    'Úsalo para entender el negocio, adaptar búsquedas, mensajes, propuestas, informes y recomendaciones.',
+    'No conviertas este perfil en prueba de ventas, stock, precios, pedidos ni datos transaccionales: esos datos deben venir de las conexiones reales.',
+    'No inventes sectores, productos, clientes, marcas ni datos que no aparezcan aquí o en una fuente autorizada.',
+    ...rows.map(([k,v])=>k+': '+v)
+  ].join('\n');
+}
 function normalizeShopifyHost(value=''){
   let v=String(value||'').trim().toLowerCase().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
   if(/^[a-z0-9][a-z0-9-]*$/.test(v))v+='.myshopify.com';
@@ -77,6 +162,20 @@ async function fetchShopifyProducts(integration,{maxProducts=SHOPIFY_MAX_PRODUCT
   return {rows,truncated,pages};
 }
 
+function businessSourceRefs(src={}){
+  const raw=src?.raw||{},isPortal=src?.type==='portal'||src?.module==='portal';
+  const prefix=isPortal?'portal:':'connection:';
+  const vals=[src?.id,src?.key,src?.shop,src?.account,src?.label,raw?.id,raw?.key,raw?.shop,raw?.account,raw?.label,raw?.shopName].map(x=>clean(x,260)).filter(Boolean);
+  return new Set(vals.map(v=>prefix+v));
+}
+function assertBusinessSourceCompatibility(profile,sources=[]){
+  const allowed=new Set(Array.isArray(profile?.connectionRefs)?profile.connectionRefs:[]);
+  if(!profile||!allowed.size||!sources.length)return;
+  for(const src of sources){
+    const refs=businessSourceRefs(src),ok=[...refs].some(x=>allowed.has(x));
+    if(!ok)throw new Error('La conexión seleccionada no está asociada a la empresa activa «'+(profile.tradeName||profile.legalName||'Empresa')+'». Cambia de empresa o asocia esta conexión desde Empresa activa → Gestionar perfiles.');
+  }
+}
 async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,maxOrders=SHOPIFY_MAX_ORDERS}={}){
   const since=new Date(Date.now()-windowDays*86400000).toISOString().slice(0,10);
   const salesBySku=new Map();
@@ -1251,6 +1350,63 @@ async function authoritativeAgentCatalog(){
   });
 }
 ipcMain.handle('agent:catalog',async()=>authoritativeAgentCatalog());
+ipcMain.handle('business:list',async()=>{
+  const state=await readState();return businessListPayload(state);
+});
+ipcMain.handle('business:save-all',async(_e,payload={})=>{
+  const incoming=Array.isArray(payload.profiles)?payload.profiles.slice(0,BUSINESS_PROFILE_MAX):[];
+  if(!incoming.length)throw new Error('Añade al menos una empresa.');
+  const state=await readState(),secret=businessStore(state),previous=new Map(secret.businessProfiles.map(x=>[x.id,x]));
+  const profiles=incoming.map(x=>sanitizeBusinessProfile(x,previous.get(clean(x?.id,80))||{})).filter(x=>x.legalName||x.tradeName);
+  if(!profiles.length)throw new Error('Cada empresa necesita al menos un nombre.');
+  secret.businessProfiles=profiles;
+  const requested=clean(payload.activeProfileId,80);
+  secret.activeBusinessProfileId=profiles.some(x=>x.id===requested)?requested:profiles[0].id;
+  await writeState(state);await audit('business.onboarding_saved',profiles.length+' empresa(s) configuradas');
+  const active=activeBusinessProfile(state);
+  if(prospecting?.applyBusinessProfile&&active)await prospecting.applyBusinessProfile(publicBusinessProfile(active)).catch(()=>{});
+  return businessListPayload(state);
+});
+ipcMain.handle('business:save',async(_e,payload={})=>{
+  const state=await readState(),secret=businessStore(state),id=clean(payload.id,80),idx=secret.businessProfiles.findIndex(x=>x.id===id);
+  const previous=idx>=0?secret.businessProfiles[idx]:{},profile=sanitizeBusinessProfile(payload,previous);
+  if(!profile.legalName&&!profile.tradeName)throw new Error('Indica el nombre de la empresa.');
+  if(idx>=0)secret.businessProfiles[idx]=profile;else{
+    if(secret.businessProfiles.length>=BUSINESS_PROFILE_MAX)throw new Error('Has alcanzado el máximo de empresas configurables en este equipo.');
+    secret.businessProfiles.push(profile);
+  }
+  if(!secret.activeBusinessProfileId)secret.activeBusinessProfileId=profile.id;
+  await writeState(state);await audit('business.profile_saved',profile.tradeName||profile.legalName);
+  return businessListPayload(state);
+});
+ipcMain.handle('business:set-active',async(_e,id)=>{
+  const state=await readState(),secret=businessStore(state),profile=secret.businessProfiles.find(x=>x.id===clean(id,80));
+  if(!profile)throw new Error('No encuentro esa empresa.');
+  secret.activeBusinessProfileId=profile.id;await writeState(state);await audit('business.active_changed',profile.tradeName||profile.legalName);
+  if(prospecting?.applyBusinessProfile)await prospecting.applyBusinessProfile(publicBusinessProfile(profile)).catch(()=>{});
+  return businessListPayload(state);
+});
+ipcMain.handle('business:remove',async(_e,id)=>{
+  const state=await readState(),secret=businessStore(state),safeId=clean(id,80),old=secret.businessProfiles.find(x=>x.id===safeId);
+  secret.businessProfiles=secret.businessProfiles.filter(x=>x.id!==safeId);
+  if(secret.activeBusinessProfileId===safeId)secret.activeBusinessProfileId=secret.businessProfiles[0]?.id||null;
+  await writeState(state);await audit('business.profile_removed',old?.tradeName||old?.legalName||safeId);
+  return businessListPayload(state);
+});
+ipcMain.handle('business:suggest-targets',async(_e,payload={})=>{
+  const p=sanitizeBusinessProfile(payload,{});
+  if(!p.description&&!p.productsServices&&!p.sectors)throw new Error('Describe primero a qué se dedica la empresa o qué vende.');
+  const state=await readState(),context=businessProfileContext(p);
+  const prompt='A partir exclusivamente del perfil de negocio facilitado, sugiere entre 6 y 12 tipos de cliente o sectores objetivo razonables que podrían comprar esos productos o servicios. No inventes productos ni afirmes que un segmento ya es cliente. Devuelve SOLO una lista separada por comas, sin explicación.';
+  const r=await fetch(CLOUD+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({
+    messages:[{role:'user',content:prompt}],localContext:[{path:'PERFIL NEGOCIO PARA SUGERENCIA',content:context}],
+    desktop:{customerId:state.secret?.customerId||null,deviceId:state.license?.deviceId||null,activationCode:state.secret?.activationCode||null,deviceKey:state.secret?.deviceKey||null,portalCount:0},scope:'agent:prospecting'
+  })});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No he podido generar sugerencias.');
+  const raw=String(j.reply||'').replace(/^[\s•*\-\d.)]+/gm,'').replace(/\n+/g,', ');
+  const suggestions=[...new Set(raw.split(/[,;]+/).map(x=>clean(x,120)).filter(Boolean))].slice(0,12);
+  return {ok:true,suggestions};
+});
 ipcMain.handle('prospecting:catalog-status',async()=>prospecting?.catalogStatus?prospecting.catalogStatus():{found:false,name:null});
 
 ipcMain.handle('portal:list',async()=>listPortals());
@@ -1803,6 +1959,8 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   let localContext=[],portalContext=[],portalFiles=[],centralErrors=[];
 
   const explicitSources=Array.isArray(scope?.selectedSources)&&scope.selectedSources.length?scope.selectedSources:(scope?.selectedSource?[scope.selectedSource]:[]);
+  const chatBusinessProfile=activeBusinessProfile(s,payload?.businessProfileId||null);
+  assertBusinessSourceCompatibility(chatBusinessProfile,explicitSources);
   // selected private portal must route through strict source isolation:
   // scope?.selectedSources -> scope?.selectedSource -> src?.module==='portal'||src?.type==='portal'.
   if(scope?.type==='agent'&&scope?.key!=='email'&&explicitSources.length){
@@ -1910,8 +2068,10 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     }
     if(!localContext.length)throw new Error('Conecta al menos un correo o una página privada para revisar pedidos.');
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
+    const businessProfile=activeBusinessProfile(s,payload?.businessProfileId||null);
     if(prospecting){
-      const handled=await prospecting.handleChat(question);
+      if(prospecting.applyBusinessProfile&&businessProfile)await prospecting.applyBusinessProfile(publicBusinessProfile(businessProfile)).catch(()=>{});
+      const handled=await prospecting.handleChat(question,{businessProfile:publicBusinessProfile(businessProfile)});
       if(handled)return handled;
     }
     localContext=await collectAuthorizedContext();
@@ -1942,6 +2102,9 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     throw new Error('Selecciona un agente antes de consultar. VentaNexIA no mezclará automáticamente correo, portales y carpetas.');
   }
 
+  const activeProfileForChat=activeBusinessProfile(s,payload?.businessProfileId||null);
+  const activeBusinessContext=businessProfileContext(activeProfileForChat);
+  if(activeBusinessContext)localContext.unshift({path:'PERFIL EMPRESA ACTIVA · '+(activeProfileForChat.tradeName||activeProfileForChat.legalName||'Empresa'),content:activeBusinessContext});
   const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   // Safety invariant: credentials for private portals are entered only in the secure connection window, never in chat.
