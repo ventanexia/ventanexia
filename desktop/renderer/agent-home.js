@@ -626,8 +626,8 @@
     return '<div class="vnx-stock-downloads"><div><b>Descargar resultado</b><small>Excel para trabajar, CSV importable y PDF para compartir.</small></div><div><button type="button" data-home-stock-export="excel">📊 Excel</button><button type="button" data-home-stock-export="csv">⬇ CSV importable</button><button type="button" data-home-stock-export="pdf">📄 PDF</button></div></div>';
   }
   function stockHistoryWarningHtml(summary){
-    const products=Number(summary?.productsSeen||summary?.rows?.length||0),pages=Number(summary?.salesPagesScanned||0),tables=Number(summary?.salesTablesSeen||0),rows=Number(summary?.salesRowsSeen||0);
-    return '<div class="vnx-stock-history-warning"><div class="vnx-stock-history-warning-icon">!</div><div><b>No he podido verificar el histórico de ventas</b><p>El stock sí se ha leído ('+products+' referencias), pero ninguna ha podido cruzarse de forma fiable con ventas del periodo. No voy a presentar un pedido calculado con un mínimo por defecto como si fuera rotación real.</p><small>Diagnóstico: '+pages+' páginas de ventas revisadas · '+tables+' tablas detectadas · '+rows+' filas candidatas. Puedes descargar el stock actual o importar un Excel/CSV con stock y ventas.</small></div><button type="button" data-home-stock-import>Importar ventas Excel/CSV</button></div>';
+    const products=Number(summary?.productsSeen||summary?.rows?.length||0),pages=Number(summary?.salesPagesScanned||0),tables=Number(summary?.salesTablesSeen||0),rows=Number(summary?.salesRowsSeen||0),windowRows=Number(summary?.salesRowsInWindow||0);
+    return '<div class="vnx-stock-history-warning"><div class="vnx-stock-history-warning-icon">!</div><div><b>Histórico de ventas no verificado</b><p>El stock sí se ha leído ('+products+' referencias), pero no hay ningún cruce fiable con ventas. Esto no significa que los productos no tengan histórico; significa que VentaNexIA no ha podido leerlo o relacionarlo con el catálogo.</p><small>Diagnóstico: '+pages+' páginas revisadas · '+tables+' tablas detectadas · '+rows+' filas candidatas · '+windowRows+' filas dentro del periodo. El pedido queda bloqueado hasta verificar las ventas.</small></div><button type="button" data-home-stock-import>Importar ventas Excel/CSV</button></div>';
   }
   function renderStockResult(summary,question='',orderMode=false){
     const preview=$('#vnxAhPreview');if(!preview)return;
@@ -793,6 +793,13 @@
       if(/archivo|excel|csv|documento/i.test(label)){openAppTab('files');return}
       const input=$('#vnxAhSearchInput');if(input){input.focus();input.select?.()}
     }));
+    const previewButtons=$('#vnxAhPreviewActions button');
+    if(key==='web_ecommerce'&&previewButtons[2]){
+      previewButtons[2].onclick=()=>{
+        if(!lastStockRun?.summary){alert('Primero ejecuta el análisis de stock.');return}
+        exportHomeStock(lastStockRun.summary,false,'excel',previewButtons[2]);
+      };
+    }
     $('#vnxAhMoreFilters')?.addEventListener('click',()=>{const first=$('#vnxAhFilters select');if(first)first.focus()});
   }
 
