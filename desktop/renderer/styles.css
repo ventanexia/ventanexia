@@ -2411,3 +2411,14 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-dimensions-guide span{border:1px solid #174c73;border-radius:9px;background:#071c31;color:#b9cfdf;padding:8px;font-size:10px;text-align:center}
 @media(max-width:1100px){.vnx-dir-observation-form{grid-template-columns:1fr 1fr}.vnx-dir-observation-wide,.vnx-dir-observation-form .vnx-dir-human-warning,.vnx-dir-observation-form>button{grid-column:1/-1}.vnx-dir-dimensions-guide{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:700px){.vnx-dir-observation-form,.vnx-dir-dimensions-guide{grid-template-columns:1fr}.vnx-dir-observation-wide,.vnx-dir-observation-form .vnx-dir-human-warning,.vnx-dir-observation-form>button{grid-column:1}}
+
+
+/* Dirección · contrato de gestión */
+.vnx-dir-management-approach{padding:10px;border:1px solid #1c557c;border-radius:10px;background:#081e35}
+.vnx-dir-management-approach select{margin-top:6px;background:#07182c;color:#eef7ff;border:1px solid #2a658c;border-radius:8px;padding:9px}
+.vnx-dir-management-contract{display:grid;gap:7px;padding:10px;border:1px solid #174a70;border-radius:10px;background:#071a30}
+.vnx-dir-management-contract>label{display:flex;grid-template-columns:none;flex-direction:row;align-items:flex-start;gap:7px;color:#bed1df;line-height:1.4}
+.vnx-dir-management-contract input[type="checkbox"]{margin-top:2px}
+.vnx-dir-management-contract .vnx-dir-management-window{display:grid;grid-template-columns:1fr 80px auto;align-items:center;gap:7px}
+.vnx-dir-management-window input{background:#06172a;color:#fff;border:1px solid #245b80;border-radius:8px;padding:7px}
+.vnx-dir-management-view details{margin-top:8px;border-top:1px solid #17455f;padding-top:6px}.vnx-dir-management-view summary{cursor:pointer;color:#75def0;font-size:11px}
