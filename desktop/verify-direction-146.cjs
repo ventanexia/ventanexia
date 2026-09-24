@@ -30,7 +30,7 @@ for(const name of ['directionSummary','directionEmployees','directionSaveEmploye
 for(const ch of ['direction:summary','direction:employees','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
 for(const id of ['direction','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
 ok(html.includes('data-tab="direction"'),'Falta acceso Dirección en menú');
-ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&ui.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
+ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&html.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
 ok(health.includes('Control Operativo de Dirección')&&health.includes('directionControl'),'Autoreparación no cubre Dirección');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
