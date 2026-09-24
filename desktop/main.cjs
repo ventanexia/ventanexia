@@ -1115,16 +1115,21 @@ ipcMain.handle('connection:list',async()=>{
   const s=await readState(),out=[];
   const emailAccounts=emailAccountsFromState(s);
   for(let i=0;i<emailAccounts.length;i++){
-    const x=emailAccounts[i];out.push({key:'integration:email:'+i,type:'integration',module:'email',accountIndex:i,provider:x.provider||'',label:x.label||x.meta?.email||x.account||('Correo '+(i+1))});
+    const x=emailAccounts[i],h=await liveIntegrationHealth('email',x,i);
+    if(h.connected)out.push({key:'integration:email:'+i,type:'integration',module:'email',accountIndex:i,provider:x.provider||'',label:x.label||x.meta?.email||x.account||('Correo '+(i+1)),status:'connected'});
   }
   for(const x of listShopifyStores(s)){
-    out.push({key:'integration:shopify:'+encodeURIComponent(x.shop),type:'integration',module:'shopify',provider:'shopify',label:x.shopName||x.shop,shop:x.shop,shopName:x.shopName||x.shop,mode:x.mode||'read'});
+    const h=await liveShopifyHealth(x);
+    if(h.connected)out.push({key:'integration:shopify:'+encodeURIComponent(x.shop),type:'integration',module:'shopify',provider:'shopify',label:x.shopName||x.shop,shop:x.shop,shopName:x.shopName||x.shop,mode:x.mode||'read',status:'connected'});
   }
   for(const [module,x] of Object.entries(s.secret?.integrations||{})){
     if(!x||module==='email'||module==='shopify')continue;
-    out.push({key:'integration:'+module,type:'integration',module,provider:x.provider||'',label:x.label||x.meta?.email||x.account||module});
+    const h=await liveIntegrationHealth(module,x,0);
+    if(h.connected)out.push({key:'integration:'+module,type:'integration',module,provider:x.provider||'',label:x.label||x.meta?.email||x.account||module,status:'connected'});
   }
-  for(const folder of s.permissions?.folders||[])out.push({key:'folder:'+folder,type:'folder',folder,label:'Carpeta · '+path.basename(folder)});
+  for(const folder of s.permissions?.folders||[]){
+    try{const st=await fs.stat(folder);if(st.isDirectory())out.push({key:'folder:'+folder,type:'folder',folder,label:'Carpeta · '+path.basename(folder),status:'connected'})}catch{}
+  }
   return out;
 });
 
