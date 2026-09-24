@@ -1669,7 +1669,14 @@ function emailListItem(m,i,selected){
     });
     $$m('.master-portal-check').forEach(b=>b.onclick=async()=>{
       b.disabled=true;b.textContent='Comprobando…';
-      try{const r=await window.vnx.checkPortal(b.dataset.id);$m('#portalMsg').textContent=r.status==='connected'?'Ya está conectado. VentaNexIA puede consultar esta información desde “Habla con tu equipo”.':'La conexión se ha cerrado. Vuelve a entrar.';}
+      try{
+        const r=await window.vnx.checkPortal(b.dataset.id);
+        $m('#portalMsg').textContent=r.status==='connected'
+          ?'Ya está conectado. VentaNexIA puede consultar esta información desde Carla.'
+          :r.status==='read_error'
+            ?'La sesión sigue guardada, pero esta página no se ha podido leer. Abre el portal, deja visible la pantalla de datos y vuelve a pulsar Revisar.'
+            :'La sesión necesita volver a iniciarse. Pulsa Conectar para entrar de nuevo.';
+      }
       catch(e){$m('#portalMsg').textContent=e.message||'No se pudo comprobar el portal'}
       finally{b.disabled=false;b.textContent='Revisar';await renderMasterPortals();refreshChatConnections()}
     });
