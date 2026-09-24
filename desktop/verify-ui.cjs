@@ -55,6 +55,14 @@ for(const m of html.matchAll(/<button\b([^>]*)>/gi)){
 for(const m of html.matchAll(/\bdata-tab="([^"]+)"/g))if(!html.includes('id="'+m[1]+'"'))fail('Navegación apunta a pestaña inexistente: '+m[1]);
 for(const m of html.matchAll(/\bdata-tab-jump="([^"]+)"/g))if(!html.includes('id="'+m[1]+'"'))fail('Acceso rápido apunta a pestaña inexistente: '+m[1]);
 
+const agentButtons=[...html.matchAll(/\bdata-agent-home="([^"]+)"/g)].map(m=>m[1]);
+if(agentButtons.length<10)fail('El menú lateral no contiene todos los accesos de agentes esperados.');
+for(const key of agentButtons){
+  if(!agentHome.includes('\n    '+key+':{'))fail('Botón lateral de agente sin configuración funcional: '+key);
+}
+if(!app.includes("[data-agent-home]"))fail('app.js no tiene navegación delegada de respaldo para los botones laterales de agentes.');
+if(!agentHome.includes('window.vnxAgentHome={open:'))fail('agent-home.js no expone la apertura programática de agentes.');
+
 if(!app.includes("$$('[data-real-module]').forEach"))fail('No se detecta el enlace de botones de conexiones reales.');
 if(!app.includes("$$('[data-usage-pack]').forEach"))fail('No se detecta el enlace de botones de créditos.');
 if(!master.includes("$$m('[data-master-query]').forEach"))fail('No se detecta el enlace de botones del Centro Maestro.');
