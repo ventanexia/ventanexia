@@ -20,6 +20,7 @@ const MAX_CONTEXT_CHARS=120000;
 const MAX_FILE_CHARS=20000;
 const PORTAL_PAGE_CHARS=20000;
 const PORTAL_MAX_PAGES=12;
+const PORTAL_REPLENISHMENT_MAX_PAGES=120;
 
 function clean(v,n=500){return String(v||'').trim().slice(0,n)}
 function norm(v=''){return String(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
@@ -39,7 +40,7 @@ async function shopifyGraphqlRead(shop,token,query,variables={}){
   return j.data||{};
 }
 const SHOPIFY_SALES_WINDOW_DAYS=180;
-const SHOPIFY_TARGET_COVER_DAYS=30;
+const SHOPIFY_TARGET_COVER_DAYS=20;
 const SHOPIFY_URGENT_DAYS=5;
 const SHOPIFY_MAX_ORDERS=5000;
 const SHOPIFY_MAX_PRODUCTS=5000;
@@ -124,7 +125,7 @@ async function shopifyReplenishmentSummary(integration,{force=false}={}){
   const products=catalog.rows.filter(p=>p.sku||p.ean).map(p=>({sku:p.sku||'',ean:p.ean||'',title:p.product+(p.variant&&p.variant!=='Default Title'?' · '+p.variant:''),stock:p.stock,price:p.price,status:p.productStatus}));
   const history=await fetchShopifySalesBySku(integration);
   const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays});
-  const value={...history,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
+  const value={...history,targetDays:SHOPIFY_TARGET_COVER_DAYS,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
   shopifyReplenishmentCache={key,at:Date.now(),value};
   return value;
 }
@@ -141,7 +142,7 @@ ipcMain.handle('shopify:replenishment-summary',async(_e,payload={})=>{
 
 // Reposición y previsión de rotura desde archivo para conexiones sin API
 // (por ejemplo, portales privados como Naturdesma). Usa exactamente la misma
-// ventana de 180 días, objetivo de 30 días y regla urgente <5 días que Shopify.
+// ventana de 180 días, objetivo de 20 días y regla urgente <5 días que Shopify.
 const {readTableBuffer,extractText}=require('./order-files.cjs');
 function normStockHeader(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findStockColumn(headers,candidates){
@@ -201,7 +202,7 @@ ipcMain.handle('stock:import-file',async()=>{
   })).filter(p=>p.title&&(p.sku||p.ean));
   if(!products.length)throw new Error('No encuentro filas válidas con producto y SKU/EAN.');
   const replen=buildReplenishmentFromRows(products,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
-  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows:replen,productsSeen:products.length,
+  return {ok:true,fileName:name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows:replen,productsSeen:products.length,
     urgent:replen.filter(r=>r.urgent),withSales:replen.filter(r=>!r.noSalesData).length,truncated:false,catalogTruncated:false};
 });
 
@@ -563,7 +564,8 @@ function portalPageFingerprint(page){
   const body=String(page?.text||'').slice(0,1200);
   return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))+'|'+actions+'|'+body).digest('hex').slice(0,16);
 }
-async function readPortal(portal,question='',preferredUrl=null,existingWin=null){
+async function readPortal(portal,question='',preferredUrl=null,existingWin=null,options={}){
+  const maxPages=Math.max(1,Math.min(150,Number(options?.maxPages||PORTAL_MAX_PAGES)));
   const ownsWindow=!existingWin;
   const win=existingWin||new BrowserWindow(portalWindowOptions(portal,{show:false}));
   if(ownsWindow)win.removeMenu();
@@ -594,7 +596,7 @@ async function readPortal(portal,question='',preferredUrl=null,existingWin=null)
       }
     };
     const exploreActions=async(p,depth=0)=>{
-      if(depth>=6||pages.length>=PORTAL_MAX_PAGES)return;
+      if(depth>=6||pages.length>=maxPages)return;
       const allowPaging=(p.tables||[]).some(t=>Array.isArray(t)&&t.length>=2);
       const ranked=choosePortalActions(p.actions||[],question,allowPaging);
       for(const action of ranked.slice(0,4)){
@@ -624,7 +626,7 @@ async function readPortal(portal,question='',preferredUrl=null,existingWin=null)
       }
     };
     addPage(first);seenUrls.add(first.url);queueLinks(first);await exploreActions(first,0);
-    while(queuedUrls.length&&pages.length<PORTAL_MAX_PAGES){
+    while(queuedUrls.length&&pages.length<maxPages){
       const target=queuedUrls.shift();if(!target?.url||seenUrls.has(target.url))continue;
       seenUrls.add(target.url);
       try{
@@ -736,7 +738,7 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
   let usedLiveWindow=products.length>0;
   if(!products.length){
     const persistentWin=livePortalWindow(portal.id);
-    const autoRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||portal.lastUrl||null,persistentWin||null);
+    const autoRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||portal.lastUrl||null,persistentWin||null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES});
     if(autoRead.status!=='connected')return {ok:false,status:autoRead.status,sourceLabel:portal.name,reason:autoRead.status==='read_error'?'read_error':'login_required',error:autoRead.error||null,liveWindowChecked:Boolean(liveRead),autoRehydrated};
     stockRead=autoRead;
     stockExtract=extractPortalStockRows(stockRead);products=stockExtract.rows;
@@ -759,7 +761,7 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
     portal={...portal,stockUrl:stockExtract.sourceUrl};
   }
   let salesRead;
-  try{salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias',portal.salesUrl||null)}
+  try{salesRead=await readPortal(portal,'ventas historico movimientos pedidos productos referencias ultimos 6 meses 180 dias',portal.salesUrl||null,null,{maxPages:PORTAL_REPLENISHMENT_MAX_PAGES})}
   catch(e){salesRead={name:portal.name,url:portal.url,status:'read_error',mode:portal.mode,pages:[],images:[],error:String(e&&e.message||e).slice(0,300)}}
   const salesExtract=extractPortalSalesRows(salesRead),sales=salesExtract.totals;
   if(salesExtract.sourceUrl&&sameOrigin(salesExtract.sourceUrl,portal.url))await patchPortal(portal.id,{salesUrl:salesExtract.sourceUrl});
@@ -771,7 +773,7 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
   const merged=products.map(p=>({...p,soldWindow:soldFor(p)}));
   const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
   const value={
-    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,rows,
+    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows,
     productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
     structuredSales:sales.size>0,truncated:false,catalogTruncated:false,
     generatedAt:new Date().toISOString(),
