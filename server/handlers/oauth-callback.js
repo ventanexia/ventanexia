@@ -1,4 +1,4 @@
-import {sbFetch,callbackUrl,connector,exchangeCode} from "./oauth-common.js";
+import {sbFetch,callbackUrl,connector,exchangeCode,exchangeMetaLongLivedToken} from "./oauth-common.js";
 
 function html(title,message,ok=true){
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><style>body{font-family:system-ui;background:#081a2d;color:#fff;display:grid;place-items:center;min-height:100vh;margin:0}.card{max-width:620px;background:#fff;color:#102033;padding:32px;border-radius:20px;box-shadow:0 30px 80px #0008}h1{margin-top:0;color:${ok?"#3b25c7":"#a21caf"}}button{padding:12px 18px;border:0;border-radius:10px;background:#3b25c7;color:#fff;font-weight:700}</style></head><body><div class="card"><h1>${title}</h1><p>${message}</p><p>Puedes cerrar esta ventana y volver a VentaNexIA.</p><button onclick="window.close()">Cerrar</button></div></body></html>`;
@@ -20,8 +20,10 @@ export default async function handler(req,res){
       return res.status(200).send(html("Autorización cancelada","No se ha concedido acceso a VentaNexIA.",false));
     }
     if(!code)return res.status(400).send(html("Autorización incompleta","El proveedor no devolvió un código de autorización.",false));
-    const cfg=connector(provider||row.provider,{shop:row.shop||""});
-    const token=await exchangeCode(cfg,{code,redirectUri:callbackUrl(provider||row.provider),verifier:row.code_verifier||null});
+    const resolvedProvider=provider||row.provider;
+    const cfg=connector(resolvedProvider,{shop:row.shop||""});
+    let token=await exchangeCode(cfg,{code,redirectUri:callbackUrl(resolvedProvider),verifier:row.code_verifier||null});
+    if(cfg.meta)token=await exchangeMetaLongLivedToken(cfg,token);
     await sbFetch(`vnx_oauth_sessions?state=eq.${encodeURIComponent(state)}`,{method:"PATCH",body:JSON.stringify({status:"completed",token_payload:token,completed_at:new Date().toISOString(),error:null})});
     return res.status(200).send(html("Cuenta autorizada","La autorización se ha completado correctamente."));
   }catch(e){
