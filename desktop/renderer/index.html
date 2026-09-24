@@ -133,6 +133,8 @@
                   <div class="vnx-ah-stock-policy-grid">
                     <label><small>Días objetivo de cobertura</small><input id="vnxAhTargetDays" type="number" min="1" max="365" step="1" value="25"></label>
                     <label><small>Stock mínimo sin histórico</small><input id="vnxAhNoHistoryMin" type="number" min="0" max="100000" step="1" value="0"></label>
+                    <label><small>Periodo de ventas para calcular rotación</small><select id="vnxAhSalesWindowDays"><option value="90">3 meses · 90 días</option><option value="180" selected>6 meses · 180 días</option><option value="365">12 meses · 365 días</option></select></label>
+                    <label><small>Aviso urgente (días)</small><input id="vnxAhUrgentDays" type="number" min="0" max="90" step="1" value="0" placeholder="Automático"></label>
                   </div>
                   <div class="vnx-ah-stock-policy-note"><b id="vnxAhStockPolicyExample">Sin histórico: no se propondrá una cantidad automática.</b><span>0 significa “revisar manualmente”. Si defines un mínimo, VentaNexIA propondrá solo las unidades necesarias para alcanzar ese mínimo.</span></div>
                   <button id="vnxAhSaveStockPolicy" type="button">Guardar política para esta empresa</button>
