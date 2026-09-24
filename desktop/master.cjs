@@ -12,6 +12,8 @@ let prospecting=null;
 try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
 let orders=null;
 try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,180))}
+let erpConnectors=null;
+try{erpConnectors=require('./erp.cjs')}catch(e){console.error('erp_load_error',String(e?.message||e).slice(0,180))}
 
 require('./main.cjs');
 
@@ -1063,6 +1065,53 @@ ipcMain.handle('portal:replenishment-summary',async(_e,payload)=>{
   const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
   const portal=await getPortal(clean(id,80));if(!portal)throw new Error('Conexión privada no encontrada.');
   return portalReplenishmentSummary(portal,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentAuto?null:policy.urgentDays});
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reposición desde el programa de gestión conectado (Holded, Odoo...), el mismo
+// que ya usa el agente de Pedidos (state.secret.ordersErp.program).
+function erpProgramFromState(s){
+  const p=s?.secret?.ordersErp?.program;
+  if(!p||!erpConnectors?.PROGRAMS?.[p.id]?.make)return null;
+  const def=erpConnectors.PROGRAMS[p.id];
+  return {id:p.id,name:def.name,caps:def.caps||{},cfg:p.cfg};
+}
+let erpReplenishmentCache={key:'',at:0,value:null};
+const ERP_REPLENISHMENT_CACHE_MS=10*60*1000;
+async function erpReplenishmentSummary({force=false,targetDays,noHistoryMin,windowDays,urgentDays}={}){
+  const s=await readState();
+  const program=erpProgramFromState(s);
+  if(!program)throw new Error('No hay ningún programa de gestión conectado. Se conecta desde Pedidos escribiendo, por ejemplo: «programa: holded clave TU_CLAVE».');
+  if(!program.caps.salesHistory)throw new Error('El programa conectado ('+program.name+') todavía no tiene histórico de ventas disponible en VentaNexIA. Usa Shopify, un portal o importa un Excel/CSV para calcular reposición en Stock y Compras.');
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin,windowDays,urgentDays});
+  const key=program.id+'|'+policy.targetDays+'|'+policy.noHistoryMin+'|'+policy.windowDays+'|'+policy.urgentDays;
+  if(!force&&erpReplenishmentCache.key===key&&erpReplenishmentCache.value&&(Date.now()-erpReplenishmentCache.at)<ERP_REPLENISHMENT_CACHE_MS)return erpReplenishmentCache.value;
+  const adapter=erpConnectors.PROGRAMS[program.id].make(program.cfg,{fetch:(...a)=>fetch(...a)});
+  const [,...catRows]=await adapter.catalog();
+  const products=catRows.filter(r=>r&&r[0]).map(r=>({sku:String(r[0]).trim(),title:String(r[1]||r[0]).trim(),stock:Number(r[3])||0}));
+  const history=await adapter.salesHistory({windowDays:policy.windowDays});
+  const totals=history?.totals instanceof Map?history.totals:new Map(Object.entries(history?.salesBySku||{}));
+  const merged=products.map(p=>({...p,soldWindow:Number(totals.get(p.sku)||0),noSalesData:!totals.has(p.sku)}));
+  const rows=buildReplenishmentFromRows(merged,{windowDays:policy.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,urgentDays:policy.urgentAuto?null:policy.urgentDays});
+  const withSalesCount=rows.filter(r=>!r.noSalesData).length;
+  const salesLookReliable=!(products.length>=5&&withSalesCount===0);
+  const value={
+    ok:true,sourceLabel:program.name,programId:program.id,windowDays:policy.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,urgentDays:policy.urgentDays,rows,
+    productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:withSalesCount,salesLookReliable,
+    docsSeen:Number(history?.docsSeen||history?.documentsSeen||0),salesRowsSeen:Number(history?.rowsSeen||0),structuredSales:true,generatedAt:new Date().toISOString(),cacheHit:false,cacheAgeMs:0
+  };
+  erpReplenishmentCache={key,at:Date.now(),value};
+  return value;
+}
+ipcMain.handle('erp:status',async()=>{
+  const s=await readState();const program=erpProgramFromState(s);
+  return program?{connected:true,id:program.id,name:program.name,hasSalesHistory:Boolean(program.caps.salesHistory)}:{connected:false};
+});
+ipcMain.handle('erp:replenishment-summary',async(_e,payload={})=>{
+  const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
+  const force=typeof payload==='object'?payload?.force!==false:true;
+  return erpReplenishmentSummary({force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,windowDays:policy.windowDays,urgentDays:policy.urgentAuto?null:policy.urgentDays});
 });
 
 
