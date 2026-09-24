@@ -547,6 +547,109 @@ function addMasterEmailAccount(s,entry){
   if(i>=0)s.secret.emailAccounts[i]=entry;else s.secret.emailAccounts.push(entry);
   s.secret.integrations.email=s.secret.emailAccounts[0]||entry;
 }
+
+
+const CONNECTION_HEALTH_TTL=90*1000;
+const connectionHealthCache=new Map();
+function integrationAccountKey(x={}){
+  return String(x.meta?.email||x.label||x.account||x.username||x.accountId||x.meta?.id||x.meta?.phoneNumberId||'').trim().toLowerCase();
+}
+function clearConnectionHealth(){connectionHealthCache.clear()}
+function healthCacheKey(module,x={},index=0){
+  return [module,integrationAccountKey(x)||index,String(x.connectedAt||''),String(x.tokenObtainedAt||''),String(x.shop||'')].join('|');
+}
+async function withHealthTimeout(promise,ms=12000){
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_,reject)=>{timer=setTimeout(()=>{const e=new Error('La comprobación ha tardado demasiado.');e.code='HEALTH_TIMEOUT';reject(e)},ms)})
+  ]).finally(()=>clearTimeout(timer));
+}
+function integrationExpiryMs(x={}){
+  const secs=Number(x.tokenExpiresIn||0),from=Number(x.tokenObtainedAt)||Date.parse(x.connectedAt||'')||0;
+  return secs>0&&from>0?from+secs*1000:0;
+}
+async function persistIntegrationPatch(module,target,patch){
+  const key=integrationAccountKey(target);
+  await updateState(st=>{
+    st.secret=st.secret||{};st.secret.integrations=st.secret.integrations||{};
+    if(module==='email'){
+      for(const x of st.secret.emailAccounts||[])if(integrationAccountKey(x)===key)Object.assign(x,patch);
+      const primary=st.secret.integrations.email;if(primary&&integrationAccountKey(primary)===key)Object.assign(primary,patch);
+    }else{
+      const x=st.secret.integrations[module];if(x)Object.assign(x,patch);
+    }
+    return st;
+  });
+}
+async function refreshStoredOAuth(module,entry){
+  const rt=String(entry?.refreshToken||'').trim();
+  if(!rt)throw new Error('La autorización ha caducado y necesita volver a conectarse.');
+  const st=await readState();
+  const j=await postJson(CLOUD+'/api/oauth-refresh',{
+    provider:entry.provider,refreshToken:rt,
+    customerId:st.secret?.customerId||'',activationCode:st.secret?.activationCode||'',deviceKey:st.secret?.deviceKey||''
+  });
+  if(!j?.access_token)throw new Error('No se pudo renovar la autorización.');
+  const patch={token:j.access_token,tokenObtainedAt:Date.now(),tokenExpiresIn:Number(j.expires_in||3600)};
+  Object.assign(entry,patch);await persistIntegrationPatch(module,entry,patch);
+  return j.access_token;
+}
+async function verifyGenericMailHealth(entry){
+  const gm=entry?.genericMail||{};
+  if(!gm.username||!gm.password||!gm.imapHost||!gm.smtpHost)throw new Error('Faltan datos para comprobar este correo.');
+  const imapPort=Number(gm.imapPort||993),smtpPort=Number(gm.smtpPort||465);
+  const imap=new ImapFlow({host:gm.imapHost,port:imapPort,secure:imapPort===993,auth:{user:gm.username,pass:gm.password},logger:false});
+  try{await withHealthTimeout(imap.connect(),9000);await imap.logout()}catch(e){try{await imap.logout()}catch{};throw new Error('No responde el correo entrante: '+String(e?.message||e).slice(0,150))}
+  const transport=nodemailer.createTransport({host:gm.smtpHost,port:smtpPort,secure:smtpPort===465,requireTLS:smtpPort!==465,auth:{user:gm.username,pass:gm.password}});
+  try{await withHealthTimeout(transport.verify(),9000)}catch(e){throw new Error('No responde el envío de correo: '+String(e?.message||e).slice(0,150))}
+  return true;
+}
+async function verifyStoredIntegration(module,entry){
+  if(!entry)return {connected:false,state:'disconnected',reason:'No configurado'};
+  const provider=normalizeProviderKey(entry.provider||module);
+  try{
+    if(module==='email'&&entry.genericMail){
+      await verifyGenericMailHealth(entry);
+    }else if(provider==='gmail'){
+      await withHealthTimeout(gmailCall(entry,tok=>verifyIntegration('gmail',{...entry,token:tok})),12000);
+    }else{
+      const exp=integrationExpiryMs(entry);
+      if(entry.refreshToken&&exp&&Date.now()>=exp-120000)await refreshStoredOAuth(module,entry);
+      try{await withHealthTimeout(verifyIntegration(provider,entry),12000)}
+      catch(first){
+        if(!entry.refreshToken)throw first;
+        await refreshStoredOAuth(module,entry);
+        await withHealthTimeout(verifyIntegration(provider,entry),12000);
+      }
+    }
+    return {connected:true,state:'connected',reason:'Conexión verificada',checkedAt:new Date().toISOString()};
+  }catch(e){
+    return {connected:false,state:'reconnect',reason:String(e?.message||e).replace(/^Error invoking remote method[^:]*:\s*/i,'').slice(0,180),checkedAt:new Date().toISOString()};
+  }
+}
+async function liveIntegrationHealth(module,entry,index=0,{force=false}={}){
+  const key=healthCacheKey(module,entry,index),cached=connectionHealthCache.get(key);
+  if(!force&&cached&&Date.now()-cached.at<CONNECTION_HEALTH_TTL)return cached.value;
+  const value=await verifyStoredIntegration(module,entry);
+  connectionHealthCache.set(key,{at:Date.now(),value});
+  return value;
+}
+async function liveShopifyHealth(store,{force=false}={}){
+  if(!store)return {connected:false,state:'disconnected',reason:'No configurado'};
+  const key='shopify|'+String(store.shop||'')+'|'+String(store.connectedAt||'')+'|'+String(store.expiresAt||'');
+  const cached=connectionHealthCache.get(key);
+  if(!force&&cached&&Date.now()-cached.at<CONNECTION_HEALTH_TTL)return cached.value;
+  let value;
+  try{
+    const data=await withHealthTimeout(shopifyCall(store,tok=>shopifyGraphql(store.shop,tok,\`query VentaNexIAHealth { shop { name myshopifyDomain } }\`)),12000);
+    value={connected:true,state:'connected',reason:'Conexión verificada',checkedAt:new Date().toISOString(),shopName:data?.shop?.name||store.shopName||store.shop};
+  }catch(e){
+    value={connected:false,state:'reconnect',reason:String(e?.message||e).slice(0,180),checkedAt:new Date().toISOString(),shopName:store.shopName||store.shop};
+  }
+  connectionHealthCache.set(key,{at:Date.now(),value});
+  return value;
+}
 ipcMain.handle('email:connect-generic',async(_e,payload={})=>{
   const preState=await readState();assertConnectionCapacity(preState);
   const policyState=await readState();assertModuleIncluded(policyState.license,'email');
