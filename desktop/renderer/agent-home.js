@@ -303,6 +303,110 @@
     try{for(const p of await window.vnx.listPortals()||[]){if(p?.id&&p.lastStatus==='connected'&&['read','write'].includes(p.mode||'read'))rows.push({id:String(p.id),type:'portal',module:'portal',label:String(p.name||p.url||'Portal privado'),raw:p})}}catch{}
     const seen=new Set();return rows.filter(x=>{const k=x.type+':'+x.id+':'+x.label.toLowerCase();if(seen.has(k))return false;seen.add(k);return true});
   }
+  let lastOrdersRun=null;
+  function orderFilterValues(){
+    const out={};
+    document.querySelectorAll('#vnxAhFilters label').forEach(label=>{
+      const name=String(label.querySelector('small')?.textContent||'').trim(),value=String(label.querySelector('select')?.value||'').trim();
+      if(name)out[name]=value;
+    });
+    return out;
+  }
+  function orderTimestamp(o){
+    const n=Number(o?.createdAt||0);if(n>0)return n;
+    const d=Date.parse(String(o?.sourceDate||o?.orderDate||o?.createdDate||''));return Number.isFinite(d)?d:0;
+  }
+  function orderMatches(snapshotOrder,query=''){
+    const q=normalizedText(query),f=orderFilterValues(),status=normalizedText(f.Estado||'Todos'),date=normalizedText(f.Fecha||'Hoy'),channel=normalizedText(f.Canal||'Todos');
+    const st=String(snapshotOrder?.status||''),hay=normalizedText([
+      snapshotOrder?.internalRef,snapshotOrder?.orderRef,snapshotOrder?.customer,snapshotOrder?.email,snapshotOrder?.sourceSubject,
+      ...(snapshotOrder?.lines||[]).flatMap(x=>[x.ref,x.description])
+    ].filter(Boolean).join(' '));
+    if(q&&!/pedidos?\s+(nuevos?|pendientes?|listos?|preparados?)\s*(de\s+)?(hoy)?/.test(q)&&!hay.includes(q))return false;
+    if(status!=='todos'){
+      if(status==='nuevos'&&st!=='nuevo')return false;
+      if(status==='pendientes'&&['introducido','descartado','listo'].includes(st))return false;
+      if(status==='incompletos'&&!['revisar','falta_datos','sin_stock','esperando_compras','esperando_cliente','error'].includes(st))return false;
+      if(status==='preparados'&&st!=='listo')return false;
+    }
+    const age=Date.now()-orderTimestamp(snapshotOrder),day=86400000;
+    if(date==='hoy'&&age>day)return false;
+    if(date==='7 dias'&&age>7*day)return false;
+    if(date==='30 dias'&&age>30*day)return false;
+    if(channel!=='todos'){
+      const web=snapshotOrder?.sourceKind==='web';
+      if(channel==='tienda online'&&!web)return false;
+      if(channel==='email'&&web)return false;
+      if(channel==='portal'&&snapshotOrder?.sourceKind!=='portal')return false;
+    }
+    const active=[...document.querySelectorAll('#vnxAhChips .vnx-ah-chip.active')].map(x=>normalizedText(x.textContent));
+    if(active.length){
+      const wantsNew=active.includes('nuevos'),wantsUrgent=active.includes('urgentes'),wantsPending=active.includes('pendientes'),
+        wantsIncomplete=active.includes('incompletos'),wantsPrepared=active.includes('preparados'),wantsIssues=active.includes('incidencias');
+      if(wantsNew&&st!=='nuevo')return false;
+      if(wantsPending&&['introducido','descartado','listo'].includes(st))return false;
+      if(wantsIncomplete&&!['revisar','falta_datos','sin_stock','esperando_compras','esperando_cliente','error'].includes(st))return false;
+      if(wantsPrepared&&st!=='listo')return false;
+      if(wantsIssues&&!snapshotOrder?.issues?.length&&!['revisar','falta_datos','sin_stock','esperando_compras','esperando_cliente','error'].includes(st))return false;
+      if(wantsUrgent&&!['sin_stock','esperando_compras','error'].includes(st))return false;
+    }
+    return true;
+  }
+  function orderChannelLabel(o){
+    if(o?.sourceKind==='web')return o?.sourceStore?String(o.sourceStore):'Tienda online';
+    if(o?.sourceKind==='portal')return 'Portal';
+    return o?.sourceAccount?String(o.sourceAccount):'Email';
+  }
+  function orderStatusLabel(o){
+    const map={nuevo:'NUEVO',listo:'LISTO',revisar:'REVISAR',falta_datos:'FALTAN DATOS',sin_stock:'SIN STOCK',esperando_compras:'ESPERANDO COMPRAS',esperando_cliente:'ESPERANDO CLIENTE',introducido:'INTRODUCIDO',error:'ERROR',descartado:'DESCARTADO'};
+    return map[o?.status]||String(o?.statusText||o?.status||'');
+  }
+  function orderMoney(o){
+    if(o?.total==null)return '—';
+    const n=Number(o.total);if(!Number.isFinite(n))return '—';
+    return n.toLocaleString('es-ES',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+(o.currency||'€');
+  }
+  function renderOrdersResult(snapshot,query=''){
+    const preview=$('#vnxAhPreview');if(!preview)return;
+    const rows=(snapshot?.orders||[]).filter(o=>orderMatches(o,query));
+    const c=snapshot?.counts||{},newNow=Number(snapshot?.scan?.found?.length||0),errors=Array.isArray(snapshot?.scan?.errors)?snapshot.scan.errors:[];
+    preview.innerHTML='<div class="vnx-orders-live">'
+      +'<div class="vnx-orders-live-head"><div><small>PEDIDOS RECIBIDOS</small><b>'+rows.length+' pedido'+(rows.length===1?'':'s')+' mostrados</b><span>Revisión real de correo y tiendas online conectadas · últimos '+Number(snapshot?.settings?.scanDays||14)+' días.</span></div>'
+      +'<div class="vnx-orders-kpis"><span><b>'+newNow+'</b><small>Nuevos ahora</small></span><span><b>'+Number(c.pending||0)+'</b><small>Pendientes</small></span><span><b>'+Number(c.ready||0)+'</b><small>Listos</small></span><span><b>'+Number(c.issues||0)+'</b><small>Incidencias</small></span></div></div>'
+      +(errors.length?'<div class="vnx-orders-warning"><b>Alguna fuente no se ha podido revisar:</b> '+errors.map(esc).join(' · ')+'</div>':'')
+      +'<div class="vnx-orders-table"><table><thead><tr><th>Fecha</th><th>Pedido</th><th>Cliente</th><th>Canal</th><th>Líneas</th><th>Total</th><th>Estado</th><th>Incidencias</th></tr></thead><tbody>'
+      +(rows.length?rows.map(o=>{
+        const dt=orderTimestamp(o)?new Date(orderTimestamp(o)).toLocaleString('es-ES',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+        const ref=String(o.orderRef||o.internalRef||('#'+o.seq)||'—'),issues=(o.issues||[]).slice(0,3);
+        const lines=(o.lines||[]).slice(0,8).map(x=>esc((x.ref||'sin ref.')+' × '+(x.qty==null?'?':x.qty)+(x.description?' · '+x.description:''))).join('<br>');
+        return '<tr class="status-'+esc(String(o.status||''))+'"><td>'+esc(dt)+'</td><td><b>'+esc(ref)+'</b><small>'+esc(o.sourceSubject||'')+'</small></td><td>'+esc(o.customer||'—')+'</td><td>'+esc(orderChannelLabel(o))+'</td><td><details><summary>'+Number(o.lineCount||0)+' línea'+(Number(o.lineCount||0)===1?'':'s')+'</summary><div>'+lines+'</div></details></td><td>'+esc(orderMoney(o))+'</td><td><strong>'+esc(orderStatusLabel(o))+'</strong></td><td>'+(issues.length?issues.map(x=>'<span>'+esc(x)+'</span>').join(''):'—')+'</td></tr>';
+      }).join(''):'<tr><td colspan="8"><div class="vnx-orders-empty"><b>No hay pedidos que coincidan con este filtro.</b><span>Si acaba de llegar uno, pulsa Revisar para volver a leer correo y tiendas conectadas.</span></div></td></tr>')
+      +'</tbody></table></div>'
+      +'<div class="vnx-orders-foot"><span>'+Number(c.total||0)+' pedidos guardados</span><span>'+Number(snapshot?.scan?.accounts||0)+' cuentas de correo revisadas</span><span>'+(snapshot?.settings?.webOrders?'Tiendas online activas':'Tiendas online desactivadas')+'</span></div>'
+      +'</div>';
+    const metric=$('#vnxAhMetricValue'),review=$('#vnxAhReviewValue');
+    if(metric)metric.textContent=String(rows.length);if(review)review.textContent=String(c.ready||0);
+    const pt=$('#vnxAhPreviewTitle'),ps=$('#vnxAhPreviewSub');
+    if(pt)pt.textContent='3. Pedidos recibidos y estado';
+    if(ps)ps.textContent='Estos son los pedidos detectados realmente en tus canales conectados.';
+  }
+  async function runOrdersReview(mode=''){
+    const btn=$('#vnxAhSearchBtn'),preview=$('#vnxAhPreview');
+    try{
+      if(btn){btn.disabled=true;btn.textContent='Revisando…'}
+      if(preview)preview.innerHTML='<div class="vnx-stock-loading">Revisando correo y tiendas online para detectar pedidos nuevos…</div>';
+      const snapshot=await window.vnx?.ordersReview?.({force:true,max:250});
+      if(!snapshot?.ok)throw new Error('El agente de Pedidos no ha devuelto datos.');
+      lastOrdersRun=snapshot;
+      const input=$('#vnxAhSearchInput'),old=input?.value||'';
+      if(input&&mode)input.value=mode;
+      renderOrdersResult(snapshot,mode||old);
+      if(input&&mode)input.value=old;
+    }catch(e){
+      if(preview)preview.innerHTML='<div class="vnx-stock-error"><b>No se han podido revisar los pedidos.</b><span>'+esc(String(e?.message||e))+'</span></div>';
+    }finally{if(btn){btn.disabled=false;btn.textContent='Revisar'}}
+  }
+
   let lastStockRun=null;
   function sameHomeSource(a,b){return Boolean(a&&b&&a.type===b.type&&String(a.id||'')===String(b.id||''))}
   async function stockCapableSources(){
@@ -571,6 +675,13 @@
       $$('#vnxAhTabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
       const label=String(b.textContent||'').trim(),key=document.body.dataset.vnxHomeAgent||'prospecting',cfg=cfgFor(key);
       if(index===0)return;
+      if(key==='orders'){
+        if(/nuevo/i.test(label)){runOrdersReview('pedidos nuevos');return}
+        if(/pendiente/i.test(label)){runOrdersReview('pedidos pendientes');return}
+        if(/preparado|listo/i.test(label)){runOrdersReview('pedidos preparados');return}
+        if(/incidencia/i.test(label)){runOrdersReview('incidencias');return}
+        if(/resultado/i.test(label)&&lastOrdersRun){renderOrdersResult(lastOrdersRun,$('#vnxAhSearchInput')?.value||'');return}
+      }
       if(/buscar|localiza|selecciona/i.test(label)){const q=$('#vnxAhSearchInput');if(q){q.focus();q.select?.()}return}
       if(/lista|archivo|document/i.test(label)&&!/an[aá]lisis/i.test(label)){openAppTab('files');return}
       if(/campa[nñ]a/i.test(label)&&key!=='campaigns'){applyConfig('campaigns');return}
@@ -622,6 +733,7 @@
     }));
     $('#vnxAhSearchBtn')?.addEventListener('click',()=>{
       const key=document.body.dataset.vnxHomeAgent||'prospecting';
+      if(key==='orders'){runOrdersReview();return}
       if(key==='web_ecommerce'){runStockAnalysis(false);return}
       const cfg=cfgFor(key),q=$('#vnxAhSearchInput')?.value?.trim();
       openWorkbench(key,q||cfg.primaryPrompt,false);
@@ -630,7 +742,7 @@
     $('#vnxAhSearchInput')?.addEventListener('keydown',e=>{
       if(e.key==='Enter'){e.preventDefault();$('#vnxAhSearchBtn')?.click()}
     });
-    const runPrimary=()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';if(key==='web_ecommerce'){runStockAnalysis(true);return}openWorkbench(key,cfgFor(key).primaryPrompt,true)};
+    const runPrimary=()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';if(key==='orders'){runOrdersReview('pedidos preparados');return}if(key==='web_ecommerce'){runStockAnalysis(true);return}openWorkbench(key,cfgFor(key).primaryPrompt,true)};
     $('#vnxAhPrimary')?.addEventListener('click',runPrimary);
     $('#vnxAhPrimaryMirror')?.addEventListener('click',runPrimary);
     $$('.vnx-ah-preview-actions button').forEach((b,i)=>b.addEventListener('click',()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';const cfg=cfgFor(key);const prompts=['Regenera este trabajo con otro enfoque manteniendo los datos reales y sin inventar.','Quiero ajustar este trabajo para un caso concreto. Pregúntame solo lo imprescindible.','Ayúdame a guardar este enfoque como plantilla reutilizable.'];openWorkbench(key,prompts[i]||cfg.primaryPrompt,false)}));
