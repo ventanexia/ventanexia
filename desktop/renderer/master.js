@@ -2865,15 +2865,15 @@ function emailListItem(m,i,selected){
   }
   function sourceLabelOf(src){return src?.label||src?.name||src?.raw?.shopName||src?.raw?.shop||'Conexión'}
   async function stockSummaryForSource(src,text=''){
-    const module=String(src?.module||src?.type||'');
+    const module=String(src?.module||src?.type||''),policy=stockPolicyForSource(src,text);
     const force=wantsFreshStock(text);
     if(module==='shopify'){
       const shop=src?.raw?.shop||src?.shop||null;
-      const r=await window.vnx.shopifyReplenishmentSummary(shop,{force:true});
+      const r=await window.vnx.shopifyReplenishmentSummary(shop,{force:true,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
       return {...r,sourceLabel:'Shopify · '+(src?.label||r?.shop||shop||'Tienda'),sourceModule:'shopify'};
     }
     if(module==='portal'){
-      const r=await window.vnx.portalReplenishmentSummary(src.id,{force});
+      const r=await window.vnx.portalReplenishmentSummary(src.id,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
       if(!r?.ok){
         const why=r?.reason==='login_required'?'la sesión necesita volver a iniciarse':r?.reason==='read_error'?'la página no se ha podido leer':r?.reason==='stock_not_structured'?'no se ha encontrado una tabla verificable de referencias y existencias':'la lectura no ha terminado correctamente';
         throw new Error(sourceLabelOf(src)+': '+why+(r?.error?' · '+r.error:''));
@@ -2932,6 +2932,25 @@ function emailListItem(m,i,selected){
     }
     return lines.join('\n');
   }
+  const STOCK_POLICY_KEY='vnx_stock_policy_by_source_v1';
+  function stockPolicyNorm(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
+  function stockPolicyKeys(src={}){
+    const raw=src?.raw||{},keys=[],id=String(src?.id||raw.id||'').trim(),shop=String(src?.shop||raw.shop||'').trim(),label=String(src?.label||src?.name||raw.shopName||shop||'').trim();
+    if(id)keys.push('id:'+id);if(shop)keys.push('shop:'+shop.toLowerCase());if(label)keys.push('label:'+stockPolicyNorm(label));
+    return [...new Set(keys)];
+  }
+  function stockPolicyStore(){try{const x=JSON.parse(localStorage.getItem(STOCK_POLICY_KEY)||'{}');return x&&typeof x==='object'?x:{}}catch{return {}}}
+  function stockPolicyForSource(src={},text=''){
+    const store=stockPolicyStore();let out={targetDays:25,noHistoryMin:0};
+    for(const k of stockPolicyKeys(src)){if(store[k]){out={targetDays:Number(store[k].targetDays)||25,noHistoryMin:Number(store[k].noHistoryMin)||0};break}}
+    out.targetDays=Math.max(1,Math.min(365,Math.round(Number(out.targetDays)||25)));
+    out.noHistoryMin=Math.max(0,Math.min(100000,Math.round(Number(out.noHistoryMin)||0)));
+    const q=stockPolicyNorm(text),d=q.match(/(?:para|durante|cobertura(?:\s+de)?|objetivo(?:\s+de)?)\s*(\d{1,3})\s*dias?/);
+    if(d)out.targetDays=Math.max(1,Math.min(365,Number(d[1])));
+    const m=q.match(/(?:stock\s+)?minim\w*(?:\s+sin\s+historico)?[^0-9]{0,16}(\d{1,6})/);
+    if(m)out.noHistoryMin=Math.max(0,Math.min(100000,Number(m[1])));
+    return out;
+  }
   function realManufacturer(row={}){
     return String(row?.manufacturer||'').trim();
   }
@@ -2945,28 +2964,31 @@ function emailListItem(m,i,selected){
   }
   function shopifyStockTable(summary={}){
     const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const targetDays=Number(summary.targetDays||20);
+    const targetDays=Number(summary.targetDays||25),noHistoryMin=Number(summary.noHistoryMin||0);
     const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
-    const coverage=r=>r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
-    const qtyLabel=r=>Number(r.qty||0)>0?fmt(r.qty):(Number(r.stock||0)<=0&&r.noSalesData?'Revisar':'0');
+    const coverage=r=>r.noSalesData?'—':r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
+    const qtyLabel=r=>Number(r.qty||0)>0?fmt(r.qty):(Number(r.stock||0)<=0&&r.noSalesData&&noHistoryMin===0?'Revisar':'0');
     const status=r=>{
-      if(Number(r.stock||0)<=0)return r.noSalesData?'🔴 SIN STOCK · sin histórico para calcular':'🔴 SIN STOCK';
+      if(r.noSalesData)return noHistoryMin>0?(Number(r.qty||0)>0?'🟣 MÍNIMO SIN HISTÓRICO':'🟢 MÍNIMO CUBIERTO'):(Number(r.stock||0)<=0?'🔴 REVISAR · SIN HISTÓRICO':'⚪ SIN HISTÓRICO');
+      if(Number(r.stock||0)<=0)return '🔴 SIN STOCK';
       if(r.urgent)return '🟠 URGENTE · < 5 DÍAS';
-      return '🟡 REPONER · < '+targetDays+' DÍAS';
+      return Number(r.qty||0)>0?'🟡 REPONER · < '+targetDays+' DÍAS':'🟢 CORRECTO';
     };
     const label=summary.sourceLabel||summary.shop||'Shopify';
     const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|'];
     for(const r of toBuy){
       const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
-      lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+fmt(r.soldWindow)+' | '+fmt(r.avgDaily)+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |');
+      lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+(r.noSalesData?'Sin histórico':fmt(r.soldWindow))+' | '+(r.noSalesData?'—':fmt(r.avgDaily))+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |');
     }
     if(!toBuy.length)lines.push('| — | — | — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
     const units=toBuy.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=toBuy.filter(r=>Number(r.stock||0)<=0).length,under5=toBuy.filter(r=>Number(r.stock||0)>0&&r.urgent).length,normal=toBuy.filter(r=>Number(r.stock||0)>0&&!r.urgent).length;
     lines.push('','**Resumen del pedido:** '+toBuy.length+' referencias · '+zero+' sin stock · '+under5+' urgentes (<5 días) · '+normal+' a reponer para completar '+targetDays+' días · '+fmt(units)+' unidades calculadas.');
     lines.push('**Fórmula:** media diaria = ventas de '+(summary.windowDays||180)+' días ÷ '+(summary.windowDays||180)+'; stock objetivo = media diaria × '+targetDays+'; cantidad a pedir = stock objetivo − stock actual, redondeando hacia arriba.');
     lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. VentaNexIA no los deduce ni los inventa.');
-    if(toBuy.some(r=>Number(r.stock||0)<=0&&r.noSalesData))lines.push('⚠️ Las referencias agotadas sin ventas registradas aparecen como **Revisar**, sin inventar una cantidad.');
+    if(toBuy.some(r=>r.noSalesData)){
+      lines.push(noHistoryMin>0?'ℹ️ Para referencias sin histórico se aplica el mínimo configurado por esta empresa: **'+noHistoryMin+' unidades de stock objetivo**.':'⚠️ Las referencias sin histórico aparecen como **Revisar** cuando están agotadas; no se inventa una cantidad porque el mínimo configurado es 0.');
+    }
     if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar el histórico; puede no ser exhaustivo.');
     if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
     lines.push('','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
@@ -2981,8 +3003,8 @@ function emailListItem(m,i,selected){
     const lines=['# Stock actual · '+label,'','**Referencias leídas del catálogo:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---|---|---:|---:|---:|---|'];
     for(const r of ordered){
       const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
-      const sold=hasStructuredSales?fmt(r.soldWindow):'—';
-      const coverage=hasStructuredSales?(r.daysRemaining==null?'Sin ventas':String(r.daysRemaining)):'—';
+      const sold=hasStructuredSales?(r.noSalesData?'Sin histórico':fmt(r.soldWindow)):'—';
+      const coverage=hasStructuredSales?(r.noSalesData?'—':r.daysRemaining==null?'Sin ventas':String(r.daysRemaining)):'—';
       const state=Number(r.stock||0)<=0?'🔴 Sin stock':r.urgent?'🟠 Menos de 5 días':'🟢 Disponible';
       lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
     }
@@ -3001,8 +3023,8 @@ function emailListItem(m,i,selected){
       headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
       rows:ordered.map(r=>[
         String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),
-        hasStructuredSales?Number(r.soldWindow||0):'',hasStructuredSales?Number(r.avgDaily||0):'',
-        hasStructuredSales?(r.daysRemaining==null?'':Number(r.daysRemaining)):'',
+        hasStructuredSales&&!r.noSalesData?Number(r.soldWindow||0):'',hasStructuredSales&&!r.noSalesData?Number(r.avgDaily||0):'',
+        hasStructuredSales&&!r.noSalesData?(r.daysRemaining==null?'':Number(r.daysRemaining)):'',
         Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <5 DIAS':'DISPONIBLE'
       ])
     };
@@ -3015,20 +3037,20 @@ function emailListItem(m,i,selected){
     const context=/\b(compra|compras|reponer|reposici[oó]n|proveedor|stock)\b/.test(q);
     return direct||context||q==='pedido';
   }
-  async function latestPurchaseAnalysis(scopeKey){
+  async function latestPurchaseAnalysis(scopeKey,targetDays=25){
     for(let i=masterMessages.length-1;i>=0;i--){
       const m=masterMessages[i];
-      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&m?.purchaseTargetDays===20&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
+      if(m?.role==='assistant'&&m?.scopeKey===scopeKey&&m?.purchaseExport&&Number(m?.purchaseTargetDays)===Number(targetDays)&&m?.purchaseData&&Array.isArray(m.purchaseData.rows))return m;
     }
     try{
       const saved=await window.vnx?.purchaseAnalysisGet?.(scopeKey);
-      if(saved?.targetDays===20&&saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)){
-        return {role:'assistant',scopeKey,purchaseExport:true,purchaseTargetDays:20,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
+      if(Number(saved?.targetDays)===Number(targetDays)&&saved?.purchaseData&&Array.isArray(saved.purchaseData.rows)){
+        return {role:'assistant',scopeKey,purchaseExport:true,purchaseTargetDays:targetDays,purchaseData:saved.purchaseData,stockSourceLabel:saved.sourceLabel||'Fuente seleccionada',purchaseAnalyzedAt:saved.analyzedAt||saved.savedAt||null};
       }
     }catch{}
     return null;
   }
-  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString(),targetDays=20){
+  async function rememberPurchaseAnalysis(scopeKey,purchaseData,sourceLabel,analyzedAt=new Date().toISOString(),targetDays=25){
     const payload={scopeKey,purchaseData,sourceLabel,analyzedAt,targetDays};
     try{await window.vnx?.purchaseAnalysisSet?.(payload)}catch{}
     return payload;
