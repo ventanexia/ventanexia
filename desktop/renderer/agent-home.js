@@ -1,0 +1,375 @@
+// VentaNexIA Desktop 0.6.134 · Agent Workspace Home
+(()=>{
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const alias={
+    core_ai:'core_ai',email:'email',orders:'orders',stock:'web_ecommerce',web_ecommerce:'web_ecommerce',
+    crm:'crm',prospecting:'prospecting',content:'social',social:'social',campaigns:'social',
+    administration:'administration',agenda:'core_ai',reports:'reports',automation:'automation',whatsapp:'whatsapp'
+  };
+  const configs={
+    prospecting:{
+      chatKey:'prospecting',crumb:'Marketing y redes › Captación de clientes',icon:'◎',title:'Agente de Captación de Clientes',
+      subtitle:'Encuentra, analiza y contacta con nuevos clientes de forma automática y personalizada.',
+      help:'Me encargo de buscar y preparar la captación para que tú solo te centres en tu negocio.',
+      capabilities:['Busca nuevos clientes','Analiza sus necesidades','Genera mensajes personalizados','Usa tu estilo de marca','Los deja listos para revisar o enviar'],
+      tabs:['Resumen','Emails de captación','Buscar empresas','Listas de contactos','Campañas','Resultados'],
+      chips:['Farmacias','Clínicas','Hospitales','Distribuidores','Residencias','Otros'],
+      objective:'Tipo de clientes objetivo',itemLabel:'Productos o servicios a promocionar',itemPlaceholder:'Ej.: tu producto o servicio',
+      searchTitle:'2. Selecciona o genera la lista de contactos',searchSub:'Puedes usar tus propias listas o pedir a Carla que busque nuevas empresas.',
+      searchPlaceholder:'Ej.: farmacias en Barcelona',searchButton:'Buscar',
+      previewTitle:'3. Genera los correos con IA',previewSub:'Carla analiza cada empresa y crea un mensaje adaptado a sus necesidades.',
+      action:'Ver y revisar correos',metric:'Empresas encontradas',review:'Correos preparados',cta:'Automatiza tu captación',
+      ctaText:'Haz que Carla busque nuevos contactos, prepare mensajes y deje el trabajo listo para tu revisión.',
+      primaryPrompt:'Busca nuevos clientes adecuados para mi producto o servicio y prepara mensajes de captación personalizados.',
+      previewType:'email'
+    },
+    core_ai:{
+      chatKey:'core_ai',crumb:'Inicio › Carla',icon:'✦',title:'Carla · Secretaria Ejecutiva',
+      subtitle:'Organiza tu empresa, prioriza lo importante y deja trabajo preparado para que tú decidas.',
+      help:'Reviso lo conectado, ordeno prioridades y preparo el trabajo que puedo adelantar.',
+      capabilities:['Organiza el día','Resume lo importante','Prepara respuestas y tareas','Cruza solo fuentes autorizadas','Te pide decisión cuando hace falta'],
+      tabs:['Resumen','Prioridades','Pendientes','Agenda','Trabajo preparado','Resultados'],
+      chips:['Hoy','Urgente','Clientes','Pedidos','Cobros','Reuniones'],
+      objective:'Qué quieres priorizar',itemLabel:'Contexto o asunto',itemPlaceholder:'Ej.: pedidos urgentes o reunión con cliente',
+      searchTitle:'2. Dime qué necesitas',searchSub:'Carla revisará únicamente las fuentes que tengas autorizadas.',
+      searchPlaceholder:'Ej.: prepárame el día y dime por dónde empiezo',searchButton:'Analizar',
+      previewTitle:'3. Carla prepara el trabajo',previewSub:'Verás prioridades, tareas preparadas y decisiones pendientes en un solo sitio.',
+      action:'Abrir Carla',metric:'Tareas preparadas',review:'Necesitan tu decisión',cta:'Automatiza tu jornada',
+      ctaText:'Programa revisiones periódicas para que Carla te deje el día organizado antes de empezar.',
+      primaryPrompt:'Prepárame el día. Revisa lo importante, dime qué requiere mi decisión y adelanta lo que puedas.',
+      previewType:'priorities'
+    },
+    email:{
+      chatKey:'email',crumb:'Correo › Agente de email',icon:'✉',title:'Agente de Correo con IA',
+      subtitle:'Lee, organiza y prepara respuestas de tus cuentas de correo conectadas.',
+      help:'Separo lo importante, preparo respuestas y creo borradores para que tú los revises.',
+      capabilities:['Lee correos autorizados','Detecta cuáles requieren respuesta','Traduce cuando hace falta','Prepara respuestas personalizadas','Crea borradores sin enviar solo'],
+      tabs:['Resumen','Bandeja','Necesitan respuesta','Borradores','Seguimientos','Resultados'],
+      chips:['Clientes','Pedidos','Facturas','Cobros','Reclamaciones','Informativos'],
+      objective:'Qué correos quieres revisar',itemLabel:'Cuenta o asunto',itemPlaceholder:'Ej.: ventas@empresa.com o pedido 301',
+      searchTitle:'2. Selecciona qué correo revisar',searchSub:'Puedes filtrar por cuenta, remitente, asunto o prioridad.',
+      searchPlaceholder:'Ej.: correos de hoy que necesitan respuesta',searchButton:'Revisar',
+      previewTitle:'3. Prepara la respuesta con IA',previewSub:'Carla redacta una respuesta basada en el correo real y la deja lista para aprobar.',
+      action:'Ver y revisar borradores',metric:'Correos revisados',review:'Borradores preparados',cta:'Automatiza tu correo',
+      ctaText:'Haz que Carla revise el correo y te deje solo lo que necesita tu atención.',
+      primaryPrompt:'Revisa mis correos recientes, detecta cuáles necesitan respuesta y prepara borradores para revisarlos.',
+      previewType:'emailReply'
+    },
+    orders:{
+      chatKey:'orders',crumb:'Pedidos › Agente de pedidos',icon:'▣',title:'Agente de Pedidos',
+      subtitle:'Detecta pedidos, comprueba datos y prepara el trabajo para su gestión.',
+      help:'Leo los pedidos desde las fuentes autorizadas y te indico qué está completo y qué falta.',
+      capabilities:['Detecta pedidos','Comprueba cliente y referencias','Señala datos que faltan','Prepara el alta o la gestión','No confirma nada sin tu permiso'],
+      tabs:['Resumen','Pedidos nuevos','Pendientes','Preparados','Incidencias','Resultados'],
+      chips:['Nuevos','Urgentes','Pendientes','Incompletos','Preparados','Incidencias'],
+      objective:'Qué pedidos quieres revisar',itemLabel:'Cliente, pedido o referencia',itemPlaceholder:'Ej.: pedido 301 o cliente Clínica Norte',
+      searchTitle:'2. Localiza los pedidos',searchSub:'Carla consulta la fuente elegida y separa los pedidos que necesitan atención.',
+      searchPlaceholder:'Ej.: pedidos nuevos de hoy',searchButton:'Revisar',
+      previewTitle:'3. Comprueba y prepara con IA',previewSub:'Verás cliente, líneas, incidencias y siguiente acción antes de confirmar nada.',
+      action:'Ver pedidos preparados',metric:'Pedidos encontrados',review:'Listos para revisar',cta:'Automatiza tus pedidos',
+      ctaText:'Haz que Carla detecte nuevos pedidos y te los deje preparados para gestionar.',
+      primaryPrompt:'Revisa los pedidos nuevos, comprueba si falta algún dato y déjame preparados los que estén completos.',
+      previewType:'order'
+    },
+    web_ecommerce:{
+      chatKey:'web_ecommerce',crumb:'Stock y compras › Reposición',icon:'◫',title:'Agente de Stock y Compras',
+      subtitle:'Cruza stock y ventas para detectar roturas y preparar la reposición.',
+      help:'Analizo existencias y rotación por producto y preparo lo que necesitas comprar.',
+      capabilities:['Lee stock autorizado','Cruza ventas por SKU','Calcula cobertura','Detecta riesgo de rotura','Prepara una propuesta de compra'],
+      tabs:['Resumen','Stock','Riesgo de rotura','Compras','Importar / Exportar','Resultados'],
+      chips:['Sin stock','< 5 días','Bajo stock','Reposición','Exceso','Todos'],
+      objective:'Qué stock quieres analizar',itemLabel:'Producto, SKU o familia',itemPlaceholder:'Ej.: SKU PRO0010 o todos los productos',
+      searchTitle:'2. Elige la fuente y el alcance',searchSub:'Cada fuente se consulta por separado para no mezclar negocios.',
+      searchPlaceholder:'Ej.: dime qué tengo que comprar esta semana',searchButton:'Analizar',
+      previewTitle:'3. Calcula la reposición con IA',previewSub:'Carla ordena los productos por urgencia y deja una propuesta editable.',
+      action:'Ver propuesta de compras',metric:'Productos analizados',review:'Necesitan reposición',cta:'Automatiza la reposición',
+      ctaText:'Programa revisiones de stock para detectar roturas antes de que ocurran.',
+      primaryPrompt:'Analiza stock y ventas por producto y prepara la reposición necesaria, priorizando roturas y menos de 5 días.',
+      previewType:'stock'
+    },
+    crm:{
+      chatKey:'crm',crumb:'Ventas y clientes › Seguimiento',icon:'♙',title:'Agente de Ventas y Clientes',
+      subtitle:'Ordena oportunidades, seguimientos y acciones comerciales para no perder ninguna venta.',
+      help:'Te indico a quién seguir, qué preparar y qué oportunidad necesita una acción hoy.',
+      capabilities:['Ordena oportunidades','Prioriza seguimientos','Prepara propuestas','Resume historial disponible','Deja acciones listas para revisar'],
+      tabs:['Resumen','Oportunidades','Seguimientos','Clientes','Propuestas','Resultados'],
+      chips:['Nuevos','Seguimiento','Oferta','Negociación','Ganados','Dormidos'],
+      objective:'Qué clientes quieres trabajar',itemLabel:'Cliente u oportunidad',itemPlaceholder:'Ej.: clínicas interesadas en camillas',
+      searchTitle:'2. Selecciona clientes u oportunidades',searchSub:'Carla trabaja con los datos comerciales que tengas conectados.',
+      searchPlaceholder:'Ej.: oportunidades que debo seguir hoy',searchButton:'Buscar',
+      previewTitle:'3. Prepara la acción comercial',previewSub:'Verás la siguiente acción recomendada y el material preparado para revisarlo.',
+      action:'Ver acciones comerciales',metric:'Oportunidades',review:'Acciones preparadas',cta:'Automatiza el seguimiento',
+      ctaText:'Haz que Carla revise periódicamente tus oportunidades y prepare los siguientes pasos.',
+      primaryPrompt:'Revisa mis oportunidades y dime cuáles debo seguir hoy. Prepara la siguiente acción para cada una.',
+      previewType:'crm'
+    },
+    content:{
+      chatKey:'social',crumb:'Marketing y redes › Producción de contenidos',icon:'✎',title:'Agente de Producción de Contenidos',
+      subtitle:'Convierte tus productos, servicios e ideas en contenido listo para revisar.',
+      help:'Preparo textos y piezas adaptadas a cada canal manteniendo tu tono de marca.',
+      capabilities:['Genera ideas','Adapta el tono','Crea versiones por canal','Mantiene mensajes coherentes','Deja todo listo para aprobar'],
+      tabs:['Resumen','Ideas','Contenido','Calendario','Aprobación','Resultados'],
+      chips:['Blog','LinkedIn','Instagram','Email','Ficha producto','Landing'],
+      objective:'Qué contenido quieres crear',itemLabel:'Producto, servicio o tema',itemPlaceholder:'Ej.: nueva camilla eléctrica',
+      searchTitle:'2. Define el contenido',searchSub:'Indica el tema, público y canal; Carla prepara una primera versión.',
+      searchPlaceholder:'Ej.: publicación de LinkedIn sobre nuestro nuevo producto',searchButton:'Crear',
+      previewTitle:'3. Genera contenido con IA',previewSub:'Obtendrás una versión editable preparada con tu estilo de marca.',
+      action:'Ver contenido preparado',metric:'Piezas creadas',review:'Pendientes de revisión',cta:'Automatiza contenidos',
+      ctaText:'Crea un calendario periódico y deja que Carla prepare las piezas antes de publicarlas.',
+      primaryPrompt:'Crea contenido profesional para mi empresa sobre el tema indicado y déjalo listo para revisar.',
+      previewType:'content'
+    },
+    social:{
+      chatKey:'social',crumb:'Marketing y redes › Redes sociales',icon:'◎',title:'Agente de Redes Sociales',
+      subtitle:'Planifica, redacta y adapta publicaciones para tus canales sociales.',
+      help:'Preparo publicaciones por canal y las dejo listas para que tú decidas cuándo publicarlas.',
+      capabilities:['Planifica publicaciones','Adapta formato por red','Propone llamadas a la acción','Mantiene tono de marca','No publica sin autorización'],
+      tabs:['Resumen','Calendario','Publicaciones','Creatividades','Aprobación','Resultados'],
+      chips:['LinkedIn','Instagram','Facebook','Google','X','Otros'],
+      objective:'Canales objetivo',itemLabel:'Campaña o tema',itemPlaceholder:'Ej.: lanzamiento de producto',
+      searchTitle:'2. Define la publicación',searchSub:'Elige el canal y el objetivo de la comunicación.',
+      searchPlaceholder:'Ej.: post para LinkedIn sobre lanzamiento',searchButton:'Preparar',
+      previewTitle:'3. Genera la publicación con IA',previewSub:'Carla crea el texto, estructura y llamada a la acción.',
+      action:'Ver publicaciones',metric:'Publicaciones',review:'Pendientes de aprobación',cta:'Automatiza redes',
+      ctaText:'Programa la preparación de contenido para tener siempre publicaciones listas.',
+      primaryPrompt:'Prepara publicaciones para mis redes sobre el tema indicado, adaptadas a cada canal y listas para aprobar.',
+      previewType:'content'
+    },
+    campaigns:{
+      chatKey:'social',crumb:'Marketing y redes › Campañas',icon:'⌁',title:'Agente de Campañas',
+      subtitle:'Estructura campañas, mensajes y acciones para captar demanda de forma ordenada.',
+      help:'Te ayudo a convertir un objetivo comercial en una campaña concreta y medible.',
+      capabilities:['Define público','Prepara mensajes','Organiza canales','Crea calendario','Resume resultados disponibles'],
+      tabs:['Resumen','Campañas','Audiencias','Mensajes','Calendario','Resultados'],
+      chips:['Captación','Lanzamiento','Reactivación','Promoción','Fidelización','Marca'],
+      objective:'Objetivo de campaña',itemLabel:'Producto o campaña',itemPlaceholder:'Ej.: campaña de lanzamiento',
+      searchTitle:'2. Define la campaña',searchSub:'Indica el objetivo y el público para preparar la estructura.',
+      searchPlaceholder:'Ej.: campaña para captar clínicas privadas',searchButton:'Diseñar',
+      previewTitle:'3. Genera la campaña con IA',previewSub:'Carla prepara mensajes, acciones y calendario para que los revises.',
+      action:'Ver campaña preparada',metric:'Acciones creadas',review:'Pendientes de revisión',cta:'Automatiza campañas',
+      ctaText:'Haz que Carla prepare periódicamente nuevas acciones según tus objetivos.',
+      primaryPrompt:'Diseña una campaña para mi objetivo comercial, con público, mensajes, canales y calendario.',
+      previewType:'campaign'
+    },
+    administration:{
+      chatKey:'administration',crumb:'Documentos e IA › Análisis',icon:'▤',title:'Agente de Documentos e IA',
+      subtitle:'Lee documentos, extrae información y convierte archivos en trabajo útil.',
+      help:'Analizo solo los documentos autorizados y te explico qué contienen sin inventar.',
+      capabilities:['Lee PDF, Excel y Word','Extrae datos','Resume documentos','Detecta puntos importantes','Prepara acciones a partir del contenido'],
+      tabs:['Resumen','Documentos','Análisis','Extracciones','Trabajo preparado','Resultados'],
+      chips:['PDF','Excel','Word','Imagen','Contrato','Informe'],
+      objective:'Qué quieres hacer con el documento',itemLabel:'Archivo o instrucción',itemPlaceholder:'Ej.: analiza el último PDF',
+      searchTitle:'2. Selecciona el documento',searchSub:'Usa un archivo autorizado o indícale a Carla cuál quieres analizar.',
+      searchPlaceholder:'Ej.: analiza este contrato y dime los puntos importantes',searchButton:'Analizar',
+      previewTitle:'3. Analiza con IA',previewSub:'Carla resume lo que realmente aparece y propone acciones concretas.',
+      action:'Ver análisis completo',metric:'Documentos',review:'Análisis preparados',cta:'Automatiza documentos',
+      ctaText:'Haz que Carla revise documentos repetitivos y prepare siempre la misma extracción.',
+      primaryPrompt:'Analiza el documento seleccionado, resume su contenido y destaca datos, riesgos y acciones concretas sin inventar.',
+      previewType:'document'
+    },
+    agenda:{
+      chatKey:'core_ai',crumb:'Agenda › Reuniones',icon:'▦',title:'Agente de Agenda y Reuniones',
+      subtitle:'Organiza reuniones, prepara contexto y deja claras las acciones posteriores.',
+      help:'Reviso tu agenda conectada y preparo lo que necesitas antes y después de cada reunión.',
+      capabilities:['Lee agenda autorizada','Resume reuniones de hoy','Prepara contexto','Crea recordatorios','Organiza siguientes acciones'],
+      tabs:['Hoy','Semana','Reuniones','Preparación','Seguimiento','Resultados'],
+      chips:['Hoy','Esta semana','Clientes','Internas','Pendientes','Seguimiento'],
+      objective:'Qué reuniones quieres revisar',itemLabel:'Reunión o persona',itemPlaceholder:'Ej.: reunión con cliente a las 12:00',
+      searchTitle:'2. Selecciona una reunión',searchSub:'Carla usa tu agenda conectada y el contexto autorizado disponible.',
+      searchPlaceholder:'Ej.: prepárame la reunión de esta tarde',searchButton:'Preparar',
+      previewTitle:'3. Prepara la reunión con IA',previewSub:'Verás objetivo, contexto, temas a tratar y próximos pasos.',
+      action:'Ver preparación',metric:'Reuniones hoy',review:'Preparaciones listas',cta:'Automatiza tu agenda',
+      ctaText:'Haz que Carla te prepare automáticamente el día y las reuniones importantes.',
+      primaryPrompt:'Revisa mi agenda de hoy y prepárame las reuniones con contexto y próximos pasos.',
+      previewType:'agenda'
+    },
+    reports:{
+      chatKey:'reports',crumb:'Informes › Análisis',icon:'▥',title:'Agente de Informes',
+      subtitle:'Convierte datos conectados en informes claros, comparables y exportables.',
+      help:'Ordeno los datos, destaco cambios y preparo conclusiones verificables.',
+      capabilities:['Resume indicadores','Compara periodos','Detecta cambios','Explica resultados','Prepara informes exportables'],
+      tabs:['Resumen','Ventas','Clientes','Operaciones','Comparativas','Exportar'],
+      chips:['Ventas','Clientes','Stock','Pedidos','Email','Actividad'],
+      objective:'Qué quieres medir',itemLabel:'Periodo o pregunta',itemPlaceholder:'Ej.: este mes frente al anterior',
+      searchTitle:'2. Define el informe',searchSub:'Elige datos, periodo y comparación para generar un informe útil.',
+      searchPlaceholder:'Ej.: compara ventas de este mes con el anterior',searchButton:'Generar',
+      previewTitle:'3. Genera el informe con IA',previewSub:'Carla presenta datos, variaciones y conclusiones sin ocultar la fuente.',
+      action:'Ver informe completo',metric:'Indicadores',review:'Informes preparados',cta:'Automatiza informes',
+      ctaText:'Programa informes semanales o mensuales para tenerlos listos cuando los necesites.',
+      primaryPrompt:'Prepara un informe con los datos disponibles, comparando el periodo indicado y destacando cambios y conclusiones.',
+      previewType:'report'
+    },
+    automation:{
+      chatKey:'automation',crumb:'Automatizaciones › Flujos',icon:'↻',title:'Agente de Automatizaciones',
+      subtitle:'Convierte tareas repetitivas en flujos controlados y fáciles de revisar.',
+      help:'Te ayudo a definir qué se repite, cuándo debe ejecutarse y qué necesita tu aprobación.',
+      capabilities:['Detecta tareas repetitivas','Define disparadores','Prepara flujos','Incluye puntos de aprobación','Muestra qué hizo cada automatización'],
+      tabs:['Resumen','Flujos','Disparadores','Aprobaciones','Historial','Resultados'],
+      chips:['Correo','Pedidos','Stock','Clientes','Informes','Recordatorios'],
+      objective:'Qué quieres automatizar',itemLabel:'Tarea repetitiva',itemPlaceholder:'Ej.: revisar stock cada lunes',
+      searchTitle:'2. Describe la tarea repetitiva',searchSub:'Carla te ayuda a convertirla en pasos claros y controlados.',
+      searchPlaceholder:'Ej.: avísame cuando haya pedidos nuevos',searchButton:'Diseñar',
+      previewTitle:'3. Diseña la automatización con IA',previewSub:'Verás disparador, pasos, permisos y puntos de aprobación antes de activarla.',
+      action:'Ver automatización',metric:'Flujos activos',review:'Pendientes de aprobar',cta:'Activa tu automatización',
+      ctaText:'Revisa el flujo y actívalo solo cuando estés conforme con cada paso.',
+      primaryPrompt:'Diseña una automatización para la tarea indicada, con disparador, pasos, permisos y aprobación donde sea necesaria.',
+      previewType:'automation'
+    }
+  };
+
+  function cfgFor(key){return configs[key]||configs[alias[key]]||configs.core_ai}
+  function companyName(){
+    const txt=$('#homeCompanyName')?.textContent?.trim();
+    return txt&&txt!=='Tu empresa'?txt:'Tu empresa';
+  }
+  function previewHtml(cfg){
+    const t=cfg.previewType;
+    if(t==='email')return '<div class="vnx-ah-email"><div class="vnx-ah-email-subject"><b>Asunto:</b> Una propuesta pensada para [Empresa]</div><div class="vnx-ah-email-paper"><div class="vnx-ah-mail-copy"><div class="vnx-ah-mini-logo"><span>V</span><b>Venta<span>NexIA</span></b></div><p>Hola [Nombre],</p><p>Me pongo en contacto contigo porque creemos que nuestra propuesta puede encajar con las necesidades de [Empresa].</p><p>Carla adaptará este mensaje usando únicamente la información real disponible sobre el destinatario y tu producto o servicio.</p><p>¿Te parece bien que te envíe más información?</p><p>Un saludo,<br><b>[Tu nombre]</b><br>[Cargo]</p></div><div class="vnx-ah-product-card"><small>TU PRODUCTO</small><strong>Presentación</strong><p>Imagen, beneficios y mensaje de marca configurables.</p><div class="vnx-ah-product-boxes"><i></i><i></i></div></div></div></div>';
+    if(t==='emailReply')return '<div class="vnx-ah-mail-thread"><div class="vnx-ah-incoming"><small>MENSAJE RECIBIDO</small><b>Cliente · Consulta sobre pedido</b><p>Buenos días, ¿podéis confirmarme el plazo previsto de entrega?</p></div><div class="vnx-ah-ai-draft"><small>RESPUESTA PREPARADA POR IA</small><p>Hola [Nombre],</p><p>Gracias por escribirnos. He revisado la información disponible del pedido y te preparo una respuesta basada en los datos reales de la fuente conectada.</p><p>Antes de enviar, podrás revisar y modificar el texto.</p><b>Estado: borrador · no enviado</b></div></div>';
+    if(t==='stock')return '<div class="vnx-ah-stock-table"><div class="head"><span>Producto</span><span>Stock</span><span>Cobertura</span><span>Acción</span></div><div><b>SKU / Producto A</b><span>0</span><span>0 días</span><strong>Comprar</strong></div><div><b>SKU / Producto B</b><span>8</span><span>3,6 días</span><strong>Reponer</strong></div><div><b>SKU / Producto C</b><span>42</span><span>18 días</span><em>Correcto</em></div><p>Ejemplo visual. Al ejecutar el análisis se sustituyen por datos reales de la conexión elegida.</p></div>';
+    if(t==='order')return '<div class="vnx-ah-order-preview"><div><small>PEDIDO DETECTADO</small><b>Pedido #[número]</b><span>Cliente: [Cliente]</span></div><div class="vnx-ah-order-lines"><p><b>2</b> líneas comprobadas</p><p><b>✓</b> referencias reconocidas</p><p><b>!</b> 1 dato por confirmar</p></div><div class="vnx-ah-review-note">Carla deja preparado el trabajo, pero no confirma ni modifica el pedido sin autorización.</div></div>';
+    if(t==='crm')return '<div class="vnx-ah-crm-preview"><div><small>OPORTUNIDAD</small><b>[Cliente / empresa]</b><span>Etapa: seguimiento</span></div><div class="vnx-ah-next-action"><small>SIGUIENTE ACCIÓN PREPARADA</small><b>Retomar contacto con contexto</b><p>Resumen del historial disponible + propuesta de mensaje + fecha sugerida de seguimiento.</p></div></div>';
+    if(t==='content')return '<div class="vnx-ah-content-preview"><small>PUBLICACIÓN PREPARADA</small><h3>[Título adaptado al canal]</h3><p>Texto claro, profesional y centrado en el beneficio real de tu producto o servicio.</p><div class="vnx-ah-content-visual">Vista previa de creatividad</div><div class="vnx-ah-hashtags">#TuMarca · #TuSector · #TuProducto</div></div>';
+    if(t==='campaign')return '<div class="vnx-ah-campaign-preview"><div><small>OBJETIVO</small><b>Captar oportunidades cualificadas</b></div><div class="vnx-ah-campaign-grid"><span>1 · Público</span><span>2 · Mensaje</span><span>3 · Canal</span><span>4 · Seguimiento</span></div><p>La IA prepara el plan y tú decides qué acciones se activan.</p></div>';
+    if(t==='document')return '<div class="vnx-ah-doc-preview"><div class="vnx-ah-doc-sheet"><b>PDF</b><span>Documento autorizado</span></div><div><small>ANÁLISIS PREPARADO</small><h3>Qué contiene</h3><p>Resumen basado exclusivamente en el archivo.</p><h3>Puntos importantes</h3><p>Datos, riesgos, fechas o conclusiones localizadas.</p><h3>Qué puedo hacer después</h3><p>Acciones concretas que VentaNexIA puede preparar.</p></div></div>';
+    if(t==='agenda')return '<div class="vnx-ah-agenda-preview"><div><time>09:30</time><span><b>Reunión de equipo</b><small>Objetivo y asuntos preparados</small></span></div><div><time>12:00</time><span><b>Reunión con cliente</b><small>Contexto, pedidos y siguientes pasos</small></span></div><div><time>16:30</time><span><b>Seguimiento</b><small>Acciones pendientes</small></span></div></div>';
+    if(t==='report')return '<div class="vnx-ah-report-preview"><div class="vnx-ah-kpis"><span><small>VENTAS</small><b>—</b></span><span><small>PEDIDOS</small><b>—</b></span><span><small>CLIENTES</small><b>—</b></span></div><h3>Conclusiones</h3><p>Los valores aparecen cuando Carla lee una fuente real. No se muestran cifras inventadas.</p><div class="vnx-ah-report-chart"><i></i><i></i><i></i><i></i><i></i></div></div>';
+    if(t==='automation')return '<div class="vnx-ah-flow-preview"><div><span>1</span><b>Cuando ocurra…</b><small>Disparador definido por ti</small></div><i>→</i><div><span>2</span><b>Carla prepara…</b><small>Acción permitida</small></div><i>→</i><div><span>3</span><b>Tú autorizas</b><small>Cuando la acción lo requiera</small></div></div>';
+    return '<div class="vnx-ah-priority-preview"><div><span>1</span><b>Lo urgente</b><small>Lo que necesita atención hoy</small></div><div><span>2</span><b>Lo que Carla puede adelantar</b><small>Trabajo preparado para revisar</small></div><div><span>3</span><b>Lo que necesita tu decisión</b><small>Nada importante se decide por ti</small></div></div>';
+  }
+  function renderChips(cfg){
+    return cfg.chips.map((x,i)=>'<button type="button" class="vnx-ah-chip '+(i===0?'active':'')+'">'+esc(x)+'</button>').join('');
+  }
+  function renderCapabilities(cfg){
+    return cfg.capabilities.map(x=>'<li><span>✓</span>'+esc(x)+'</li>').join('');
+  }
+  function renderTabs(cfg){
+    return cfg.tabs.map((x,i)=>'<button type="button" class="'+(i===1&&cfg===configs.prospecting?'active':i===0?'active':'')+'">'+esc(x)+'</button>').join('');
+  }
+  function renderRecipients(cfg){
+    const rows=cfg.previewType==='email'
+      ?['Empresa / contacto 1','Empresa / contacto 2','Empresa / contacto 3','Empresa / contacto 4','Empresa / contacto 5']
+      :['Trabajo preparado 1','Trabajo preparado 2','Trabajo preparado 3','Trabajo preparado 4'];
+    return rows.map((x,i)=>'<div><span class="vnx-ah-recipient-icon">'+(cfg.icon||'•')+'</span><p><b>'+esc(x)+'</b><small>'+esc(cfg.crumb.split('›').pop().trim())+'</small></p><em>'+(i<2?'Listo':'Pendiente')+'</em></div>').join('');
+  }
+  function applyConfig(key){
+    const cfg=cfgFor(key);
+    document.body.dataset.vnxHomeAgent=key;
+    $('#vnxAhBreadcrumb').textContent=cfg.crumb;
+    $('#vnxAhAgentIcon').textContent=cfg.icon;
+    $('#vnxAhAgentTitle').textContent=cfg.title;
+    $('#vnxAhAgentSubtitle').textContent=cfg.subtitle;
+    $('#vnxAhCarlaHelp').textContent=cfg.help;
+    $('#vnxAhCapabilities').innerHTML=renderCapabilities(cfg);
+    $('#vnxAhTabs').innerHTML=renderTabs(cfg);
+    $('#vnxAhObjectiveLabel').textContent=cfg.objective;
+    $('#vnxAhChips').innerHTML=renderChips(cfg);
+    $('#vnxAhItemLabel').textContent=cfg.itemLabel;
+    $('#vnxAhItemInput').placeholder=cfg.itemPlaceholder;
+    $('#vnxAhSearchTitle').textContent=cfg.searchTitle;
+    $('#vnxAhSearchSub').textContent=cfg.searchSub;
+    $('#vnxAhSearchInput').placeholder=cfg.searchPlaceholder;
+    $('#vnxAhSearchBtn').textContent=cfg.searchButton;
+    $('#vnxAhPreviewTitle').textContent=cfg.previewTitle;
+    $('#vnxAhPreviewSub').textContent=cfg.previewSub;
+    $('#vnxAhPreview').innerHTML=previewHtml(cfg);
+    $('#vnxAhPrimary').textContent=cfg.action;
+    $('#vnxAhMetricLabel').textContent=cfg.metric;
+    $('#vnxAhReviewLabel').textContent=cfg.review;
+    $('#vnxAhCtaTitle').textContent=cfg.cta;
+    $('#vnxAhCtaText').textContent=cfg.ctaText;
+    $('#vnxAhRecipients').innerHTML=renderRecipients(cfg);
+    $('#vnxAhMetricValue').textContent='—';
+    $('#vnxAhReviewValue').textContent='—';
+    $$('.vnx-agent-side-btn').forEach(b=>b.classList.toggle('active',b.dataset.agentHome===key));
+    $$('#vnxAhTabs button').forEach(b=>b.addEventListener('click',()=>{
+      $$('#vnxAhTabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
+    }));
+    $$('#vnxAhChips .vnx-ah-chip').forEach(b=>b.addEventListener('click',()=>b.classList.toggle('active')));
+    try{localStorage.setItem('vnx_agent_home_key',key)}catch{}
+  }
+  function selectAgentInWorkbench(chatKey){
+    const sel=$('#chatConnectionSelect');
+    if(!sel)return false;
+    const candidates=['agent:'+chatKey,chatKey];
+    const opt=[...sel.options].find(o=>candidates.includes(o.value));
+    if(!opt)return false;
+    sel.value=opt.value;
+    sel.dispatchEvent(new Event('change',{bubbles:true}));
+    return true;
+  }
+  function openWorkbench(key,prompt='',guided=false){
+    const cfg=cfgFor(key);
+    const chatBtn=$('.nav[data-tab="chat"]');
+    if(chatBtn)chatBtn.click();
+    setTimeout(()=>{
+      selectAgentInWorkbench(cfg.chatKey||alias[key]||key);
+      const mode=guided?$('#guidedModeBtn'):$('#freeModeBtn');
+      if(mode)mode.click();
+      const input=$('#chatInput');
+      if(input&&prompt){
+        input.value=prompt;
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        input.focus();
+      }
+    },180);
+  }
+  function bind(){
+    $$('.vnx-agent-side-btn').forEach(btn=>btn.addEventListener('click',()=>{
+      const home=$('.nav[data-tab="home"]');if(home)home.click();
+      applyConfig(btn.dataset.agentHome);
+    }));
+    $$('.vnx-main-nav .nav').forEach(btn=>btn.addEventListener('click',()=>{
+      if(btn.dataset.tab!=='home')$$('.vnx-agent-side-btn').forEach(x=>x.classList.remove('active'));
+    }));
+    $('#vnxAhSearchBtn')?.addEventListener('click',()=>{
+      const key=document.body.dataset.vnxHomeAgent||'prospecting';
+      const cfg=cfgFor(key),q=$('#vnxAhSearchInput')?.value?.trim();
+      openWorkbench(key,q||cfg.primaryPrompt,false);
+    });
+    $('#vnxAhSearchInput')?.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){e.preventDefault();$('#vnxAhSearchBtn')?.click()}
+    });
+    $('#vnxAhPrimary')?.addEventListener('click',()=>{
+      const key=document.body.dataset.vnxHomeAgent||'prospecting';
+      openWorkbench(key,cfgFor(key).primaryPrompt,true);
+    });
+    $('#vnxAhCtaBtn')?.addEventListener('click',()=>{
+      const key=document.body.dataset.vnxHomeAgent||'automation';
+      openWorkbench(key,'Quiero automatizar esta tarea. Ayúdame a definir frecuencia, permisos, pasos y qué debo autorizar.',true);
+    });
+    $('#vnxAhAddItem')?.addEventListener('click',()=>{
+      const input=$('#vnxAhItemInput'),v=input?.value?.trim();if(!v)return;
+      const box=$('#vnxAhItems');
+      const chip=document.createElement('span');chip.className='vnx-ah-tag';chip.innerHTML=esc(v)+' <button type="button">×</button>';
+      chip.querySelector('button').onclick=()=>chip.remove();box?.appendChild(chip);input.value='';
+    });
+    $('#vnxAhItemInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#vnxAhAddItem')?.click()}});
+    $('#vnxAhCompanyBtn')?.addEventListener('click',()=>$('.nav[data-tab="agents"]')?.click());
+    $('#vnxAhBell')?.addEventListener('click',()=>$('.nav[data-tab="activity"]')?.click());
+    $('#vnxAhAccount')?.addEventListener('click',()=>$('.nav[data-tab="license"]')?.click());
+    const quick=$('#homeQuickInput'),send=$('#homeQuickSend');
+    const globalSend=()=>{
+      const q=quick?.value?.trim();if(!q)return;
+      const key=document.body.dataset.vnxHomeAgent||'core_ai';
+      openWorkbench(key,q,false);
+    };
+    if(send)send.addEventListener('click',globalSend);
+    if(quick)quick.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();globalSend()}});
+  }
+  function syncCompany(){
+    const mirror=$('#vnxAhCompanyName'),source=$('#homeCompanyName');
+    if(mirror)mirror.textContent=companyName();
+    if(source&&window.MutationObserver)new MutationObserver(()=>{if(mirror)mirror.textContent=companyName()}).observe(source,{childList:true,subtree:true,characterData:true});
+  }
+  function start(){
+    const saved=(()=>{try{return localStorage.getItem('vnx_agent_home_key')}catch{return null}})();
+    applyConfig(configs[saved]?saved:'prospecting');
+    bind();
+    syncCompany();
+    window.vnxAgentHome={open:(key)=>{const k=configs[key]?key:'core_ai';$('.nav[data-tab="home"]')?.click();applyConfig(k)},openWorkbench};
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})();
