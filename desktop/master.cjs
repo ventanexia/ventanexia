@@ -529,12 +529,17 @@ function portalPageFingerprint(page){
   const body=String(page?.text||'').slice(0,1200);
   return crypto.createHash('sha1').update(String(page?.url||'')+'|'+String(page?.title||'')+'|'+JSON.stringify(first.slice(0,4))+'|'+actions+'|'+body).digest('hex').slice(0,16);
 }
-async function readPortal(portal,question='',preferredUrl=null){
-  const win=new BrowserWindow(portalWindowOptions(portal,{show:false}));win.removeMenu();
+async function readPortal(portal,question='',preferredUrl=null,existingWin=null){
+  const ownsWindow=!existingWin;
+  const win=existingWin||new BrowserWindow(portalWindowOptions(portal,{show:false}));
+  if(ownsWindow)win.removeMenu();
   try{
     const preferred=preferredUrl&&sameOrigin(preferredUrl,portal.url)?preferredUrl:null;
     const start=preferred||portalStartUrl(portal);
-    await win.loadURL(start);await delay(650);
+    const current=(()=>{try{return win.webContents.getURL()}catch{return ''}})();
+    if(ownsWindow||!current){await win.loadURL(start);await delay(1100)}
+    else if(preferred&&current!==preferred){await win.loadURL(preferred);await delay(1100)}
+    else await delay(500);
     let first=await extractPage(win);
     if(likelyLogin(first.url,first.text)){
       await patchPortal(portal.id,{lastStatus:'login_required',lastCheckedAt:new Date().toISOString(),lastUrl:first.url});
@@ -594,7 +599,7 @@ async function readPortal(portal,question='',preferredUrl=null){
     const best=pages.find(p=>(p.tables||[]).some(t=>Array.isArray(t)&&t.length>=2))||pages[0]||first;
     await patchPortal(portal.id,{connectedAt:portal.connectedAt||new Date().toISOString(),lastStatus:'connected',lastCheckedAt:new Date().toISOString(),lastUrl:best.url||first.url});
     return {name:portal.name,url:portal.url,status:'connected',mode:portal.mode,pages,images:images.slice(0,12),pagesScanned:pages.length,tablesSeen:pages.reduce((n,p)=>n+(p.tables||[]).length,0)};
-  }finally{if(!win.isDestroyed())win.destroy()}
+  }finally{if(ownsWindow&&!win.isDestroyed())win.destroy()}
 }
 function portalTableHeaders(rows=[]){return (rows[0]||[]).map(normStockHeader)}
 function portalCol(headers,candidates){
@@ -685,18 +690,25 @@ async function portalReplenishmentSummary(portal){
   let products=stockExtract.rows;
   let usedLiveWindow=products.length>0;
   if(!products.length){
-    const autoRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||portal.lastUrl||null);
-    if(autoRead.status!=='connected')return {ok:false,status:autoRead.status,sourceLabel:portal.name,reason:'login_required',liveWindowChecked:Boolean(liveRead)};
+    const persistentWin=livePortalWindow(portal.id);
+    const autoRead=await readPortal(portal,'productos stock existencias inventario almacen referencias',portal.stockUrl||portal.lastUrl||null,persistentWin||null);
+    if(autoRead.status!=='connected')return {ok:false,status:autoRead.status,sourceLabel:portal.name,reason:'login_required',liveWindowChecked:Boolean(liveRead),autoRehydrated};
     stockRead=autoRead;
     stockExtract=extractPortalStockRows(stockRead);products=stockExtract.rows;
   }
-  if(!products.length)return {
-    ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured',
-    pagesScanned:stockRead?.pagesScanned||stockRead?.pages?.length||0,
-    tablesSeen:stockRead?.tablesSeen||0,
-    structuredTables:stockExtract.structuredTables||0,
-    liveWindowChecked:Boolean(liveRead),liveWindowUrl:liveRead?.liveUrl||null,autoRehydrated
-  };
+  if(!products.length){
+    const win=livePortalWindow(portal.id);
+    let portalOpened=false;
+    if(win){try{if(win.isMinimized())win.restore();win.show();win.focus();portalOpened=true}catch{}}
+    return {
+      ok:false,status:'connected',sourceLabel:portal.name,reason:'stock_not_structured',
+      pagesScanned:stockRead?.pagesScanned||stockRead?.pages?.length||0,
+      tablesSeen:stockRead?.tablesSeen||0,
+      structuredTables:stockExtract.structuredTables||0,
+      liveWindowChecked:Boolean(liveRead),liveWindowUrl:liveRead?.liveUrl||null,autoRehydrated,portalOpened,
+      needsUserNavigation:true
+    };
+  }
   if(stockExtract.sourceUrl&&sameOrigin(stockExtract.sourceUrl,portal.url)){
     await patchPortal(portal.id,{stockUrl:stockExtract.sourceUrl});
     portal={...portal,stockUrl:stockExtract.sourceUrl};
