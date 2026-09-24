@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-  let snapshot=null,employees=[],settings=null,currentFilter='all',latestReport=null;
+  let snapshot=null,employees=[],settings=null,managementPolicy=null,currentFilter='all',latestReport=null;
   // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
   let directionToken='',accessState=null;
 
@@ -30,11 +30,12 @@
   }
 
   function clearSensitiveUi(){
-    snapshot=null;employees=[];settings=null;latestReport=null;
-    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee');
+    snapshot=null;employees=[];settings=null;managementPolicy=null;latestReport=null;
+    const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee');
     if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
     if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
     if(rsel)rsel.innerHTML='<option value="">Toda la plantilla</option>';
+    if(hsel)hsel.innerHTML='<option value="">Selecciona una persona</option>';
     const rs=$('#vnxDirReportSummary'),rd=$('#vnxDirReportDetail'),rw=$('#vnxDirReportTableWrap');
     if(rs)rs.innerHTML='<div class="vnx-dir-empty">Desbloquea Dirección para generar informes.</div>';
     if(rd)rd.innerHTML='';if(rw)rw.hidden=true;
@@ -78,10 +79,11 @@
     if(!directionToken){await refreshAccessStatus();return}
     try{
       const opts={businessId:businessId()};
-      [snapshot,employees,settings]=await Promise.all([
+      [snapshot,employees,settings,managementPolicy]=await Promise.all([
         window.vnx.directionSummary(directionToken,opts),
         window.vnx.directionEmployees(directionToken,opts),
-        window.vnx.directionSettings(directionToken)
+        window.vnx.directionSettings(directionToken),
+        window.vnx.directionManagementPolicy(directionToken)
       ]);
       renderProtected();render();
     }catch(e){
@@ -100,7 +102,7 @@
     cards.forEach((c,i)=>{const s=c.querySelector('strong');if(s)s.textContent=String(v[i]||0)});
   }
   function renderEmployees(){
-    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee');
+    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee');
     if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
     if(sel){
       const keep=sel.value;
@@ -111,6 +113,11 @@
       const keep=rsel.value;
       rsel.innerHTML='<option value="">Toda la plantilla</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))rsel.value=keep;
+    }
+    if(hsel){
+      const keep=hsel.value;
+      hsel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
+      if(employees.some(e=>e.id===keep))hsel.value=keep;
     }
   }
   function renderEmployeeRows(){
@@ -169,6 +176,8 @@
         ((strengths.length||frictions.length)?'</div>':'')+
         (matches.length?'<div class="vnx-dir-fit-matches"><b>Posibles funciones a explorar</b><p>'+matches.map(esc).join(' · ')+'</p></div>':'')+
         (questions.length?'<details class="vnx-dir-fit-context"><summary>Qué debería comprobar Dirección antes de concluir</summary>'+questions.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</details>':'')+
+        (e.humanContext?'<div class="vnx-dir-human-diagnosis"><b>Por qué puede estar ocurriendo</b>'+(e.humanContext.hypotheses||[]).map(h=>'<div><strong>'+esc(h.label)+'</strong><span>Confianza '+esc(h.confidence)+' · '+esc(h.meaning)+'</span><small>'+esc((h.evidence||[]).join(' · '))+'</small></div>').join('')+'</div>':'')+
+        (e.humanContext?.management?'<div class="vnx-dir-management-view"><b>Lectura según el criterio de Dirección</b><p>'+esc((e.humanContext.management.priorities||[]).map(x=>x.label+' '+x.value).join(' · '))+'</p>'+(e.humanContext.management.recommendations||[]).map(x=>'<span>• '+esc(x)+'</span>').join('')+'<small>'+esc(e.humanContext.management.principle||'')+'</small></div>':'')+
         '<div class="vnx-dir-report-findings"><b>Hechos registrados</b>'+e.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>'+
         (e.examples?.length?'<details><summary>Ver ejemplos y evidencia</summary>'+e.examples.map(x=>'<div class="vnx-dir-report-example"><b>'+esc(x.title)+'</b><span>'+esc(x.moduleLabel)+' · '+esc(x.reasons.join(', '))+(x.delayMinutes?' · retraso '+fmtMinutes(x.delayMinutes):'')+'</span><small>Plazo: '+fmtDate(x.dueAt)+(x.completedAt?' · Finalizada: '+fmtDate(x.completedAt):'')+'</small></div>').join('')+'</details>':'')+
         '</article>';
@@ -194,6 +203,8 @@
       e.name,e.role||'',e.assigned,e.done,pct(e.onTimeRate),e.overdueOpen,e.lateDone,e.doneAI,e.blocked,e.noEvidence,
       fmtMinutes(e.averageDelayMinutes),reportArea(e),
       e.roleFit?.interpretation||'',(e.roleFit?.possibleMatches||[]).join(' · '),e.roleFit?.confidence||'',
+      (e.humanContext?.hypotheses||[]).map(x=>x.label+' ['+x.confidence+']').join(' · '),
+      (e.humanContext?.management?.recommendations||[]).join(' · '),
       e.findings.join(' · ')
     ]);
   }
@@ -224,6 +235,17 @@
       for(const x of fit.frictions||[])blocks.push({type:'bullet',text:'Fricción recurrente: '+x});
       if((fit.possibleMatches||[]).length)blocks.push({type:'fact',label:'Funciones a explorar',text:fit.possibleMatches.join(' · ')});
       for(const x of fit.contextQuestions||[])blocks.push({type:'question',text:x});
+      const hc=e.humanContext||{};
+      blocks.push({type:'subheading',text:'Hipótesis de causa'});
+      for(const h of hc.hypotheses||[])blocks.push({type:'record',fields:[
+        {label:'Hipótesis',value:h.label},{label:'Confianza',value:h.confidence},{label:'Qué significa',value:h.meaning},{label:'Evidencia',value:(h.evidence||[]).join(' · ')}
+      ]});
+      if(hc.management){
+        blocks.push({type:'subheading',text:'Lectura según el criterio de Dirección'});
+        blocks.push({type:'fact',label:'Prioridades',text:(hc.management.priorities||[]).map(x=>x.label+' '+x.value).join(' · ')});
+        for(const x of hc.management.recommendations||[])blocks.push({type:'bullet',text:x});
+        blocks.push({type:'fact',label:'Regla',text:hc.management.principle||''});
+      }
       blocks.push({type:'subheading',text:'Hechos registrados'});
       for(const x of e.findings)blocks.push({type:'bullet',text:x});
       if(e.examples?.length){
@@ -241,7 +263,43 @@
     if(!latestReport)return;
     const selected=latestReport.scope?.employeeId?(latestReport.employees?.[0]?.name||'Empleado'):'Plantilla';
     if(format==='pdf')return window.vnx.exportData({format:'pdf',title:'Informe Dirección · '+selected,blocks:reportBlocks()});
-    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hallazgos'],rows:reportRows()});
+    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hipótesis de causa','Recomendaciones según Dirección','Hallazgos'],rows:reportRows()});
+  }
+
+  function listText(v){return Array.isArray(v)?v.join('\n'):''}
+  function selectedHumanEmployee(){return employees.find(e=>e.id===$('#vnxDirHumanEmployee')?.value)||null}
+  function renderHumanProfile(){
+    const e=selectedHumanEmployee(),p=e?.workProfile||{};
+    const set=(id,v)=>{const el=$('#'+id);if(el)el.value=v??''};
+    set('vnxDirHumanSource',p.source||'agreed');
+    set('vnxDirHumanStrengths',listText(p.declaredStrengths));
+    set('vnxDirHumanPreferred',listText(p.preferredTasks));
+    set('vnxDirHumanTraining',listText(p.trainingNeeds));
+    set('vnxDirHumanRoles',listText(p.roleInterests));
+    set('vnxDirHumanAutonomy',p.preferredAutonomy||'balanced');
+    set('vnxDirHumanCollab',p.collaborationPreference||'balanced');
+    set('vnxDirHumanContext',p.workContext||'');
+    $('.vnx-dir-motivators input[type="checkbox"]').forEach(x=>x.checked=(p.motivators||[]).includes(x.value));
+  }
+  function updatePolicyLabels(){
+    const pairs=[['vnxDirProfit','vnxDirProfitValue'],['vnxDirService','vnxDirServiceValue'],['vnxDirPeople','vnxDirPeopleValue'],['vnxDirGrowth','vnxDirGrowthValue'],['vnxDirStability','vnxDirStabilityValue']];
+    for(const [inputId,valueId] of pairs){const i=$('#'+inputId),v=$('#'+valueId);if(i&&v)v.textContent=i.value}
+  }
+  function renderManagementPolicy(){
+    const p=managementPolicy||{profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50};
+    const set=(id,v)=>{const el=$('#'+id);if(el)el.value=String(v??50)};
+    set('vnxDirProfit',p.profitability);set('vnxDirService',p.customerService);set('vnxDirPeople',p.peopleDevelopment);set('vnxDirGrowth',p.growth);set('vnxDirStability',p.stability);
+    updatePolicyLabels();
+  }
+  function applyPolicyPreset(key){
+    const values=key==='profit'
+      ?{profitability:100,customerService:65,peopleDevelopment:25,growth:70,stability:70}
+      :key==='people'
+        ?{profitability:55,customerService:75,peopleDevelopment:100,growth:65,stability:75}
+        :{profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50};
+    const map={profitability:'vnxDirProfit',customerService:'vnxDirService',peopleDevelopment:'vnxDirPeople',growth:'vnxDirGrowth',stability:'vnxDirStability'};
+    for(const [k,id] of Object.entries(map)){const el=$('#'+id);if(el)el.value=String(values[k])}
+    updatePolicyLabels();
   }
 
   function renderSettings(){
@@ -251,7 +309,7 @@
     if(b)b.value=String(settings.aiTakeoverGraceMinutes??60);
     if(c)c.checked=Boolean(settings.aiTakeoverEnabled);
   }
-  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings()}
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderManagementPolicy()}
 
   async function promptEvent(taskId,kind){
     const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
@@ -354,6 +412,44 @@
       };
     }
     const filter=$('#vnxDirFilter');if(filter)filter.onchange=()=>{currentFilter=filter.value;renderTasks()};
+    const humanSelect=$('#vnxDirHumanEmployee');if(humanSelect)humanSelect.onchange=renderHumanProfile;
+    const humanForm=$('#vnxDirHumanForm');if(humanForm)humanForm.onsubmit=async e=>{
+      e.preventDefault();if(!directionToken)return;
+      const employeeId=$('#vnxDirHumanEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
+      const split=id=>String($('#'+id)?.value||'').split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
+      const motivators=$('.vnx-dir-motivators input[type="checkbox"]:checked').map(x=>x.value);
+      try{
+        await window.vnx.directionUpdateEmployeeContext(directionToken,employeeId,{
+          source:$('#vnxDirHumanSource')?.value||'agreed',
+          declaredStrengths:split('vnxDirHumanStrengths'),
+          preferredTasks:split('vnxDirHumanPreferred'),
+          trainingNeeds:split('vnxDirHumanTraining'),
+          roleInterests:split('vnxDirHumanRoles'),
+          preferredAutonomy:$('#vnxDirHumanAutonomy')?.value||'balanced',
+          collaborationPreference:$('#vnxDirHumanCollab')?.value||'balanced',
+          motivators,
+          workContext:$('#vnxDirHumanContext')?.value||''
+        });
+        await load();alert('Contexto laboral guardado.');
+      }catch(err){alert(err.message||err)}
+    };
+    $('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
+    $('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
+    const managementForm=$('#vnxDirManagementForm');if(managementForm)managementForm.onsubmit=async e=>{
+      e.preventDefault();if(!directionToken)return;
+      try{
+        managementPolicy=await window.vnx.directionManagementPolicy(directionToken,{
+          profitability:Number($('#vnxDirProfit')?.value||50),
+          customerService:Number($('#vnxDirService')?.value||50),
+          peopleDevelopment:Number($('#vnxDirPeople')?.value||50),
+          growth:Number($('#vnxDirGrowth')?.value||50),
+          stability:Number($('#vnxDirStability')?.value||50)
+        });
+        renderManagementPolicy();
+        if(latestReport)await generateEmployeeReport();
+        alert('Criterio de Dirección guardado.');
+      }catch(err){alert(err.message||err)}
+    };
     const rf=$('#vnxDirReportForm');if(rf)rf.onsubmit=async e=>{e.preventDefault();await generateEmployeeReport()};
     const rExcel=$('#vnxDirReportExcel');if(rExcel)rExcel.onclick=()=>exportEmployeeReport('excel').catch(e=>alert('No se pudo exportar: '+(e.message||e)));
     const rPdf=$('#vnxDirReportPdf');if(rPdf)rPdf.onclick=()=>exportEmployeeReport('pdf').catch(e=>alert('No se pudo exportar: '+(e.message||e)));
