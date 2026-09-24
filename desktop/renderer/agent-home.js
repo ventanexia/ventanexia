@@ -354,7 +354,7 @@
     $('#vnxAhCompanyBtn')?.addEventListener('click',()=>$('.nav[data-tab="agents"]')?.click());
     $('#vnxAhBell')?.addEventListener('click',()=>$('.nav[data-tab="activity"]')?.click());
     $('#vnxAhAccount')?.addEventListener('click',()=>$('.nav[data-tab="license"]')?.click());
-    const quick=$('#homeQuickInput'),send=$('#homeQuickSend');
+    const quick=$('#vnxAhGlobalInput'),send=$('#vnxAhGlobalSend');
     const globalSend=()=>{
       const q=quick?.value?.trim();if(!q)return;
       const key=document.body.dataset.vnxHomeAgent||'core_ai';
