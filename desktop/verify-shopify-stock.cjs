@@ -50,7 +50,7 @@ need(desktopMain,/ipcMain\.handle\('purchase-analysis:set'/,'desktop main must e
 need(renderer,/const direct=\/\\b\(haz/,'direct "hazme el pedido" intent must be detected before stock analysis');
 need(renderer,/shopifyReplenishmentSummary\(selectedShop,\{force:true\}\)/,'renderer must calculate stock from the explicitly selected Shopify store');
 need(renderer,/portalReplenishmentSummary\(portalId,\{force:true\}\)/,'a direct purchase request must calculate the selected portal when no valid cached analysis exists');
-need(renderer,/\| Código \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must be present');
+need(renderer,/\| Fabricante \| SKU \| EAN \| Producto \| Stock \| Ventas 6 meses \| Media diaria \| Cobertura \(días\) \| Cantidad a pedir \| Estado \|/,'deterministic purchase stock table must expose manufacturer, SKU and EAN separately');
 need(renderer,/URGENTE · < 5 DÍAS/i,'visible urgent rule must stay at 5 days');
 need(renderer,/REPONER · < '\+targetDays\+' DÍAS/,'purchase table must include non-urgent rows that still need stock to reach 20 days');
 need(renderer,/purchaseData:m\.purchaseData\|\|null/,'structured purchase data must persist with chat state');
@@ -71,13 +71,15 @@ need(renderer,/function wantsFreshStock\(text=''\)/,'renderer must recognize an 
 need(renderer,/function purchasePanelHtml\(msg=\{\}\)/,'visual Stock and Compras panel renderer must exist');
 need(renderer,/m\.purchaseExport&&m\.purchaseData\?\.headers\?\.length\?purchasePanelHtml\(m\)/,'structured purchase data must render through the visual purchase panel');
 need(renderer,/Qué necesitas comprar ahora/,'visual purchase panel title must stay present');
+need(renderer,/Fabricante y EAN.*nunca se inventan/s,'stock UI must state that manufacturer and EAN are never invented');
+need(backend,/catalog_scan_incomplete/,'private portal stock analysis must fail closed when the full catalog cannot be verified');
 
 need(backend,/const PORTAL_MAX_PAGES=12;/,'ordinary private portal reads must remain bounded');
 need(backend,/const PORTAL_REPLENISHMENT_MAX_PAGES=120;/,'stock and sales replenishment must be able to scan the full paginated portal');
 need(backend,/\[role="grid"\],\[role="table"\],\.ag-root,\.MuiDataGrid-root,\.dx-datagrid/,'private portal reader must extract modern ERP grids');
 need(backend,/choosePortalActions/,'private portal reader must navigate safe dynamic menus');
 need(backend,/stockUrl:stockExtract\.sourceUrl/,'private portal reader must learn the verified stock route');
-need(backend,/portal\.stockUrl\|\|portal\.lastUrl\|\|null/,'private portal stock route or last live portal URL must be reused on later reads');
+need(backend,/portal\.stockUrl&&sameOrigin\(portal\.stockUrl,portal\.url\)/,'verified private portal stock route must be reused when it belongs to the same portal');
 need(backend,/pagesScanned/,'private portal stock failure must expose scan diagnostics');
 need(backend,/liveWindowChecked/,'private portal stock diagnostics must say whether the live portal was checked');
 need(renderer,/he reconstruido automáticamente su ventana/,'user-facing stock failure must explain automatic portal rehydration');
@@ -85,7 +87,7 @@ need(renderer,/He abierto \*\*'\+sourceLabel\+'\*\* automáticamente/,'failed au
 
 
 need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');
-need(renderer,/headers:\['sku','ean','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep SKU and EAN separate and stable');
+need(renderer,/headers:\['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','cantidad_a_pedir','estado'\]/,'import columns must keep manufacturer, SKU and EAN separate and stable');
 const exportCode=fs.readFileSync(path.join(__dirname,'export.cjs'),'utf8');
 need(exportCode,/function csvBuffer\(data\)/,'CSV exporter must exist');
 need(exportCode,/payload\.format==='csv'/,'CSV format must be routed by exporter');
