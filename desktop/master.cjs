@@ -1336,6 +1336,63 @@ async function authoritativeAgentCatalog(){
   });
 }
 ipcMain.handle('agent:catalog',async()=>authoritativeAgentCatalog());
+ipcMain.handle('business:list',async()=>{
+  const state=await readState();return businessListPayload(state);
+});
+ipcMain.handle('business:save-all',async(_e,payload={})=>{
+  const incoming=Array.isArray(payload.profiles)?payload.profiles.slice(0,BUSINESS_PROFILE_MAX):[];
+  if(!incoming.length)throw new Error('Añade al menos una empresa.');
+  const state=await readState(),secret=businessStore(state),previous=new Map(secret.businessProfiles.map(x=>[x.id,x]));
+  const profiles=incoming.map(x=>sanitizeBusinessProfile(x,previous.get(clean(x?.id,80))||{})).filter(x=>x.legalName||x.tradeName);
+  if(!profiles.length)throw new Error('Cada empresa necesita al menos un nombre.');
+  secret.businessProfiles=profiles;
+  const requested=clean(payload.activeProfileId,80);
+  secret.activeBusinessProfileId=profiles.some(x=>x.id===requested)?requested:profiles[0].id;
+  await writeState(state);await audit('business.onboarding_saved',profiles.length+' empresa(s) configuradas');
+  const active=activeBusinessProfile(state);
+  if(prospecting?.applyBusinessProfile&&active)await prospecting.applyBusinessProfile(publicBusinessProfile(active)).catch(()=>{});
+  return businessListPayload(state);
+});
+ipcMain.handle('business:save',async(_e,payload={})=>{
+  const state=await readState(),secret=businessStore(state),id=clean(payload.id,80),idx=secret.businessProfiles.findIndex(x=>x.id===id);
+  const previous=idx>=0?secret.businessProfiles[idx]:{},profile=sanitizeBusinessProfile(payload,previous);
+  if(!profile.legalName&&!profile.tradeName)throw new Error('Indica el nombre de la empresa.');
+  if(idx>=0)secret.businessProfiles[idx]=profile;else{
+    if(secret.businessProfiles.length>=BUSINESS_PROFILE_MAX)throw new Error('Has alcanzado el máximo de empresas configurables en este equipo.');
+    secret.businessProfiles.push(profile);
+  }
+  if(!secret.activeBusinessProfileId)secret.activeBusinessProfileId=profile.id;
+  await writeState(state);await audit('business.profile_saved',profile.tradeName||profile.legalName);
+  return businessListPayload(state);
+});
+ipcMain.handle('business:set-active',async(_e,id)=>{
+  const state=await readState(),secret=businessStore(state),profile=secret.businessProfiles.find(x=>x.id===clean(id,80));
+  if(!profile)throw new Error('No encuentro esa empresa.');
+  secret.activeBusinessProfileId=profile.id;await writeState(state);await audit('business.active_changed',profile.tradeName||profile.legalName);
+  if(prospecting?.applyBusinessProfile)await prospecting.applyBusinessProfile(publicBusinessProfile(profile)).catch(()=>{});
+  return businessListPayload(state);
+});
+ipcMain.handle('business:remove',async(_e,id)=>{
+  const state=await readState(),secret=businessStore(state),safeId=clean(id,80),old=secret.businessProfiles.find(x=>x.id===safeId);
+  secret.businessProfiles=secret.businessProfiles.filter(x=>x.id!==safeId);
+  if(secret.activeBusinessProfileId===safeId)secret.activeBusinessProfileId=secret.businessProfiles[0]?.id||null;
+  await writeState(state);await audit('business.profile_removed',old?.tradeName||old?.legalName||safeId);
+  return businessListPayload(state);
+});
+ipcMain.handle('business:suggest-targets',async(_e,payload={})=>{
+  const p=sanitizeBusinessProfile(payload,{});
+  if(!p.description&&!p.productsServices&&!p.sectors)throw new Error('Describe primero a qué se dedica la empresa o qué vende.');
+  const state=await readState(),context=businessProfileContext(p);
+  const prompt='A partir exclusivamente del perfil de negocio facilitado, sugiere entre 6 y 12 tipos de cliente o sectores objetivo razonables que podrían comprar esos productos o servicios. No inventes productos ni afirmes que un segmento ya es cliente. Devuelve SOLO una lista separada por comas, sin explicación.';
+  const r=await fetch(CLOUD+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({
+    messages:[{role:'user',content:prompt}],localContext:[{path:'PERFIL NEGOCIO PARA SUGERENCIA',content:context}],
+    desktop:{customerId:state.secret?.customerId||null,deviceId:state.license?.deviceId||null,activationCode:state.secret?.activationCode||null,deviceKey:state.secret?.deviceKey||null,portalCount:0},scope:'agent:prospecting'
+  })});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No he podido generar sugerencias.');
+  const raw=String(j.reply||'').replace(/^[\s•*\-\d.)]+/gm,'').replace(/\n+/g,', ');
+  const suggestions=[...new Set(raw.split(/[,;]+/).map(x=>clean(x,120)).filter(Boolean))].slice(0,12);
+  return {ok:true,suggestions};
+});
 ipcMain.handle('prospecting:catalog-status',async()=>prospecting?.catalogStatus?prospecting.catalogStatus():{found:false,name:null});
 
 ipcMain.handle('portal:list',async()=>listPortals());
