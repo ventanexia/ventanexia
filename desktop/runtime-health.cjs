@@ -6,7 +6,7 @@ const CRITICAL_PRELOAD=[
   'listConnections','ordersReview','ordersExportReady','shopifyReplenishmentSummary','portalReplenishmentSummary',
   'erpStatus','erpReplenishmentSummary','stockImportFile','exportData','businessList','businessSaveAll','businessSetActive',
   'emailMetrics','emailInbox','agendaToday','agendaUpcoming','financeReport','supportHealth','supportAutoRepair',
-  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
+  'directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionAddEmployeeObservation','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'
 ];
 const RUNTIME_FILES=[
   'main.cjs','master.cjs','master-entry.cjs','preload.cjs','erp.cjs','orders.cjs','export.cjs','direction-control.cjs',
@@ -53,8 +53,8 @@ function staticRuntimeChecks(base=__dirname){
   const erpOk=preload.includes('erpStatus:')&&preload.includes('erpReplenishmentSummary:')&&read(base,'master.cjs').includes("ipcMain.handle('erp:replenishment-summary'");
   add('Stock desde ERP',erpOk,erpOk?'Bridge y backend disponibles':'Integración ERP incompleta');
   const directionSrc=read(base,'renderer/direction-control.js');
-  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&html.includes('id="vnxDirHumanForm"')&&html.includes('id="vnxDirManagementForm"')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport')&&directionSrc.includes('directionUpdateEmployeeContext')&&directionSrc.includes('directionManagementPolicy');
-  add('Agente privado de Dirección',directionUi,directionUi?'PIN, contexto humano, criterio de Dirección, SLA, informes de empleados y evidencia disponibles':'Módulo privado de Dirección incompleto');
+  const directionUi=html.includes('data-tab="direction"')&&html.includes('id="direction"')&&html.includes('id="vnxDirGate"')&&html.includes('id="vnxDirLock"')&&html.includes('id="vnxDirReportForm"')&&html.includes('id="vnxDirReportPdf"')&&html.includes('id="vnxDirHumanForm"')&&html.includes('id="vnxDirObservationForm"')&&html.includes('id="vnxDirManagementForm"')&&html.includes('Evaluación de personas y funciones')&&directionSrc.includes('directionAccessStatus')&&directionSrc.includes('directionUnlock')&&directionSrc.includes('directionLock')&&directionSrc.includes('directionSummary')&&directionSrc.includes('directionReport')&&directionSrc.includes('directionUpdateEmployeeContext')&&directionSrc.includes('directionAddEmployeeObservation')&&directionSrc.includes('directionManagementPolicy')&&directionSrc.includes('Evaluación multidimensional');
+  add('Agente privado de Dirección',directionUi,directionUi?'PIN, evaluación multidimensional, contexto humano, evidencia laboral, criterio de Dirección, SLA e informes disponibles':'Módulo privado de Dirección incompleto');
   return checks;
 }
 
