@@ -102,7 +102,7 @@
     cards.forEach((c,i)=>{const s=c.querySelector('strong');if(s)s.textContent=String(v[i]||0)});
   }
   function renderEmployees(){
-    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee');
+    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),osel=$('#vnxDirObservationEmployee');
     if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
     if(sel){
       const keep=sel.value;
@@ -118,6 +118,11 @@
       const keep=hsel.value;
       hsel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))hsel.value=keep;
+    }
+    if(osel){
+      const keep=osel.value;
+      osel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
+      if(employees.some(e=>e.id===keep))osel.value=keep;
     }
   }
   function renderEmployeeRows(){
@@ -461,6 +466,21 @@
     };
     $('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
     $('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
+    const observationForm=$('#vnxDirObservationForm');if(observationForm)observationForm.onsubmit=async e=>{
+      e.preventDefault();if(!directionToken)return;
+      const employeeId=$('#vnxDirObservationEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
+      const detail=String($('#vnxDirObservationDetail')?.value||'').trim();if(!detail){alert('Describe el hecho que quieres registrar.');return}
+      try{
+        await window.vnx.directionAddEmployeeObservation(directionToken,employeeId,{
+          type:$('#vnxDirObservationType')?.value||'quality_ok',
+          module:$('#vnxDirObservationModule')?.value||'other',
+          detail
+        });
+        $('#vnxDirObservationDetail').value='';
+        if(latestReport)await generateEmployeeReport();
+        alert('Evidencia laboral registrada.');
+      }catch(err){alert(err.message||err)}
+    };
     const managementForm=$('#vnxDirManagementForm');if(managementForm)managementForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
       try{
