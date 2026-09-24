@@ -6,15 +6,17 @@ const html=read('renderer/index.html');
 const app=read('renderer/app.js');
 const master=read('renderer/master.js');
 const agentHome=read('renderer/agent-home.js');
+const businessOnboarding=read('renderer/business-onboarding.js');
 const adaptive=read('renderer/adaptive.js');
 const exp=read('renderer/export.js');
 const preload=read('preload.cjs');
 const mains=['main.cjs','master.cjs','master-entry.cjs','portal-adaptive.cjs','portal-pagination-fix.cjs','export.cjs'].map(read).join('\n');
-const scripts=[app,master,agentHome,adaptive,exp].join('\n');
+const scripts=[app,master,agentHome,businessOnboarding,adaptive,exp].join('\n');
 const errors=[];
 const fail=(x)=>errors.push(x);
 if(!/<script\s+src=["']master\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga master.js; el selector de agentes no se ejecutará.');
 if(!/<script\s+src=["']agent-home\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga agent-home.js; la nueva pantalla de inicio no se ejecutará.');
+if(!/<script\s+src=["']business-onboarding\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga business-onboarding.js; los perfiles de negocio no se ejecutarán.');
 if(/Selecciona una conexión…|VentaNexIA consultará este correo para responder con datos reales/.test(app))fail('app.js todavía contiene el selector antiguo de conexiones del chat.');
 if(!html.includes('id="homeAgentsList"'))fail('Falta el panel de agentes en Inicio.');
 if(!master.includes('window.vnxRefreshAgentUi=refreshChatConnections'))fail('master.js no expone el refresco único del selector de agentes.');
@@ -30,6 +32,7 @@ for(const [name,src,re] of [
   ['app.js',app,/\$\('#([^']+)'\)/g],
   ['master.js',master,/\$m\('#([^']+)'\)/g],
   ['agent-home.js',agentHome,/\$\('#([A-Za-z0-9_-]+)[^']*'\)/g],
+  ['business-onboarding.js',businessOnboarding,/\$\('#([A-Za-z0-9_-]+)[^']*'\)/g],
   ['adaptive.js',adaptive,/\$a\('#([^']+)'\)/g],
   ['export.js',exp,/\$e\('#([^']+)'\)/g]
 ]){
