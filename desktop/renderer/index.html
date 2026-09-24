@@ -606,8 +606,16 @@
 
           <section class="card vnx-dir-panel vnx-dir-policy-panel">
             <div class="vnx-dir-panel-head"><div><span class="eyebrow">CRITERIO DE DIRECCIÓN</span><h2>Qué quiere priorizar esta empresa</h2><p>Los hechos no cambian. Estos pesos solo cambian el enfoque de las recomendaciones.</p></div></div>
-            <div class="vnx-dir-policy-presets"><button type="button" class="btn outline" data-dir-policy-preset="balanced">Equilibrado</button><button type="button" class="btn outline" data-dir-policy-preset="profit">Rentabilidad</button><button type="button" class="btn outline" data-dir-policy-preset="people">Personas</button></div>
+            <div class="vnx-dir-policy-presets"><button type="button" class="btn outline" data-dir-policy-preset="balanced">Equilibrado</button><button type="button" class="btn outline" data-dir-policy-preset="profit">Resultados primero</button><button type="button" class="btn outline" data-dir-policy-preset="people">Desarrollo primero</button></div>
             <form id="vnxDirManagementForm" class="vnx-dir-management-form">
+              <label class="vnx-dir-management-approach"><span>Cuando haya bajo rendimiento, ¿qué debe priorizar Dirección?</span><select id="vnxDirApproach"><option value="results_first">Resultados empresariales primero</option><option value="balanced" selected>Equilibrio entre resultado y persona</option><option value="people_first">Desarrollo y recuperación primero</option></select></label>
+              <div class="vnx-dir-management-contract">
+                <label><input id="vnxDirRequireConversation" type="checkbox" checked> Hablar con la persona antes de cambiar de forma importante sus responsabilidades</label>
+                <label><input id="vnxDirEmployeeVoice" type="checkbox" checked> Incorporar su explicación laboral, necesidades y obstáculos al análisis</label>
+                <label><input id="vnxDirRequireSupport" type="checkbox" checked> Probar formación, instrucciones o apoyo cuando exista una causa corregible</label>
+                <label><input id="vnxDirRequireRoleReview" type="checkbox" checked> Revisar posibles funciones alternativas antes de concluir que el problema es general</label>
+                <label class="vnx-dir-management-window">Periodo de prueba para una mejora<input id="vnxDirImprovementDays" type="number" min="7" max="180" value="30"> días</label>
+              </div>
               <label><span>Rentabilidad <b id="vnxDirProfitValue">50</b></span><input id="vnxDirProfit" type="range" min="0" max="100" value="50"></label>
               <label><span>Servicio al cliente <b id="vnxDirServiceValue">50</b></span><input id="vnxDirService" type="range" min="0" max="100" value="50"></label>
               <label><span>Desarrollo de personas <b id="vnxDirPeopleValue">50</b></span><input id="vnxDirPeople" type="range" min="0" max="100" value="50"></label>
@@ -615,7 +623,7 @@
               <label><span>Estabilidad y riesgo <b id="vnxDirStabilityValue">50</b></span><input id="vnxDirStability" type="range" min="0" max="100" value="50"></label>
               <button class="btn primary" type="submit">Guardar criterio de Dirección</button>
             </form>
-            <div class="vnx-dir-note"><b>Regla fija:</b> aunque Rentabilidad esté al 100, VentaNexIA no altera los hechos ni decide automáticamente sanciones, despidos o contrataciones. Compara formación, proceso, carga, herramientas, automatización y reasignación antes de presentar opciones.</div>
+            <div class="vnx-dir-note"><b>Fórmula intermedia:</b> resultado empresarial imprescindible + explicación de la causa + voz de la persona + oportunidad de mejora cuando sea razonable + revisión de encaje alternativo + decisión humana. Aunque “Resultados primero” esté seleccionado, VentaNexIA no convierte una métrica en una decisión laboral automática.</div>
           </section>
         </div>
 
