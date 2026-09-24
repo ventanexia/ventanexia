@@ -10,6 +10,8 @@ const {shopifyCall}=require('./shopify-auth.cjs');
 const {listShopifyStores,getShopifyStore}=require('./shopify-stores.cjs');
 let prospecting=null;
 try{prospecting=require('./prospecting.cjs')}catch(e){console.error('prospecting_load_error',String(e?.message||e).slice(0,180))}
+let orders=null;
+try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,180))}
 
 require('./main.cjs');
 
@@ -143,6 +145,15 @@ async function shopifyReplenishmentSummary(integration,{force=false,targetDays=S
   shopifyReplenishmentCache={key,at:Date.now(),value};
   return value;
 }
+
+ipcMain.handle('orders:review',async(_e,payload={})=>{
+  if(!orders?.reviewOrders)throw new Error('El agente de Pedidos no está disponible.');
+  return orders.reviewOrders({force:payload?.force!==false,max:payload?.max||250});
+});
+ipcMain.handle('orders:export-ready',async()=>{
+  if(!orders?.exportReadyOrders)throw new Error('El agente de Pedidos no está disponible.');
+  return orders.exportReadyOrders();
+});
 
 ipcMain.handle('shopify:replenishment-summary',async(_e,payload={})=>{
   const s=await readState();
@@ -1882,6 +1893,10 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
       if(direct)return {reply:direct,source:'desktop-support-email',route:'agent:customer_service'};
     }
   }else if(scope?.type==='agent'&&scope?.key==='orders'){
+    if(orders?.handleChat){
+      const handled=await orders.handleChat(question);
+      if(handled)return handled;
+    }
     const emailIntegrations=emailAccountsForState(s);
     const orderMail=await collectGmailContextsFast(emailIntegrations,question);
     localContext.push(...orderMail.files);
@@ -1941,3 +1956,4 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
 });
 
 if(prospecting)app.whenReady().then(()=>prospecting.startScheduler());
+if(orders)app.whenReady().then(()=>orders.startScheduler());
