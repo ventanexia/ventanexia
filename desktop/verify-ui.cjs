@@ -29,7 +29,7 @@ const ids=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
 for(const [name,src,re] of [
   ['app.js',app,/\$\('#([^']+)'\)/g],
   ['master.js',master,/\$m\('#([^']+)'\)/g],
-  ['agent-home.js',agentHome,/\$\('#([^']+)'\)/g],
+  ['agent-home.js',agentHome,/\$\('#([A-Za-z0-9_-]+)[^']*'\)/g],
   ['adaptive.js',adaptive,/\$a\('#([^']+)'\)/g],
   ['export.js',exp,/\$e\('#([^']+)'\)/g]
 ]){
