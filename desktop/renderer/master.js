@@ -2978,8 +2978,21 @@ function emailListItem(m,i,selected){
     return String(a?.product||'').localeCompare(String(b?.product||''),'es',{sensitivity:'base'});
   }
   function shopifyStockTable(summary={}){
-    const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const targetDays=Number(summary.targetDays||25),noHistoryMin=Number(summary.noHistoryMin||0);
+    const rows=Array.isArray(summary.rows)?summary.rows:[],targetDays=Number(summary.targetDays||25),noHistoryMin=Number(summary.noHistoryMin||0);
+    const windowDays=Number(summary.windowDays||180),urgentDays=Number(summary.urgentDays||autoUrgentDaysForPolicy(targetDays));
+    const label=summary.sourceLabel||summary.shop||'Fuente seleccionada';
+    if(summary.salesLookReliable===false){
+      return [
+        '# Pedido para Compras · '+label,'',
+        '⚠️ **No he podido verificar el histórico de ventas.**',
+        'He leído **'+rows.length+' referencias de stock**, pero ninguna ha podido cruzarse de forma fiable con ventas del periodo.',
+        '**No voy a calcular ni presentar un pedido usando solo el mínimo sin histórico**, porque podría inducir a comprar cantidades incorrectas.',
+        '',
+        'Diagnóstico: '+Number(summary.salesPagesScanned||0)+' páginas de ventas revisadas · '+Number(summary.salesTablesSeen||0)+' tablas detectadas · '+Number(summary.salesRowsSeen||0)+' filas candidatas.',
+        '',
+        'Puedes descargar el stock actual o importar un Excel/CSV con stock y ventas para calcular la reposición con datos verificados.'
+      ].join('\n');
+    }
     const toBuy=[...rows].filter(r=>Number(r.qty||0)>0||(Number(r.stock||0)<=0&&r.noSalesData)).sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
     const coverage=r=>r.noSalesData?'—':r.daysRemaining==null?'Sin ventas':String(r.daysRemaining);
@@ -2987,60 +3000,60 @@ function emailListItem(m,i,selected){
     const status=r=>{
       if(r.noSalesData)return noHistoryMin>0?(Number(r.qty||0)>0?'🟣 MÍNIMO SIN HISTÓRICO':'🟢 MÍNIMO CUBIERTO'):(Number(r.stock||0)<=0?'🔴 REVISAR · SIN HISTÓRICO':'⚪ SIN HISTÓRICO');
       if(Number(r.stock||0)<=0)return '🔴 SIN STOCK';
-      if(r.urgent)return '🟠 URGENTE · < 5 DÍAS';
+      if(r.urgent)return '🟠 URGENTE · < '+urgentDays+' DÍAS';
       return Number(r.qty||0)>0?'🟡 REPONER · < '+targetDays+' DÍAS':'🟢 CORRECTO';
     };
-    const label=summary.sourceLabel||summary.shop||'Shopify';
-    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+(summary.windowDays||180)+' días por SKU/EAN.**','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|'];
+    const lines=['# Pedido para Compras · '+label,'','**Objetivo: dejar cada referencia con aproximadamente '+targetDays+' días de cobertura, calculado con las ventas reales de los últimos '+windowDays+' días por SKU/EAN o coincidencia exacta de producto.**','','| Fabricante | SKU | EAN | Producto | Stock | Ventas del periodo ('+windowDays+' días) | Media diaria | Cobertura (días) | Cantidad a pedir | Estado |','|---|---|---|---|---:|---:|---:|---:|---:|---|'];
     for(const r of toBuy){
       const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
       lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+(r.noSalesData?'Sin histórico':fmt(r.soldWindow))+' | '+(r.noSalesData?'—':fmt(r.avgDaily))+' | '+coverage(r)+' | '+qtyLabel(r)+' | '+status(r)+' |');
     }
     if(!toBuy.length)lines.push('| — | — | — | No hay referencias que necesiten compra para alcanzar '+targetDays+' días de cobertura | — | — | — | — | — | 🟢 Correcto |');
-    const units=toBuy.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=toBuy.filter(r=>Number(r.stock||0)<=0).length,under5=toBuy.filter(r=>Number(r.stock||0)>0&&r.urgent).length,normal=toBuy.filter(r=>Number(r.stock||0)>0&&!r.urgent).length;
-    lines.push('','**Resumen del pedido:** '+toBuy.length+' referencias · '+zero+' sin stock · '+under5+' urgentes (<5 días) · '+normal+' a reponer para completar '+targetDays+' días · '+fmt(units)+' unidades calculadas.');
-    lines.push('**Fórmula:** media diaria = ventas de '+(summary.windowDays||180)+' días ÷ '+(summary.windowDays||180)+'; stock objetivo = media diaria × '+targetDays+'; cantidad a pedir = stock objetivo − stock actual, redondeando hacia arriba.');
+    const units=toBuy.reduce((sum,r)=>sum+Math.max(0,Number(r.qty||0)),0),zero=toBuy.filter(r=>Number(r.stock||0)<=0).length,urgent=toBuy.filter(r=>Number(r.stock||0)>0&&r.urgent).length,normal=toBuy.filter(r=>Number(r.stock||0)>0&&!r.urgent).length;
+    lines.push('','**Resumen del pedido:** '+toBuy.length+' referencias · '+zero+' sin stock · '+urgent+' urgentes (<'+urgentDays+' días) · '+normal+' a reponer para completar '+targetDays+' días · '+fmt(units)+' unidades calculadas.');
+    lines.push('**Fórmula:** media diaria = ventas de '+windowDays+' días ÷ '+windowDays+'; stock objetivo = media diaria × '+targetDays+'; cantidad a pedir = stock objetivo − stock actual, redondeando hacia arriba.');
     lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. VentaNexIA no los deduce ni los inventa.');
-    if(toBuy.some(r=>r.noSalesData)){
-      lines.push(noHistoryMin>0?'ℹ️ Para referencias sin histórico se aplica el mínimo configurado por esta empresa: **'+noHistoryMin+' unidades de stock objetivo**.':'⚠️ Las referencias sin histórico aparecen como **Revisar** cuando están agotadas; no se inventa una cantidad porque el mínimo configurado es 0.');
-    }
+    if(toBuy.some(r=>r.noSalesData))lines.push(noHistoryMin>0?'ℹ️ Para referencias realmente sin histórico se aplica el mínimo configurado: **'+noHistoryMin+' unidades de stock objetivo**.':'⚠️ Las referencias realmente sin histórico aparecen como **Revisar** cuando están agotadas; no se inventa una cantidad.');
     if(summary.truncated)lines.push('⚠️ Se alcanzó el límite de seguridad al revisar el histórico; puede no ser exhaustivo.');
     if(summary.catalogTruncated)lines.push('⚠️ Se alcanzó el límite de seguridad del catálogo; pueden faltar referencias.');
     lines.push('','**Pedido preparado para Compras.** Puedes descargarlo en Excel, CSV importable, PDF o imprimirlo.');
     return lines.join('\n');
   }
   function stockInventoryTable(summary={}){
-    const rows=Array.isArray(summary.rows)?summary.rows:[];
-    const ordered=[...rows].sort(stockManufacturerSort);
+    const rows=Array.isArray(summary.rows)?summary.rows:[],ordered=[...rows].sort(stockManufacturerSort);
     const fmt=n=>Number(n||0).toLocaleString('es-ES',{maximumFractionDigits:3});
-    const label=summary.sourceLabel||summary.shop||'Fuente seleccionada';
-    const hasStructuredSales=summary.structuredSales!==false;
-    const lines=['# Stock actual · '+label,'','**Referencias leídas del catálogo:** '+rows.length+'. Datos consultados ahora en la conexión seleccionada.','','| Fabricante | SKU | EAN | Producto | Stock | Ventas 6 meses | Cobertura | Estado |','|---|---|---|---|---:|---:|---:|---|'];
+    const label=summary.sourceLabel||summary.shop||'Fuente seleccionada',windowDays=Number(summary.windowDays||180),targetDays=Number(summary.targetDays||25),urgentDays=Number(summary.urgentDays||autoUrgentDaysForPolicy(targetDays));
+    const reliable=summary.salesLookReliable!==false,hasStructuredSales=summary.structuredSales!==false&&reliable;
+    const lines=['# Stock actual · '+label,'','**Referencias leídas del catálogo:** '+rows.length+'. Datos consultados en la conexión seleccionada.'];
+    if(!reliable){
+      lines.push('','⚠️ **Histórico de ventas no verificado.** El stock es legible, pero ninguna referencia ha podido cruzarse con ventas. Por seguridad no se muestran cantidades de reposición ni se afirma que los productos estén “sin histórico”.');
+      lines.push('Diagnóstico: '+Number(summary.salesPagesScanned||0)+' páginas de ventas · '+Number(summary.salesTablesSeen||0)+' tablas · '+Number(summary.salesRowsSeen||0)+' filas candidatas.');
+    }
+    lines.push('','| Fabricante | SKU | EAN | Producto | Stock | Ventas del periodo ('+windowDays+' días) | Cobertura | Estado |','|---|---|---|---|---:|---:|---:|---|');
     for(const r of ordered){
       const manufacturer=realManufacturer(r)||'—',sku=String(r.sku||'—'),ean=String(r.ean||'—'),product=String(r.product||'').replace(/\|/g,'/');
-      const sold=hasStructuredSales?(r.noSalesData?'Sin histórico':fmt(r.soldWindow)):'—';
+      const sold=hasStructuredSales?(r.noSalesData?'Sin histórico':fmt(r.soldWindow)):reliable?'—':'No verificado';
       const coverage=hasStructuredSales?(r.noSalesData?'—':r.daysRemaining==null?'Sin ventas':String(r.daysRemaining)):'—';
-      const state=Number(r.stock||0)<=0?'🔴 Sin stock':r.urgent?'🟠 Menos de 5 días':'🟢 Disponible';
+      const state=!reliable?'🟠 Histórico no leído':Number(r.stock||0)<=0?'🔴 Sin stock':r.urgent?'🟠 Menos de '+urgentDays+' días':'🟢 Disponible';
       lines.push('| '+manufacturer.replace(/\|/g,'/')+' | '+sku.replace(/\|/g,'/')+' | '+ean.replace(/\|/g,'/')+' | '+product+' | '+fmt(r.stock)+' | '+sold+' | '+coverage+' | '+state+' |');
     }
     if(!ordered.length)lines.push('| — | — | — | No se han recibido referencias de stock | — | — | — | — |');
-    const zero=rows.filter(r=>Number(r.stock||0)<=0).length,urgent=rows.filter(r=>r.urgent&&Number(r.stock||0)>0).length;
-    lines.push('','**Resumen:** '+zero+' sin stock · '+urgent+' con menos de 5 días de cobertura · '+Math.max(0,rows.length-zero-urgent)+' con stock sin alerta.');
+    const zero=rows.filter(r=>Number(r.stock||0)<=0).length,urgent=reliable?rows.filter(r=>r.urgent&&Number(r.stock||0)>0).length:0;
+    lines.push('','**Resumen:** '+zero+' sin stock'+(reliable?' · '+urgent+' con menos de '+urgentDays+' días de cobertura · '+Math.max(0,rows.length-zero-urgent)+' con stock sin alerta':' · previsión de cobertura pendiente hasta verificar las ventas')+'.');
     lines.push('**Orden:** fabricante alfabético y, dentro de cada fabricante, producto.');
-    lines.push('**Fabricante y EAN:** se muestran únicamente cuando la fuente conectada los proporciona. Si faltan, aparece “—”; nunca se infieren por el nombre del producto.');
-    if(!hasStructuredSales)lines.push('⚠️ Esta conexión ha proporcionado existencias, pero no un histórico de ventas estructurado suficiente; por eso Ventas 6 meses y Cobertura aparecen como “—”.');
+    lines.push('**Fabricante y EAN:** solo se muestran cuando la fuente los proporciona; nunca se inventan.');
     return lines.join('\n');
   }
   function stockExportData(summary={}){
-    const hasStructuredSales=summary.structuredSales!==false;
-    const ordered=[...(summary.rows||[])].sort(stockManufacturerSort);
+    const reliable=summary.salesLookReliable!==false,hasStructuredSales=summary.structuredSales!==false&&reliable,ordered=[...(summary.rows||[])].sort(stockManufacturerSort);
+    const targetDays=Number(summary.targetDays||25),urgentDays=Number(summary.urgentDays||autoUrgentDaysForPolicy(targetDays));
     return {
-      headers:['sku','ean','fabricante','producto','stock_actual','ventas_180_dias','media_diaria','dias_cobertura','estado'],
+      headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','estado'],
       rows:ordered.map(r=>[
         String(r.sku||''),String(r.ean||''),realManufacturer(r),String(r.product||''),Number(r.stock||0),
         hasStructuredSales&&!r.noSalesData?Number(r.soldWindow||0):'',hasStructuredSales&&!r.noSalesData?Number(r.avgDaily||0):'',
         hasStructuredSales&&!r.noSalesData?(r.daysRemaining==null?'':Number(r.daysRemaining)):'',
-        Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <5 DIAS':'DISPONIBLE'
+        !reliable?'HISTORICO NO LEIDO':Number(r.stock||0)<=0?'SIN STOCK':r.urgent?'ROTURA <'+urgentDays+' DIAS':'DISPONIBLE'
       ])
     };
   }
