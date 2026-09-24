@@ -642,7 +642,7 @@ async function liveShopifyHealth(store,{force=false}={}){
   if(!force&&cached&&Date.now()-cached.at<CONNECTION_HEALTH_TTL)return cached.value;
   let value;
   try{
-    const data=await withHealthTimeout(shopifyCall(store,tok=>shopifyGraphql(store.shop,tok,\`query VentaNexIAHealth { shop { name myshopifyDomain } }\`)),12000);
+    const data=await withHealthTimeout(shopifyCall(store,tok=>shopifyGraphql(store.shop,tok,`query VentaNexIAHealth { shop { name myshopifyDomain } }`)),12000);
     value={connected:true,state:'connected',reason:'Conexión verificada',checkedAt:new Date().toISOString(),shopName:data?.shop?.name||store.shopName||store.shop};
   }catch(e){
     value={connected:false,state:'reconnect',reason:String(e?.message||e).slice(0,180),checkedAt:new Date().toISOString(),shopName:store.shopName||store.shop};
