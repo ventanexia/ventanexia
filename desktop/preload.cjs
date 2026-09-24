@@ -50,6 +50,8 @@ contextBridge.exposeInMainWorld('vnx',{
   setActiveShopify:(shop)=>ipcRenderer.invoke('shopify:set-active',shop),
   shopifyReplenishmentSummary:(shop,options={})=>ipcRenderer.invoke('shopify:replenishment-summary',{shop,force:options?.force!==false,targetDays:options?.targetDays,noHistoryMin:options?.noHistoryMin,windowDays:options?.windowDays,urgentDays:options?.urgentDays}),
   portalReplenishmentSummary:(id,options={})=>ipcRenderer.invoke('portal:replenishment-summary',{id,force:Boolean(options?.force),targetDays:options?.targetDays,noHistoryMin:options?.noHistoryMin,windowDays:options?.windowDays,urgentDays:options?.urgentDays}),
+  erpStatus:()=>ipcRenderer.invoke('erp:status'),
+  erpReplenishmentSummary:(options={})=>ipcRenderer.invoke('erp:replenishment-summary',{force:options?.force!==false,targetDays:options?.targetDays,noHistoryMin:options?.noHistoryMin,windowDays:options?.windowDays,urgentDays:options?.urgentDays}),
   stockImportFile:(options={})=>ipcRenderer.invoke('stock:import-file',options),
   analyzeDocument:()=>ipcRenderer.invoke('document:analyze-select'),
   disconnectShopify:(shop)=>ipcRenderer.invoke('shopify:disconnect',shop),
