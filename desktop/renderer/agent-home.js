@@ -800,8 +800,8 @@
     const filters=$('#vnxAhFilters');if(filters)filters.innerHTML=(ui.filters||[]).map(renderFilterField).join('')+'<button type="button" id="vnxAhMoreFilters">✦ Más filtros</button>';
     renderStockPolicyUi();
     restoreProspectProfile();
-    const previewActions=$('#vnxAhPreviewActions button');(ui.previewActions||[]).forEach((x,i)=>{if(previewActions[i])previewActions[i].textContent=x});
-    const switches=$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
+    const previewActions=$$('#vnxAhPreviewActions button');(ui.previewActions||[]).forEach((x,i)=>{if(previewActions[i])previewActions[i].textContent=x});
+    const switches=$$('#vnxAhSwitches label span');(ui.switches||[]).forEach((x,i)=>{if(switches[i])switches[i].textContent=x});
     const items=$('#vnxAhItems');if(items)items.innerHTML='<span class="vnx-ah-tag">'+esc(ui.itemDefault||cfg.itemLabel||'Contexto')+' <button type="button" class="vnx-ah-remove-tag">×</button></span>';
     document.querySelectorAll('#vnxAhItems .vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
     applyBusinessAgentDefaults(key);
@@ -811,7 +811,7 @@
       if(/archivo|excel|csv|documento/i.test(label)){openAppTab('files');return}
       const input=$('#vnxAhSearchInput');if(input){input.focus();input.select?.()}
     }));
-    const previewButtons=$('#vnxAhPreviewActions button');
+    const previewButtons=$$('#vnxAhPreviewActions button');
     if(key==='web_ecommerce'&&previewButtons[2]){
       previewButtons[2].onclick=()=>{
         if(!lastStockRun?.summary){alert('Primero ejecuta el análisis de stock.');return}
