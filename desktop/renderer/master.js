@@ -376,6 +376,7 @@
     for(const x of runtimeConnections||[]){const k=x.module||x.key;if(wants.includes(k))matches.push(x.label||k)}
     return [...new Set(matches)];
   }
+  const PROSPECTING_BRANDS_KEY='vnx_prospecting_brands_by_company_v1';
   function prospectingCompanyOptions(savedValue=''){
     const values=[];
     for(const src of connectedDataSources()){
@@ -389,10 +390,46 @@
   function prospectingCompanyFieldHtml(field={},value=''){
     const options=prospectingCompanyOptions(value);
     const req=field.required?' <em>obligatorio</em>':'';
-    return '<label class="guided-field"><span>'+escM(field.label||'TU EMPRESA')+req+'</span><select data-guided-field="company">'
+    return '<label class="guided-field"><span>'+escM(field.label||'TU EMPRESA')+req+'</span><select data-guided-field="company" data-prospecting-company>'
       +'<option value="">Elige una empresa o conexión…</option>'
       +options.map(x=>'<option value="'+escM(x)+'"'+(String(value)===x?' selected':'')+'>'+escM(x)+'</option>').join('')
       +'</select><small class="guided-field-note">'+(options.length?'Opciones obtenidas de las conexiones reales activas.':'No hay conexiones de empresa activas. Ve a Conexiones para añadir una.')+'</small></label>';
+  }
+  function prospectingBrandsStore(){
+    try{
+      const x=JSON.parse(localStorage.getItem(PROSPECTING_BRANDS_KEY)||'{}');
+      return x&&typeof x==='object'&&!Array.isArray(x)?x:{};
+    }catch{return {}}
+  }
+  function prospectingCompanyBrandKey(company=''){
+    return String(company||'').trim().toLocaleLowerCase('es-ES');
+  }
+  function prospectingBrandOptions(company='',savedValue=''){
+    const store=prospectingBrandsStore(),key=prospectingCompanyBrandKey(company);
+    const values=Array.isArray(store[key])?store[key].map(x=>String(x||'').trim()).filter(Boolean):[];
+    const saved=String(savedValue||'').trim();
+    if(saved)values.push(saved);
+    return [...new Set(values)].sort((a,b)=>a.localeCompare(b,'es',{sensitivity:'base'}));
+  }
+  function prospectingSaveBrand(company='',brand=''){
+    const c=String(company||'').trim(),b=String(brand||'').trim();
+    if(!c||!b)return false;
+    const store=prospectingBrandsStore(),key=prospectingCompanyBrandKey(c);
+    const current=Array.isArray(store[key])?store[key].map(x=>String(x||'').trim()).filter(Boolean):[];
+    if(!current.some(x=>x.localeCompare(b,'es',{sensitivity:'base'})===0))current.push(b);
+    current.sort((a,z)=>a.localeCompare(z,'es',{sensitivity:'base'}));
+    store[key]=current;
+    try{localStorage.setItem(PROSPECTING_BRANDS_KEY,JSON.stringify(store));return true}catch{return false}
+  }
+  function prospectingBrandFieldHtml(field={},company='',value=''){
+    const options=prospectingBrandOptions(company,value),req=field.required?' <em>obligatorio</em>':'';
+    return '<label class="guided-field wide" data-prospecting-brand-field><span>'+escM(field.label||'MARCA QUE QUIERES PROMOCIONAR')+req+'</span>'
+      +'<div class="prospecting-brand-picker"><select data-guided-field="brand" data-prospecting-brand-select>'
+      +'<option value="">'+(company?'Elige una marca…':'Primero elige la empresa…')+'</option>'
+      +options.map(x=>'<option value="'+escM(x)+'"'+(String(value)===x?' selected':'')+'>'+escM(x)+'</option>').join('')
+      +'</select><button type="button" class="btn outline" data-prospecting-add-brand>＋ Añadir marca</button></div>'
+      +'<div class="prospecting-brand-add" data-prospecting-brand-add-box style="display:none"><input type="text" data-prospecting-new-brand placeholder="Nombre real de la marca"><button type="button" class="btn primary" data-prospecting-save-brand>Guardar marca</button><button type="button" class="btn outline" data-prospecting-cancel-brand>Cancelar</button></div>'
+      +'<small class="guided-field-note">'+(company?'Las marcas se guardan dentro de '+escM(company)+'. Añade solo marcas reales que distribuye esa empresa.':'Selecciona primero la empresa para asociar correctamente la marca.')+'</small></label>';
   }
 
   function agentMetricHtml(key){
@@ -713,7 +750,7 @@ function emailListItem(m,i,selected){
     if(result)result.style.display='none';
     const cfg=guidedConfig('prospecting'),saved=guidedSaved('prospecting');
     const byKey=Object.fromEntries((cfg.fields||[]).map(f=>[f.key,f]));
-    const field=k=>!byKey[k]?'':(k==='company'?prospectingCompanyFieldHtml(byKey[k],saved[k]||''):guidedFieldHtml(byKey[k],saved[k]||''));
+    const field=k=>!byKey[k]?'':(k==='company'?prospectingCompanyFieldHtml(byKey[k],saved[k]||''):k==='brand'?prospectingBrandFieldHtml(byKey[k],saved.company||'',saved[k]||''):guidedFieldHtml(byKey[k],saved[k]||''));
     if(host)host.innerHTML=
       '<div class="prospecting-dashboard">'
       +'<section class="prospecting-hero">'
@@ -742,7 +779,51 @@ function emailListItem(m,i,selected){
     if(consent)consent.style.display='flex';
     if(cat)cat.style.display='flex';
     if(summary)summary.style.display='none';
-    $$m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+    const bindProspectingFields=()=>{
+      $m('[data-guided-field]').forEach(el=>el.addEventListener('input',()=>guidedRead('prospecting')));
+      const company=$m('[data-prospecting-company]'),brandField=$m('[data-prospecting-brand-field]');
+      const rebuildBrand=()=>{
+        if(!brandField)return;
+        const current=String($m('[data-prospecting-brand-select]')?.value||'').trim();
+        const companyValue=String(company?.value||'').trim();
+        brandField.outerHTML=prospectingBrandFieldHtml(byKey.brand||{},companyValue,current);
+        bindBrandButtons();
+        guidedRead('prospecting');
+      };
+      const bindBrandButtons=()=>{
+        const add=$m('[data-prospecting-add-brand]'),box=$m('[data-prospecting-brand-add-box]'),input=$m('[data-prospecting-new-brand]'),save=$m('[data-prospecting-save-brand]'),cancel=$m('[data-prospecting-cancel-brand]');
+        if(add)add.onclick=()=>{
+          const companyValue=String($m('[data-prospecting-company]')?.value||'').trim();
+          if(!companyValue){alert('Primero elige la empresa a la que pertenece la marca.');return}
+          if(box)box.style.display='flex';
+          if(input){input.value='';input.focus()}
+        };
+        if(cancel)cancel.onclick=()=>{if(box)box.style.display='none';if(input)input.value=''};
+        if(save)save.onclick=()=>{
+          const companyValue=String($m('[data-prospecting-company]')?.value||'').trim(),brand=String(input?.value||'').trim();
+          if(!companyValue){alert('Primero elige la empresa.');return}
+          if(!brand){alert('Escribe el nombre real de la marca.');return}
+          if(!prospectingSaveBrand(companyValue,brand)){alert('No se ha podido guardar la marca.');return}
+          const field=$m('[data-prospecting-brand-field]');
+          if(field)field.outerHTML=prospectingBrandFieldHtml(byKey.brand||{},companyValue,brand);
+          bindBrandButtons();
+          const brandSel=$m('[data-prospecting-brand-select]');if(brandSel){brandSel.value=brand;brandSel.addEventListener('input',()=>guidedRead('prospecting'))}
+          guidedRead('prospecting');
+        };
+        const brandSel=$m('[data-prospecting-brand-select]');
+        if(brandSel)brandSel.addEventListener('input',()=>guidedRead('prospecting'));
+      };
+      if(company)company.onchange=()=>{
+        const data=guidedRead('prospecting');
+        const oldBrand=String(data.brand||'').trim();
+        const field=$m('[data-prospecting-brand-field]');
+        if(field)field.outerHTML=prospectingBrandFieldHtml(byKey.brand||{},company.value,'');
+        bindBrandButtons();
+        if(oldBrand)guidedSave('prospecting',{...guidedSaved('prospecting'),company:company.value,brand:''});
+      };
+      bindBrandButtons();
+    };
+    bindProspectingFields();
     const email=$m('[data-guided-field="email"]');if(email&&!email.value){const e=(runtimeConnections||[]).find(x=>(x.module||x.key)==='email');if(e)email.value=e.label||''}
     refreshGuidedCatalog();
   }
