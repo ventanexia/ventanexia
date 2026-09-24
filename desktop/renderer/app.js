@@ -42,7 +42,7 @@ document.addEventListener('pointerdown',e=>{
 },true);
 
 function openTab(name){
-  $$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+  $$$('.nav').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
   $$('.tab').forEach(x=>x.classList.toggle('active',x.id===name));
   const active=document.getElementById(name);
   ensureEditableControls(active||document);
@@ -53,7 +53,7 @@ function openTab(name){
 }
 function bindTabs(){
   $('.nav').forEach(b=>b.onclick=()=>openTab(b.dataset.tab));
-  $('[data-tab-jump]').forEach(b=>b.onclick=()=>openTab(b.dataset.tabJump));
+  $$('[data-tab-jump]').forEach(b=>b.onclick=()=>openTab(b.dataset.tabJump));
 
   // Navegación lateral robusta: los agentes no son tabs independientes,
   // abren la plantilla de Inicio con el agente correspondiente.
