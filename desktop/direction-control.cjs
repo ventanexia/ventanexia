@@ -354,6 +354,127 @@ function managementLens(policy,emp,roleFit,hypotheses){
     principle:'Los hechos del informe no cambian con el criterio del jefe; solo cambia qué objetivos prioriza la recomendación. La decisión final corresponde a Dirección.'
   };
 }
+
+const DIMENSION_STATUS=new Set(['favorable','mixta','atencion','sin_datos']);
+function dim(key,label,status,confidence,summary,evidence=[],missing=[]){
+  return {key,label,status:DIMENSION_STATUS.has(status)?status:'sin_datos',confidence,summary,evidence:evidence.slice(0,6),missing:missing.slice(0,5)};
+}
+function trendDeviation(tasks,now){
+  const sorted=tasks.slice().sort((a,b)=>new Date(a.assignedAt||a.createdAt)-new Date(b.assignedAt||b.createdAt));
+  if(sorted.length<8)return null;
+  const mid=Math.floor(sorted.length/2),first=sorted.slice(0,mid),second=sorted.slice(mid);
+  const rate=xs=>xs.length?xs.filter(t=>isDeviationTask(t,now)).length/xs.length:0;
+  const a=rate(first),b=rate(second),delta=b-a;
+  return {firstRate:a,secondRate:b,delta,direction:delta<=-.15?'improving':delta>=.15?'worsening':'stable'};
+}
+function employeeEvaluation(emp,mine,roleFit,humanContext,events,now){
+  const profile=sanitizeWorkProfile(emp.workProfile||{}),done=mine.filter(t=>t.status==='done'),open=mine.filter(isOpen);
+  const overdue=open.filter(t=>isOverdue(t,now)),late=done.filter(completedLate),ai=done.filter(t=>t.completedBy==='ai');
+  const withEvidence=done.filter(t=>String(t.evidence||t.outcome||'').trim());
+  const blocked=mine.filter(t=>t.status==='blocked'),humanDone=done.filter(t=>t.completedBy==='human');
+  const qualityEvents=events.filter(e=>['quality_issue','correction','rework','customer_complaint'].includes(e.type));
+  const positiveQualityEvents=events.filter(e=>['quality_ok','customer_praise','approved_first_time'].includes(e.type));
+  const collaborationEvents=events.filter(e=>['helped_team','handoff_ok','collaboration'].includes(e.type));
+  const learningEvents=events.filter(e=>['training','coaching','learning'].includes(e.type));
+  const trend=trendDeviation(mine,now),dims=[];
+
+  if(!mine.length)dims.push(dim('delivery','Cumplimiento','sin_datos','insuficiente','No hay tareas registradas suficientes para valorar cumplimiento.',[],['Registrar tareas y plazos comparables.']));
+  else{
+    const onTime=done.filter(t=>!completedLate(t)).length,rate=done.length?onTime/done.length:0;
+    const status=done.length<3?'sin_datos':rate>=.8&&overdue.length===0?'favorable':rate>=.55?'mixta':'atencion';
+    dims.push(dim('delivery','Cumplimiento',status,done.length>=10?'alta':done.length>=4?'media':'baja',
+      done.length?Math.round(rate*100)+'% de las tareas terminadas se completaron dentro del plazo; '+overdue.length+' siguen vencidas.':'Todavía no hay tareas completadas.',
+      [done.length+' tareas completadas',late.length+' terminadas tarde',overdue.length+' actualmente vencidas'],
+      done.length<4?['Hace falta más volumen de tareas comparables.']:[]));
+  }
+
+  if(done.length<3&&qualityEvents.length===0&&positiveQualityEvents.length===0)dims.push(dim('quality','Calidad del resultado','sin_datos','insuficiente','No hay suficiente evidencia de calidad. Terminar una tarea no demuestra por sí solo que esté bien hecha.',[],['Registrar correcciones, retrabajo, aprobación a la primera o incidencias de cliente.']));
+  else{
+    const evidenceRate=done.length?withEvidence.length/done.length:0;
+    const status=qualityEvents.length===0&&evidenceRate>=.75?'favorable':qualityEvents.length<=Math.max(1,done.length*.15)?'mixta':'atencion';
+    dims.push(dim('quality','Calidad del resultado',status,qualityEvents.length+positiveQualityEvents.length>=3?'media':'baja',
+      qualityEvents.length?qualityEvents.length+' incidencias de calidad/retrabajo registradas.':'No aparecen incidencias de calidad registradas; debe distinguirse entre ausencia de incidencias y ausencia de registro.',
+      [withEvidence.length+'/'+done.length+' tareas con resultado o evidencia',qualityEvents.length+' eventos de corrección/retrabajo',positiveQualityEvents.length+' validaciones positivas'],
+      qualityEvents.length+positiveQualityEvents.length<3?['Registrar revisiones de calidad de forma explícita.']:[]));
+  }
+
+  if(mine.length<5)dims.push(dim('reliability','Fiabilidad','sin_datos','baja','Todavía no hay suficiente historial para valorar consistencia.',[],['Acumular al menos varias tareas repetidas en el tiempo.']));
+  else{
+    const failures=overdue.length+late.length+ai.length,ratio=failures/mine.length;
+    const status=ratio<=.15?'favorable':ratio<=.4?'mixta':'atencion';
+    dims.push(dim('reliability','Fiabilidad',status,mine.length>=12?'media':'baja',
+      status==='favorable'?'El trabajo registrado muestra una pauta bastante consistente.':status==='mixta'?'La consistencia cambia según tarea o periodo.':'Hay una repetición relevante de retrasos o recuperaciones que conviene explicar.',
+      [mine.length+' tareas observadas',late.length+' entregas tardías',ai.length+' tareas recuperadas por IA',blocked.length+' bloqueos'],
+      []));
+  }
+
+  const strengths=roleFit?.strengths||[],frictions=roleFit?.frictions||[];
+  dims.push(dim('functional_strengths','Fortalezas por función',
+    strengths.length?'favorable':frictions.length?'mixta':'sin_datos',roleFit?.confidence||'baja',
+    strengths.length?roleFit.interpretation:'No hay todavía un patrón funcional positivo suficientemente claro.',
+    strengths.length?strengths:['Áreas analizadas: '+((roleFit?.stats||[]).map(x=>x.label).join(', ')||'sin datos')],
+    strengths.length?[]:['Acumular más tareas comparables por área.']));
+
+  if(!trend)dims.push(dim('learning','Aprendizaje y mejora','sin_datos','insuficiente','No hay suficiente serie temporal para saber si mejora después de experiencia, formación o feedback.',learningEvents.length?[learningEvents.length+' eventos de formación/acompañamiento registrados']:[],['Se necesitan al menos 8 tareas ordenadas en el tiempo y registrar la formación/feedback.']));
+  else{
+    const status=trend.direction==='improving'?'favorable':trend.direction==='stable'?'mixta':'atencion';
+    dims.push(dim('learning','Aprendizaje y mejora',status,'media',
+      trend.direction==='improving'?'Las desviaciones disminuyen en la parte más reciente del historial.':trend.direction==='worsening'?'Las desviaciones aumentan en la parte más reciente; revisar qué cambió.':'No se observa todavía una mejora o deterioro claro.',
+      ['Desviaciones primera mitad: '+Math.round(trend.firstRate*100)+'%','Desviaciones segunda mitad: '+Math.round(trend.secondRate*100)+'%',learningEvents.length+' eventos de formación/feedback'],
+      learningEvents.length?[]:['Registrar cuándo hubo formación o feedback para no atribuir causalidad sin evidencia.']));
+  }
+
+  if(done.length<4)dims.push(dim('autonomy','Autonomía y resolución','sin_datos','baja','No hay suficientes tareas finalizadas para valorar autonomía operativa.',[],['Registrar cuándo una tarea requirió ayuda, escalado o recuperación.']));
+  else{
+    const humanRate=done.length?humanDone.length/done.length:0,status=humanRate>=.85&&ai.length<=1?'favorable':humanRate>=.6?'mixta':'atencion';
+    dims.push(dim('autonomy','Autonomía y resolución',status,'baja',
+      'Esta dimensión usa únicamente señales operativas; no equivale a iniciativa personal ni capacidad intelectual.',
+      [humanDone.length+'/'+done.length+' tareas cerradas por la persona',ai.length+' recuperadas por IA','Preferencia declarada de autonomía: '+profile.preferredAutonomy],
+      ['Distinguir ayuda razonable, escalado correcto y dependencia evitable.']));
+  }
+
+  if(collaborationEvents.length<2)dims.push(dim('collaboration','Colaboración y efecto en el equipo','sin_datos','insuficiente','VentaNexIA no debe deducir colaboración a partir de productividad individual.',profile.collaborationPreference?['Preferencia declarada: '+profile.collaborationPreference]:[],['Registrar entregas a compañeros, ayudas, bloqueos cruzados y coordinación de forma explícita.']));
+  else dims.push(dim('collaboration','Colaboración y efecto en el equipo','favorable','baja','Hay eventos de colaboración registrados, aunque deben interpretarse con contexto.',[collaborationEvents.length+' eventos explícitos de colaboración'],[]));
+
+  const hypotheses=humanContext?.hypotheses||[];
+  dims.push(dim('job_context','Contexto del puesto',
+    hypotheses.some(h=>['workload','dependencies'].includes(h.key)||h.key.startsWith('process_'))?'atencion':'mixta',
+    hypotheses.length?'media':'baja',
+    hypotheses.length?'Existen explicaciones alternativas que Dirección debe revisar antes de atribuir el resultado a la persona.':'No se ha identificado una causa contextual dominante.',
+    hypotheses.map(h=>h.label+': '+h.meaning),
+    hypotheses.length?[]:['Comprobar carga, proceso, formación, instrucciones, herramientas y dependencias.']));
+
+  const matches=roleFit?.possibleMatches||[];
+  dims.push(dim('role_fit','Encaje actual y alternativo',
+    frictions.length&&strengths.length?'mixta':strengths.length?'favorable':frictions.length?'atencion':'sin_datos',
+    roleFit?.confidence||'baja',
+    roleFit?.interpretation||'No hay evidencia suficiente para valorar el encaje.',
+    [...strengths,...frictions,...(matches.length?['Funciones a explorar: '+matches.join(', ')]:[])],
+    roleFit?.contextQuestions||[]));
+
+  const operationalImpact=late.length+overdue.length+ai.length;
+  dims.push(dim('business_impact','Impacto empresarial',
+    mine.length<3?'sin_datos':operationalImpact===0?'favorable':operationalImpact<=Math.max(2,mine.length*.25)?'mixta':'atencion',
+    'baja',
+    'Se muestra impacto operativo verificable. El impacto económico solo debe afirmarse cuando existan costes, márgenes, ventas o pérdidas conectadas a la tarea.',
+    [late.length+' entregas tardías',overdue.length+' tareas vencidas',ai.length+' tareas recuperadas por IA'],
+    ['Para cuantificar euros, vincular tareas con ventas, costes, margen, pedidos o incidencias económicas reales.']));
+
+  return {
+    dimensions:dims,
+    overallScore:null,
+    rankingAllowed:false,
+    decisionRule:'No convertir estas dimensiones en una nota global. La evaluación sirve para entender el patrón, buscar causas y comparar alternativas, no para ordenar personas.',
+    reviewQuestions:[
+      '¿El resultado cambia cuando recibe formación o instrucciones más claras?',
+      '¿El mismo problema aparece en otras personas que hacen el mismo proceso?',
+      '¿La carga y los plazos eran razonables?',
+      '¿Sus mejores resultados pertenecen a funciones distintas de las que ocupan la mayor parte de su puesto?',
+      '¿Qué evidencia falta antes de modificar responsabilidades?'
+    ]
+  };
+}
+
 function humanContextAnalysis(emp,mine,roleFit,peers,policy,now){
   const profile=sanitizeWorkProfile(emp.workProfile||{});
   const hypotheses=causeHypotheses(emp,mine,roleFit,peers,now);
@@ -418,6 +539,8 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
     });
     const roleFit=qualitativeFit(mine,areas,now);
     const humanContext=humanContextAnalysis(emp,mine,roleFit,peers,managementPolicy,now);
+    const employeeEvents=d.events.filter(e=>e.employeeId===emp.id&&(!businessId||e.businessId===businessId)&&taskActiveInPeriod({assignedAt:e.at,updatedAt:e.at,status:'done'},fromDate,toDate,now));
+    const evaluation=employeeEvaluation(emp,mine,roleFit,humanContext,employeeEvents,now);
     return {
       employeeId:emp.id,name:emp.name,role:emp.role,email:emp.email,assigned:mine.length,done:done.length,
       doneHuman:done.filter(t=>t.completedBy==='human').length,doneAI:ai.length,open:open.length,
@@ -425,7 +548,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       deviations:deviations.length,onTimeRate:done.length?Math.round(onTimeDone.length/done.length*100):null,
       aiRecoveryRate:mine.length?Math.round(ai.length/mine.length*100):0,
       averageDelayMinutes:delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0,
-      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext
+      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext,evaluation
     };
   }).sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
@@ -519,4 +642,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,employeeEvaluation,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
