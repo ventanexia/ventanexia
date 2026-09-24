@@ -470,13 +470,19 @@
     ];
     const visible=groups.map(g=>{const a=items.find(x=>x.key===g.key)||items.find(x=>x.key===g.fallback);return a?{...a,groupName:g.name,groupIcon:g.icon,groupDesc:g.desc}:null}).filter(Boolean);
     root.innerHTML=visible.map(a=>'<button type="button" class="guided-agent-tab '+(selected?.key===a.key?'active':'')+'" data-guided-agent="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.groupIcon||a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.groupName||a.name)+'</b><small>'+escM(a.groupDesc||agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'</button>').join('');
-    $$m('[data-guided-agent]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedAgent));
+    root.onclick=e=>{
+      const btn=e.target.closest('[data-guided-agent]');if(!btn||!root.contains(btn))return;
+      e.preventDefault();selectAgentKey(btn.dataset.guidedAgent,{showGuided:true});
+    };
   }
   function renderGuidedOtherCards(items,selected){
     const root=$m('#guidedOtherCards');if(!root)return;
     const list=items.filter(x=>x.key!==selected?.key).slice(0,5);
     root.innerHTML=list.map(a=>'<button type="button" data-guided-other="'+escM(a.key)+'"><span class="agent-icon-wrap">'+escM(a.icon||'🤖')+(agentMetrics[a.key]?.pending>0?'<i class="agent-pending-badge">'+Number(agentMetrics[a.key].pending)+'</i>':'')+'</span><b>'+escM(a.name)+'</b><small>'+escM(agentShortFunction(a.key))+'</small>'+agentMetricHtml(a.key)+'<i>›</i></button>').join('');
-    $$m('[data-guided-other]').forEach(btn=>btn.onclick=()=>selectAgentKey(btn.dataset.guidedOther));
+    root.onclick=e=>{
+      const btn=e.target.closest('[data-guided-other]');if(!btn||!root.contains(btn))return;
+      e.preventDefault();selectAgentKey(btn.dataset.guidedOther,{showGuided:true});
+    };
   }
   async function refreshGuidedCatalog(){
     const row=$m('#guidedCatalogRow'),txt=$m('#guidedCatalogText');if(!row||row.style.display==='none'||!txt)return;
@@ -548,7 +554,7 @@ function emailListItem(m,i,selected){
       let selected=0,filter='all',search='',topicFilter='all';
       const accountOptions=['Todas las cuentas',...accountNames];
       host.innerHTML='<div class="email-dashboard">'
-        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
+        +'<div class="email-toolbar"><div><span class="email-work-icon">✉</span><div><h3>Correo y bandeja de entrada</h3><p>Gestiona tus correos con la ayuda de VentaNexIA.</p></div></div><div class="email-toolbar-controls"><label class="email-account-select"><span>Cuenta</span><select data-email-account>'+accountOptions.map((n,i)=>'<option value="'+(i===0?'':escM(n))+'">'+escM(n)+'</option>').join('')+'</select></label><button type="button" class="btn outline email-mark-all-read" data-email-mark-all-read>✓ Marcar todos como leídos</button><label class="email-search">⌕<input data-email-search placeholder="Buscar correos, remitentes o asuntos…"></label></div></div>'
         +'<div class="email-metric-grid" data-email-metrics></div>'
         +'<div class="email-workspace"><div class="email-category-panel" data-email-topic-tabs></div><section class="email-list-panel"><div class="email-list-tabs"><button class="active" data-email-filter="all">✉ Recibidos</button><button data-email-filter="responded">✓ Respondidos</button><button data-email-filter="pending">◷ Pendientes</button><button data-email-filter="no_reply">✓ Sin respuesta</button></div><div class="email-list" data-email-list></div></section><section class="email-detail-panel" data-email-detail></section></div>'
         +'</div>';
@@ -645,6 +651,29 @@ function emailListItem(m,i,selected){
       host.querySelectorAll('[data-email-filter]').forEach(btn=>btn.onclick=()=>{filter=btn.dataset.emailFilter;host.querySelectorAll('[data-email-filter]').forEach(x=>x.classList.toggle('active',x===btn));renderList();renderDetail()});
       const searchEl=host.querySelector('[data-email-search]');searchEl.oninput=()=>{search=searchEl.value.trim();renderList();renderDetail()};
       const accountControl=host.querySelector('[data-email-account]');if(accountControl)accountControl.onchange=()=>refreshAccountData();
+      const markAllRead=host.querySelector('[data-email-mark-all-read]');
+      if(markAllRead)markAllRead.onclick=async()=>{
+        const account=String(accountControl?.value||'').trim();
+        const target=account||'todas las cuentas conectadas';
+        if(!confirm('¿Marcar como leídos en Gmail todos los correos sin leer de '+target+'?'))return;
+        const old=markAllRead.textContent;markAllRead.disabled=true;markAllRead.textContent='Marcando en Gmail…';
+        try{
+          const result=await window.vnx.emailMarkAllRead(account?{account}:{});
+          await refreshAccountData();
+          await refreshAgentMetrics();
+          if(!result?.ok&&result?.errors?.length){
+            markAllRead.textContent=result.partial?'Parcial · revisar':'No completado';
+            alert((result.message||'La acción no se completó en todas las cuentas.')+'\n\n'+result.errors.join('\n'));
+          }else{
+            markAllRead.textContent=(result?.count||0)+' leídos ✓';
+          }
+        }catch(err){
+          alert(err.message||'No se pudieron marcar los correos como leídos en Gmail.');
+          markAllRead.textContent=old;
+        }finally{
+          setTimeout(()=>{if(markAllRead.isConnected){markAllRead.disabled=false;markAllRead.textContent=old}},1800);
+        }
+      };
       await refreshAccountData();
     }catch(err){
       host.innerHTML='<div class="email-dashboard-empty">No he podido cargar la bandeja: '+escM(err.message||err)+'</div>';
