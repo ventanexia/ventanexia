@@ -915,6 +915,33 @@ ipcMain.handle('direction:employees',async(_e,payload={})=>{
   const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
   return d.employees.filter(x=>!businessId||x.businessId===businessId);
 });
+
+ipcMain.handle('direction:update-employee-context',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  let employee=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s);
+    employee=direction.updateEmployeeContext(d,String(payload.employeeId||''),payload.context||{});
+    return s;
+  });
+  await audit('direction.employee_context_updated',(employee?.name||'Empleado')+' · contexto laboral actualizado');
+  return employee;
+});
+ipcMain.handle('direction:management-policy',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  if(payload.update===true){
+    let policy=null;
+    await updateState(s=>{
+      const d=direction.ensureDirection(s);
+      policy=direction.setManagementPolicy(d,payload.policy||{});
+      return s;
+    });
+    await audit('direction.management_policy_updated','Criterio de Dirección actualizado');
+    return policy;
+  }
+  const s=await readState(),d=direction.ensureDirection(s);
+  return direction.sanitizeManagementPolicy(d.managementPolicy||{});
+});
 ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
   directionRequireSession(payload);
   let saved=null;
