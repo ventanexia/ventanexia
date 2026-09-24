@@ -283,7 +283,8 @@
     $('#vnxAhRecipients').innerHTML=renderRecipients(cfg);
     $('#vnxAhMetricValue').textContent='—';
     $('#vnxAhReviewValue').textContent='—';
-    $$('.vnx-agent-side-btn').forEach(b=>b.classList.toggle('active',b.dataset.agentHome===key));
+    $('.vnx-agent-side-btn').forEach(b=>b.classList.toggle('active',b.dataset.agentHome===key));
+    const homeNav=$('.nav[data-tab="home"]');if(homeNav)homeNav.classList.toggle('active',key==='core_ai');
     $$('#vnxAhTabs button').forEach(b=>b.addEventListener('click',()=>{
       $$('#vnxAhTabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
     }));
@@ -321,8 +322,9 @@
       const home=$('.nav[data-tab="home"]');if(home)home.click();
       applyConfig(btn.dataset.agentHome);
     }));
-    $$('.vnx-main-nav .nav').forEach(btn=>btn.addEventListener('click',()=>{
-      if(btn.dataset.tab!=='home')$$('.vnx-agent-side-btn').forEach(x=>x.classList.remove('active'));
+    $('.vnx-main-nav .nav').forEach(btn=>btn.addEventListener('click',()=>{
+      if(btn.dataset.tab==='home'){applyConfig('core_ai');return}
+      $('.vnx-agent-side-btn').forEach(x=>x.classList.remove('active'));
     }));
     $('#vnxAhSearchBtn')?.addEventListener('click',()=>{
       const key=document.body.dataset.vnxHomeAgent||'prospecting';
@@ -332,19 +334,21 @@
     $('#vnxAhSearchInput')?.addEventListener('keydown',e=>{
       if(e.key==='Enter'){e.preventDefault();$('#vnxAhSearchBtn')?.click()}
     });
-    $('#vnxAhPrimary')?.addEventListener('click',()=>{
-      const key=document.body.dataset.vnxHomeAgent||'prospecting';
-      openWorkbench(key,cfgFor(key).primaryPrompt,true);
-    });
+    const runPrimary=()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';openWorkbench(key,cfgFor(key).primaryPrompt,true)};
+    $('#vnxAhPrimary')?.addEventListener('click',runPrimary);
+    $('#vnxAhPrimaryMirror')?.addEventListener('click',runPrimary);
+    $('.vnx-ah-source-tabs button').forEach(b=>b.addEventListener('click',()=>{$('.vnx-ah-source-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active')}));
+    $('.vnx-ah-preview-actions button').forEach((b,i)=>b.addEventListener('click',()=>{const key=document.body.dataset.vnxHomeAgent||'prospecting';const cfg=cfgFor(key);const prompts=['Regenera este trabajo con otro enfoque manteniendo los datos reales y sin inventar.','Quiero ajustar este trabajo para un caso concreto. Pregúntame solo lo imprescindible.','Ayúdame a guardar este enfoque como plantilla reutilizable.'];openWorkbench(key,prompts[i]||cfg.primaryPrompt,false)}));
     $('#vnxAhCtaBtn')?.addEventListener('click',()=>{
       const key=document.body.dataset.vnxHomeAgent||'automation';
       openWorkbench(key,'Quiero automatizar esta tarea. Ayúdame a definir frecuencia, permisos, pasos y qué debo autorizar.',true);
     });
+    $('.vnx-ah-remove-tag').forEach(b=>b.addEventListener('click',()=>b.parentElement?.remove()));
     $('#vnxAhAddItem')?.addEventListener('click',()=>{
       const input=$('#vnxAhItemInput'),v=input?.value?.trim();if(!v)return;
       const box=$('#vnxAhItems');
-      const chip=document.createElement('span');chip.className='vnx-ah-tag';chip.innerHTML=esc(v)+' <button type="button">×</button>';
-      chip.querySelector('button').onclick=()=>chip.remove();box?.appendChild(chip);input.value='';
+      const chip=document.createElement('span');chip.className='vnx-ah-tag';chip.innerHTML=esc(v)+' <button type="button" class="vnx-ah-remove-tag">×</button>';
+      chip.querySelector('button').addEventListener('click',()=>chip.remove());box?.appendChild(chip);input.value='';
     });
     $('#vnxAhItemInput')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('#vnxAhAddItem')?.click()}});
     $('#vnxAhCompanyBtn')?.addEventListener('click',()=>$('.nav[data-tab="agents"]')?.click());
