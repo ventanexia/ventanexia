@@ -62,7 +62,8 @@ need(backend,/stockUrl:stockExtract\.sourceUrl/,'private portal reader must lear
 need(backend,/portal\.stockUrl\|\|portal\.lastUrl\|\|null/,'private portal stock route or last live portal URL must be reused on later reads');
 need(backend,/pagesScanned/,'private portal stock failure must expose scan diagnostics');
 need(backend,/liveWindowChecked/,'private portal stock diagnostics must say whether the live portal was checked');
-need(renderer,/ventana real abierta de/,'user-facing stock failure must distinguish live-window reading from hidden navigation');
+need(renderer,/he reconstruido automáticamente su ventana/,'user-facing stock failure must explain automatic portal rehydration');
+need(renderer,/He abierto \*\*'\+sourceLabel\+'\*\* automáticamente/,'failed automatic discovery must tell the user the portal was opened directly');
 
 
 need(renderer,/function printPurchaseProposal\(msg\)[\s\S]*purchaseExportDataFromMessage\(msg\)/,'print must use structured purchase data, not legacy text parsing');

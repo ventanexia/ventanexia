@@ -2795,17 +2795,15 @@ function emailListItem(m,i,selected){
               await rememberPurchaseAnalysis(activeScopeKey,purchaseData,sourceLabel,purchaseAnalyzedAt);
               window.vnx?.saveWorkspaceItem?.({category:stockListing?'Stock':'Compras',name:(stockListing?'Stock-':'Pedido-Compras-')+new Date().toISOString().slice(0,10),content}).catch(()=>{});
             }else{
-              const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0),liveChecked=Boolean(summary?.liveWindowChecked);
+              const scanPages=Number(summary?.pagesScanned||0),scanTables=Number(summary?.tablesSeen||0),liveChecked=Boolean(summary?.liveWindowChecked),rehydrated=Boolean(summary?.autoRehydrated),portalOpened=Boolean(summary?.portalOpened);
               const reason=summary?.reason==='login_required'
-                ?'La sesión de **'+sourceLabel+'** necesita volver a iniciarse.'
-                :liveChecked
-                  ?'He leído primero la **ventana real abierta de '+sourceLabel+'** y después he intentado la navegación automática. Todavía no encuentro una combinación verificable de **referencia + existencias**'+(scanTables?' en las '+scanTables+' tablas o rejillas detectadas':'')+'. No voy a inventar cantidades ni mezclar Shopify u otra empresa.'
-                  :'La sesión de **'+sourceLabel+'** está conectada, pero no hay una ventana viva del portal disponible. La navegación automática ha revisado '+(scanPages||1)+' pantalla'+((scanPages||1)===1?'':'s')+' y no ha encontrado todavía **referencia + existencias**.';
+                ?'La sesión de **'+sourceLabel+'** ha caducado y necesita volver a iniciarse.'
+                :'He usado la sesión guardada de **'+sourceLabel+'**'+(rehydrated?' y he reconstruido automáticamente su ventana':'')+'. He intentado entrar en **Productos / Stock / Existencias / Inventario**'+(scanPages?' y he revisado '+scanPages+' pantalla'+(scanPages===1?'':'s'):'')+(scanTables?' con '+scanTables+' tablas o rejillas detectadas':'')+', pero todavía no encuentro una combinación verificable de **referencia + existencias**.';
               const next=summary?.reason==='login_required'
-                ?'Vuelve a conectar **'+sourceLabel+'** y repite la consulta.'
-                :liveChecked
-                  ?'Deja en **'+sourceLabel+'** exactamente la pantalla donde ves los artículos y sus existencias y vuelve a pedirme **“dime el stock”**. Carla leerá esa misma ventana, no una copia oculta.'
-                  :'Abre **'+sourceLabel+'** desde Conexiones, entra en la pantalla de stock y vuelve a pedirme **“dime el stock”**. Carla reutilizará esa ventana abierta.';
+                ?'Te he dejado la conexión preparada para que vuelvas a iniciar sesión.'
+                :portalOpened
+                  ?'He abierto **'+sourceLabel+'** automáticamente. Entra una sola vez en la pantalla donde ves los artículos y sus existencias; déjala abierta y vuelve a Carla con **“dime el stock”**. Desde ese momento leeré esa misma ventana.'
+                  :'No necesitas ir a Conexiones: VentaNexIA reconstruirá la ventana automáticamente en la próxima consulta.';
               masterMessages.push({role:'assistant',content:reason+'\n\n'+next,importStockPrompt:summary?.reason!=='login_required',stockSourceLabel:sourceLabel,scopeKey:activeScopeKey});
             }
           }catch(e){
