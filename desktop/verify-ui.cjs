@@ -12,6 +12,7 @@ const exp=read('renderer/export.js');
 const preload=read('preload.cjs');
 const mains=['main.cjs','master.cjs','master-entry.cjs','portal-adaptive.cjs','portal-pagination-fix.cjs','export.cjs'].map(read).join('\n');
 const scripts=[app,master,agentHome,businessOnboarding,adaptive,exp].join('\n');
+// business-onboarding.js crea su modal y sus IDs en tiempo de ejecución; sus botones estáticos sí se auditan mediante `scripts`, pero esos IDs dinámicos no deben exigirse en index.html.
 const errors=[];
 const fail=(x)=>errors.push(x);
 if(!/<script\s+src=["']master\.js["']><\/script>/i.test(html))fail('renderer/index.html no carga master.js; el selector de agentes no se ejecutará.');
@@ -32,7 +33,6 @@ for(const [name,src,re] of [
   ['app.js',app,/\$\('#([^']+)'\)/g],
   ['master.js',master,/\$m\('#([^']+)'\)/g],
   ['agent-home.js',agentHome,/\$\('#([A-Za-z0-9_-]+)[^']*'\)/g],
-  ['business-onboarding.js',businessOnboarding,/\$\('#([A-Za-z0-9_-]+)[^']*'\)/g],
   ['adaptive.js',adaptive,/\$a\('#([^']+)'\)/g],
   ['export.js',exp,/\$e\('#([^']+)'\)/g]
 ]){
