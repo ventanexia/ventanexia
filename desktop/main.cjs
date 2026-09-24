@@ -1150,7 +1150,8 @@ function sanitizePurchaseAnalysis(payload={}){
     return String(cell).slice(0,500);
   }):[]):[];
   const parsed=new Date(payload.analyzedAt||Date.now()),analyzedAt=Number.isNaN(parsed.getTime())?new Date().toISOString():parsed.toISOString();
-  return {scopeKey,sourceLabel,purchaseData:{headers,rows},analyzedAt,savedAt:new Date().toISOString()};
+  const targetDays=Math.max(1,Math.min(90,Number(payload.targetDays||0)||0));
+  return {scopeKey,sourceLabel,purchaseData:{headers,rows},analyzedAt,targetDays:targetDays||null,savedAt:new Date().toISOString()};
 }
 ipcMain.handle('purchase-analysis:get',async(_e,scopeKey)=>{
   const rawKey=String(scopeKey||'').trim().slice(0,400);if(!rawKey)return null;
