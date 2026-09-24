@@ -16,6 +16,7 @@ const erpConnectors=require('./erp.cjs');
 const {staticRuntimeChecks,sanitizeState}=require('./runtime-health.cjs');
 
 const CLOUD='https://www.ventanexia.es';
+const META_GRAPH_BASE='https://graph.facebook.com/v26.0';
 const TEXT_EXTENSIONS=new Set(['.txt','.csv','.json','.md','.log']);
 const BUSINESS_EXTENSIONS=new Set(['.csv','.xlsx','.xls','.xml','.json','.db','.sqlite','.sqlite3','.mdb','.accdb','.dbf','.fdb','.bak','.txt']);
 const MAX_CONTEXT_FILES=80;
@@ -488,39 +489,62 @@ async function verifyIntegration(provider,payload){
     const j=await providerFetch('https://api.hubapi.com/crm/v3/objects/contacts?limit=1',{headers:{Authorization:'Bearer '+token}});
     return {label:'HubSpot',meta:{sampleCount:Array.isArray(j.results)?j.results.length:0}};
   }
-  if(provider==='instagram'){
-    let id=accountId;
-    if(!id){
-      const pages=await providerFetch('https://graph.facebook.com/v20.0/me/accounts?fields=id,name,instagram_business_account{id,username,name}&access_token='+encodeURIComponent(token));
-      const matches=(pages.data||[]).filter(x=>x.instagram_business_account?.id);
-      if(!matches.length)throw new Error('No se encontró ninguna cuenta profesional de Instagram vinculada a esta autorización');
-      id=matches[0].instagram_business_account.id;
+  if(provider==='meta_social'){
+    const pages=await providerFetch(META_GRAPH_BASE+'/me/accounts?fields=id,name,access_token,tasks,instagram_business_account{id,username,name}&access_token='+encodeURIComponent(token));
+    const list=Array.isArray(pages.data)?pages.data.filter(x=>x?.id):[];
+    if(!list.length)throw new Error('No se encontró ninguna página de Facebook administrada por esta autorización');
+    const page=list.find(x=>x.instagram_business_account?.id)||list[0];
+    const pageToken=String(page.access_token||token);
+    let ig=page.instagram_business_account||null;
+    if(ig?.id){
+      try{ig=await providerFetch(META_GRAPH_BASE+'/'+encodeURIComponent(ig.id)+'?fields=id,username,name&access_token='+encodeURIComponent(pageToken))}catch{}
     }
-    const j=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'?fields=id,username,name&access_token='+encodeURIComponent(token));
-    return {label:j.username?'@'+j.username:(j.name||'Instagram'),meta:{id:j.id||id,username:j.username||'',name:j.name||''},accountId:j.id||id};
+    const pageName=page.name||'Página de Facebook';
+    const igLabel=ig?.username?'@'+ig.username:(ig?.name||'');
+    return {
+      label:'Meta · '+pageName+(igLabel?' + '+igLabel:''),
+      meta:{
+        pageId:page.id,pageName,pageTasks:Array.isArray(page.tasks)?page.tasks:[],
+        instagramId:ig?.id||'',instagramUsername:ig?.username||'',instagramName:ig?.name||'',
+        capabilities:{facebook:true,instagram:Boolean(ig?.id)}
+      },
+      secret:{pageAccessToken:pageToken},
+      accountId:page.id
+    };
+  }
+  if(provider==='instagram'){
+    const pages=await providerFetch(META_GRAPH_BASE+'/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name}&access_token='+encodeURIComponent(token));
+    const list=(pages.data||[]).filter(x=>x.instagram_business_account?.id);
+    let page=list[0]||null;
+    if(accountId)page=list.find(x=>x.instagram_business_account?.id===accountId)||page;
+    if(!page)throw new Error('No se encontró ninguna cuenta profesional de Instagram vinculada a una página de Facebook');
+    const id=accountId||page.instagram_business_account.id;
+    const pageToken=String(page.access_token||token);
+    const j=await providerFetch(META_GRAPH_BASE+'/'+encodeURIComponent(id)+'?fields=id,username,name&access_token='+encodeURIComponent(pageToken));
+    return {label:j.username?'@'+j.username:(j.name||'Instagram'),meta:{id:j.id||id,username:j.username||'',name:j.name||'',pageId:page.id||'',pageName:page.name||''},secret:{pageAccessToken:pageToken},accountId:j.id||id};
   }
   if(provider==='facebook'){
-    let id=accountId;
-    if(!id){
-      const pages=await providerFetch('https://graph.facebook.com/v20.0/me/accounts?fields=id,name&access_token='+encodeURIComponent(token));
-      if(!(pages.data||[]).length)throw new Error('No se encontró ninguna página de Facebook vinculada a esta autorización');
-      id=pages.data[0].id;
-    }
-    const j=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'?fields=id,name&access_token='+encodeURIComponent(token));
-    return {label:j.name||'Facebook',meta:{id:j.id||id,name:j.name||''},accountId:j.id||id};
+    const pages=await providerFetch(META_GRAPH_BASE+'/me/accounts?fields=id,name,access_token,tasks&access_token='+encodeURIComponent(token));
+    const list=(pages.data||[]).filter(x=>x?.id);
+    let page=accountId?list.find(x=>x.id===accountId):list[0];
+    if(!page)throw new Error('No se encontró ninguna página de Facebook vinculada a esta autorización');
+    const pageToken=String(page.access_token||token);
+    const j=await providerFetch(META_GRAPH_BASE+'/'+encodeURIComponent(page.id)+'?fields=id,name&access_token='+encodeURIComponent(pageToken));
+    return {label:j.name||'Facebook',meta:{id:j.id||page.id,name:j.name||page.name||'',tasks:Array.isArray(page.tasks)?page.tasks:[]},secret:{pageAccessToken:pageToken},accountId:j.id||page.id};
   }
   if(provider==='whatsapp_business'){
-    let id=accountId;
+    let id=accountId,business=null,waba=null;
+    const businesses=await providerFetch(META_GRAPH_BASE+'/me/businesses?fields=id,name&access_token='+encodeURIComponent(token));
+    business=businesses.data?.[0]||null;
     if(!id){
-      const businesses=await providerFetch('https://graph.facebook.com/v20.0/me/businesses?fields=id,name&access_token='+encodeURIComponent(token));
-      const business=businesses.data?.[0];if(!business)throw new Error('No se encontró un Business Manager autorizado');
-      const wabas=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(business.id)+'/owned_whatsapp_business_accounts?fields=id,name&access_token='+encodeURIComponent(token));
-      const waba=wabas.data?.[0];if(!waba)throw new Error('No se encontró una cuenta de WhatsApp Business autorizada');
-      const phones=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(waba.id)+'/phone_numbers?fields=id,display_phone_number,verified_name&access_token='+encodeURIComponent(token));
+      if(!business)throw new Error('No se encontró un portfolio empresarial de Meta autorizado');
+      const wabas=await providerFetch(META_GRAPH_BASE+'/'+encodeURIComponent(business.id)+'/owned_whatsapp_business_accounts?fields=id,name&access_token='+encodeURIComponent(token));
+      waba=wabas.data?.[0]||null;if(!waba)throw new Error('No se encontró una cuenta de WhatsApp Business autorizada');
+      const phones=await providerFetch(META_GRAPH_BASE+'/'+encodeURIComponent(waba.id)+'/phone_numbers?fields=id,display_phone_number,verified_name&access_token='+encodeURIComponent(token));
       id=phones.data?.[0]?.id;if(!id)throw new Error('No se encontró un número de WhatsApp Business autorizado');
     }
-    const j=await providerFetch('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'?fields=id,display_phone_number,verified_name&access_token='+encodeURIComponent(token));
-    return {label:j.verified_name||j.display_phone_number||'WhatsApp Business',meta:{phoneNumberId:j.id||id,displayPhone:j.display_phone_number||'',verifiedName:j.verified_name||''},accountId:j.id||id};
+    const j=await providerFetch(META_GRAPH_BASE+'/'+encodeURIComponent(id)+'?fields=id,display_phone_number,verified_name&access_token='+encodeURIComponent(token));
+    return {label:j.verified_name||j.display_phone_number||'WhatsApp Business',meta:{phoneNumberId:j.id||id,displayPhone:j.display_phone_number||'',verifiedName:j.verified_name||'',businessId:business?.id||'',businessName:business?.name||'',wabaId:waba?.id||'',wabaName:waba?.name||''},accountId:j.id||id};
   }
   if(provider==='linkedin'){
     const j=await providerFetch('https://api.linkedin.com/v2/userinfo',{headers:{Authorization:'Bearer '+token}});
@@ -730,7 +754,7 @@ async function oauthStatusOnce(payload={}){
     const already=emailAccountsFromState(s).some(x=>integrationAccountKey(x)===actual&&actual);
     if(!already)assertConnectionCapacity(s);
   }
-  const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),tokenObtainedAt:Date.now(),mode:'write',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  const entry={provider,module,account:'',accountId:verified.accountId||verified.meta?.id||verified.meta?.phoneNumberId||'',username:verified.username||verified.meta?.username||'',token,refreshToken:result.token?.refresh_token||null,tokenType:result.token?.token_type||'Bearer',tokenExpiresIn:Number(result.token?.expires_in||0),tokenObtainedAt:Date.now(),mode:'write',label:verified.label,meta:verified.meta||{},providerData:verified.secret||{},connectedAt:new Date().toISOString()};
   await updateState(fresh=>{fresh.secret=fresh.secret||{};fresh.secret.integrations=fresh.secret.integrations||{};if(module==='email')addMasterEmailAccount(fresh,entry);else fresh.secret.integrations[module]=entry;return fresh});
   clearConnectionHealth();await audit('integration.connected',module+' · '+provider+' · '+verified.label+' · OAuth');
   if(module==='whatsapp'){
@@ -741,7 +765,7 @@ async function oauthStatusOnce(payload={}){
         activationCode:s.secret?.activationCode||'',
         deviceKey:s.secret?.deviceKey||'',
         phoneNumberId:verified.meta?.phoneNumberId||entry.accountId||'',
-        wabaId:result.wabaId||'',
+        wabaId:verified.meta?.wabaId||'',
         displayPhone:verified.meta?.displayPhone||'',
         verifiedName:verified.meta?.verifiedName||verified.label||'',
         token
@@ -765,7 +789,7 @@ ipcMain.handle('integration:connect',async(_e,payload={})=>{
   const provider=normalizeProviderKey(payload.provider),module=normalizeProviderKey(payload.module||provider);
   const s=await readState();assertModuleIncluded(s.license,module);
   const verified=await verifyIntegration(provider,payload);s.secret=s.secret||{};s.secret.integrations=s.secret.integrations||{};
-  const entry={provider,module,account:String(payload.account||'').trim(),accountId:String(payload.accountId||'').trim(),username:String(payload.username||'').trim(),token:String(payload.token||'').trim(),mode:payload.mode==='write'?'write':'read',label:verified.label,meta:verified.meta||{},connectedAt:new Date().toISOString()};
+  const entry={provider,module,account:String(payload.account||'').trim(),accountId:verified.accountId||String(payload.accountId||'').trim(),username:verified.username||String(payload.username||'').trim(),token:String(payload.token||'').trim(),mode:payload.mode==='write'?'write':'read',label:verified.label,meta:verified.meta||{},providerData:verified.secret||{},connectedAt:new Date().toISOString()};
   if(module==='email')addMasterEmailAccount(s,entry);else s.secret.integrations[module]=entry;
   await writeState(s);clearConnectionHealth();await audit('integration.connected',module+' · '+provider+' · '+verified.label);
   return {connected:true,module,provider,label:verified.label,mode:s.secret.integrations[module].mode,meta:verified.meta||{}};
