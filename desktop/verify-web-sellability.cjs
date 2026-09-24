@@ -55,6 +55,8 @@ for(const url of ['/','/planes.html','/por-que-ventanexia.html','/demos-funcione
   ok(sitemap.includes('<loc>'+loc+'</loc>'),'Sitemap no incluye '+url);
 }
 ok(/User-agent:\s*\*/i.test(robots)&&/Allow:\s*\//i.test(robots)&&/Sitemap:\s*https:\/\/www\.ventanexia\.es\/sitemap\.xml/i.test(robots),'robots.txt no permite rastreo o no declara sitemap');
+ok(!sitemap.includes('https://www.ventanexia.es/demo.html'),'Sitemap no debe incluir la URL antigua redirigida /demo.html');
+for(const [file,url] of [['demos-funciones.html','https://www.ventanexia.es/demos-funciones.html'],['captador-clientes-ia.html','https://www.ventanexia.es/captador-clientes-ia.html'],['planes.html','https://www.ventanexia.es/planes.html'],['apps-a-medida.html','https://www.ventanexia.es/apps-a-medida.html']]){const page=read(file);ok(page.includes('rel="canonical" href="'+url+'"'),'SEO: falta canonical en '+file);ok(/name=["']robots["'][^>]*content=["']index,follow/i.test(page),'SEO: falta index,follow en '+file)}
 
 ok((mobileHtml.match(/data-mobile-desktop=/g)||[]).length===5,'Móvil: las 5 conexiones deben tener acción real/explicativa');
 ok((mobileHtml.match(/data-mobile-chat=/g)||[]).length===3,'Móvil: Web y tienda debe tener acciones reales hacia Carla');
