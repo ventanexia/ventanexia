@@ -40,8 +40,17 @@ async function shopifyGraphqlRead(shop,token,query,variables={}){
   return j.data||{};
 }
 const SHOPIFY_SALES_WINDOW_DAYS=180;
-const SHOPIFY_TARGET_COVER_DAYS=20;
+const SHOPIFY_TARGET_COVER_DAYS=25;
+const STOCK_NO_HISTORY_DEFAULT_MIN=0;
 const SHOPIFY_URGENT_DAYS=5;
+function normalizeStockPolicy(options={}){
+  const td=Math.round(Number(options?.targetDays));
+  const mn=Math.round(Number(options?.noHistoryMin));
+  return {
+    targetDays:Number.isFinite(td)?Math.max(1,Math.min(365,td)):SHOPIFY_TARGET_COVER_DAYS,
+    noHistoryMin:Number.isFinite(mn)?Math.max(0,Math.min(100000,mn)):STOCK_NO_HISTORY_DEFAULT_MIN
+  };
+}
 const SHOPIFY_MAX_ORDERS=5000;
 const SHOPIFY_MAX_PRODUCTS=5000;
 let shopifyReplenishmentCache={key:'',at:0,value:null};
@@ -99,33 +108,38 @@ async function fetchShopifySalesBySku(integration,{windowDays=SHOPIFY_SALES_WIND
   return {salesBySku,windowDays,ordersSeen,cancelledSkipped,truncated,since};
 }
 
-function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+function buildShopifyReplenishment(products,salesBySku,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
   return products.map(p=>{
-    const sold=(p.sku&&salesBySku.get(p.sku))||(p.ean&&salesBySku.get('EAN:'+String(p.ean)))||0;
+    const hasSkuSale=Boolean(p.sku&&salesBySku.has(p.sku)),hasEanSale=Boolean(p.ean&&salesBySku.has('EAN:'+String(p.ean)));
+    const sold=hasSkuSale?Number(salesBySku.get(p.sku)||0):hasEanSale?Number(salesBySku.get('EAN:'+String(p.ean))||0):0;
+    const noSalesData=!hasSkuSale&&!hasEanSale;
     const avgDaily=sold/windowDays;
-    const noSalesData=sold===0;
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
-    const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
+    const targetStock=noSalesData?policy.noHistoryMin:Math.ceil(avgDaily*policy.targetDays);
     const qty=Math.max(0,targetStock-p.stock);
     const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
     return {
       sku:p.sku,ean:p.ean||'',product:p.title,stock:p.stock,
       soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
       daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),
-      qty,urgent,noSalesData
+      qty,urgent,noSalesData,targetStock,
+      replenishmentBasis:noSalesData?(policy.noHistoryMin>0?'minimum':'review'):'history',
+      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays
     };
   });
 }
 
-async function shopifyReplenishmentSummary(integration,{force=false}={}){
+async function shopifyReplenishmentSummary(integration,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
   if(!integration?.shop)throw new Error('Shopify no está conectado.');
-  const key=String(integration.shop||'');
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
+  const key=String(integration.shop||'')+'|'+policy.targetDays+'|'+policy.noHistoryMin;
   if(!force&&shopifyReplenishmentCache.key===key&&shopifyReplenishmentCache.value&&(Date.now()-shopifyReplenishmentCache.at)<10*60*1000)return shopifyReplenishmentCache.value;
   const catalog=await fetchShopifyProducts(integration);
   const products=catalog.rows.filter(p=>p.sku||p.ean).map(p=>({sku:p.sku||'',ean:p.ean||'',title:p.product+(p.variant&&p.variant!=='Default Title'?' · '+p.variant:''),stock:p.stock,price:p.price,status:p.productStatus}));
   const history=await fetchShopifySalesBySku(integration);
-  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays});
-  const value={...history,targetDays:SHOPIFY_TARGET_COVER_DAYS,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
+  const rows=buildShopifyReplenishment(products,history.salesBySku,{windowDays:history.windowDays,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
+  const value={...history,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,catalogTruncated:catalog.truncated,productsSeen:catalog.rows.length,rows,urgent:rows.filter(x=>x.urgent),withSales:rows.filter(x=>!x.noSalesData).length};
   shopifyReplenishmentCache={key,at:Date.now(),value};
   return value;
 }
@@ -136,13 +150,14 @@ ipcMain.handle('shopify:replenishment-summary',async(_e,payload={})=>{
   const integration=getShopifyStore(s,requested);
   if(!integration)throw new Error(requested?'La tienda Shopify seleccionada ya no está conectada.':'Conecta Shopify para calcular la previsión de stock.');
   const force=typeof payload==='object'?payload?.force!==false:true;
-  const result=await shopifyReplenishmentSummary(integration,{force});
+  const policy=normalizeStockPolicy(typeof payload==='object'?payload:{});
+  const result=await shopifyReplenishmentSummary(integration,{force,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
   return {shop:integration.shopName||integration.shop,shopDomain:integration.shop,sourceLabel:'Shopify · '+(integration.shopName||integration.shop),generatedAt:new Date().toISOString(),...result};
 });
 
-// Reposición y previsión de rotura desde archivo para conexiones sin API
-// (por ejemplo, portales privados como Naturdesma). Usa exactamente la misma
-// ventana de 180 días, objetivo de 20 días y regla urgente <5 días que Shopify.
+// Reposición y previsión de rotura desde archivo o portal privado.
+// Usa una ventana de 180 días, objetivo de cobertura configurable y regla urgente <5 días.
+// Cuando una referencia no tiene histórico, el mínimo también lo decide cada empresa/conexión.
 const {readTableBuffer,extractText}=require('./order-files.cjs');
 function normStockHeader(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim()}
 function findStockColumn(headers,candidates){
@@ -150,15 +165,18 @@ function findStockColumn(headers,candidates){
   for(const c of candidates){const i=normHeaders.findIndex(h=>h===c||h.includes(c));if(i>=0)return i}
   return -1;
 }
-function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS}={}){
+function buildReplenishmentFromRows(products,{windowDays=SHOPIFY_SALES_WINDOW_DAYS,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
   return products.map(p=>{
-    const sold=Number(p.soldWindow||0),avgDaily=sold/windowDays,noSalesData=sold===0;
+    const sold=Number(p.soldWindow||0),avgDaily=sold/windowDays,noSalesData=Boolean(p.noSalesData??(sold===0));
     const daysRemaining=avgDaily>0?p.stock/avgDaily:(p.stock>0?null:0);
-    const targetStock=Math.ceil(avgDaily*SHOPIFY_TARGET_COVER_DAYS);
+    const targetStock=noSalesData?policy.noHistoryMin:Math.ceil(avgDaily*policy.targetDays);
     const qty=Math.max(0,targetStock-p.stock);
     const urgent=p.stock<=0||(avgDaily>0&&daysRemaining<SHOPIFY_URGENT_DAYS);
     return {sku:p.sku,ean:p.ean||'',manufacturer:String(p.manufacturer||'').trim(),product:p.title,stock:p.stock,soldWindow:sold,avgDaily:Number(avgDaily.toFixed(3)),
-      daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData};
+      daysRemaining:daysRemaining===null?null:Math.max(0,Math.round(daysRemaining)),qty,urgent,noSalesData,targetStock,
+      replenishmentBasis:noSalesData?(policy.noHistoryMin>0?'minimum':'review'):'history',
+      noHistoryMin:policy.noHistoryMin,targetDays:policy.targetDays};
   });
 }
 ipcMain.handle('document:analyze-select',async()=>{
@@ -739,9 +757,10 @@ function extractPortalSalesRows(portalResult){
   }
   return {totals,sourceUrl,structuredTables};
 }
-async function portalReplenishmentSummary(portal,{force=false}={}){
+async function portalReplenishmentSummary(portal,{force=false,targetDays=SHOPIFY_TARGET_COVER_DAYS,noHistoryMin=STOCK_NO_HISTORY_DEFAULT_MIN}={}){
   if(!portal)throw new Error('Conexión privada no encontrada.');
-  const cacheKey=String(portal.id||portal.url||portal.name||'portal');
+  const policy=normalizeStockPolicy({targetDays,noHistoryMin});
+  const cacheKey=String(portal.id||portal.url||portal.name||'portal')+'|'+policy.targetDays+'|'+policy.noHistoryMin;
   const cached=portalReplenishmentCache.get(cacheKey);
   if(!force&&cached?.value&&(Date.now()-cached.at)<PORTAL_REPLENISHMENT_CACHE_MS){
     return {...cached.value,cacheHit:true,cacheAgeMs:Date.now()-cached.at};
@@ -814,10 +833,13 @@ async function portalReplenishmentSummary(portal,{force=false}={}){
     if(p.ean&&sales.has('EAN:'+p.ean))return sales.get('EAN:'+p.ean);
     return 0;
   };
-  const merged=products.map(p=>({...p,soldWindow:soldFor(p)}));
-  const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS});
+  const merged=products.map(p=>{
+    const skuHit=Boolean(p.sku&&sales.has(p.sku)),eanHit=Boolean(p.ean&&sales.has('EAN:'+p.ean));
+    return {...p,soldWindow:soldFor(p),noSalesData:!skuHit&&!eanHit};
+  });
+  const rows=buildReplenishmentFromRows(merged,{windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin});
   const value={
-    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:SHOPIFY_TARGET_COVER_DAYS,rows,
+    ok:true,status:'connected',sourceLabel:portal.name,windowDays:SHOPIFY_SALES_WINDOW_DAYS,targetDays:policy.targetDays,noHistoryMin:policy.noHistoryMin,rows,
     productsSeen:products.length,urgent:rows.filter(r=>r.urgent),withSales:rows.filter(r=>!r.noSalesData).length,
     structuredSales:sales.size>0,truncated:Boolean(salesRead.limitReached),catalogTruncated:Boolean(stockRead.limitReached),
     generatedAt:new Date().toISOString(),
