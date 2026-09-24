@@ -1001,6 +1001,20 @@ ipcMain.handle('direction:ai-queue',async(_e,payload={})=>{
   return direction.summarize(d,{businessId:directionBusinessId(s,payload)}).aiTakeoverQueue;
 });
 
+ipcMain.handle('direction:report',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  const report=direction.operationalReport(d,{
+    businessId,
+    employeeId:String(payload.employeeId||'').trim().slice(0,80),
+    from:String(payload.from||'').trim().slice(0,40),
+    to:String(payload.to||'').trim().slice(0,40),
+    now:new Date().toISOString()
+  });
+  await audit('direction.report_generated',(payload.employeeId?'Informe individual':'Informe global')+' · '+report.totals.assigned+' tareas analizadas');
+  return report;
+});
+
 ipcMain.handle('integration:disconnect',async(_e,module)=>{
   const key=normalizeProviderKey(module),s=await readState();
   if(key==='email'){if(s.secret?.integrations?.email)delete s.secret.integrations.email;s.secret.emailAccounts=[];}
