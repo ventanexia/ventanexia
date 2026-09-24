@@ -138,6 +138,113 @@ function summarize(d,{businessId='',now=new Date().toISOString()}={}){
   };
 }
 
+
+const MODULE_LABELS={
+  email:'Correo',crm:'Ventas y clientes',orders:'Pedidos',web_ecommerce:'Stock y compras',
+  administration:'Documentos / administración',agenda:'Agenda',reports:'Informes',other:'Otra'
+};
+function validDate(v){const d=v?new Date(v):null;return d&&!Number.isNaN(d.getTime())?d:null}
+function taskActiveInPeriod(t,from,to,now){
+  const start=validDate(t.assignedAt||t.createdAt)||new Date(0);
+  const end=validDate(t.completedAt)||validDate(t.updatedAt)||(isOpen(t)?validDate(now):start);
+  return (!to||start<=to)&&(!from||end>=from);
+}
+function completedLate(t){
+  const done=validDate(t.completedAt),due=validDate(t.dueAt);
+  return Boolean(t.status==='done'&&done&&due&&done>due);
+}
+function delayMinutes(t,now){
+  const due=validDate(t.dueAt);if(!due)return 0;
+  if(t.status==='done'){const done=validDate(t.completedAt);return done&&done>due?minutesBetween(due,done):0}
+  return isOverdue(t,now)?minutesBetween(due,now):0;
+}
+function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new Date().toISOString()}={}){
+  const fromDate=validDate(from),toDate=validDate(to);
+  if(toDate)toDate.setHours(23,59,59,999);
+  const employees=d.employees.filter(e=>e.active!==false&&(!businessId||e.businessId===businessId)&&(!employeeId||e.id===employeeId));
+  const employeeIds=new Set(employees.map(e=>e.id));
+  const tasks=d.tasks.filter(t=>(!businessId||t.businessId===businessId)&&employeeIds.has(t.assigneeId)&&taskActiveInPeriod(t,fromDate,toDate,now));
+
+  const rows=employees.map(emp=>{
+    const mine=tasks.filter(t=>t.assigneeId===emp.id);
+    const done=mine.filter(t=>t.status==='done'),open=mine.filter(isOpen);
+    const overdueOpen=open.filter(t=>isOverdue(t,now)),lateDone=done.filter(completedLate);
+    const ai=done.filter(t=>t.completedBy==='ai'),blocked=mine.filter(t=>t.status==='blocked');
+    const noEvidence=done.filter(t=>!String(t.evidence||'').trim()&&!String(t.outcome||'').trim());
+    const deviations=mine.filter(t=>isOverdue(t,now)||completedLate(t)||t.completedBy==='ai'||t.status==='blocked'||(t.status==='done'&&!String(t.evidence||'').trim()&&!String(t.outcome||'').trim()));
+    const onTimeDone=done.filter(t=>!completedLate(t));
+    const delays=mine.map(t=>delayMinutes(t,now)).filter(n=>n>0);
+    const moduleMap=new Map();
+    for(const t of mine){
+      const key=t.module||'other',m=moduleMap.get(key)||{module:key,label:MODULE_LABELS[key]||key,assigned:0,deviations:0,overdueOpen:0,lateDone:0,aiRecovered:0,blocked:0,noEvidence:0};
+      m.assigned++;
+      const over=isOverdue(t,now),late=completedLate(t),air=t.completedBy==='ai',block=t.status==='blocked',noEv=t.status==='done'&&!String(t.evidence||'').trim()&&!String(t.outcome||'').trim();
+      if(over||late||air||block||noEv)m.deviations++;
+      if(over)m.overdueOpen++;if(late)m.lateDone++;if(air)m.aiRecovered++;if(block)m.blocked++;if(noEv)m.noEvidence++;
+      moduleMap.set(key,m);
+    }
+    const areas=[...moduleMap.values()].sort((a,b)=>b.deviations-a.deviations||b.assigned-a.assigned||a.label.localeCompare(b.label,'es'));
+    const topArea=areas.find(x=>x.deviations>0)||null,findings=[];
+    if(overdueOpen.length)findings.push(overdueOpen.length+' tarea'+(overdueOpen.length===1?'':'s')+' actualmente fuera de plazo');
+    if(lateDone.length)findings.push(lateDone.length+' tarea'+(lateDone.length===1?'':'s')+' completada'+(lateDone.length===1?'':'s')+' después del plazo');
+    if(ai.length)findings.push(ai.length+' tarea'+(ai.length===1?'':'s')+' recuperada'+(ai.length===1?'':'s')+' por VentaNexIA');
+    if(blocked.length)findings.push(blocked.length+' tarea'+(blocked.length===1?'':'s')+' bloqueada'+(blocked.length===1?'':'s'));
+    if(noEvidence.length)findings.push(noEvidence.length+' tarea'+(noEvidence.length===1?'':'s')+' completada'+(noEvidence.length===1?'':'s')+' sin resultado/evidencia registrada');
+    if(topArea)findings.push('Mayor concentración de desviaciones: '+topArea.label+' ('+topArea.deviations+')');
+    if(!mine.length)findings.push('Sin tareas registradas en el periodo');
+    else if(!findings.length)findings.push('Sin desviaciones operativas registradas en el periodo');
+
+    const examples=deviations.sort((a,b)=>delayMinutes(b,now)-delayMinutes(a,now)||new Date(b.updatedAt||b.assignedAt)-new Date(a.updatedAt||a.assignedAt)).slice(0,8).map(t=>{
+      const reasons=[];
+      if(isOverdue(t,now))reasons.push('fuera de plazo');
+      if(completedLate(t))reasons.push('terminada tarde');
+      if(t.completedBy==='ai')reasons.push('recuperada por IA');
+      if(t.status==='blocked')reasons.push('bloqueada');
+      if(t.status==='done'&&!String(t.evidence||'').trim()&&!String(t.outcome||'').trim())reasons.push('sin evidencia');
+      return {taskId:t.id,title:t.title,module:t.module||'other',moduleLabel:MODULE_LABELS[t.module]||t.module||'Otra',status:t.status,dueAt:t.dueAt,completedAt:t.completedAt,lastActivityAt:t.lastActivityAt,completedBy:t.completedBy||'',delayMinutes:delayMinutes(t,now),reasons,outcome:t.outcome||'',evidence:t.evidence||''};
+    });
+    return {
+      employeeId:emp.id,name:emp.name,role:emp.role,email:emp.email,assigned:mine.length,done:done.length,
+      doneHuman:done.filter(t=>t.completedBy==='human').length,doneAI:ai.length,open:open.length,
+      overdueOpen:overdueOpen.length,lateDone:lateDone.length,blocked:blocked.length,noEvidence:noEvidence.length,
+      deviations:deviations.length,onTimeRate:done.length?Math.round(onTimeDone.length/done.length*100):null,
+      aiRecoveryRate:mine.length?Math.round(ai.length/mine.length*100):0,
+      averageDelayMinutes:delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0,
+      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples
+    };
+  }).sort((a,b)=>a.name.localeCompare(b.name,'es'));
+
+  const totals=rows.reduce((a,r)=>({
+    employees:a.employees+1,assigned:a.assigned+r.assigned,done:a.done+r.done,open:a.open+r.open,
+    overdueOpen:a.overdueOpen+r.overdueOpen,lateDone:a.lateDone+r.lateDone,doneAI:a.doneAI+r.doneAI,
+    blocked:a.blocked+r.blocked,noEvidence:a.noEvidence+r.noEvidence,deviations:a.deviations+r.deviations,
+    totalDelayMinutes:a.totalDelayMinutes+r.totalDelayMinutes
+  }),{employees:0,assigned:0,done:0,open:0,overdueOpen:0,lateDone:0,doneAI:0,blocked:0,noEvidence:0,deviations:0,totalDelayMinutes:0});
+
+  const areaTotals=new Map();
+  for(const r of rows)for(const x of r.areas){
+    const a=areaTotals.get(x.module)||{module:x.module,label:x.label,assigned:0,deviations:0,overdueOpen:0,lateDone:0,aiRecovered:0,blocked:0,noEvidence:0};
+    for(const k of ['assigned','deviations','overdueOpen','lateDone','aiRecovered','blocked','noEvidence'])a[k]+=x[k]||0;
+    areaTotals.set(x.module,a);
+  }
+  const areas=[...areaTotals.values()].sort((a,b)=>b.deviations-a.deviations||b.assigned-a.assigned||a.label.localeCompare(b.label,'es'));
+  const findings=[];
+  if(totals.overdueOpen)findings.push(totals.overdueOpen+' tareas siguen fuera de plazo');
+  if(totals.lateDone)findings.push(totals.lateDone+' tareas se completaron tarde');
+  if(totals.doneAI)findings.push(totals.doneAI+' tareas fueron recuperadas por VentaNexIA');
+  if(totals.blocked)findings.push(totals.blocked+' tareas están bloqueadas');
+  if(totals.noEvidence)findings.push(totals.noEvidence+' tareas completadas carecen de resultado/evidencia');
+  if(areas[0]?.deviations)findings.push('Área con más desviaciones registradas: '+areas[0].label+' ('+areas[0].deviations+')');
+  if(!totals.assigned)findings.push('No hay tareas registradas para el periodo seleccionado');
+  else if(!findings.length)findings.push('No se detectan desviaciones operativas registradas en el periodo');
+
+  return {
+    generatedAt:now,period:{from:fromDate?fromDate.toISOString():null,to:toDate?toDate.toISOString():null},
+    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,
+    note:'Este informe describe hechos operativos registrados (tareas, plazos, bloqueos, evidencias y recuperaciones por IA). No equivale por sí solo a una valoración laboral de la persona.'
+  };
+}
+
 function addOrUpdateEmployee(d,raw={}){
   const emp=sanitizeEmployee(raw);
   if(!emp.name)throw new Error('Indica el nombre del empleado');
@@ -186,4 +293,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,summarize,addOrUpdateEmployee,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,summarize,operationalReport,addOrUpdateEmployee,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
