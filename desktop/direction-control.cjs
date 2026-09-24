@@ -7,7 +7,9 @@ const ACTORS=new Set(['human','ai','system']);
 const EMPLOYEE_OBSERVATION_TYPES=new Set([
   'quality_ok','quality_issue','correction','rework','customer_praise','customer_complaint',
   'helped_team','handoff_ok','collaboration','training','coaching','learning',
-  'instruction_issue','tool_issue','dependency'
+  'instruction_issue','tool_issue','dependency',
+  'active_listening','clear_communication','cooperation','conflict_resolution','adaptability',
+  'attention_to_detail','follow_through','customer_care','initiative','knowledge_sharing'
 ]);
 
 function iso(v){const d=v?new Date(v):new Date();return Number.isNaN(d.getTime())?new Date().toISOString():d.toISOString()}
@@ -115,6 +117,70 @@ function overlap(a,b){
   let n=0;for(const x of aa)if(bb.has(x))n++;
   return n/Math.min(aa.size,bb.size);
 }
+const OBSERVABLE_BEHAVIORS={
+  active_listening:'Escucha activa',
+  clear_communication:'Comunicación clara',
+  cooperation:'Cooperación',
+  conflict_resolution:'Resolución de conflictos',
+  adaptability:'Adaptación',
+  attention_to_detail:'Atención al detalle',
+  follow_through:'Cumplimiento de compromisos',
+  customer_care:'Atención al cliente',
+  initiative:'Iniciativa operativa',
+  knowledge_sharing:'Compartir conocimiento'
+};
+function employeeObservedEvidence(d,employeeId){
+  const ev=(d.events||[]).filter(e=>e.employeeId===employeeId);
+  const positives=ev.filter(e=>['quality_ok','customer_praise','helped_team','handoff_ok','collaboration','training','coaching','learning','active_listening','clear_communication','cooperation','conflict_resolution','adaptability','attention_to_detail','follow_through','customer_care','initiative','knowledge_sharing'].includes(e.type));
+  return positives.map(e=>({type:e.type,label:OBSERVABLE_BEHAVIORS[e.type]||e.type,detail:e.detail,at:e.at,module:e.module}));
+}
+function compareTeamToRole(d,{businessId='',roleTarget='',requirements=[]}={}){
+  const reqs=sanitizeTextList(requirements,30,220);
+  const employees=(d.employees||[]).filter(e=>e.active!==false&&(!businessId||e.businessId===businessId));
+  const rows=employees.map(emp=>{
+    const cv=sanitizeCvProfile(emp.cvProfile||{}),wp=sanitizeWorkProfile(emp.workProfile||{}),observed=employeeObservedEvidence(d,emp.id);
+    const declared=[...cv.experience,...cv.education,...cv.skills,...cv.languages,...cv.certifications,...wp.declaredStrengths,...wp.preferredTasks];
+    const confirmed=cv.confirmedByManagement||[];
+    const perRequirement=reqs.map(req=>{
+      const observedMatches=observed.filter(x=>overlap(req,x.label+' '+x.detail)>=.45);
+      const confirmedMatches=confirmed.filter(x=>overlap(req,x)>=.45);
+      const declaredMatches=declared.filter(x=>overlap(req,x)>=.45);
+      let status='por_comprobar',source='Sin evidencia suficiente';
+      if(observedMatches.length){status='observado';source='Observado en actuaciones registradas'}
+      else if(confirmedMatches.length){status='confirmado';source='Confirmado por Dirección'}
+      else if(declaredMatches.length){status='declarado';source='Declarado en CV / perfil'}
+      return {
+        requirement:req,status,source,
+        evidence:observedMatches.slice(0,3).map(x=>x.label+': '+x.detail).concat(confirmedMatches.slice(0,2),declaredMatches.slice(0,2))
+      };
+    });
+    const counts={
+      observed:perRequirement.filter(x=>x.status==='observado').length,
+      confirmed:perRequirement.filter(x=>x.status==='confirmado').length,
+      declared:perRequirement.filter(x=>x.status==='declarado').length,
+      toVerify:perRequirement.filter(x=>x.status==='por_comprobar').length
+    };
+    return {employeeId:emp.id,employeeCode:emp.employeeCode,name:emp.name,role:emp.role,requirements:perRequirement,counts};
+  });
+  const strongestByRequirement=reqs.map(req=>{
+    const candidates=rows.map(r=>{
+      const x=r.requirements.find(y=>y.requirement===req);
+      const strength=x?.status==='observado'?3:x?.status==='confirmado'?2:x?.status==='declarado'?1:0;
+      return {employeeId:r.employeeId,employeeCode:r.employeeCode,name:r.name,status:x?.status||'por_comprobar',source:x?.source||'',evidence:x?.evidence||[],strength};
+    });
+    const max=Math.max(0,...candidates.map(x=>x.strength));
+    return {requirement:req,strongest:candidates.filter(x=>x.strength===max&&max>0).map(({strength,...x})=>x),unproven:max===0};
+  });
+  return {
+    roleTarget:clampText(roleTarget,180),
+    requirements:reqs,
+    employees:rows,
+    strongestByRequirement,
+    decisionRule:'VentaNexIA muestra la evidencia más fuerte por requisito, pero no selecciona, descarta, promociona, despide ni reasigna automáticamente a ninguna persona. Dirección revisa el contexto y decide.',
+    noAutomaticRanking:true
+  };
+}
+
 function comparePersonToRole(employee,roleFit={}){
   const cv=sanitizeCvProfile(employee.cvProfile||{}),profile=sanitizeWorkProfile(employee.workProfile||{});
   const requirements=cv.roleRequirements||[];
@@ -166,6 +232,7 @@ function ensureDirection(state){
 function sanitizeEmployee(raw={}){
   return {
     id:clampText(raw.id,80)||id('emp'),
+    employeeCode:clampText(raw.employeeCode,40)||('VNX-EMP-'+crypto.randomBytes(4).toString('hex').toUpperCase()),
     name:clampText(raw.name,120),
     role:clampText(raw.role,120),
     email:clampText(raw.email,180).toLowerCase(),
@@ -749,7 +816,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
 function addOrUpdateEmployee(d,raw={}){
   const probe=sanitizeEmployee(raw),i=d.employees.findIndex(x=>x.id===probe.id||probe.email&&x.email===probe.email);
   const existing=i>=0?d.employees[i]:null;
-  const merged=existing?{...existing,...raw,workProfile:raw.workProfile===undefined?existing.workProfile:{...(existing.workProfile||{}),...(raw.workProfile||{})},cvProfile:raw.cvProfile===undefined?existing.cvProfile:{...(existing.cvProfile||{}),...(raw.cvProfile||{})}}:raw;
+  const merged=existing?{...existing,...raw,employeeCode:existing.employeeCode||raw.employeeCode,workProfile:raw.workProfile===undefined?existing.workProfile:{...(existing.workProfile||{}),...(raw.workProfile||{})},cvProfile:raw.cvProfile===undefined?existing.cvProfile:{...(existing.cvProfile||{}),...(raw.cvProfile||{})}}:raw;
   const emp=sanitizeEmployee(merged);
   if(!emp.name)throw new Error('Indica el nombre del empleado');
   if(i>=0)d.employees[i]={...existing,...emp,id:existing.id,createdAt:existing.createdAt||emp.createdAt};
@@ -864,4 +931,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,sanitizeCvProfile,extractCvProfile,comparePersonToRole,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,importEmployeeCv,updateEmployeeCv,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,sanitizeCvProfile,extractCvProfile,comparePersonToRole,compareTeamToRole,employeeObservedEvidence,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,importEmployeeCv,updateEmployeeCv,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
