@@ -555,7 +555,7 @@
         <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-cv-panel">
           <div class="vnx-dir-panel-head">
             <div><span class="eyebrow">EXPEDIENTE PROFESIONAL</span><h2>CV + puesto + evidencia real</h2><p>El CV aporta contexto profesional, pero VentaNexIA mantiene separado lo declarado de lo confirmado por Dirección y de lo observado en el trabajo.</p></div>
-            <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirCvImport" type="button">Importar CV PDF / Word</button><button class="btn primary" id="vnxDirCvCompare" type="button">Comparar persona ↔ puesto</button></div>
+            <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirCvImport" type="button">Importar CV PDF / Word</button><button class="btn primary" id="vnxDirCvCompare" type="button">Comparar plantilla ↔ puesto</button></div>
           </div>
           <form id="vnxDirCvForm" class="vnx-dir-cv-form">
             <label>Empleado<select id="vnxDirCvEmployee" required><option value="">Selecciona una persona</option></select></label>
@@ -568,7 +568,7 @@
             <label>Confirmado por Dirección<textarea id="vnxDirCvConfirmed" rows="4" placeholder="Una entrada por línea. Ej.: dominio de SAP confirmado en trabajo real."></textarea></label>
             <label>Puesto a comparar<input id="vnxDirCvRoleTarget" placeholder="Ej.: Responsable de grandes cuentas"></label>
             <label class="vnx-dir-cv-wide">Requisitos reales del puesto<textarea id="vnxDirCvRequirements" rows="5" placeholder="Uno por línea. Ej.: negociación B2B&#10;gestión de grandes cuentas&#10;Excel avanzado&#10;inglés B2"></textarea></label>
-            <div class="vnx-dir-human-warning">El importador descarta del análisis profesional líneas relativas a edad, fecha de nacimiento, estado civil, nacionalidad, domicilio, salud, fotografía y otros datos personales que no deben decidir el encaje profesional.</div>
+            <div class="vnx-dir-human-warning">El importador descarta del análisis profesional líneas relativas a edad, fecha de nacimiento, estado civil, nacionalidad, domicilio, salud, fotografía y otros datos personales que no deben decidir el encaje profesional.</div><div class="vnx-dir-note vnx-dir-cv-behavior-note"><b>Requisitos humanos:</b> define conductas observables como “escucha activa”, “comunicación clara”, “cooperación”, “resolución de conflictos” o “atención al detalle”. VentaNexIA no deduce rasgos como “egoísta”, “sensible” o “empático” a partir de datos indirectos.</div>
             <button class="btn primary" type="submit">Guardar expediente profesional</button>
           </form>
           <div id="vnxDirCvComparison" class="vnx-dir-cv-comparison"><div class="vnx-dir-empty">Selecciona una persona, importa su CV y define los requisitos del puesto para comparar declaraciones, confirmaciones y evidencias observadas.</div></div>
@@ -638,6 +638,16 @@
               <option value="instruction_issue">Instrucciones insuficientes</option>
               <option value="tool_issue">Problema de herramienta</option>
               <option value="dependency">Dependencia externa</option>
+              <option value="active_listening">Escucha activa observada</option>
+              <option value="clear_communication">Comunicación clara observada</option>
+              <option value="cooperation">Cooperación observada</option>
+              <option value="conflict_resolution">Resolución de conflictos observada</option>
+              <option value="adaptability">Adaptación a cambios observada</option>
+              <option value="attention_to_detail">Atención al detalle observada</option>
+              <option value="follow_through">Cumplimiento de compromisos observado</option>
+              <option value="customer_care">Atención al cliente observada</option>
+              <option value="initiative">Iniciativa operativa observada</option>
+              <option value="knowledge_sharing">Compartir conocimiento observado</option>
             </select></label>
             <label>Área<select id="vnxDirObservationModule"><option value="email">Correo</option><option value="crm">Ventas y clientes</option><option value="orders">Pedidos</option><option value="web_ecommerce">Stock y compras</option><option value="administration">Documentos / administración</option><option value="agenda">Agenda</option><option value="reports">Informes</option><option value="other">Otra</option></select></label>
             <label class="vnx-dir-observation-wide">Qué ocurrió<textarea id="vnxDirObservationDetail" rows="3" required placeholder="Describe el hecho observable. Ej.: el cliente confirmó por escrito que la incidencia quedó resuelta a la primera."></textarea></label>
