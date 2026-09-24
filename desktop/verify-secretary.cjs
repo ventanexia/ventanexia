@@ -4,6 +4,7 @@ const path=require('node:path');
 const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
 const renderer=read('renderer/master.js');
 const entry=read('master-entry.cjs');
+const main=read('main.cjs');
 const master=read('master.cjs');
 const preload=read('preload.cjs');
 const calendar=read('calendar.cjs');
@@ -17,7 +18,7 @@ const checks=[
   ['renderer close day',renderer.includes("runExecutiveSecretary('close')")||indexHtml.includes('Cierre')],
   ['renderer mail watcher',renderer.includes('pollSecretaryEmail')],
   ['renderer alert classification',renderer.includes('replyScore')&&renderer.includes('attentionScore')],
-  ['native secretary notify',entry.includes("secretary:notify")],
+  ['native secretary notify',main.includes("ipcMain.handle('secretary:notify'")&&!entry.includes("ipcMain.handle('secretary:notify'")],
   ['agenda truth guard',entry.includes('Agenda no conectada')&&entry.includes('No inventes reuniones')],
   ['email triage scores',master.includes('scoreMailAttention')&&master.includes('needsReplyScore')],
   ['preload notify bridge',preload.includes('secretaryNotify')],
