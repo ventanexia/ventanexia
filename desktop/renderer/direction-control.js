@@ -151,6 +151,22 @@
   }
   function pct(v){return v==null?'—':String(v)+'%'}
   function reportArea(r){return r?.areas?.find(x=>x.deviations>0)?.label||'—'}
+  function dimStatusLabel(v){
+    return v==='favorable'?'Evidencia favorable':v==='mixta'?'Evidencia mixta':v==='atencion'?'Requiere atención':'Sin datos suficientes';
+  }
+  function dimClass(v){return v==='favorable'?'good':v==='atencion'?'warn':v==='mixta'?'mixed':'empty'}
+  function renderDimensions(e){
+    const ev=e.evaluation||{},dims=ev.dimensions||[];
+    if(!dims.length)return '';
+    return '<section class="vnx-dir-evaluation"><div class="vnx-dir-evaluation-head"><div><b>Evaluación multidimensional</b><span>Sin nota global · sin ranking de empleados</span></div><small>'+esc(ev.decisionRule||'')+'</small></div>'+
+      '<div class="vnx-dir-dimension-grid">'+dims.map(d=>'<article class="vnx-dir-dimension '+dimClass(d.status)+'"><div><strong>'+esc(d.label)+'</strong><span>'+esc(dimStatusLabel(d.status))+'</span></div><p>'+esc(d.summary||'')+'</p><small>Confianza: '+esc(d.confidence||'baja')+'</small>'+
+      ((d.evidence||[]).length?'<details><summary>Evidencia</summary>'+(d.evidence||[]).map(x=>'<em>• '+esc(x)+'</em>').join('')+'</details>':'')+
+      ((d.missing||[]).length?'<details><summary>Qué falta comprobar</summary>'+(d.missing||[]).map(x=>'<em>• '+esc(x)+'</em>').join('')+'</details>':'')+
+      '</article>').join('')+'</div>'+
+      ((ev.reviewQuestions||[]).length?'<details class="vnx-dir-eval-questions"><summary>Preguntas que Dirección debe responder antes de decidir</summary>'+(ev.reviewQuestions||[]).map(x=>'<span>• '+esc(x)+'</span>').join('')+'</details>':'')+
+      '</section>';
+  }
+
   function renderReport(){
     const r=latestReport,summary=$('#vnxDirReportSummary'),rows=$('#vnxDirReportRows'),wrap=$('#vnxDirReportTableWrap'),detail=$('#vnxDirReportDetail');
     if(!r){if(wrap)wrap.hidden=true;return}
@@ -170,6 +186,7 @@
       detail.innerHTML=(r.employees||[]).map(e=>{
         const fit=e.roleFit||{},strengths=fit.strengths||[],frictions=fit.frictions||[],matches=fit.possibleMatches||[],questions=fit.contextQuestions||[];
         return '<article class="vnx-dir-report-person"><div class="vnx-dir-report-person-head"><div><h3>'+esc(e.name)+'</h3><p>'+esc(e.role||'')+'</p></div><span class="vnx-dir-fit-confidence">Confianza '+esc(fit.confidence||'insuficiente')+'</span></div>'+
+        renderDimensions(e)+
         '<div class="vnx-dir-fit-box"><b>Lectura de encaje</b><p>'+esc(fit.interpretation||'Sin evidencia suficiente para valorar el encaje del puesto.')+'</p></div>'+
         (strengths.length?'<div class="vnx-dir-fit-cols"><div><b>Fortalezas observadas</b>'+strengths.map(x=>'<span class="good">✓ '+esc(x)+'</span>').join('')+'</div>':'')+
         (frictions.length?'<div><b>Fricciones recurrentes</b>'+frictions.map(x=>'<span class="warn">⚠ '+esc(x)+'</span>').join('')+'</div>':'')+
@@ -205,6 +222,7 @@
       e.roleFit?.interpretation||'',(e.roleFit?.possibleMatches||[]).join(' · '),e.roleFit?.confidence||'',
       (e.humanContext?.hypotheses||[]).map(x=>x.label+' ['+x.confidence+']').join(' · '),
       (e.humanContext?.management?.recommendations||[]).join(' · '),
+      ...(e.evaluation?.dimensions||[]).map(d=>dimStatusLabel(d.status)+' — '+d.summary),
       e.findings.join(' · ')
     ]);
   }
@@ -227,6 +245,14 @@
         {label:'Terminadas tarde',value:e.lateDone},{label:'Recuperadas IA',value:e.doneAI},{label:'Bloqueadas',value:e.blocked},
         {label:'Retraso medio',value:fmtMinutes(e.averageDelayMinutes)},{label:'Área principal',value:reportArea(e)}
       ]});
+      const ev=e.evaluation||{};
+      blocks.push({type:'subheading',text:'Evaluación multidimensional · sin nota global'});
+      blocks.push({type:'fact',label:'Regla de evaluación',text:ev.decisionRule||'No convertir dimensiones en una nota global.'});
+      for(const d of ev.dimensions||[])blocks.push({type:'record',fields:[
+        {label:'Dimensión',value:d.label},{label:'Estado',value:dimStatusLabel(d.status)},{label:'Confianza',value:d.confidence||'baja'},
+        {label:'Lectura',value:d.summary||''},{label:'Evidencia',value:(d.evidence||[]).join(' · ')},{label:'Falta comprobar',value:(d.missing||[]).join(' · ')}
+      ]});
+      for(const q of ev.reviewQuestions||[])blocks.push({type:'question',text:q});
       const fit=e.roleFit||{};
       blocks.push({type:'subheading',text:'Lectura de encaje profesional'});
       blocks.push({type:'fact',label:'Interpretación',text:fit.interpretation||'Sin evidencia suficiente'});
@@ -263,7 +289,7 @@
     if(!latestReport)return;
     const selected=latestReport.scope?.employeeId?(latestReport.employees?.[0]?.name||'Empleado'):'Plantilla';
     if(format==='pdf')return window.vnx.exportData({format:'pdf',title:'Informe Dirección · '+selected,blocks:reportBlocks()});
-    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hipótesis de causa','Recomendaciones según Dirección','Hallazgos'],rows:reportRows()});
+    return window.vnx.exportData({format:'excel',title:'Informe Dirección · '+selected,headers:['Empleado','Rol','Tareas','Completadas','A tiempo','Fuera de plazo','Terminadas tarde','Recuperadas IA','Bloqueadas','Sin evidencia','Retraso medio','Principal área','Lectura de encaje','Funciones a explorar','Confianza','Hipótesis de causa','Recomendaciones según Dirección','Cumplimiento','Calidad del resultado','Fiabilidad','Fortalezas por función','Aprendizaje y mejora','Autonomía y resolución','Colaboración y equipo','Contexto del puesto','Encaje actual y alternativo','Impacto empresarial','Hallazgos'],rows:reportRows()});
   }
 
   function listText(v){return Array.isArray(v)?v.join('\n'):''}
