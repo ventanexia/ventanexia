@@ -2052,8 +2052,10 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     }
     if(!localContext.length)throw new Error('Conecta al menos un correo o una página privada para revisar pedidos.');
   }else if(scope?.type==='agent'&&scope?.key==='prospecting'){
+    const businessProfile=activeBusinessProfile(s,payload?.businessProfileId||null);
     if(prospecting){
-      const handled=await prospecting.handleChat(question);
+      if(prospecting.applyBusinessProfile&&businessProfile)await prospecting.applyBusinessProfile(publicBusinessProfile(businessProfile)).catch(()=>{});
+      const handled=await prospecting.handleChat(question,{businessProfile:publicBusinessProfile(businessProfile)});
       if(handled)return handled;
     }
     localContext=await collectAuthorizedContext();
@@ -2084,6 +2086,9 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
     throw new Error('Selecciona un agente antes de consultar. VentaNexIA no mezclará automáticamente correo, portales y carpetas.');
   }
 
+  const activeProfileForChat=activeBusinessProfile(s,payload?.businessProfileId||null);
+  const activeBusinessContext=businessProfileContext(activeProfileForChat);
+  if(activeBusinessContext)localContext.unshift({path:'PERFIL EMPRESA ACTIVA · '+(activeProfileForChat.tradeName||activeProfileForChat.legalName||'Empresa'),content:activeBusinessContext});
   const r=await fetch(`${CLOUD}/api/chat`,{method:'POST',headers:{'Content-Type':'application/json','User-Agent':`VentaNexIA-Desktop/${app.getVersion()}`},body:JSON.stringify({messages:messages.slice(-20),localContext,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null,portalCount:portalFiles.length},scope:scope?.type==='agent'?'agent:'+scope.key:scope?.type==='integration'?'integration:'+scope.key:scope?.type==='portal'?'portal:'+scope.id:null})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   // Safety invariant: credentials for private portals are entered only in the secure connection window, never in chat.
