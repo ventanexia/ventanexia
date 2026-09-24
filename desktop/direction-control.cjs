@@ -46,6 +46,107 @@ function sanitizeManagementPolicy(raw={}){
   return p;
 }
 
+const CV_SENSITIVE_LINE=/\b(fecha\s+de\s+nacimiento|nacimient|edad\b|estado\s+civil|nacionalidad|dni\b|nie\b|pasaporte|domicilio|direcci[oó]n\s*[:\-]|sexo\b|g[eé]nero\b|relig|discapacidad|salud|fotograf[ií]a|foto\b)\b/i;
+const CV_HEADINGS={
+  experience:/^(experiencia|experiencia profesional|trayectoria|professional experience|employment|work experience)\b/i,
+  education:/^(formaci[oó]n|educaci[oó]n|estudios|academic|education|formaci[oó]n acad[eé]mica)\b/i,
+  skills:/^(competencias|habilidades|skills|herramientas|tecnolog[ií]as|conocimientos)\b/i,
+  languages:/^(idiomas|languages)\b/i,
+  certifications:/^(certificaciones|certificados|cursos|acreditaciones|certifications)\b/i,
+  summary:/^(perfil|resumen|sobre m[ií]|profile|summary|objetivo profesional)\b/i
+};
+function cleanCvLine(line=''){
+  const x=String(line||'').replace(/[\t ]+/g,' ').trim();
+  if(!x||CV_SENSITIVE_LINE.test(x))return '';
+  if(/^\+?[\d\s().-]{8,}$/.test(x))return '';
+  if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x))return '';
+  return x.slice(0,320);
+}
+function extractCvProfile(text='',fileName=''){
+  const raw=String(text||'').replace(/\r/g,'').slice(0,60000);
+  const lines=raw.split('\n').map(cleanCvLine).filter(Boolean);
+  const sections={summary:[],experience:[],education:[],skills:[],languages:[],certifications:[],other:[]};
+  let current='other';
+  for(const line of lines){
+    let heading='';
+    for(const [key,re] of Object.entries(CV_HEADINGS)){if(re.test(line.replace(/[:\-]+$/,''))){heading=key;break}}
+    if(heading){current=heading;continue}
+    sections[current].push(line);
+  }
+  const cap=(arr,n=30)=>arr.slice(0,n).map(x=>clampText(x,260)).filter(Boolean);
+  const professionalText=[
+    ...cap(sections.summary,12),...cap(sections.experience,40),...cap(sections.education,25),
+    ...cap(sections.skills,25),...cap(sections.languages,15),...cap(sections.certifications,20)
+  ].join('\n').slice(0,18000);
+  return {
+    fileName:clampText(fileName,220),
+    importedAt:new Date().toISOString(),
+    summary:cap(sections.summary,12),
+    experience:cap(sections.experience,40),
+    education:cap(sections.education,25),
+    skills:cap(sections.skills,25),
+    languages:cap(sections.languages,15),
+    certifications:cap(sections.certifications,20),
+    professionalText,
+    confirmedByManagement:[],
+    roleTarget:'',
+    roleRequirements:[],
+    note:'Datos profesionales declarados en CV. No equivalen a competencias demostradas hasta que exista confirmación o evidencia operativa.'
+  };
+}
+function sanitizeCvProfile(raw={}){
+  const list=(v,n=30)=>sanitizeTextList(v,n,260);
+  return {
+    fileName:clampText(raw.fileName,220),
+    importedAt:raw.importedAt?iso(raw.importedAt):null,
+    summary:list(raw.summary,12),experience:list(raw.experience,40),education:list(raw.education,25),
+    skills:list(raw.skills,25),languages:list(raw.languages,15),certifications:list(raw.certifications,20),
+    professionalText:clampText(raw.professionalText,18000),
+    confirmedByManagement:list(raw.confirmedByManagement,30),
+    roleTarget:clampText(raw.roleTarget,180),
+    roleRequirements:list(raw.roleRequirements,25),
+    note:clampText(raw.note||'Datos profesionales declarados en CV. No equivalen a competencias demostradas hasta que exista confirmación o evidencia operativa.',500)
+  };
+}
+function normMatch(v=''){return String(v||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
+function tokenSet(v=''){return new Set(normMatch(v).split(/\s+/).filter(x=>x.length>=3))}
+function overlap(a,b){
+  const aa=tokenSet(a),bb=tokenSet(b);if(!aa.size||!bb.size)return 0;
+  let n=0;for(const x of aa)if(bb.has(x))n++;
+  return n/Math.min(aa.size,bb.size);
+}
+function comparePersonToRole(employee,roleFit={}){
+  const cv=sanitizeCvProfile(employee.cvProfile||{}),profile=sanitizeWorkProfile(employee.workProfile||{});
+  const requirements=cv.roleRequirements||[];
+  const declared=[...cv.experience,...cv.education,...cv.skills,...cv.languages,...cv.certifications,...profile.declaredStrengths,...profile.preferredTasks];
+  const confirmed=cv.confirmedByManagement||[];
+  const observed=[...(roleFit.strengths||[]),...(roleFit.stats||[]).filter(x=>x.total>=3&&x.completionRate>=.7&&x.onTimeRate>=.7).map(x=>x.label)];
+  const rows=requirements.map(req=>{
+    const declaredHit=declared.some(x=>overlap(req,x)>=.45),confirmedHit=confirmed.some(x=>overlap(req,x)>=.45),observedHit=observed.some(x=>overlap(req,x)>=.45);
+    let status='por_comprobar',source='Sin evidencia suficiente';
+    if(observedHit){status='observado';source='Observado en el trabajo'}
+    else if(confirmedHit){status='confirmado';source='Confirmado por Dirección'}
+    else if(declaredHit){status='declarado';source='Declarado en CV / perfil'}
+    return {requirement:req,status,source};
+  });
+  const strengths=rows.filter(x=>x.status==='observado'||x.status==='confirmado');
+  const declaredOnly=rows.filter(x=>x.status==='declarado');
+  const gaps=rows.filter(x=>x.status==='por_comprobar');
+  return {
+    roleTarget:cv.roleTarget||employee.role||'',
+    requirements:rows,
+    demonstrated:strengths,
+    declaredNotDemonstrated:declaredOnly,
+    toVerifyOrTrain:gaps,
+    conclusion:!requirements.length
+      ?'Define los requisitos del puesto para comparar el expediente con evidencias reales.'
+      :gaps.length===0
+        ?'Los requisitos definidos están respaldados por evidencia observada, confirmación de Dirección o información profesional declarada. Conviene mantener separadas estas tres fuentes.'
+        :gaps.length+' requisito'+(gaps.length===1?'':'s')+' necesita'+(gaps.length===1?'':'n')+' verificación, formación o experiencia demostrada antes de concluir el encaje.',
+    noScore:true
+  };
+}
+
 function ensureDirection(state){
   state.secret=state.secret||{};
   const d=state.secret.directionControl&&typeof state.secret.directionControl==='object'?state.secret.directionControl:{};
@@ -71,6 +172,7 @@ function sanitizeEmployee(raw={}){
     active:raw.active!==false,
     businessId:clampText(raw.businessId,120),
     workProfile:sanitizeWorkProfile(raw.workProfile||{}),
+    cvProfile:sanitizeCvProfile(raw.cvProfile||{}),
     createdAt:iso(raw.createdAt),
     updatedAt:new Date().toISOString()
   };
@@ -600,6 +702,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
     const humanContext=humanContextAnalysis(emp,mine,roleFit,peers,managementPolicy,now);
     const employeeEvents=d.events.filter(e=>e.employeeId===emp.id&&(!businessId||e.businessId===businessId)&&taskActiveInPeriod({assignedAt:e.at,updatedAt:e.at,status:'done'},fromDate,toDate,now));
     const evaluation=employeeEvaluation(emp,mine,roleFit,humanContext,employeeEvents,now);
+    const roleComparison=comparePersonToRole(emp,roleFit);
     const timing=timingSummary(mine,now);
     return {
       employeeId:emp.id,name:emp.name,role:emp.role,email:emp.email,assigned:mine.length,done:done.length,
@@ -608,7 +711,7 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
       deviations:deviations.length,onTimeRate:done.length?Math.round(onTimeDone.length/done.length*100):null,
       aiRecoveryRate:mine.length?Math.round(ai.length/mine.length*100):0,
       averageDelayMinutes:delays.length?Math.round(delays.reduce((a,b)=>a+b,0)/delays.length):0,
-      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext,evaluation,timing
+      totalDelayMinutes:delays.reduce((a,b)=>a+b,0),findings,areas,examples,roleFit,humanContext,evaluation,roleComparison,timing
     };
   }).sort((a,b)=>a.name.localeCompare(b.name,'es'));
 
@@ -646,13 +749,27 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
 function addOrUpdateEmployee(d,raw={}){
   const probe=sanitizeEmployee(raw),i=d.employees.findIndex(x=>x.id===probe.id||probe.email&&x.email===probe.email);
   const existing=i>=0?d.employees[i]:null;
-  const merged=existing?{...existing,...raw,workProfile:raw.workProfile===undefined?existing.workProfile:{...(existing.workProfile||{}),...(raw.workProfile||{})}}:raw;
+  const merged=existing?{...existing,...raw,workProfile:raw.workProfile===undefined?existing.workProfile:{...(existing.workProfile||{}),...(raw.workProfile||{})},cvProfile:raw.cvProfile===undefined?existing.cvProfile:{...(existing.cvProfile||{}),...(raw.cvProfile||{})}}:raw;
   const emp=sanitizeEmployee(merged);
   if(!emp.name)throw new Error('Indica el nombre del empleado');
   if(i>=0)d.employees[i]={...existing,...emp,id:existing.id,createdAt:existing.createdAt||emp.createdAt};
   else d.employees.unshift(emp);
   d.employees=d.employees.slice(0,500);
   return i>=0?d.employees[i]:emp;
+}
+function importEmployeeCv(d,employeeId,{fileName='',text=''}={}){
+  const e=d.employees.find(x=>x.id===employeeId);if(!e)throw new Error('Empleado no encontrado');
+  if(!String(text||'').trim())throw new Error('El CV no contiene texto profesional legible');
+  const previous=sanitizeCvProfile(e.cvProfile||{}),parsed=extractCvProfile(text,fileName);
+  parsed.confirmedByManagement=previous.confirmedByManagement||[];
+  parsed.roleTarget=previous.roleTarget||'';
+  parsed.roleRequirements=previous.roleRequirements||[];
+  e.cvProfile=sanitizeCvProfile(parsed);e.updatedAt=new Date().toISOString();return e;
+}
+function updateEmployeeCv(d,employeeId,raw={}){
+  const e=d.employees.find(x=>x.id===employeeId);if(!e)throw new Error('Empleado no encontrado');
+  e.cvProfile=sanitizeCvProfile({...e.cvProfile,...raw});
+  e.updatedAt=new Date().toISOString();return e;
 }
 function updateEmployeeContext(d,employeeId,raw={}){
   const e=d.employees.find(x=>x.id===employeeId);if(!e)throw new Error('Empleado no encontrado');
@@ -747,4 +864,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,sanitizeCvProfile,extractCvProfile,comparePersonToRole,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,importEmployeeCv,updateEmployeeCv,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
