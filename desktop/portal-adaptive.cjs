@@ -198,16 +198,36 @@ async function queryIntegrationData(scope,question,state){
     const rows=(j.results||[]).map(x=>[(x.properties?.firstname||'')+' '+(x.properties?.lastname||''),x.properties?.email||'',x.properties?.phone||'',x.properties?.company||'',x.properties?.lifecyclestage||'']);
     return {status:'connected',name,category:'customers',headers:['Contacto','Email','Teléfono','Empresa','Estado'],rows,total:rows.length,text:'Contactos de HubSpot accesibles. Se muestran hasta 50.',images:[],source:'hubspot_api',mode:cfg.mode||'read'};
   }
+  if(p==='meta_social'){
+    const pageId=cfg.meta?.pageId||cfg.accountId||'',igId=cfg.meta?.instagramId||'';
+    const pageToken=cfg.providerData?.pageAccessToken||cfg.token;
+    const q=String(question||'').toLowerCase(),rows=[],images=[];
+    if(pageId&&!/solo instagram|únicamente instagram|unicamente instagram/.test(q)){
+      const fb=await apiJson(META_GRAPH_BASE+'/'+encodeURIComponent(pageId)+'/posts?fields=id,message,created_time,permalink_url&limit=25&access_token='+encodeURIComponent(pageToken)).catch(()=>({data:[]}));
+      for(const x of fb.data||[])rows.push(['Facebook',x.created_time||'','Post',x.message||'',x.permalink_url||'']);
+    }
+    if(igId&&!/solo facebook|únicamente facebook|unicamente facebook/.test(q)){
+      const ig=await apiJson(META_GRAPH_BASE+'/'+encodeURIComponent(igId)+'/media?fields=id,caption,media_type,media_url,permalink,timestamp&limit=25&access_token='+encodeURIComponent(pageToken)).catch(()=>({data:[]}));
+      for(const x of ig.data||[]){
+        rows.push(['Instagram',x.timestamp||'',x.media_type||'',x.caption||'',x.permalink||'']);
+        if((x.media_type==='IMAGE'||x.media_type==='CAROUSEL_ALBUM')&&x.media_url)images.push({src:x.media_url,alt:(x.caption||'Publicación de Instagram').slice(0,100)});
+      }
+    }
+    rows.sort((a,b)=>String(b[1]).localeCompare(String(a[1])));
+    return {status:'connected',name,category:'social',headers:['Canal','Fecha','Tipo','Texto','Enlace'],rows:rows.slice(0,40),total:rows.length,text:'Contenido reciente accesible desde la conexión Meta. Facebook e Instagram se mantienen identificados por separado.',images:images.slice(0,10),source:'meta_graph_api',mode:cfg.mode||'read'};
+  }
   if(p==='instagram'){
     const id=cfg.accountId;if(!id)throw new Error('Falta Instagram Business Account ID');
-    const j=await apiJson('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'/media?fields=id,caption,media_type,media_url,permalink,timestamp&limit=25&access_token='+encodeURIComponent(cfg.token));
+    const token=cfg.providerData?.pageAccessToken||cfg.token;
+    const j=await apiJson(META_GRAPH_BASE+'/'+encodeURIComponent(id)+'/media?fields=id,caption,media_type,media_url,permalink,timestamp&limit=25&access_token='+encodeURIComponent(token));
     const rows=(j.data||[]).map(x=>[x.timestamp||'',x.media_type||'',x.caption||'',x.permalink||'']);
     const images=(j.data||[]).filter(x=>/^IMAGE|CAROUSEL_ALBUM$/.test(x.media_type||'')&&x.media_url).map(x=>({src:x.media_url,alt:(x.caption||'Publicación de Instagram').slice(0,100)}));
     return {status:'connected',name,category:'social',headers:['Fecha','Tipo','Texto','Enlace'],rows,total:rows.length,text:'Publicaciones recientes de Instagram accesibles con la cuenta conectada.',images:images.slice(0,10),source:'instagram_graph_api',mode:cfg.mode||'read'};
   }
   if(p==='facebook'){
     const id=cfg.accountId;if(!id)throw new Error('Falta Facebook Page ID');
-    const j=await apiJson('https://graph.facebook.com/v20.0/'+encodeURIComponent(id)+'/posts?fields=id,message,created_time,permalink_url&limit=25&access_token='+encodeURIComponent(cfg.token));
+    const token=cfg.providerData?.pageAccessToken||cfg.token;
+    const j=await apiJson(META_GRAPH_BASE+'/'+encodeURIComponent(id)+'/posts?fields=id,message,created_time,permalink_url&limit=25&access_token='+encodeURIComponent(token));
     const rows=(j.data||[]).map(x=>[x.created_time||'',x.message||'',x.permalink_url||'']);
     return {status:'connected',name,category:'social',headers:['Fecha','Texto','Enlace'],rows,total:rows.length,text:'Publicaciones recientes de Facebook accesibles con la página conectada.',images:[],source:'facebook_graph_api',mode:cfg.mode||'read'};
   }
