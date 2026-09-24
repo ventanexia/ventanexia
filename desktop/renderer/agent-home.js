@@ -489,6 +489,7 @@
   }
 
   let lastStockRun=null;
+  let lastStockView={summary:null,rows:[],orderMode:false,question:''};
   function sameHomeSource(a,b){return Boolean(a&&b&&a.type===b.type&&String(a.id||'')===String(b.id||''))}
   async function stockCapableSources(){
     const all=await homeCompanySources();
@@ -577,12 +578,12 @@
     if(/reponer|comprar|compra|pedido/.test(q))return rows.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0));
     return rows;
   }
-  function stockExportDataForHome(summary,orderMode=false){
+  function stockExportDataForHome(summary,orderMode=false,visibleRows=null){
     const reliable=summary?.salesLookReliable!==false,all=Array.isArray(summary?.rows)?summary.rows:[];
-    const rows=orderMode&&reliable?all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0)):all;
+    const baseRows=Array.isArray(visibleRows)?visibleRows:(orderMode&&reliable?all.filter(r=>Number(r.qty||0)>0||(r.noSalesData&&Number(summary?.noHistoryMin||0)===0&&Number(r.stock||0)<=0)):all);
     return {
       headers:['sku','ean','fabricante','producto','stock_actual','ventas_periodo','media_diaria','dias_cobertura','cantidad_a_pedir','estado'],
-      rows:stockSortRows(rows).map(r=>[
+      rows:stockSortRows(baseRows).map(r=>[
         r.sku||'',r.ean||'',r.manufacturer||'',r.product||'',Number(r.stock||0),
         reliable&&!r.noSalesData?Number(r.soldWindow||0):'',
         reliable&&!r.noSalesData?Number(r.avgDaily||0):'',
@@ -592,8 +593,8 @@
       ])
     };
   }
-  async function exportHomeStock(summary,orderMode,format,btn){
-    const data=stockExportDataForHome(summary,orderMode);
+  async function exportHomeStock(summary,orderMode,format,btn,visibleRows=null){
+    const data=stockExportDataForHome(summary,orderMode,visibleRows);
     if(!data.rows.length){alert('No hay filas para exportar.');return}
     const labels={excel:'Excel',csv:'CSV',pdf:'PDF'},old=btn.textContent;btn.disabled=true;btn.textContent='Preparando '+(labels[format]||format)+'…';
     const reliable=summary?.salesLookReliable!==false;
@@ -604,8 +605,8 @@
     }catch(e){alert('No he podido guardar el archivo: '+(e.message||e));btn.textContent=old}
     finally{setTimeout(()=>{if(btn.isConnected){btn.disabled=false;if(/guardado ✓$/.test(btn.textContent))btn.textContent=old}},1600)}
   }
-  function bindHomeStockExports(preview,summary,orderMode){
-    preview.querySelectorAll('[data-home-stock-export]').forEach(btn=>btn.onclick=()=>exportHomeStock(summary,orderMode,btn.dataset.homeStockExport,btn));
+  function bindHomeStockExports(preview,summary,orderMode,visibleRows=[]){
+    preview.querySelectorAll('[data-home-stock-export]').forEach(btn=>{btn.disabled=!visibleRows.length;btn.onclick=()=>exportHomeStock(summary,orderMode,btn.dataset.homeStockExport,btn,visibleRows)});
     const retryBtn=preview.querySelector('[data-home-stock-retry]');
     if(retryBtn)retryBtn.onclick=()=>runStockAnalysis(false);
     const continueBtn=preview.querySelector('[data-home-stock-continue]');
@@ -658,7 +659,8 @@
       +'<div class="vnx-stock-live-foot"><span>'+rows.length+' referencias mostradas</span><span>'+(unreliable?'0 pedidos calculados':toBuy.length+' necesitan compra/revisión')+'</span><span>'+(unreliable?'Histórico pendiente de verificar':stockFmt(totalUnits)+' unidades propuestas')+'</span></div>'
       +stockDownloadHtml()
       +'</div>';
-    bindHomeStockExports(preview,summary,orderMode&&!unreliable);
+    lastStockView={summary,rows:[...rows],orderMode:orderMode&&!unreliable,question};
+    bindHomeStockExports(preview,summary,orderMode&&!unreliable,rows);
     const metric=$('#vnxAhMetricValue'),review=$('#vnxAhReviewValue'),metricLabel=$('#vnxAhMetricLabel'),reviewLabel=$('#vnxAhReviewLabel');
     if(metric)metric.textContent=String(all.length);if(review)review.textContent=unreliable?'—':String(toBuy.length);
     if(metricLabel)metricLabel.textContent='Productos analizados';if(reviewLabel)reviewLabel.textContent=unreliable?'Histórico no verificado':'Necesitan compra/revisión';
@@ -807,7 +809,8 @@
     if(key==='web_ecommerce'&&previewButtons[2]){
       previewButtons[2].onclick=()=>{
         if(!lastStockRun?.summary){alert('Primero ejecuta el análisis de stock.');return}
-        exportHomeStock(lastStockRun.summary,false,'excel',previewButtons[2]);
+        const view=lastStockView?.summary===lastStockRun.summary?lastStockView:{summary:lastStockRun.summary,rows:stockRowsForView(lastStockRun.summary,$('#vnxAhSearchInput')?.value||'',false),orderMode:false};
+        exportHomeStock(view.summary,view.orderMode,'excel',previewButtons[2],view.rows);
       };
     }
     $('#vnxAhMoreFilters')?.addEventListener('click',()=>{const first=$('#vnxAhFilters select');if(first)first.focus()});
