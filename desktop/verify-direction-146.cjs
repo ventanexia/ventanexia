@@ -52,6 +52,25 @@ ok(['insuficiente','baja','media','alta'].includes(report.employees[0].roleFit.c
 ok(/hechos operativos registrados/i.test(report.note),'El informe debe explicar sus límites de interpretación');
 ok(report.directionStandard?.version===1,'El informe debe registrar la versión de directrices vigente en la fecha del análisis');
 
+const cvText=[
+  'PERFIL','Profesional de ventas B2B y atención al cliente',
+  'EXPERIENCIA PROFESIONAL','5 años gestionando grandes cuentas y negociación con distribuidores',
+  'FORMACIÓN','Grado Superior Administración y Finanzas',
+  'COMPETENCIAS','Excel avanzado','CRM','Negociación B2B',
+  'IDIOMAS','Inglés B2',
+  'FECHA DE NACIMIENTO: 01/01/1990',
+  'ESTADO CIVIL: casada'
+].join('\n');
+const cvEmp=dir.importEmployeeCv(d,emp.id,{fileName:'cv-ana.pdf',text:cvText});
+ok(cvEmp.cvProfile.fileName==='cv-ana.pdf','Debe guardar el nombre del CV importado');
+ok(!/01\/01\/1990|casada/i.test(cvEmp.cvProfile.professionalText||''),'El perfil profesional no debe conservar edad/fecha de nacimiento/estado civil');
+dir.updateEmployeeCv(d,emp.id,{roleTarget:'Gestión comercial',roleRequirements:['Negociación B2B','Excel avanzado','Atención al cliente'],confirmedByManagement:['Excel avanzado']});
+const reportCv=dir.operationalReport(d,{businessId:'biz1',now});
+ok(reportCv.employees[0].roleComparison?.requirements?.length===3,'El informe debe comparar persona y puesto');
+ok(reportCv.employees[0].roleComparison.requirements.some(x=>x.requirement==='Excel avanzado'&&['confirmado','declarado','observado'].includes(x.status)),'Debe distinguir evidencia declarada/confirmada/observada');
+const teamCmp=dir.compareTeamToRole(d,{businessId:'biz1',roleTarget:'Gestión comercial',requirements:['Negociación B2B','Excel avanzado']});
+ok(teamCmp.noAutomaticRanking===true,'La comparación de plantilla no puede producir ranking automático');
+
 const policy=dir.setManagementPolicy(d,{approach:'results_first',profitability:100,peopleDevelopment:25,requireEmployeeConversation:true,employeeVoiceRequired:true,requireSupportTrial:false,requireRoleAlternativeReview:true,improvementWindowDays:14});
 ok(policy.approach==='results_first','Dirección debe poder declarar un enfoque de resultados primero');
 ok(policy.requireEmployeeConversation===true&&policy.employeeVoiceRequired===true,'El criterio debe poder exigir conversación y voz de la persona');
@@ -68,6 +87,8 @@ for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPin
 ok(html.includes('data-tab="direction"')&&html.includes('Agente privado protegido por PIN'),'Falta acceso privado de Dirección en menú');
 ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&html.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
 ok(ui.includes('directionReport')&&ui.includes('generateEmployeeReport')&&ui.includes('exportEmployeeReport'),'La UI no genera/exporta informes de empleados');
+ok(ui.includes('directionImportCv')&&ui.includes('directionUpdateCv')&&ui.includes('directionCompareTeamRole'),'La UI no integra CV y comparación persona-puesto');
+ok(html.includes('CV + puesto + evidencia real')&&html.includes('Declarado en CV')&&html.includes('Confirmado por Dirección'),'Falta separar fuentes profesionales en el expediente');
 ok(ui.includes('Lectura de encaje')&&ui.includes('Fortalezas observadas')&&ui.includes('Posibles funciones a explorar'),'La UI no explica el encaje cualitativo por empleado');
 ok(ui.includes('Qué debería comprobar Dirección antes de concluir'),'Faltan preguntas de contexto antes de inferir capacidad');
 ok(html.includes('Entender el desempeño sin reducir a nadie a una nota')&&html.includes('No genera una nota global ni un ranking'),'El informe debe explicar su finalidad y límites');
