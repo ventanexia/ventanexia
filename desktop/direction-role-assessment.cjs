@@ -38,6 +38,8 @@ function sanitizeAssessmentGovernance(raw={}){
     reviewerName:txt(raw.reviewerName,160),
     representativeReview:REPRESENTATIVE_REVIEW.has(raw.representativeReview)?raw.representativeReview:'pending',
     dpiaStatus:DPIA_STATUS.has(raw.dpiaStatus)?raw.dpiaStatus:'not_assessed',
+    cloudAiAllowed:raw.cloudAiAllowed===true,
+    cloudAiNoticeConfirmed:raw.cloudAiNoticeConfirmed===true,
     notes:long(raw.notes,1800),
     confirmedAt:raw.confirmedAt||null,
     updatedAt:new Date().toISOString()
@@ -170,6 +172,47 @@ function fallbackQuestions(role){
   ];
 }
 
+const DIMENSION_LABELS=Object.freeze({
+  reasoning:'Razonamiento aplicado',problem_solving:'Resolución de problemas',prioritization:'Priorización',learning:'Aprendizaje',
+  communication:'Comunicación',perspective_taking:'Comprensión de la perspectiva ajena',collaboration:'Colaboración',
+  autonomy:'Autonomía',role_knowledge:'Conocimiento del puesto',decision_quality:'Calidad de decisión'
+});
+function localStructuredAnalysis(assessment,{observed=[],miniIpip=null}={}){
+  const rows=(assessment?.answers||[]).filter(x=>String(x.answer||'').trim());
+  const grouped=new Map();
+  for(const row of rows){
+    for(const key of row.evaluates||[]){
+      if(!DIMENSIONS.has(key))continue;
+      if(!grouped.has(key))grouped.set(key,[]);
+      grouped.get(key).push({prompt:txt(row.prompt,260),answer:long(row.answer,900)});
+    }
+  }
+  const dimensions=[...grouped.entries()].map(([key,evidenceRows])=>({
+    key,label:DIMENSION_LABELS[key]||key,status:'to_verify',confidence:'low',
+    evidence:evidenceRows.slice(0,3).map((x,i)=>'Respuesta '+(i+1)+': '+txt(x.answer,180)),
+    interpretation:'Hay material estructurado para revisión humana. En modo local VentaNexIA no asigna una conclusión semántica automática sobre esta capacidad.'
+  }));
+  const observedCount=Array.isArray(observed)?observed.length:0;
+  const miniAvailable=Boolean(miniIpip?.score?.factors);
+  return {
+    headline:'Análisis local preparado para revisión humana',
+    roleFitHypothesis:'VentaNexIA ha organizado las respuestas por capacidades relevantes para '+txt(assessment?.roleName||'el puesto',160)+'. La conclusión sobre encaje debe realizarla una persona competente contrastando estas respuestas con una muestra de trabajo, entrevista estructurada y evidencia profesional real.',
+    confidence:'low',
+    dimensions,
+    strengths:[],
+    developmentAreas:['Determinar mediante revisión humana qué respuestas constituyen evidencia suficiente y cuáles requieren comprobación práctica.'],
+    rolesToExplore:[txt(assessment?.roleName||'',160)].filter(Boolean),
+    checksBeforeDecision:[
+      'Aplicar los mismos criterios a todas las personas evaluadas para el mismo puesto.',
+      'Contrastar respuestas con una muestra de trabajo o evidencia operativa real.',
+      observedCount?'Revisar '+observedCount+' evidencia(s) operativa(s) registrada(s) antes de concluir.':'Recoger evidencia operativa comparable antes de concluir.',
+      miniAvailable?'Tratar Mini-IPIP únicamente como autoinforme complementario de bajo peso.':'No existe Mini-IPIP asociado; no es obligatorio para revisar el puesto.'
+    ],
+    limitations:['Procesamiento local: no se ha enviado el expediente a un servicio de IA para interpretación semántica.','No es una prueba de CI ni un diagnóstico psicológico.','No produce una decisión laboral automática.'],
+    processing:{mode:'local_only',employeeDataSentToCloud:false}
+  };
+}
+
 const MINI_IPIP_ITEMS=Object.freeze([
   {id:1,factor:'E',reverse:false,text:'Soy el alma de la fiesta'},
   {id:2,factor:'A',reverse:false,text:'Soy sensible hacia las emociones de otros'},
@@ -232,4 +275,4 @@ function saveMiniIpip(d,{businessId='',employeeId='',roleId='',responses=[],gove
 }
 function latestMiniIpip(d,employeeId){ensure(d);return d.miniIpipAssessments.find(x=>x.employeeId===employeeId)||null}
 
-module.exports={QUESTION_TYPES,DIMENSIONS,MINI_IPIP_ITEMS,ASSESSMENT_PURPOSES,LEGAL_BASES,REVIEWER_ROLES,ensure,sanitizeAssessmentGovernance,validateAssessmentGovernance,saveAssessmentGovernance,getAssessmentGovernance,sanitizeRoleProfile,saveRoleProfile,sanitizeQuestion,replaceRoleQuestions,listWorkspace,createAssessment,saveAnalysis,getAssessmentBundle,fallbackQuestions,miniIpipDefinition,miniIpipScore,saveMiniIpip,latestMiniIpip};
+module.exports={QUESTION_TYPES,DIMENSIONS,MINI_IPIP_ITEMS,ASSESSMENT_PURPOSES,LEGAL_BASES,REVIEWER_ROLES,ensure,sanitizeAssessmentGovernance,validateAssessmentGovernance,saveAssessmentGovernance,getAssessmentGovernance,sanitizeRoleProfile,saveRoleProfile,sanitizeQuestion,replaceRoleQuestions,listWorkspace,createAssessment,saveAnalysis,getAssessmentBundle,fallbackQuestions,localStructuredAnalysis,miniIpipDefinition,miniIpipScore,saveMiniIpip,latestMiniIpip};
