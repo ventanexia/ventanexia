@@ -74,6 +74,8 @@ contextBridge.exposeInMainWorld('vnx',{
   directionUpdateCv:(token,employeeId,cv={})=>ipcRenderer.invoke('direction:update-cv',{token,employeeId,cv}),
   directionCompareTeamRole:(token,payload={})=>ipcRenderer.invoke('direction:compare-team-role',{token,...payload}),
   directionRoleWorkspace:(token,options={})=>ipcRenderer.invoke('direction:role-workspace',{token,...options}),
+  directionMiniIpipDefinition:(token)=>ipcRenderer.invoke('direction:mini-ipip-definition',{token}),
+  directionSaveMiniIpip:(token,payload={})=>ipcRenderer.invoke('direction:save-mini-ipip',{token,...payload}),
   directionSaveRoleProfile:(token,role={},options={})=>ipcRenderer.invoke('direction:save-role-profile',{token,role,...options}),
   directionGenerateRoleTest:(token,roleId,options={})=>ipcRenderer.invoke('direction:generate-role-test',{token,roleId,...options}),
   directionAnalyzeRoleTest:(token,payload={})=>ipcRenderer.invoke('direction:analyze-role-test',{token,...payload}),
