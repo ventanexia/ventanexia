@@ -2540,3 +2540,79 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-governance-state{margin-top:9px;border-left:3px solid #d7b74d;background:#2b2312;border-radius:7px;padding:9px;color:#e6d38c;font-size:10px;line-height:1.45}
 .vnx-dir-governance-state.ok{border-left-color:#51d59b;background:#0d2b26;color:#a7edd1}
 @media(max-width:900px){.vnx-dir-governance-form{grid-template-columns:1fr}.vnx-dir-governance>summary{display:block}.vnx-dir-governance>summary span{display:block;margin-top:4px}}
+
+
+/* 0.6.157 · Dirección: dark-native UI hardening
+   Evita menús/selects/paneles blancos de Chromium/Windows dentro del espacio privado. */
+#direction{
+  color-scheme:dark;
+  background:transparent;
+}
+#direction *,
+#direction input,
+#direction textarea,
+#direction select,
+#direction option,
+#direction optgroup{
+  color-scheme:dark;
+}
+#direction .card,
+#direction details,
+#direction form,
+#direction fieldset{
+  color:#eef7ff;
+}
+#direction input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+#direction textarea,
+#direction select{
+  background-color:#071b32!important;
+  color:#eef7ff!important;
+  border-color:#1b557f!important;
+  box-shadow:none!important;
+}
+#direction select option,
+#direction select optgroup{
+  background-color:#071b32!important;
+  color:#eef7ff!important;
+}
+#direction select:focus,
+#direction input:focus,
+#direction textarea:focus{
+  outline:none!important;
+  border-color:#35bfe7!important;
+  box-shadow:0 0 0 2px rgba(53,191,231,.16)!important;
+}
+#direction input::placeholder,
+#direction textarea::placeholder{
+  color:#708da5!important;
+  opacity:1;
+}
+#direction input[type="checkbox"],
+#direction input[type="radio"]{
+  accent-color:#22bde8;
+}
+#direction input:-webkit-autofill,
+#direction input:-webkit-autofill:hover,
+#direction input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#eef7ff!important;
+  -webkit-box-shadow:0 0 0 1000px #071b32 inset!important;
+  caret-color:#eef7ff!important;
+}
+#direction .vnx-dir-governance,
+#direction .vnx-dir-miniipip,
+#direction .vnx-dir-role-question,
+#direction .vnx-dir-role-analysis-head,
+#direction .vnx-dir-role-dim,
+#direction .vnx-dir-role-analysis-lists article,
+#direction .vnx-dir-cv-file,
+#direction .vnx-dir-role-compare-head,
+#direction .vnx-dir-role-evidence,
+#direction .vnx-dir-report-person,
+#direction .vnx-dir-empty,
+#direction .vnx-dir-note{
+  background-clip:padding-box;
+}
+#direction ::selection{
+  background:#1b6c94;
+  color:#fff;
+}
