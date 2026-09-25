@@ -2461,3 +2461,29 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-role-team-details{margin-top:10px;border-top:1px solid #174969;padding-top:8px}.vnx-dir-role-team-details summary{cursor:pointer;color:#7de3f4;font-size:11px}.vnx-dir-role-team-details div{padding:7px 0;border-bottom:1px solid #123b59}.vnx-dir-role-team-details span{display:block;color:#9db7c9;font-size:10px;margin-top:3px}
 .vnx-dir-cv-behavior-note{margin-top:0}
 @media(max-width:900px){.vnx-dir-cv-form{grid-template-columns:1fr}.vnx-dir-cv-wide,.vnx-dir-cv-form .vnx-dir-human-warning,.vnx-dir-cv-form .vnx-dir-note,.vnx-dir-cv-form>button{grid-column:1}}
+
+
+/* Dirección · test estructurado de puesto */
+.vnx-dir-source-legend{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 12px}
+.vnx-dir-source-legend span{border:1px solid #255f84;background:#071d33;border-radius:999px;padding:5px 8px;color:#9ec5d9;font-size:10px}
+.vnx-dir-role-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vnx-dir-role-form label{display:grid;gap:5px;font-size:12px;color:#a9bed1}
+.vnx-dir-role-form input,.vnx-dir-role-form textarea,.vnx-dir-role-form select{background:#071b32;color:#eef7ff;border:1px solid #1b557f;border-radius:9px;padding:10px}
+.vnx-dir-role-wide,.vnx-dir-role-form>button{grid-column:1/-1}
+.vnx-dir-role-questions{display:grid;gap:10px;margin-top:12px}
+.vnx-dir-role-question{border:1px solid #194d70;border-radius:11px;background:#071c31;padding:11px}
+.vnx-dir-role-question small{display:block;color:#74e1f5;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.vnx-dir-role-question b{display:block;font-size:12px;line-height:1.45;margin-bottom:7px}
+.vnx-dir-role-question textarea{width:100%;min-height:95px;background:#06182c;color:#eef7ff;border:1px solid #1b557f;border-radius:8px;padding:9px;resize:vertical}
+.vnx-dir-role-question span{display:block;color:#83a4b9;font-size:9px;margin-top:5px}
+.vnx-dir-role-analysis{margin-top:12px;display:grid;gap:9px}
+.vnx-dir-role-analysis-head{border:1px solid #296f91;background:#08243b;border-radius:12px;padding:12px}
+.vnx-dir-role-analysis-head b{display:block}.vnx-dir-role-analysis-head span{display:block;color:#9dbdcc;font-size:11px;margin-top:4px;line-height:1.5}
+.vnx-dir-role-dims{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.vnx-dir-role-dim{border:1px solid #174a6d;background:#071b31;border-radius:10px;padding:10px}
+.vnx-dir-role-dim strong{display:block;font-size:11px}.vnx-dir-role-dim em{font-style:normal;font-size:9px;color:#74dff1;display:block;margin-top:3px}
+.vnx-dir-role-dim p{font-size:10px;color:#a5bdcc;line-height:1.45;margin:6px 0 0}
+.vnx-dir-role-analysis-lists{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.vnx-dir-role-analysis-lists article{border:1px solid #174a6d;background:#071b31;border-radius:10px;padding:10px}
+.vnx-dir-role-analysis-lists b{display:block;font-size:11px;margin-bottom:5px}.vnx-dir-role-analysis-lists span{display:block;color:#a3bdcc;font-size:10px;padding:3px 0}
+@media(max-width:900px){.vnx-dir-role-form,.vnx-dir-role-dims,.vnx-dir-role-analysis-lists{grid-template-columns:1fr}.vnx-dir-role-wide,.vnx-dir-role-form>button{grid-column:1}}
