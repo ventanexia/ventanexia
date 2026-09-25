@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.158",
+  "version": "0.6.159",
   "private": true,
-  "description": "VentaNexIA Desktop · producción reforzada: instancia única, estado seguro, vault privado, diagnóstico local, Electron 44 y actualización automática · 0.6.158",
+  "description": "VentaNexIA Desktop · estado concurrente seguro, updater bloqueado hasta firma y hardening de producción · 0.6.159",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
