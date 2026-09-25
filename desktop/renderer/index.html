@@ -627,6 +627,34 @@
           </section>
         </div>
 
+        <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-standards-panel">
+          <div class="vnx-dir-panel-head">
+            <div><span class="eyebrow">MARCO COMÚN DE DIRECCIÓN</span><h2>Las mismas reglas para toda la plantilla</h2><p>Dirección fija aquí las pautas generales antes de evaluar. No se pueden añadir exigencias retrospectivas a un empleado concreto.</p></div>
+            <div id="vnxDirStandardCurrent" class="vnx-dir-standard-current">Sin política confirmada</div>
+          </div>
+          <form id="vnxDirStandardForm" class="vnx-dir-standard-form">
+            <label>Responsable de Dirección que confirma<input id="vnxDirStandardDirector" required placeholder="Nombre y cargo"></label>
+            <label>Aplicable desde<input id="vnxDirStandardEffective" type="datetime-local" required></label>
+            <label class="vnx-dir-standard-wide">Resultados o límites no negociables de la empresa<textarea id="vnxDirStandardNonNegotiables" rows="3" placeholder="Uno por línea. Ej.: no prometer stock inexistente&#10;no faltar al respeto a clientes o compañeros&#10;informar de incidencias críticas el mismo día"></textarea></label>
+            <div class="vnx-dir-standard-criteria">
+              <div class="vnx-dir-standard-row" data-standard-key="respect"><b>Respeto y educación</b><textarea rows="2">Trato correcto, lenguaje profesional y ausencia de faltas de respeto o humillaciones.</textarea><select><option value="required" selected>Obligatorio</option><option value="important">Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="clarity"><b>Comunicación clara</b><textarea rows="2">Explica información de forma comprensible, ordenada y sin inducir a error.</textarea><select><option value="required">Obligatorio</option><option value="important" selected>Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="listening"><b>Escucha y comprensión</b><textarea rows="2">Comprueba la necesidad de la otra persona y responde a lo que realmente se ha planteado.</textarea><select><option value="required">Obligatorio</option><option value="important" selected>Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="responsibility"><b>Responsabilidad y compromisos</b><textarea rows="2">Cumple compromisos, informa de bloqueos y no promete lo que no puede garantizar.</textarea><select><option value="required" selected>Obligatorio</option><option value="important">Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="quality"><b>Calidad del trabajo</b><textarea rows="2">Entrega resultados utilizables, minimiza errores evitables y corrige incidencias cuando aparecen.</textarea><select><option value="required" selected>Obligatorio</option><option value="important">Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="collaboration"><b>Colaboración</b><textarea rows="2">Comparte información necesaria, coordina entregas y no genera bloqueos evitables a otros.</textarea><select><option value="required">Obligatorio</option><option value="important" selected>Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="customer_care"><b>Atención al cliente</b><textarea rows="2">Protege la relación con el cliente, busca resolver y mantiene un trato profesional incluso ante quejas.</textarea><select><option value="required">Obligatorio</option><option value="important" selected>Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="accuracy"><b>Precisión y veracidad</b><textarea rows="2">Distingue hechos confirmados de hipótesis y no inventa datos, condiciones ni resultados.</textarea><select><option value="required" selected>Obligatorio</option><option value="important">Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="adaptability"><b>Adaptación al trabajo</b><textarea rows="2">Se adapta a cambios razonables de proceso y pide apoyo cuando una situación supera su información o autoridad.</textarea><select><option value="required">Obligatorio</option><option value="important" selected>Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+              <div class="vnx-dir-standard-row" data-standard-key="learning"><b>Aprendizaje y mejora</b><textarea rows="2">Incorpora feedback, formación e instrucciones y permite comprobar si los errores disminuyen con el tiempo.</textarea><select><option value="required">Obligatorio</option><option value="important" selected>Importante</option><option value="desirable">Deseable</option><option value="na">No aplica</option></select></div>
+            </div>
+            <label class="vnx-dir-standard-confirm"><input id="vnxDirStandardConfirmed" type="checkbox" required> Confirmo que esta versión se aplicará por igual a toda la plantilla durante su vigencia y que cualquier cambio posterior creará una nueva versión.</label>
+            <button class="btn primary" type="submit">Confirmar nueva versión de las directrices</button>
+          </form>
+          <div id="vnxDirStandardHistory" class="vnx-dir-standard-history"></div>
+          <div class="vnx-dir-note"><b>Protección bilateral:</b> Dirección queda vinculada a lo que dejó escrito y cada empleado es evaluado con la versión vigente en el momento de los hechos. Una directriz nueva no puede utilizarse para reinterpretar retrospectivamente una actuación anterior.</div>
+        </section>
+
         <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-evidence-panel">
           <div class="vnx-dir-panel-head"><div><span class="eyebrow">EVIDENCIA LABORAL</span><h2>Registrar hechos que los números no explican solos</h2><p>Calidad, retrabajo, reconocimiento del cliente, colaboración, formación o problemas de proceso. Cada registro debe describir un hecho concreto.</p></div></div>
           <form id="vnxDirObservationForm" class="vnx-dir-observation-form">
