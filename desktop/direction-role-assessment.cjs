@@ -3,6 +3,11 @@ const crypto=require('node:crypto');
 
 const QUESTION_TYPES=new Set(['practical_case','structured_interview','role_knowledge']);
 const DIMENSIONS=new Set(['reasoning','problem_solving','prioritization','learning','communication','perspective_taking','collaboration','autonomy','role_knowledge','decision_quality']);
+const ASSESSMENT_PURPOSES=new Set(['selection','internal_mobility','development','training','role_review','other']);
+const LEGAL_BASES=new Set(['precontractual_steps','employment_contract','legal_obligation','legitimate_interest','consent_exceptional','other_documented']);
+const REVIEWER_ROLES=new Set(['director','hr','occupational_psychologist','dpo_legal','other']);
+const REPRESENTATIVE_REVIEW=new Set(['not_applicable','reviewed','pending']);
+const DPIA_STATUS=new Set(['not_assessed','not_required_documented','completed','pending']);
 
 function id(prefix){return prefix+'_'+crypto.randomBytes(7).toString('hex')}
 function txt(v,max=500){return String(v??'').trim().replace(/\s+/g,' ').slice(0,max)}
@@ -16,8 +21,51 @@ function ensure(d){
   d.roleQuestions=Array.isArray(d.roleQuestions)?d.roleQuestions:[];
   d.roleAssessments=Array.isArray(d.roleAssessments)?d.roleAssessments:[];
   d.miniIpipAssessments=Array.isArray(d.miniIpipAssessments)?d.miniIpipAssessments:[];
+  d.assessmentGovernance=d.assessmentGovernance&&typeof d.assessmentGovernance==='object'?d.assessmentGovernance:{};
   return d;
 }
+function sanitizeAssessmentGovernance(raw={}){
+  return {
+    purpose:ASSESSMENT_PURPOSES.has(raw.purpose)?raw.purpose:'role_review',
+    purposeNote:txt(raw.purposeNote,500),
+    legalBasis:LEGAL_BASES.has(raw.legalBasis)?raw.legalBasis:'',
+    legalBasisNote:txt(raw.legalBasisNote,900),
+    personInformed:raw.personInformed===true,
+    humanDecision:raw.humanDecision===true,
+    sameCriteria:raw.sameCriteria===true,
+    sensitiveDataExcluded:raw.sensitiveDataExcluded===true,
+    reviewerRole:REVIEWER_ROLES.has(raw.reviewerRole)?raw.reviewerRole:'',
+    reviewerName:txt(raw.reviewerName,160),
+    representativeReview:REPRESENTATIVE_REVIEW.has(raw.representativeReview)?raw.representativeReview:'pending',
+    dpiaStatus:DPIA_STATUS.has(raw.dpiaStatus)?raw.dpiaStatus:'not_assessed',
+    notes:long(raw.notes,1800),
+    confirmedAt:raw.confirmedAt||null,
+    updatedAt:new Date().toISOString()
+  };
+}
+function validateAssessmentGovernance(raw={}){
+  const g=sanitizeAssessmentGovernance(raw),errors=[];
+  if(!g.legalBasis)errors.push('documentar la base jurídica aplicable');
+  if(!g.legalBasisNote)errors.push('explicar brevemente por qué esa base jurídica aplica');
+  if(!g.personInformed)errors.push('confirmar que la persona ha sido informada de finalidad, datos, uso y derechos');
+  if(!g.humanDecision)errors.push('confirmar que la decisión final será humana y revisable');
+  if(!g.sameCriteria)errors.push('confirmar criterios equivalentes para personas evaluadas para el mismo puesto');
+  if(!g.sensitiveDataExcluded)errors.push('confirmar que no se usarán categorías especiales o atributos protegidos para puntuar el encaje');
+  if(!g.reviewerRole)errors.push('identificar el perfil de la persona revisora');
+  if(g.representativeReview==='pending')errors.push('revisar si procede informar a la representación legal de las personas trabajadoras');
+  if(g.dpiaStatus==='not_assessed'||g.dpiaStatus==='pending')errors.push('revisar y documentar si procede una EIPD/evaluación de impacto');
+  if(errors.length){const e=new Error('Antes del análisis laboral debes '+errors.join('; ')+'.');e.code='ASSESSMENT_GOVERNANCE_INCOMPLETE';e.missing=errors;throw e}
+  g.confirmedAt=new Date().toISOString();return g;
+}
+function saveAssessmentGovernance(d,businessId,raw={}){
+  ensure(d);const g=validateAssessmentGovernance(raw),key=txt(businessId,120)||'default';
+  d.assessmentGovernance[key]=g;return g;
+}
+function getAssessmentGovernance(d,businessId=''){
+  ensure(d);const key=txt(businessId,120)||'default';
+  return sanitizeAssessmentGovernance(d.assessmentGovernance[key]||{});
+}
+
 function sanitizeRoleProfile(raw={}){
   return {
     id:txt(raw.id,80)||id('role'),
@@ -70,10 +118,11 @@ function listWorkspace(d,{businessId=''}={}){
     roles,
     questions:d.roleQuestions.filter(x=>roleIds.has(x.roleId)),
     assessments:d.roleAssessments.filter(x=>roleIds.has(x.roleId)).slice(0,100),
-    personalityAssessments:d.miniIpipAssessments.filter(x=>!businessId||x.businessId===businessId).slice(0,100)
+    personalityAssessments:d.miniIpipAssessments.filter(x=>!businessId||x.businessId===businessId).slice(0,100),
+    governance:getAssessmentGovernance(d,businessId)
   };
 }
-function createAssessment(d,{businessId='',employeeId='',roleId='',answers=[]}={}){
+function createAssessment(d,{businessId='',employeeId='',roleId='',answers=[],governance=null,demo=false}={}){
   ensure(d);
   const employee=(d.employees||[]).find(x=>x.id===employeeId);if(!employee)throw new Error('Empleado no encontrado.');
   const role=d.roleProfiles.find(x=>x.id===roleId&&(!businessId||!x.businessId||x.businessId===businessId));if(!role)throw new Error('Puesto no encontrado.');
@@ -85,10 +134,11 @@ function createAssessment(d,{businessId='',employeeId='',roleId='',answers=[]}={
     answer:byId.get(q.id)||''
   }));
   if(rows.filter(x=>x.answer).length<Math.min(3,rows.length))throw new Error('Responde al menos 3 preguntas antes de analizar.');
+  const governanceSnapshot=demo?sanitizeAssessmentGovernance({purpose:'role_review',legalBasis:'other_documented',legalBasisNote:'DEMO · no trata datos de una persona real',personInformed:true,humanDecision:true,sameCriteria:true,sensitiveDataExcluded:true,reviewerRole:'director',reviewerName:'Dirección Demo',representativeReview:'not_applicable',dpiaStatus:'not_required_documented',notes:'Entorno sintético'}):validateAssessmentGovernance(governance||getAssessmentGovernance(d,businessId));
   const a={
     id:id('assessment'),businessId:txt(businessId||role.businessId,120),employeeId:employee.id,employeeName:employee.name,
     employeeCode:employee.employeeCode||'',roleId:role.id,roleName:role.name,roleSnapshot:{name:role.name,description:role.description,requirements:role.requirements,priorities:role.priorities},
-    answers:rows,submittedAt:new Date().toISOString(),analysis:null
+    answers:rows,submittedAt:new Date().toISOString(),governance:governanceSnapshot,analysis:null
   };
   d.roleAssessments.unshift(a);d.roleAssessments=d.roleAssessments.slice(0,500);
   return a;
@@ -168,17 +218,18 @@ function miniIpipScore(responses=[]){
   factors.emotionalStability={label:'Estabilidad emocional (inversa de neuroticismo)',mean:Math.round((6-factors.N.mean)*100)/100,scale:'1-5'};
   return {factors,scored,complete:true,normReference:false};
 }
-function saveMiniIpip(d,{businessId='',employeeId='',roleId='',responses=[],consent=false}={}){
-  ensure(d);if(consent!==true)throw new Error('El Mini-IPIP requiere consentimiento explícito de la persona que responde.');
+function saveMiniIpip(d,{businessId='',employeeId='',roleId='',responses=[],governance=null,demo=false,consent=false}={}){
+  ensure(d);
+  const governanceSnapshot=demo?sanitizeAssessmentGovernance({purpose:'role_review',legalBasis:'other_documented',legalBasisNote:'DEMO · no trata datos de una persona real',personInformed:true,humanDecision:true,sameCriteria:true,sensitiveDataExcluded:true,reviewerRole:'director',reviewerName:'Dirección Demo',representativeReview:'not_applicable',dpiaStatus:'not_required_documented',notes:'Entorno sintético'}):validateAssessmentGovernance(governance||getAssessmentGovernance(d,businessId));
   const employee=(d.employees||[]).find(x=>x.id===employeeId);if(!employee)throw new Error('Empleado no encontrado.');
   const role=roleId?(d.roleProfiles||[]).find(x=>x.id===roleId):null;
   const score=miniIpipScore(responses),record={
     id:id('miniipip'),businessId:txt(businessId||employee.businessId,120),employeeId:employee.id,employeeName:employee.name,employeeCode:employee.employeeCode||'',
-    roleId:role?.id||'',roleName:role?.name||'',submittedAt:new Date().toISOString(),consent:true,score,
-    weightPolicy:'supplemental_low',decisionRule:'No usar como filtro automático. Interpretar solo como autoinforme complementario junto a prueba de puesto, entrevista estructurada y evidencia operativa.'
+    roleId:role?.id||'',roleName:role?.name||'',submittedAt:new Date().toISOString(),governance:governanceSnapshot,legacyConsentFlag:consent===true,score,
+    weightPolicy:'supplemental_low',decisionRule:'No usar como filtro automático. Interpretar solo como autoinforme complementario junto a prueba de puesto, entrevista estructurada y evidencia operativa. La base jurídica laboral debe documentarse por separado; el software no presume que el consentimiento sea válido.'
   };
   d.miniIpipAssessments.unshift(record);d.miniIpipAssessments=d.miniIpipAssessments.slice(0,500);return record;
 }
 function latestMiniIpip(d,employeeId){ensure(d);return d.miniIpipAssessments.find(x=>x.employeeId===employeeId)||null}
 
-module.exports={QUESTION_TYPES,DIMENSIONS,MINI_IPIP_ITEMS,ensure,sanitizeRoleProfile,saveRoleProfile,sanitizeQuestion,replaceRoleQuestions,listWorkspace,createAssessment,saveAnalysis,getAssessmentBundle,fallbackQuestions,miniIpipDefinition,miniIpipScore,saveMiniIpip,latestMiniIpip};
+module.exports={QUESTION_TYPES,DIMENSIONS,MINI_IPIP_ITEMS,ASSESSMENT_PURPOSES,LEGAL_BASES,REVIEWER_ROLES,ensure,sanitizeAssessmentGovernance,validateAssessmentGovernance,saveAssessmentGovernance,getAssessmentGovernance,sanitizeRoleProfile,saveRoleProfile,sanitizeQuestion,replaceRoleQuestions,listWorkspace,createAssessment,saveAnalysis,getAssessmentBundle,fallbackQuestions,miniIpipDefinition,miniIpipScore,saveMiniIpip,latestMiniIpip};
