@@ -88,11 +88,11 @@ function createDirectionDemo({businessId='demo-business'}={}){
     'Separaría hechos de supuestos, preguntaría lo que falta y elegiría una opción reversible si la incertidumbre sigue siendo alta.',
     'Compararía impacto, riesgos y datos disponibles de las dos propuestas antes de decidir, y documentaría el criterio.'
   ][i]||'DEMO · respuesta estructurada con hechos, alternativas y siguiente paso.'}));
-  const assessment=roleTests.createAssessment(d,{businessId,employeeId:laura.id,roleId:role.id,answers});
+  const assessment=roleTests.createAssessment(d,{businessId,employeeId:laura.id,roleId:role.id,answers,demo:true});
   roleTests.saveAnalysis(d,assessment.id,demoAnalysis(role.name));
 
   const responses=Array.from({length:20},(_,i)=>({itemId:i+1,value:[4,4,5,2,4,2,2,2,4,2,4,4,5,2,2,2,2,2,4,2][i]}));
-  roleTests.saveMiniIpip(d,{businessId,employeeId:laura.id,roleId:role.id,responses,consent:true});
+  roleTests.saveMiniIpip(d,{businessId,employeeId:laura.id,roleId:role.id,responses,demo:true,consent:true});
   const mini=roleTests.latestMiniIpip(d,laura.id);if(mini){mini.demo=true;mini.consent='DEMO · respuesta ficticia, no consentimiento de una persona real';}
 
   return d;
