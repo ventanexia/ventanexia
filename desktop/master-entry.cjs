@@ -223,24 +223,7 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
   });
 }
 
-// --- Inyección de la interfaz ------------------------------------------------
-app.on('browser-window-created',(_event,win)=>{
-  win.webContents.on('did-finish-load',async()=>{
-    const url=win.webContents.getURL();
-    if(!url.startsWith('file://')||!url.toLowerCase().includes('renderer/index.html'))return;
-    try{
-      const adaptive=await fs.readFile(path.join(__dirname,'renderer','adaptive.js'),'utf8');
-      await win.webContents.executeJavaScript(adaptive,true);
-      const exportsUi=await fs.readFile(path.join(__dirname,'renderer','export.js'),'utf8');
-      await win.webContents.executeJavaScript(exportsUi,true);
-      const masterControl=await fs.readFile(path.join(__dirname,'renderer','master-control.js'),'utf8');
-      await win.webContents.executeJavaScript(masterControl,true);
-    }catch(e){
-      console.error('master_renderer_inject_error',String(e?.message||e).slice(0,300));
-    }
-  });
-});
-
+// Renderer modules are loaded directly by renderer/index.html; no post-load code injection.
 
 if(orders)app.whenReady().then(()=>orders.startScheduler()).catch(e=>console.error('orders_scheduler_error',String(e?.message||e).slice(0,180)));
 
