@@ -25,33 +25,19 @@ let externalAgents=null;
 try{externalAgents=require('./external-agent.cjs')}catch(e){console.error('external_agent_load_error',String(e?.message||e).slice(0,200))}
 
 // --- Enrutado único del chat -------------------------------------------------
-// master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
-// Si se cargan sin arbitraje, portal-adaptive.cjs elimina el handler anterior
-// y termina atendiendo también los agentes de "Habla con tu equipo".
-// Capturamos ambos handlers durante la carga y registramos UN solo router final.
-const originalHandle=ipcMain.handle.bind(ipcMain);
-const registered=new Map();
-
-ipcMain.handle=function(channel,listener){
-  registered.set(channel,listener);
-  return originalHandle(channel,listener);
-};
-
+// Los módulos exportan funciones puras; solo este entrypoint registra chat:send.
 let agentChat=null;
 let portalChat=null;
 let portalAdaptive=null;
-
 try{
-  require('./master.cjs');
-  agentChat=registered.get('chat:send')||null;
-
+  const master=require('./master.cjs');
+  agentChat=master.chatSendHandler||null;
   portalAdaptive=require('./portal-adaptive.cjs');
-  portalChat=registered.get('chat:send')||null;
-
+  portalChat=portalAdaptive.chatSendHandler||null;
   require('./portal-pagination-fix.cjs');
   require('./export.cjs');
-}finally{
-  ipcMain.handle=originalHandle;
+}catch(e){
+  console.error('chat_module_load_error',String(e?.message||e).slice(0,300));
 }
 
 const PORTAL_SCOPE_TYPES=new Set(['portal','url','folder','shopify','integration']);
