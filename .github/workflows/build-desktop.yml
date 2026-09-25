@@ -2,7 +2,7 @@ name: Build VentaNexIA Desktop
 
 on:
   push:
-    branches: [main]
+    branches: [main, release/0.6.158-production-hardening]
     paths:
       - 'desktop/**'
       - 'app/**'
@@ -53,6 +53,15 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Verify 0.6.158 hardening sources
+        shell: pwsh
+        run: |
+          if (-not (Test-Path runtime-diagnostics.cjs)) { throw 'runtime-diagnostics.cjs missing' }
+          if (-not (Test-Path updater.cjs)) { throw 'updater.cjs missing' }
+          if (-not (Select-String -Path master-entry.cjs -Pattern 'requestSingleInstanceLock' -Quiet)) { throw 'single instance guard missing' }
+          if (-not (Select-String -Path state-store.cjs -Pattern 'SECURE_STORAGE_UNAVAILABLE' -Quiet)) { throw 'secure storage fail-closed guard missing' }
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          if ($pkg.version -ne '0.6.158') { throw "Wrong version: $($pkg.version)" }
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
       - run: node smoke-renderer.cjs
