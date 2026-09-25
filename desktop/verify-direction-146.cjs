@@ -4,6 +4,7 @@ const dir=require('./direction-control.cjs');
 const roleTests=require('./direction-role-assessment.cjs');
 const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
 const errors=[],ok=(v,msg)=>{if(!v)errors.push(msg)};
+const vault=read('direction-vault.cjs');
 
 const state={secret:{}};
 const d=dir.ensureDirection(state);
@@ -100,11 +101,18 @@ ok(ui.includes('directionCreateStandard')&&ui.includes('Historial inmutable'),'L
 ok(dir.listDirectionStandards(d,{businessId:'biz1'}).length===2,'Las versiones anteriores de directrices deben conservarse');
 ok(ui.includes("let directionToken=''")&&!/localStorage\s*\.\s*setItem\s*\(|sessionStorage\s*\.\s*setItem\s*\(/.test(ui),'El token privado de Dirección no debe persistirse en el navegador');
 ok(ui.includes('directionAccessStatus')&&ui.includes('directionUnlock')&&ui.includes('directionLock'),'La UI no aplica bloqueo/desbloqueo privado');
-ok(main.includes('DIRECTION_PIN_ITERATIONS=210000')&&main.includes('pbkdf2Sync('),'El PIN de Dirección debe almacenarse mediante hash robusto');
+ok(vault.includes("aes-256-gcm")&&vault.includes('PBKDF2-SHA256')&&vault.includes("direccion.vnxdir"),'El archivo de Dirección debe usar AES-256-GCM y clave derivada del PIN');
+ok(vault.includes("app.getPath('documents')")&&vault.includes("'VentaNexIA','Direccion'"),'El archivo privado debe guardarse localmente en Documentos/VentaNexIA/Direccion');
 ok(main.includes('directionSessions=new Map()')&&main.includes('DIRECTION_SESSION_MS=30*60*1000'),'Dirección debe usar sesiones temporales');
 ok(main.includes("e.code='DIRECTION_LOCKED'")&&main.includes('directionRequireSession(payload);'),'Los handlers privados deben rechazar acceso sin sesión');
-ok(main.includes('a.failedAttempts>=5')&&main.includes('5*60*1000'),'Falta bloqueo temporal tras intentos fallidos');
+ok(main.includes('meta.failedAttempts>=5')&&main.includes('5*60*1000'),'Falta bloqueo temporal tras intentos fallidos');
 ok(!/pinHash\s*:\s*pin\b/.test(main),'El PIN de Dirección no puede guardarse en claro');
+ok(main.includes('directionVault.open(pin,deviceSecret)')&&main.includes('directionVault.writeWithKey'),'Dirección debe abrir y escribir exclusivamente mediante el archivo cifrado');
+const privateStart=main.indexOf("ipcMain.handle('direction:summary'"),privateEnd=main.indexOf("ipcMain.handle('integration:disconnect'",privateStart),privateBlock=main.slice(privateStart,privateEnd);
+ok(privateStart>0&&privateEnd>privateStart,'No se ha podido aislar el bloque privado de Dirección');
+ok(!privateBlock.includes('updateState(')&&!privateBlock.includes('direction.ensureDirection(')&&!privateBlock.includes('readState('),'Los handlers privados de Dirección no deben volver al estado general');
+ok(main.includes("ipcMain.handle('direction:employee-file'")&&preload.includes('directionEmployeeFile:'),'Debe existir el expediente integral privado por empleado');
+ok(html.includes('id="vnxDirEmployeeFile"')&&ui.includes('openEmployeeFile')&&ui.includes('direccion.vnxdir'),'La UI debe mostrar el expediente integral desde el archivo cifrado');
 ok(health.includes('Agente privado de Dirección')&&health.includes('directionControl')&&health.includes('protección privada de Dirección'),'Autoreparación no cubre Dirección privada');
 
 
@@ -148,4 +156,4 @@ ok(ui.includes('directionSaveMiniIpip')&&ui.includes('Completa los 20 ítems'),'
 ok(main.includes('autoinforme complementario de BAJO PESO')&&main.includes('no puede superar, contradecir ni sustituir'),'El análisis debe limitar el peso del Mini-IPIP');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, directrices, CV, test estructurado, Mini-IPIP voluntario de bajo peso, análisis multidimensional, encaje, evidencia y autoreparación verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · vault AES-256-GCM por PIN, expediente integral, CV, test estructurado, Mini-IPIP voluntario, análisis multidimensional y aislamiento del estado general verificados.');
