@@ -186,6 +186,10 @@ ok(preload.includes('directionDemoUnlock:'),'Preload debe exponer el acceso demo
 ok(ui.includes('Entrar en demo de Dirección')&&ui.includes('directionDemoUnlock'),'La UI debe permitir entrar al demo sin PIN');
 ok(html.includes('vnxDirDemoBadge')&&html.includes('DEMO · DATOS FICTICIOS'),'La UI debe identificar claramente los datos de demostración');
 ok(main.includes("if(demo)questions=directionRoles.fallbackQuestions(role)")&&main.includes('directionDemo.analyzeDemoAssessment(assessment)'),'Generación y análisis de test deben funcionar sin servicios cloud en demo');
+ok(main.includes("directionRoles.localStructuredAnalysis(assessment")&&main.includes("cloudAllowed=Boolean(assessment?.governance?.cloudAiAllowed"),'El análisis real debe ser local por defecto y exigir autorización explícita para cloud');
+ok(main.includes("PUESTO Y RESPUESTAS · IDENTIDAD OMITIDA")&&main.includes("SOLO MEDIAS FACTORIALES, SIN RESPUESTAS CRUDAS"),'El análisis cloud opcional debe minimizar y omitir identificadores y respuestas crudas del Mini-IPIP');
+for(const id of ['vnxDirGovCloudAiAllowed','vnxDirGovCloudAiNotice'])ok(html.includes('id="'+id+'"'),'Falta control explícito de análisis cloud #'+id);
+ok(ui.includes('cloudAiAllowed:Boolean')&&ui.includes('cloudAiNoticeConfirmed:Boolean'),'La UI debe guardar la autorización explícita de análisis cloud');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
 console.log('DIRECTION_PRIVATE_VERIFY_OK · vault cifrado, demo aislada, Mini-IPIP oficial, test estructurado, gobernanza laboral y UI de Dirección verificados.');
