@@ -17,6 +17,7 @@ const {staticRuntimeChecks,sanitizeState}=require('./runtime-health.cjs');
 const direction=require('./direction-control.cjs');
 const directionRoles=require('./direction-role-assessment.cjs');
 const directionVault=require('./direction-vault.cjs');
+const directionDemo=require('./direction-demo.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const META_GRAPH_BASE='https://graph.facebook.com/v26.0';
@@ -862,10 +863,16 @@ function directionLegacyPayload(state){
 function directionStripLegacy(state){
   if(state?.secret)delete state.secret.directionControl;
 }
-function directionSessionCreate(key){
+function directionSessionCreate(key,{demo=false,data=null}={}){
   const token=crypto.randomBytes(32).toString('hex');
-  directionSessions.set(token,{expires:Date.now()+DIRECTION_SESSION_MS,key});
+  directionSessions.set(token,{expires:Date.now()+DIRECTION_SESSION_MS,key:key||null,demo:Boolean(demo),data:data||null});
   return token;
+}
+function directionLicenseActivated(state){
+  return Boolean(publicLicenseState(state).activated);
+}
+function directionDemoAllowed(state){
+  return !directionLicenseActivated(state);
 }
 function directionSessionGet(token=''){
   const t=String(token||''),entry=directionSessions.get(t);
@@ -880,7 +887,8 @@ function directionRequireSession(payload={}){
 }
 function directionAccessStatusFrom(state,{vaultExists=false}={}){
   const a=directionAccessMeta(state),legacy=state?.secret?.directionControl&&directionLegacyConfigured(state.secret.directionControl);
-  return {configured:Boolean(vaultExists||legacy),lockedUntil:Number(a.lockedUntil||0)>Date.now()?Number(a.lockedUntil):null,vault:Boolean(vaultExists)};
+  const demoAvailable=directionDemoAllowed(state);
+  return {configured:Boolean(vaultExists||legacy),lockedUntil:Number(a.lockedUntil||0)>Date.now()?Number(a.lockedUntil):null,vault:Boolean(vaultExists),demoAvailable,mode:demoAvailable?'demo':'real'};
 }
 function directionBlankData(){
   const temp={secret:{}};const d=direction.ensureDirection(temp);delete d.access;directionRoles.ensure(d);return d;
@@ -888,20 +896,21 @@ function directionBlankData(){
 async function directionPrivateRead(payload={}){
   const session=directionRequireSession(payload);
   const state=await readState();
-  const data=await directionVault.readWithKey(session.key);
+  const data=session.demo?session.data:await directionVault.readWithKey(session.key);
   const temp={...state,secret:{...(state.secret||{}),directionControl:data}};
   const d=direction.ensureDirection(temp);delete d.access;directionRoles.ensure(d);
-  return {state:temp,d,baseState:state};
+  return {state:temp,d,baseState:state,demo:Boolean(session.demo),session};
 }
 async function directionPrivateUpdate(payload={},fn){
   const session=directionRequireSession(payload);
   const state=await readState();
-  const data=await directionVault.readWithKey(session.key);
+  const data=session.demo?session.data:await directionVault.readWithKey(session.key);
   const temp={...state,secret:{...(state.secret||{}),directionControl:data}};
   const d=direction.ensureDirection(temp);delete d.access;directionRoles.ensure(d);
   const value=await fn(temp,d);
   const save=temp.secret.directionControl||d;delete save.access;
-  await directionVault.writeWithKey(session.key,save);
+  if(session.demo)session.data=save;
+  else await directionVault.writeWithKey(session.key,save);
   return value;
 }
 async function directionAudit(type){
@@ -912,7 +921,16 @@ ipcMain.handle('direction:access-status',async()=>{
   const state=await readState(),vaultExists=await directionVault.exists();
   return directionAccessStatusFrom(state,{vaultExists});
 });
+ipcMain.handle('direction:demo-unlock',async(_e,payload={})=>{
+  const state=await readState();
+  if(!directionDemoAllowed(state))throw new Error('El modo demo de Dirección solo está disponible antes de activar una licencia real.');
+  const businessId=String(payload.businessId||'demo-business').trim().slice(0,120)||'demo-business';
+  const data=directionDemo.createDirectionDemo({businessId});
+  const token=directionSessionCreate(null,{demo:true,data});
+  return {ok:true,token,expiresInMs:DIRECTION_SESSION_MS,demo:true,synthetic:true};
+});
 ipcMain.handle('direction:set-pin',async(_e,payload={})=>{
+  const stateCheck=await readState();if(directionDemoAllowed(stateCheck))throw new Error('En modo demo no se crea el archivo real de Dirección. Activa VentaNexIA para configurar el PIN privado.');
   const pin=String(payload.pin||''),currentPin=String(payload.currentPin||'');
   if(!/^\d{4}$/.test(pin))throw new Error('El PIN de Dirección debe tener exactamente 4 dígitos.');
   const state=await readState(),meta=directionAccessMeta(state),vaultExists=await directionVault.exists();
@@ -937,6 +955,7 @@ ipcMain.handle('direction:set-pin',async(_e,payload={})=>{
 });
 ipcMain.handle('direction:unlock',async(_e,payload={})=>{
   const pin=String(payload.pin||''),state=await readState(),meta=directionAccessMeta(state);
+  if(directionDemoAllowed(state))throw new Error('Estás en modo demo. Usa «Entrar en demo de Dirección»; el PIN real se habilita al activar VentaNexIA.');
   if(Number(meta.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente. Inténtalo más tarde.');
   let vaultExists=await directionVault.exists();
   let deviceSecret=directionDeviceSecret(state,{create:false});
