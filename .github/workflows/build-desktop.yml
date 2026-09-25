@@ -70,6 +70,23 @@ jobs:
         run: |
           npm run dist:win 2>&1 | Tee-Object -FilePath build-desktop.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Launch packaged app smoke test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist\win-unpacked\VentaNexIA Desktop.exe'
+          if (-not (Test-Path $exe)) {
+            $exe = (Get-ChildItem (Join-Path $PWD 'dist\win-unpacked') -Filter '*.exe' -File | Select-Object -First 1).FullName
+          }
+          if (-not $exe -or -not (Test-Path $exe)) { throw 'Packaged VentaNexIA executable not found' }
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($p.HasExited) {
+            $log = Join-Path $env:APPDATA 'VentaNexIA Desktop\logs\runtime-errors.jsonl'
+            if (Test-Path $log) { Get-Content $log -Tail 50 }
+            throw "VentaNexIA exited during startup with code $($p.ExitCode)"
+          }
+          Stop-Process -Id $p.Id -Force
+          Write-Host 'VENTANEXIA_LAUNCH_OK'
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
