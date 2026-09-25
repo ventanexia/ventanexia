@@ -16,6 +16,7 @@ const erpConnectors=require('./erp.cjs');
 const {staticRuntimeChecks,sanitizeState}=require('./runtime-health.cjs');
 const direction=require('./direction-control.cjs');
 const directionRoles=require('./direction-role-assessment.cjs');
+const directionVault=require('./direction-vault.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const META_GRAPH_BASE='https://graph.facebook.com/v26.0';
@@ -826,15 +827,15 @@ ipcMain.handle('agenda:upcoming',async(_e,minutes=180)=>{
 });
 
 const DIRECTION_SESSION_MS=30*60*1000;
-const DIRECTION_PIN_ITERATIONS=210000;
+const DIRECTION_PIN_ITERATIONS=210000; // legacy migration only
 const directionSessions=new Map();
 
-function directionAccess(d){
+function directionLegacyAccess(d){
   d.access=d.access&&typeof d.access==='object'?d.access:{};
   return d.access;
 }
-function directionConfigured(d){
-  const a=directionAccess(d);return Boolean(a.pinHash&&a.pinSalt);
+function directionLegacyConfigured(d){
+  const a=directionLegacyAccess(d);return Boolean(a.pinHash&&a.pinSalt);
 }
 function directionHashPin(pin,salt){
   return crypto.pbkdf2Sync(String(pin),String(salt),DIRECTION_PIN_ITERATIONS,32,'sha256').toString('hex');
@@ -843,63 +844,131 @@ function directionSafeEqual(a,b){
   const aa=Buffer.from(String(a||''),'hex'),bb=Buffer.from(String(b||''),'hex');
   return aa.length===bb.length&&aa.length>0&&crypto.timingSafeEqual(aa,bb);
 }
-function directionSessionCreate(){
+function directionAccessMeta(state){
+  state.secret=state.secret||{};
+  state.secret.directionAccess=state.secret.directionAccess&&typeof state.secret.directionAccess==='object'?state.secret.directionAccess:{};
+  return state.secret.directionAccess;
+}
+function directionDeviceSecret(state,{create=false}={}){
+  state.secret=state.secret||{};
+  if(!state.secret.directionVaultDeviceKey&&create)state.secret.directionVaultDeviceKey=crypto.randomBytes(32).toString('hex');
+  return String(state.secret.directionVaultDeviceKey||'');
+}
+function directionLegacyPayload(state){
+  const raw=state?.secret?.directionControl&&typeof state.secret.directionControl==='object'?JSON.parse(JSON.stringify(state.secret.directionControl)):{};
+  delete raw.access;
+  return raw;
+}
+function directionStripLegacy(state){
+  if(state?.secret)delete state.secret.directionControl;
+}
+function directionSessionCreate(key){
   const token=crypto.randomBytes(32).toString('hex');
-  directionSessions.set(token,Date.now()+DIRECTION_SESSION_MS);
+  directionSessions.set(token,{expires:Date.now()+DIRECTION_SESSION_MS,key});
   return token;
 }
-function directionSessionValid(token=''){
-  const t=String(token||''),expires=directionSessions.get(t)||0;
-  if(!expires||expires<=Date.now()){if(t)directionSessions.delete(t);return false}
-  directionSessions.set(t,Date.now()+DIRECTION_SESSION_MS);
-  return true;
+function directionSessionGet(token=''){
+  const t=String(token||''),entry=directionSessions.get(t);
+  if(!entry||entry.expires<=Date.now()){if(t)directionSessions.delete(t);return null}
+  entry.expires=Date.now()+DIRECTION_SESSION_MS;
+  return entry;
 }
 function directionRequireSession(payload={}){
-  if(!directionSessionValid(payload?.token)){
-    const e=new Error('Dirección está bloqueada. Introduce el PIN.');e.code='DIRECTION_LOCKED';throw e;
-  }
+  const entry=directionSessionGet(payload?.token);
+  if(!entry){const e=new Error('Dirección está bloqueada. Introduce el PIN.');e.code='DIRECTION_LOCKED';throw e}
+  return entry;
 }
-function directionAccessStatus(d){
-  const a=directionAccess(d);
-  return {configured:directionConfigured(d),lockedUntil:Number(a.lockedUntil||0)>Date.now()?Number(a.lockedUntil):null};
+function directionAccessStatusFrom(state,{vaultExists=false}={}){
+  const a=directionAccessMeta(state),legacy=state?.secret?.directionControl&&directionLegacyConfigured(state.secret.directionControl);
+  return {configured:Boolean(vaultExists||legacy),lockedUntil:Number(a.lockedUntil||0)>Date.now()?Number(a.lockedUntil):null,vault:Boolean(vaultExists)};
+}
+function directionBlankData(){
+  const temp={secret:{}};const d=direction.ensureDirection(temp);delete d.access;directionRoles.ensure(d);return d;
+}
+async function directionPrivateRead(payload={}){
+  const session=directionRequireSession(payload);
+  const state=await readState();
+  const data=await directionVault.readWithKey(session.key);
+  const temp={...state,secret:{...(state.secret||{}),directionControl:data}};
+  const d=direction.ensureDirection(temp);delete d.access;directionRoles.ensure(d);
+  return {state:temp,d,baseState:state};
+}
+async function directionPrivateUpdate(payload={},fn){
+  const session=directionRequireSession(payload);
+  const state=await readState();
+  const data=await directionVault.readWithKey(session.key);
+  const temp={...state,secret:{...(state.secret||{}),directionControl:data}};
+  const d=direction.ensureDirection(temp);delete d.access;directionRoles.ensure(d);
+  const value=await fn(temp,d);
+  const save=temp.secret.directionControl||d;delete save.access;
+  await directionVault.writeWithKey(session.key,save);
+  return value;
+}
+async function directionAudit(type){
+  return audit(type,'Evento privado de Dirección');
 }
 
 ipcMain.handle('direction:access-status',async()=>{
-  const s=await readState(),d=direction.ensureDirection(s);
-  return directionAccessStatus(d);
+  const state=await readState(),vaultExists=await directionVault.exists();
+  return directionAccessStatusFrom(state,{vaultExists});
 });
 ipcMain.handle('direction:set-pin',async(_e,payload={})=>{
   const pin=String(payload.pin||''),currentPin=String(payload.currentPin||'');
   if(!/^\d{4}$/.test(pin))throw new Error('El PIN de Dirección debe tener exactamente 4 dígitos.');
-  const s=await readState(),d=direction.ensureDirection(s),a=directionAccess(d);
-  if(directionConfigured(d)){
-    if(Number(a.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente por demasiados intentos.');
-    const currentHash=/^\d{4}$/.test(currentPin)?directionHashPin(currentPin,a.pinSalt):'';
-    if(!currentHash||!directionSafeEqual(currentHash,a.pinHash))throw new Error('El PIN actual de Dirección no es correcto.');
+  const state=await readState(),meta=directionAccessMeta(state),vaultExists=await directionVault.exists();
+  if(Number(meta.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente por demasiados intentos.');
+  const deviceSecret=directionDeviceSecret(state,{create:true});
+  if(vaultExists){
+    if(!/^\d{4}$/.test(currentPin))throw new Error('Introduce el PIN actual para cambiarlo.');
+    await directionVault.changePin(currentPin,pin,deviceSecret);
+  }else{
+    const legacy=state.secret?.directionControl&&directionLegacyConfigured(state.secret.directionControl);
+    if(legacy){
+      const a=directionLegacyAccess(state.secret.directionControl),hash=/^\d{4}$/.test(currentPin)?directionHashPin(currentPin,a.pinSalt):'';
+      if(!hash||!directionSafeEqual(hash,a.pinHash))throw new Error('El PIN actual de Dirección no es correcto.');
+    }
+    const data=state.secret?.directionControl?directionLegacyPayload(state):directionBlankData();
+    await directionVault.create(pin,deviceSecret,data);
   }
-  const salt=crypto.randomBytes(24).toString('hex');
-  d.access={pinSalt:salt,pinHash:directionHashPin(pin,salt),failedAttempts:0,lockedUntil:null,updatedAt:new Date().toISOString()};
-  await writeState(s);await audit('direction.pin_configured','Acceso privado de Dirección configurado');
-  return {ok:true,configured:true};
+  directionStripLegacy(state);
+  state.secret.directionAccess={failedAttempts:0,lockedUntil:null,configuredAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  await writeState(state);await directionAudit('direction.pin_configured');
+  return {ok:true,configured:true,vaultPath:(await directionVault.info()).path};
 });
 ipcMain.handle('direction:unlock',async(_e,payload={})=>{
-  const pin=String(payload.pin||''),s=await readState(),d=direction.ensureDirection(s),a=directionAccess(d);
-  if(!directionConfigured(d))throw new Error('Configura primero el PIN de Dirección.');
-  if(Number(a.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente. Inténtalo más tarde.');
-  const hash=/^\d{4}$/.test(pin)?directionHashPin(pin,a.pinSalt):'';
-  if(!hash||!directionSafeEqual(hash,a.pinHash)){
-    a.failedAttempts=Number(a.failedAttempts||0)+1;
-    if(a.failedAttempts>=5){a.failedAttempts=0;a.lockedUntil=Date.now()+5*60*1000}
-    await writeState(s);await audit('direction.unlock_failed','Intento de acceso a Dirección rechazado');
-    throw new Error(a.lockedUntil?'Demasiados intentos. Dirección bloqueada durante 5 minutos.':'PIN de Dirección incorrecto.');
+  const pin=String(payload.pin||''),state=await readState(),meta=directionAccessMeta(state);
+  if(Number(meta.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente. Inténtalo más tarde.');
+  let vaultExists=await directionVault.exists();
+  let deviceSecret=directionDeviceSecret(state,{create:false});
+  try{
+    if(!vaultExists){
+      const legacy=state.secret?.directionControl&&directionLegacyConfigured(state.secret.directionControl);
+      if(!legacy)throw new Error('Configura primero el PIN de Dirección.');
+      const a=directionLegacyAccess(state.secret.directionControl),hash=/^\d{4}$/.test(pin)?directionHashPin(pin,a.pinSalt):'';
+      if(!hash||!directionSafeEqual(hash,a.pinHash)){const e=new Error('PIN de Dirección incorrecto.');e.code='DIRECTION_PIN_INVALID';throw e}
+      deviceSecret=directionDeviceSecret(state,{create:true});
+      await directionVault.create(pin,deviceSecret,directionLegacyPayload(state));
+      directionStripLegacy(state);vaultExists=true;
+    }
+    if(!deviceSecret)throw new Error('La clave local de Dirección no está disponible en este equipo.');
+    const opened=await directionVault.open(pin,deviceSecret);
+    meta.failedAttempts=0;meta.lockedUntil=null;meta.lastUnlockedAt=new Date().toISOString();meta.updatedAt=new Date().toISOString();
+    directionStripLegacy(state);await writeState(state);
+    const token=directionSessionCreate(opened.key);await directionAudit('direction.unlocked');
+    return {ok:true,token,expiresInMs:DIRECTION_SESSION_MS,vaultPath:opened.path};
+  }catch(e){
+    if(e?.code==='DIRECTION_PIN_INVALID'||/PIN.+incorrect/i.test(String(e?.message||''))){
+      meta.failedAttempts=Number(meta.failedAttempts||0)+1;
+      if(meta.failedAttempts>=5){meta.failedAttempts=0;meta.lockedUntil=Date.now()+5*60*1000}
+      await writeState(state);await directionAudit('direction.unlock_failed');
+      throw new Error(meta.lockedUntil?'Demasiados intentos. Dirección bloqueada durante 5 minutos.':'PIN de Dirección incorrecto.');
+    }
+    throw e;
   }
-  a.failedAttempts=0;a.lockedUntil=null;a.lastUnlockedAt=new Date().toISOString();await writeState(s);
-  const token=directionSessionCreate();await audit('direction.unlocked','Agente de Dirección desbloqueado');
-  return {ok:true,token,expiresInMs:DIRECTION_SESSION_MS};
 });
 ipcMain.handle('direction:lock',async(_e,payload={})=>{
   if(payload?.token)directionSessions.delete(String(payload.token));
-  await audit('direction.locked','Agente de Dirección bloqueado');
+  await directionAudit('direction.locked');
   return {ok:true};
 });
 
