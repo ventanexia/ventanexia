@@ -229,12 +229,82 @@ function comparePersonToRole(employee,roleFit={}){
   };
 }
 
+
+const DIRECTION_STANDARD_DEFAULTS=[
+  {key:'respect',label:'Respeto y educación',expectation:'Trato correcto, lenguaje profesional y ausencia de faltas de respeto o humillaciones.',importance:'required'},
+  {key:'clarity',label:'Comunicación clara',expectation:'Explica información de forma comprensible, ordenada y sin inducir a error.',importance:'important'},
+  {key:'listening',label:'Escucha y comprensión',expectation:'Comprueba la necesidad de la otra persona y responde a lo que realmente se ha planteado.',importance:'important'},
+  {key:'responsibility',label:'Responsabilidad y compromisos',expectation:'Cumple compromisos, informa de bloqueos y no promete lo que no puede garantizar.',importance:'required'},
+  {key:'quality',label:'Calidad del trabajo',expectation:'Entrega resultados utilizables, minimiza errores evitables y corrige incidencias cuando aparecen.',importance:'required'},
+  {key:'collaboration',label:'Colaboración',expectation:'Comparte información necesaria, coordina entregas y no genera bloqueos evitables a otros.',importance:'important'},
+  {key:'customer_care',label:'Atención al cliente',expectation:'Protege la relación con el cliente, busca resolver y mantiene un trato profesional incluso ante quejas.',importance:'important'},
+  {key:'accuracy',label:'Precisión y veracidad',expectation:'Distingue hechos confirmados de hipótesis y no inventa datos, condiciones ni resultados.',importance:'required'},
+  {key:'adaptability',label:'Adaptación al trabajo',expectation:'Se adapta a cambios razonables de proceso y pide apoyo cuando una situación supera su información o autoridad.',importance:'important'},
+  {key:'learning',label:'Aprendizaje y mejora',expectation:'Incorpora feedback, formación e instrucciones y permite comprobar si los errores disminuyen con el tiempo.',importance:'important'}
+];
+const STANDARD_IMPORTANCE=new Set(['required','important','desirable','na']);
+function sanitizeDirectionStandardCriterion(raw={},fallback={}){
+  return {
+    key:clampText(raw.key||fallback.key||id('std'),80),
+    label:clampText(raw.label||fallback.label,160),
+    expectation:clampText(raw.expectation||fallback.expectation,900),
+    importance:STANDARD_IMPORTANCE.has(raw.importance)?raw.importance:(fallback.importance||'important')
+  };
+}
+function directionStandardHash(record={}){
+  const canonical=JSON.stringify({
+    businessId:record.businessId||'',version:Number(record.version||0),effectiveFrom:record.effectiveFrom||'',
+    directorName:record.directorName||'',nonNegotiables:record.nonNegotiables||[],criteria:record.criteria||[]
+  });
+  return crypto.createHash('sha256').update(canonical).digest('hex');
+}
+function createDirectionStandardVersion(d,raw={}){
+  if(raw.confirmed!==true)throw new Error('Debes confirmar expresamente que esta directriz se aplicará por igual a toda la plantilla.');
+  const businessId=clampText(raw.businessId,120),directorName=clampText(raw.directorName,160);
+  if(!directorName)throw new Error('Indica quién confirma esta directriz de Dirección.');
+  const versions=d.directionStandards.filter(x=>(x.businessId||'')===businessId);
+  const version=(versions.reduce((m,x)=>Math.max(m,Number(x.version||0)),0)||0)+1;
+  const criteria=Array.isArray(raw.criteria)&&raw.criteria.length
+    ?raw.criteria.slice(0,30).map((x,i)=>sanitizeDirectionStandardCriterion(x,DIRECTION_STANDARD_DEFAULTS[i]||{}))
+    :DIRECTION_STANDARD_DEFAULTS.map(x=>sanitizeDirectionStandardCriterion(x,x));
+  if(!criteria.some(x=>x.importance!=='na'))throw new Error('La política debe contener al menos un criterio aplicable.');
+  const now=new Date().toISOString(),effectiveFrom=iso(raw.effectiveFrom||now);
+  const record={
+    id:id('std'),businessId,version,effectiveFrom,createdAt:now,directorName,
+    nonNegotiables:sanitizeTextList(raw.nonNegotiables,20,320),
+    criteria,
+    equalityRule:'Esta versión se aplica por igual a todas las personas de la empresa durante su vigencia. No pueden añadirse criterios retrospectivos a una evaluación ya realizada.',
+    changeRule:'Los cambios crean una nueva versión; las versiones anteriores permanecen inmutables.',
+    confirmedAt:now
+  };
+  record.hash=directionStandardHash(record);
+  d.directionStandards.unshift(Object.freeze?record:record);
+  d.directionStandards=d.directionStandards.slice(0,200);
+  return record;
+}
+function listDirectionStandards(d,{businessId=''}={}){
+  return d.directionStandards.filter(x=>!businessId||x.businessId===businessId).slice().sort((a,b)=>Number(b.version||0)-Number(a.version||0));
+}
+function applicableDirectionStandard(d,{businessId='',at=new Date().toISOString()}={}){
+  const when=new Date(at).getTime();
+  return listDirectionStandards(d,{businessId}).filter(x=>new Date(x.effectiveFrom||x.confirmedAt||x.createdAt).getTime()<=when)[0]||null;
+}
+function standardSnapshot(record){
+  if(!record)return null;
+  return JSON.parse(JSON.stringify({
+    id:record.id,version:record.version,effectiveFrom:record.effectiveFrom,directorName:record.directorName,
+    confirmedAt:record.confirmedAt,hash:record.hash,nonNegotiables:record.nonNegotiables,criteria:record.criteria,
+    equalityRule:record.equalityRule,changeRule:record.changeRule
+  }));
+}
+
 function ensureDirection(state){
   state.secret=state.secret||{};
   const d=state.secret.directionControl&&typeof state.secret.directionControl==='object'?state.secret.directionControl:{};
   d.employees=Array.isArray(d.employees)?d.employees:[];
   d.tasks=Array.isArray(d.tasks)?d.tasks:[];
   d.events=Array.isArray(d.events)?d.events:[];
+  d.directionStandards=Array.isArray(d.directionStandards)?d.directionStandards:[];
   d.settings=d.settings&&typeof d.settings==='object'?d.settings:{};
   d.access=d.access&&typeof d.access==='object'?d.access:{};
   d.managementPolicy=sanitizeManagementPolicy(d.managementPolicy||DEFAULT_MANAGEMENT_POLICY);
@@ -837,7 +907,9 @@ function operationalReport(d,{businessId='',employeeId='',from='',to='',now=new 
 
   return {
     generatedAt:now,period:{from:fromDate?fromDate.toISOString():null,to:toDate?toDate.toISOString():null},
-    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,managementPolicy,timing:timingSummary(tasks,now),
+    scope:{businessId,employeeId:employeeId||null},totals,findings,areas,employees:rows,managementPolicy,
+    directionStandard:standardSnapshot(applicableDirectionStandard(d,{businessId,at:now})),
+    timing:timingSummary(tasks,now),
     note:'Este informe describe hechos operativos registrados (tareas, plazos, bloqueos, evidencias y recuperaciones por IA). No equivale por sí solo a una valoración laboral de la persona ni autoriza decisiones automáticas.'
   };
 }
@@ -960,4 +1032,4 @@ function resolveTask(d,taskId,{actor='human',detail='',outcome='',evidence=''}={
   return t;
 }
 
-module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,sanitizeCvProfile,extractCvProfile,comparePersonToRole,compareTeamToRole,employeeObservedEvidence,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,importEmployeeCv,updateEmployeeCv,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
+module.exports={ensureDirection,sanitizeEmployee,sanitizeTask,sanitizeWorkProfile,sanitizeManagementPolicy,sanitizeCvProfile,extractCvProfile,comparePersonToRole,compareTeamToRole,employeeObservedEvidence,createDirectionStandardVersion,listDirectionStandards,applicableDirectionStandard,standardSnapshot,summarize,operationalReport,employeeEvaluation,timingForTask,timingSummary,upsertTrackedWork,recordTrackedTiming,addOrUpdateEmployee,importEmployeeCv,updateEmployeeCv,updateEmployeeContext,setManagementPolicy,addEmployeeObservation,addTask,updateTask,recordEvent,resolveTask,isOverdue,takeoverDue};
