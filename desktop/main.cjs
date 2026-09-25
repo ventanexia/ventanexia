@@ -994,76 +994,71 @@ async function directionAiJson(state,{prompt,localContext=[]}={}){
 }
 ipcMain.handle('direction:summary',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s);
+  const {state:s,d}=await directionPrivateRead(payload);
   return direction.summarize(d,{businessId:directionBusinessId(s,payload),now:new Date().toISOString()});
 });
 ipcMain.handle('direction:employees',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload);
   return d.employees.filter(x=>!businessId||x.businessId===businessId);
 });
 
 ipcMain.handle('direction:update-employee-context',async(_e,payload={})=>{
   directionRequireSession(payload);
   let employee=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     employee=direction.updateEmployeeContext(d,String(payload.employeeId||''),payload.context||{});
     return s;
   });
-  await audit('direction.employee_context_updated',(employee?.name||'Empleado')+' · contexto laboral actualizado');
+  await directionAudit('direction.employee_context_updated',(employee?.name||'Empleado')+' · contexto laboral actualizado');
   return employee;
 });
 
 ipcMain.handle('direction:import-employee-cv',async(_e,payload={})=>{
   directionRequireSession(payload);
   let employee=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     employee=direction.importEmployeeCv(d,String(payload.employeeId||''),{fileName:payload.fileName||'',text:payload.text||''});
     return s;
   });
-  await audit('direction.employee_cv_imported',(employee?.name||'Empleado')+' · CV profesional importado');
+  await directionAudit('direction.employee_cv_imported',(employee?.name||'Empleado')+' · CV profesional importado');
   return employee;
 });
 ipcMain.handle('direction:update-employee-cv',async(_e,payload={})=>{
   directionRequireSession(payload);
   let employee=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     employee=direction.updateEmployeeCv(d,String(payload.employeeId||''),payload.cv||{});
     return s;
   });
-  await audit('direction.employee_cv_updated',(employee?.name||'Empleado')+' · expediente profesional actualizado');
+  await directionAudit('direction.employee_cv_updated',(employee?.name||'Empleado')+' · expediente profesional actualizado');
   return employee;
 });
 
 ipcMain.handle('direction:import-cv',async(_e,payload={})=>{
   directionRequireSession(payload);
   let employee=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     employee=direction.importEmployeeCv(d,String(payload.employeeId||''),{fileName:payload.fileName||'',text:payload.text||''});
     return s;
   });
-  await audit('direction.cv_imported',(employee?.name||'Empleado')+' · '+String(employee?.cvProfile?.fileName||'CV').slice(0,160));
+  await directionAudit('direction.cv_imported',(employee?.name||'Empleado')+' · '+String(employee?.cvProfile?.fileName||'CV').slice(0,160));
   return employee;
 });
 ipcMain.handle('direction:update-cv',async(_e,payload={})=>{
   directionRequireSession(payload);
   let employee=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     employee=direction.updateEmployeeCv(d,String(payload.employeeId||''),payload.cv||{});
     return s;
   });
-  await audit('direction.cv_updated',(employee?.name||'Empleado')+' · expediente profesional actualizado');
+  await directionAudit('direction.cv_updated',(employee?.name||'Empleado')+' · expediente profesional actualizado');
   return employee;
 });
 
 ipcMain.handle('direction:compare-team-role',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload);
   return direction.compareTeamToRole(d,{
     businessId,
     roleTarget:String(payload.roleTarget||'').trim().slice(0,180),
@@ -1073,7 +1068,7 @@ ipcMain.handle('direction:compare-team-role',async(_e,payload={})=>{
 
 ipcMain.handle('direction:role-workspace',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s);
+  const {state:s,d}=await directionPrivateRead(payload);
   return directionRoles.listWorkspace(d,{businessId:directionBusinessId(s,payload)});
 });
 ipcMain.handle('direction:mini-ipip-definition',async(_e,payload={})=>{
@@ -1081,31 +1076,31 @@ ipcMain.handle('direction:mini-ipip-definition',async(_e,payload={})=>{
 });
 ipcMain.handle('direction:save-mini-ipip',async(_e,payload={})=>{
   directionRequireSession(payload);let record=null;
-  await updateState(s=>{const d=direction.ensureDirection(s);record=directionRoles.saveMiniIpip(d,{businessId:directionBusinessId(s,payload),employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),responses:Array.isArray(payload.responses)?payload.responses:[],consent:payload.consent===true});return s;});
-  await audit('direction.mini_ipip_saved',(record?.employeeName||'Empleado')+' · Mini-IPIP voluntario guardado como contexto complementario');return record;
+  await directionPrivateUpdate(payload,(s,d)=>{record=directionRoles.saveMiniIpip(d,{businessId:directionBusinessId(s,payload),employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),responses:Array.isArray(payload.responses)?payload.responses:[],consent:payload.consent===true});return s;});
+  await directionAudit('direction.mini_ipip_saved',(record?.employeeName||'Empleado')+' · Mini-IPIP voluntario guardado como contexto complementario');return record;
 });
 ipcMain.handle('direction:save-role-profile',async(_e,payload={})=>{
   directionRequireSession(payload);let role=null;
-  await updateState(s=>{const d=direction.ensureDirection(s);role=directionRoles.saveRoleProfile(d,{...(payload.role||{}),businessId:directionBusinessId(s,payload)});return s;});
-  await audit('direction.role_profile_saved',(role?.name||'Puesto')+' · perfil estructurado');return role;
+  await directionPrivateUpdate(payload,(s,d)=>{role=directionRoles.saveRoleProfile(d,{...(payload.role||{}),businessId:directionBusinessId(s,payload)});return s;});
+  await directionAudit('direction.role_profile_saved',(role?.name||'Puesto')+' · perfil estructurado');return role;
 });
 ipcMain.handle('direction:generate-role-test',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload),role=(d.roleProfiles||[]).find(x=>x.id===String(payload.roleId||'')&&(!businessId||x.businessId===businessId));
+  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload),role=(d.roleProfiles||[]).find(x=>x.id===String(payload.roleId||'')&&(!businessId||x.businessId===businessId));
   if(!role)throw new Error('Puesto no encontrado.');
   const prompt='Genera un test profesional estructurado para el puesto descrito. Debe evaluar SOLO capacidades relacionadas con el trabajo mediante casos prácticos, entrevista estructurada y conocimiento del puesto. No hagas test de personalidad, no infieras inteligencia general, salud, emociones o rasgos sensibles, no generes ranking ni apto/no apto. Devuelve SOLO JSON con {"questions":[{"type":"practical_case|structured_interview|role_knowledge","prompt":"...","evaluates":["reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality"],"evidenceFocus":["..."]}]}. Crea entre 6 y 8 preguntas, comparables para todas las personas del mismo puesto.';
   let questions;
   try{
     const parsed=await directionAiJson(s,{prompt,localContext:[{path:'PERFIL DEL PUESTO',content:JSON.stringify(role)}]});questions=Array.isArray(parsed.questions)?parsed.questions:[];
   }catch{questions=directionRoles.fallbackQuestions(role)}
-  let saved=null;await updateState(st=>{const dd=direction.ensureDirection(st);saved=directionRoles.replaceRoleQuestions(dd,role.id,questions);return st;});
-  await audit('direction.role_test_generated',role.name+' · '+saved.length+' preguntas');return saved;
+  let saved=null;await directionPrivateUpdate(payload,(st,dd)=>{saved=directionRoles.replaceRoleQuestions(dd,role.id,questions);return st;});
+  await directionAudit('direction.role_test_generated',role.name+' · '+saved.length+' preguntas');return saved;
 });
 ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s0=await readState(),businessId=directionBusinessId(s0,payload);let assessment=null;
-  await updateState(s=>{const d=direction.ensureDirection(s);assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[]});return s;});
-  const s=await readState(),d=direction.ensureDirection(s),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
+  const {state:s0}=await directionPrivateRead(payload),businessId=directionBusinessId(s0,payload);let assessment=null;
+  await directionPrivateUpdate(payload,(s,d)=>{assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[]});return s;});
+  const {state:s,d}=await directionPrivateRead(payload),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
   const observed=direction.employeeObservedEvidence(d,employee.id).slice(0,30);
   const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{}),miniIpip=directionRoles.latestMiniIpip(d,employee.id);
   const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Si existe Mini-IPIP, trátalo únicamente como autoinforme complementario de BAJO PESO: no puede superar, contradecir ni sustituir una muestra de trabajo, entrevista estructurada o evidencia operativa. No conviertas sus medias en percentiles, diagnósticos, inteligencia, estabilidad clínica ni pronósticos deterministas. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
@@ -1117,41 +1112,40 @@ ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
     {path:'EVIDENCIA OBSERVADA REGISTRADA',content:JSON.stringify(observed)}
   ];
   const analysis=await directionAiJson(s,{prompt,localContext});
-  let saved=null;await updateState(st=>{const dd=direction.ensureDirection(st);saved=directionRoles.saveAnalysis(dd,assessment.id,analysis);return st;});
-  await audit('direction.role_test_analyzed',(employee.name||'Empleado')+' · '+assessment.roleName+' · hipótesis de encaje');return saved;
+  let saved=null;await directionPrivateUpdate(payload,(st,dd)=>{saved=directionRoles.saveAnalysis(dd,assessment.id,analysis);return st;});
+  await directionAudit('direction.role_test_analyzed',(employee.name||'Empleado')+' · '+assessment.roleName+' · hipótesis de encaje');return saved;
 });
 
 ipcMain.handle('direction:add-employee-observation',async(_e,payload={})=>{
   directionRequireSession(payload);
   let event=null,employeeName='';
-  await updateState(s=>{
-    const d=direction.ensureDirection(s),employeeId=String(payload.employeeId||'');
+  await directionPrivateUpdate(payload,(s,d)=>{
+    const employeeId=String(payload.employeeId||'');
     const employee=d.employees.find(x=>x.id===employeeId);employeeName=employee?.name||'Empleado';
     event=direction.addEmployeeObservation(d,employeeId,{...(payload.observation||{}),businessId:directionBusinessId(s,payload)});
     return s;
   });
-  await audit('direction.employee_observation_added',employeeName+' · '+(event?.type||'evidencia laboral'));
+  await directionAudit('direction.employee_observation_added',employeeName+' · '+(event?.type||'evidencia laboral'));
   return event;
 });
 ipcMain.handle('direction:management-policy',async(_e,payload={})=>{
   directionRequireSession(payload);
   if(payload.update===true){
     let policy=null;
-    await updateState(s=>{
-      const d=direction.ensureDirection(s);
+    await directionPrivateUpdate(payload,(s,d)=>{
       policy=direction.setManagementPolicy(d,payload.policy||{});
       return s;
     });
-    await audit('direction.management_policy_updated','Criterio de Dirección actualizado');
+    await directionAudit('direction.management_policy_updated','Criterio de Dirección actualizado');
     return policy;
   }
-  const s=await readState(),d=direction.ensureDirection(s);
+  const {state:s,d}=await directionPrivateRead(payload);
   return direction.sanitizeManagementPolicy(d.managementPolicy||{});
 });
 
 ipcMain.handle('direction:standards',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload);
   return {
     current:direction.standardSnapshot(direction.applicableDirectionStandard(d,{businessId,at:new Date().toISOString()})),
     versions:direction.listDirectionStandards(d,{businessId}).map(direction.standardSnapshot)
@@ -1160,19 +1154,19 @@ ipcMain.handle('direction:standards',async(_e,payload={})=>{
 ipcMain.handle('direction:create-standard',async(_e,payload={})=>{
   directionRequireSession(payload);
   let standard=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  await directionPrivateUpdate(payload,(s,d)=>{
+    const businessId=directionBusinessId(s,payload);
     standard=direction.createDirectionStandardVersion(d,{...(payload.standard||{}),businessId,confirmed:payload.confirmed===true});
     return s;
   });
-  await audit('direction.standard_created','Política general Dirección v'+standard.version+' · '+standard.directorName+' · '+standard.hash.slice(0,12));
+  await directionAudit('direction.standard_created','Política general Dirección v'+standard.version+' · '+standard.directorName+' · '+standard.hash.slice(0,12));
   return direction.standardSnapshot(standard);
 });
 ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
   directionRequireSession(payload);
   let saved=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  await directionPrivateUpdate(payload,(s,d)=>{
+    const businessId=directionBusinessId(s,payload);
     const email=String(payload.email||'').trim().toLowerCase(),id=String(payload.id||'');
     const exists=d.employees.some(x=>x.id===id||(email&&x.email===email));
     if(!exists){
@@ -1182,36 +1176,34 @@ ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
     saved=direction.addOrUpdateEmployee(d,{...payload,businessId:payload.businessId||businessId});
     return s;
   });
-  await audit('direction.employee_saved',(saved?.name||'Empleado')+' · '+(saved?.role||'sin rol'));
+  await directionAudit('direction.employee_saved',(saved?.name||'Empleado')+' · '+(saved?.role||'sin rol'));
   return saved;
 });
 ipcMain.handle('direction:create-task',async(_e,payload={})=>{
   directionRequireSession(payload);
   let task=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  await directionPrivateUpdate(payload,(s,d)=>{
+    const businessId=directionBusinessId(s,payload);
     task=direction.addTask(d,{...payload,businessId:payload.businessId||businessId});
     return s;
   });
-  await audit('direction.task_assigned',(task?.assigneeName||task?.assigneeId||'Responsable')+' · '+String(task?.title||'').slice(0,160));
+  await directionAudit('direction.task_assigned',(task?.assigneeName||task?.assigneeId||'Responsable')+' · '+String(task?.title||'').slice(0,160));
   return task;
 });
 ipcMain.handle('direction:update-task',async(_e,payload={})=>{
   directionRequireSession(payload);
   let task=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     task=direction.updateTask(d,String(payload.id||''),payload.patch||{});
     return s;
   });
-  await audit('direction.task_updated',String(task?.title||'').slice(0,160)+' · '+(task?.status||''));
+  await directionAudit('direction.task_updated',String(task?.title||'').slice(0,160)+' · '+(task?.status||''));
   return task;
 });
 ipcMain.handle('direction:add-event',async(_e,payload={})=>{
   directionRequireSession(payload);
   let event=null;
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     event=direction.recordEvent(d,String(payload.taskId||''),payload.event||{});
     return s;
   });
@@ -1221,20 +1213,18 @@ ipcMain.handle('direction:resolve-task',async(_e,payload={})=>{
   directionRequireSession(payload);
   let task=null;
   const actor=payload.actor==='ai'?'ai':'human';
-  await updateState(s=>{
-    const d=direction.ensureDirection(s);
+  await directionPrivateUpdate(payload,(s,d)=>{
     task=direction.resolveTask(d,String(payload.taskId||''),{actor,detail:payload.detail||'',outcome:payload.outcome||'',evidence:payload.evidence||''});
     return s;
   });
-  await audit(actor==='ai'?'direction.task_resolved_by_ai':'direction.task_resolved_by_human',(task?.assigneeName||'Responsable')+' · '+String(task?.title||'').slice(0,160));
+  await directionAudit(actor==='ai'?'direction.task_resolved_by_ai':'direction.task_resolved_by_human',(task?.assigneeName||'Responsable')+' · '+String(task?.title||'').slice(0,160));
   return task;
 });
 ipcMain.handle('direction:settings',async(_e,payload={})=>{
   directionRequireSession(payload);
   if(payload&&typeof payload==='object'&&payload.update===true){
     let settings=null;
-    await updateState(s=>{
-      const d=direction.ensureDirection(s);
+    await directionPrivateUpdate(payload,(s,d)=>{
       d.settings={
         ...d.settings,
         defaultSlaMinutes:Math.max(1,Math.min(525600,Number(payload.defaultSlaMinutes)||d.settings.defaultSlaMinutes||480)),
@@ -1243,20 +1233,20 @@ ipcMain.handle('direction:settings',async(_e,payload={})=>{
       };
       settings={...d.settings};return s;
     });
-    await audit('direction.settings_updated','Control Operativo de Dirección actualizado');
+    await directionAudit('direction.settings_updated','Control Operativo de Dirección actualizado');
     return settings;
   }
-  const s=await readState(),d=direction.ensureDirection(s);return {...d.settings};
+  const {state:s,d}=await directionPrivateRead(payload);return {...d.settings};
 });
 ipcMain.handle('direction:ai-queue',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s);
+  const {state:s,d}=await directionPrivateRead(payload);
   return direction.summarize(d,{businessId:directionBusinessId(s,payload)}).aiTakeoverQueue;
 });
 
 ipcMain.handle('direction:report',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload);
   const report=direction.operationalReport(d,{
     businessId,
     employeeId:String(payload.employeeId||'').trim().slice(0,80),
@@ -1264,7 +1254,7 @@ ipcMain.handle('direction:report',async(_e,payload={})=>{
     to:String(payload.to||'').trim().slice(0,40),
     now:new Date().toISOString()
   });
-  await audit('direction.report_generated',(payload.employeeId?'Informe individual':'Informe global')+' · '+report.totals.assigned+' tareas analizadas');
+  await directionAudit('direction.report_generated',(payload.employeeId?'Informe individual':'Informe global')+' · '+report.totals.assigned+' tareas analizadas');
   return report;
 });
 
