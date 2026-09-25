@@ -132,5 +132,20 @@ ok(main.includes('No estimes CI ni inteligencia general')&&main.includes('No dec
 ok(main.includes('perspective_taking')&&main.includes('razonamiento aplicado al trabajo'),'El análisis integral debe cubrir perspectiva ajena y razonamiento aplicado');
 ok(!/noAutomaticRanking\s*:\s*false/.test(main+ui),'El test no puede habilitar ranking automático');
 
+let miniRefused=false;try{roleTests.saveMiniIpip(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,responses:Array.from({length:20},(_,i)=>({itemId:i+1,value:3})),consent:false})}catch{miniRefused=true}
+ok(miniRefused,'Mini-IPIP debe exigir consentimiento explícito');
+const miniResponses=Array.from({length:20},(_,i)=>({itemId:i+1,value:3}));
+for(const x of miniResponses){if([1,11].includes(x.itemId))x.value=5;if([6,16].includes(x.itemId))x.value=1}
+const mini=roleTests.saveMiniIpip(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,responses:miniResponses,consent:true});
+ok(mini.score?.factors?.E?.mean===5,'Mini-IPIP debe corregir correctamente los ítems inversos');
+ok(mini.weightPolicy==='supplemental_low'&&/No usar como filtro automático/i.test(mini.decisionRule),'Mini-IPIP debe quedar marcado como señal complementaria de bajo peso');
+ok(roleTests.latestMiniIpip(d,emp.id)?.id===mini.id,'Debe recuperar el último Mini-IPIP del empleado');
+ok(roleTests.miniIpipDefinition().items.length===20,'La batería Mini-IPIP española debe contener exactamente 20 ítems');
+for(const ch of ['direction:mini-ipip-definition','direction:save-mini-ipip'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
+for(const name of ['directionMiniIpipDefinition','directionSaveMiniIpip'])ok(preload.includes(name+':'),'Preload no expone '+name);
+for(const id of ['vnxDirMiniIpip','vnxDirMiniIpipItems','vnxDirMiniIpipConsent','vnxDirMiniIpipSave','vnxDirMiniIpipResult'])ok(html.includes('id="'+id+'"'),'Falta UI Mini-IPIP #'+id);
+ok(ui.includes('directionSaveMiniIpip')&&ui.includes('Completa los 20 ítems'),'La UI no guarda Mini-IPIP completo');
+ok(main.includes('autoinforme complementario de BAJO PESO')&&main.includes('no puede superar, contradecir ni sustituir'),'El análisis debe limitar el peso del Mini-IPIP');
+
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, directrices versionadas, CV, test estructurado por puesto, análisis profesional multidimensional, voz del empleado, encaje, evidencia y autoreparación verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, directrices, CV, test estructurado, Mini-IPIP voluntario de bajo peso, análisis multidimensional, encaje, evidencia y autoreparación verificados.');
