@@ -988,6 +988,26 @@ ipcMain.handle('direction:management-policy',async(_e,payload={})=>{
   const s=await readState(),d=direction.ensureDirection(s);
   return direction.sanitizeManagementPolicy(d.managementPolicy||{});
 });
+
+ipcMain.handle('direction:standards',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+  return {
+    current:direction.standardSnapshot(direction.applicableDirectionStandard(d,{businessId,at:new Date().toISOString()})),
+    versions:direction.listDirectionStandards(d,{businessId}).map(direction.standardSnapshot)
+  };
+});
+ipcMain.handle('direction:create-standard',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  let standard=null;
+  await updateState(s=>{
+    const d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload);
+    standard=direction.createDirectionStandardVersion(d,{...(payload.standard||{}),businessId,confirmed:payload.confirmed===true});
+    return s;
+  });
+  await audit('direction.standard_created','Política general Dirección v'+standard.version+' · '+standard.directorName+' · '+standard.hash.slice(0,12));
+  return direction.standardSnapshot(standard);
+});
 ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
   directionRequireSession(payload);
   let saved=null;
