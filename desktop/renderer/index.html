@@ -597,6 +597,26 @@
             <label>Prioridades del puesto<textarea id="vnxDirRolePriorities" rows="6" placeholder="Uno por línea. Ej.: proteger margen&#10;retener clientes&#10;cumplir plazos"></textarea></label>
             <button class="btn outline" id="vnxDirRoleSave" type="submit">Guardar perfil del puesto</button>
           </form>
+          <details class="vnx-dir-governance" id="vnxDirGovernance" open>
+            <summary><b>Garantías de uso laboral</b><span>Obligatorias antes de analizar datos reales</span></summary>
+            <div class="vnx-dir-note"><b>VentaNexIA no certifica por sí sola el cumplimiento legal.</b> Este control obliga a documentar las salvaguardas mínimas antes de utilizar un análisis sobre una persona real.</div>
+            <form id="vnxDirGovernanceForm" class="vnx-dir-governance-form">
+              <label>Finalidad<select id="vnxDirGovPurpose"><option value="selection">Selección / contratación</option><option value="internal_mobility">Movilidad interna</option><option value="development">Desarrollo profesional</option><option value="training">Formación</option><option value="role_review" selected>Revisión de encaje del puesto</option><option value="other">Otra finalidad documentada</option></select></label>
+              <label>Base jurídica documentada<select id="vnxDirGovLegalBasis"><option value="">Selecciona y documenta</option><option value="precontractual_steps">Medidas precontractuales</option><option value="employment_contract">Ejecución de la relación laboral</option><option value="legal_obligation">Obligación legal</option><option value="legitimate_interest">Interés legítimo ponderado</option><option value="consent_exceptional">Consentimiento excepcional, libre y revocable</option><option value="other_documented">Otra base documentada</option></select></label>
+              <label>Perfil revisor<select id="vnxDirGovReviewerRole"><option value="">Selecciona</option><option value="director">Dirección</option><option value="hr">RR. HH. / People</option><option value="occupational_psychologist">Psicología del trabajo / organizacional</option><option value="dpo_legal">DPD / Legal</option><option value="other">Otro perfil competente</option></select></label>
+              <label>Persona revisora<input id="vnxDirGovReviewerName" placeholder="Nombre o cargo responsable"></label>
+              <label class="vnx-dir-role-wide">Justificación de la base jurídica<textarea id="vnxDirGovLegalBasisNote" rows="2" placeholder="Por qué este tratamiento es necesario, proporcionado y adecuado para la finalidad indicada."></textarea></label>
+              <label>Representación laboral<select id="vnxDirGovRepresentativeReview"><option value="pending">Pendiente de revisar</option><option value="reviewed">Revisada / informada cuando procede</option><option value="not_applicable">No aplicable y documentado</option></select></label>
+              <label>EIPD / evaluación de impacto<select id="vnxDirGovDpiaStatus"><option value="not_assessed">Pendiente de evaluar</option><option value="completed">Realizada</option><option value="not_required_documented">No necesaria y documentado por qué</option><option value="pending">En curso</option></select></label>
+              <label class="vnx-dir-gov-check"><input id="vnxDirGovPersonInformed" type="checkbox"> La persona ha sido informada de la finalidad, datos utilizados, uso del resultado y derechos que puede ejercer.</label>
+              <label class="vnx-dir-gov-check"><input id="vnxDirGovHumanDecision" type="checkbox"> La decisión final será humana, significativa y revisable; la IA no decide contratación, promoción, sanción, despido o reasignación.</label>
+              <label class="vnx-dir-gov-check"><input id="vnxDirGovSameCriteria" type="checkbox"> Las personas evaluadas para el mismo puesto reciben criterios equivalentes y comparables.</label>
+              <label class="vnx-dir-gov-check"><input id="vnxDirGovSensitiveExcluded" type="checkbox"> No se usan salud, ideología, religión, orientación sexual, origen racial/étnico u otros atributos protegidos para puntuar el encaje.</label>
+              <label class="vnx-dir-role-wide">Notas de gobernanza<textarea id="vnxDirGovNotes" rows="2" placeholder="DPD consultado, política interna, referencia a EIPD, protocolo de revisión, etc."></textarea></label>
+              <button class="btn outline vnx-dir-role-wide" id="vnxDirGovernanceSave" type="submit">Guardar garantías de evaluación</button>
+            </form>
+            <div id="vnxDirGovernanceState" class="vnx-dir-governance-state">Pendiente de documentar.</div>
+          </details>
           <div class="vnx-dir-note"><b>Análisis integral profesional:</b> razonamiento aplicado, resolución de problemas, priorización, aprendizaje, comunicación, comprensión de la perspectiva ajena, colaboración, autonomía, conocimiento del puesto y calidad de decisión. No estima CI ni diagnostica personalidad o emociones.</div>
           <div id="vnxDirRoleQuestions" class="vnx-dir-role-questions"><div class="vnx-dir-empty">Guarda un puesto y genera el test para ver aquí las preguntas.</div></div>
           <div id="vnxDirRoleAnalysis" class="vnx-dir-role-analysis"><div class="vnx-dir-empty">Cuando haya respuestas, VentaNexIA mostrará fortalezas, áreas por comprobar, nivel de confianza y funciones a explorar.</div></div>
@@ -604,7 +624,7 @@
             <summary><b>Mini‑IPIP · Big Five (complementario)</b><span>20 ítems · autoinforme voluntario · bajo peso</span></summary>
             <div class="vnx-dir-note"><b>Qué aporta:</b> un autoinforme estandarizado sobre extraversión, amabilidad/orientación interpersonal, responsabilidad/organización, neuroticismo y apertura. No mide CI, no diagnostica salud mental y no puede decidir por sí solo un puesto.</div>
             <div id="vnxDirMiniIpipItems" class="vnx-dir-miniipip-items"><div class="vnx-dir-empty">Cargando Mini‑IPIP…</div></div>
-            <label class="vnx-dir-miniipip-consent"><input id="vnxDirMiniIpipConsent" type="checkbox"> La persona ha leído la finalidad y acepta voluntariamente que este autoinforme se guarde como contexto profesional complementario.</label>
+            <label class="vnx-dir-miniipip-consent"><input id="vnxDirMiniIpipConsent" type="checkbox"> La persona ha completado voluntariamente este autoinforme y conoce su finalidad. Esta casilla no determina por sí sola la base jurídica del tratamiento; esa base se documenta en “Garantías de uso laboral”.</label>
             <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirMiniIpipSave" type="button">Guardar Mini‑IPIP</button></div>
             <div id="vnxDirMiniIpipResult" class="vnx-dir-miniipip-result"></div>
           </details>
