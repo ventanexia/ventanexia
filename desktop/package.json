@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.157",
+  "version": "0.6.158",
   "private": true,
-  "description": "VentaNexIA Desktop · Dirección privada con vault cifrado, demo aislada, test por puesto, Mini-IPIP oficial, gobernanza laboral y análisis local por defecto · 0.6.157",
+  "description": "VentaNexIA Desktop · producción reforzada: instancia única, estado seguro, vault privado, diagnóstico local, Electron 44 y actualización automática · 0.6.158",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
@@ -35,7 +35,7 @@
     "verify:direction-private": "node verify-direction-146.cjs"
   },
   "devDependencies": {
-    "electron": "^38.1.2",
+    "electron": "44.4.4",
     "electron-builder": "^26.0.12"
   },
   "build": {
@@ -70,6 +70,8 @@
       "direction-vault.cjs",
       "direction-demo.cjs",
       "runtime-health.cjs",
+      "updater.cjs",
+      "runtime-diagnostics.cjs",
       "main.cjs",
       "preload.cjs",
       "renderer/**/*",
@@ -84,7 +86,8 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "verifyUpdateCodeSignature": true
     },
     "nsis": {
       "oneClick": false,
@@ -103,9 +106,18 @@
       "enableNodeCliInspectArguments": false,
       "enableEmbeddedAsarIntegrityValidation": true,
       "onlyLoadAppFromAsar": true,
-      "loadBrowserProcessSpecificV8Snapshot": false
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": false
     },
-    "compression": "maximum"
+    "compression": "maximum",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ventanexia",
+        "repo": "ventanexia",
+        "releaseType": "release"
+      }
+    ]
   },
   "dependencies": {
     "imapflow": "^1.0.195",
@@ -116,6 +128,7 @@
     "tesseract.js": "^6.0.1",
     "@napi-rs/canvas": "^0.1.80",
     "@tesseract.js-data/eng": "^1.0.0",
-    "@tesseract.js-data/spa": "^1.0.0"
+    "@tesseract.js-data/spa": "^1.0.0",
+    "electron-updater": "^6.6.2"
   }
 }
