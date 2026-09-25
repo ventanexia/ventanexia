@@ -1152,14 +1152,30 @@ ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
   const observed=direction.employeeObservedEvidence(d,employee.id).slice(0,30);
   const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{}),miniIpip=directionRoles.latestMiniIpip(d,employee.id);
   const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Si existe Mini-IPIP, trátalo únicamente como autoinforme complementario de BAJO PESO: no puede superar, contradecir ni sustituir una muestra de trabajo, entrevista estructurada o evidencia operativa. No conviertas sus medias en percentiles, diagnósticos, inteligencia, estabilidad clínica ni pronósticos deterministas. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
-  const localContext=[
-    {path:'PUESTO Y TEST',content:JSON.stringify(assessment)},
-    {path:'CV PROFESIONAL DECLARADO',content:JSON.stringify(cv)},
-    {path:'CONTEXTO LABORAL DECLARADO O ACORDADO',content:JSON.stringify(work)},
-    ...(miniIpip?[{path:'MINI-IPIP · AUTOINFORME COMPLEMENTARIO DE BAJO PESO',content:JSON.stringify(miniIpip)}]:[]),
-    {path:'EVIDENCIA OBSERVADA REGISTRADA',content:JSON.stringify(observed)}
+  const cloudAllowed=Boolean(assessment?.governance?.cloudAiAllowed&&assessment?.governance?.cloudAiNoticeConfirmed);
+  const cloudContext=[
+    {path:'PUESTO Y RESPUESTAS · IDENTIDAD OMITIDA',content:JSON.stringify({
+      roleName:assessment.roleName,roleSnapshot:assessment.roleSnapshot,
+      answers:(assessment.answers||[]).map(x=>({type:x.type,prompt:x.prompt,evaluates:x.evaluates,evidenceFocus:x.evidenceFocus,answer:x.answer}))
+    })},
+    {path:'CV PROFESIONAL MINIMIZADO · IDENTIDAD OMITIDA',content:JSON.stringify({
+      experience:cv.experience||[],education:cv.education||[],skills:cv.skills||[],languages:cv.languages||[],certifications:cv.certifications||[],confirmedByManagement:cv.confirmedByManagement||[]
+    })},
+    {path:'CONTEXTO LABORAL MINIMIZADO',content:JSON.stringify({
+      declaredStrengths:work.declaredStrengths||[],preferredTasks:work.preferredTasks||[],trainingNeeds:work.trainingNeeds||[],roleInterests:work.roleInterests||[],
+      preferredAutonomy:work.preferredAutonomy||'',collaborationPreference:work.collaborationPreference||''
+    })},
+    ...(miniIpip?.score?.factors?[{path:'MINI-IPIP · SOLO MEDIAS FACTORIALES, SIN RESPUESTAS CRUDAS',content:JSON.stringify(miniIpip.score.factors)}]:[]),
+    {path:'EVIDENCIA OPERATIVA · SOLO RECUENTO',content:JSON.stringify({records:observed.length})}
   ];
-  const analysis=demo?directionDemo.analyzeDemoAssessment(assessment):await directionAiJson(s,{prompt,localContext});
+  const analysis=demo
+    ?directionDemo.analyzeDemoAssessment(assessment)
+    :(cloudAllowed
+      ?await directionAiJson(s,{prompt,localContext:cloudContext})
+      :directionRoles.localStructuredAnalysis(assessment,{observed,miniIpip}));
+  if(analysis&&typeof analysis==='object')analysis.processing=cloudAllowed&&!demo
+    ?{mode:'cloud_ai_minimized',employeeDataSentToCloud:true,identityFieldsSent:false,rawMiniIpipResponsesSent:false}
+    :(analysis.processing||{mode:'local_only',employeeDataSentToCloud:false});
   let saved=null;await directionPrivateUpdate(payload,(st,dd)=>{saved=directionRoles.saveAnalysis(dd,assessment.id,analysis);return st;});
   await directionAudit('direction.role_test_analyzed',(employee.name||'Empleado')+' · '+assessment.roleName+' · hipótesis de encaje');return saved;
 });
