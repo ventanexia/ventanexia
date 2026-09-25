@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,roleWorkspace={roles:[],questions:[],assessments:[]},currentRoleId='',currentFilter='all',latestReport=null;
+  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,roleWorkspace={roles:[],questions:[],assessments:[],personalityAssessments:[]},miniIpipDefinition=null,currentRoleId='',currentFilter='all',latestReport=null;
   // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
   let directionToken='',accessState=null;
 
@@ -30,7 +30,7 @@
   }
 
   function clearSensitiveUi(){
-    snapshot=null;employees=[];settings=null;managementPolicy=null;directionStandards=null;latestReport=null;
+    snapshot=null;employees=[];settings=null;managementPolicy=null;directionStandards=null;roleWorkspace={roles:[],questions:[],assessments:[],personalityAssessments:[]};miniIpipDefinition=null;latestReport=null;
     const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),csel=$('#vnxDirCvEmployee');
     if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
     if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
@@ -79,13 +79,14 @@
     if(!directionToken){await refreshAccessStatus();return}
     try{
       const opts={businessId:businessId()};
-      [snapshot,employees,settings,managementPolicy,directionStandards,roleWorkspace]=await Promise.all([
+      [snapshot,employees,settings,managementPolicy,directionStandards,roleWorkspace,miniIpipDefinition]=await Promise.all([
         window.vnx.directionSummary(directionToken,opts),
         window.vnx.directionEmployees(directionToken,opts),
         window.vnx.directionSettings(directionToken),
         window.vnx.directionManagementPolicy(directionToken),
         window.vnx.directionStandards(directionToken,opts),
-        window.vnx.directionRoleWorkspace(directionToken,opts)
+        window.vnx.directionRoleWorkspace(directionToken,opts),
+        window.vnx.directionMiniIpipDefinition(directionToken)
       ]);
       renderProtected();render();
     }catch(e){
@@ -481,6 +482,23 @@
     const latest=(roleWorkspace?.assessments||[]).find(a=>(!role||a.roleId===role.id)&&(!employeeId||a.employeeId===employeeId)&&a.analysis);
     renderRoleAnalysis(latest||null);
   }
+  function renderMiniIpipResult(record){
+    const box=$('#vnxDirMiniIpipResult');if(!box)return;
+    if(!record?.score?.factors){box.innerHTML='<div class="vnx-dir-empty">Sin Mini‑IPIP guardado para esta persona y puesto.</div>';return}
+    const f=record.score.factors,rows=[
+      ['Extraversión',f.E?.mean],['Amabilidad / orientación interpersonal',f.A?.mean],['Responsabilidad / organización',f.C?.mean],
+      ['Apertura / imaginación',f.O?.mean],['Estabilidad emocional',f.emotionalStability?.mean]
+    ];
+    box.innerHTML='<div class="vnx-dir-miniipip-scores">'+rows.map(([label,value])=>'<article><b>'+esc(label)+'</b><strong>'+esc(value??'—')+'</strong><small>Media 1–5 · autoinforme, sin percentil</small></article>').join('')+'</div><div class="vnx-dir-note"><b>Peso en el análisis:</b> complementario y bajo. Nunca sustituye prueba práctica, entrevista estructurada ni evidencia real del trabajo.</div>';
+  }
+  function renderMiniIpip(){
+    const box=$('#vnxDirMiniIpipItems');if(!box||!miniIpipDefinition?.items)return;
+    const labels=(miniIpipDefinition.responseScale||[]).reduce((m,x)=>(m[x.value]=x.label,m),{});
+    box.innerHTML=miniIpipDefinition.items.map(item=>'<article class="vnx-dir-miniipip-item"><b>'+item.id+'. '+esc(item.text)+'</b><div class="vnx-dir-miniipip-scale">'+[1,2,3,4,5].map(v=>'<label title="'+esc(labels[v]||String(v))+'"><input type="radio" name="vnxMiniIpip'+item.id+'" value="'+v+'"><span>'+v+'</span></label>').join('')+'</div></article>').join('');
+    const role=activeRole(),employeeId=$('#vnxDirRoleEmployee')?.value||'';
+    const latest=(roleWorkspace?.personalityAssessments||[]).find(x=>(!employeeId||x.employeeId===employeeId)&&(!role||!x.roleId||x.roleId===role.id));
+    renderMiniIpipResult(latest||null);
+  }
   async function saveRoleProfile(){
     if(!directionToken)return null;
     const role=await window.vnx.directionSaveRoleProfile(directionToken,{
@@ -490,7 +508,7 @@
     currentRoleId=role.id;roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});fillRoleForm(role);renderRoleQuestions();return role;
   }
 
-  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards();renderRoleWorkspace()}
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards();renderRoleWorkspace();renderMiniIpip()}
 
   async function promptEvent(taskId,kind){
     const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
@@ -634,7 +652,21 @@
       catch(err){alert('No se pudo analizar el test: '+(err.message||err))}
       finally{roleAnalyze.disabled=false;roleAnalyze.textContent=old}
     };
-    const roleEmp=$('#vnxDirRoleEmployee');if(roleEmp)roleEmp.onchange=renderRoleWorkspace;
+    const roleEmp=$('#vnxDirRoleEmployee');if(roleEmp)roleEmp.onchange=()=>{renderRoleWorkspace();renderMiniIpip()};
+    const miniSave=$('#vnxDirMiniIpipSave');if(miniSave)miniSave.onclick=async()=>{
+      if(!directionToken)return;
+      const employeeId=$('#vnxDirRoleEmployee')?.value||'',role=activeRole(),consent=Boolean($('#vnxDirMiniIpipConsent')?.checked);
+      if(!employeeId){alert('Selecciona primero a la persona que responde el Mini‑IPIP.');return}
+      if(!consent){alert('El Mini‑IPIP solo se guarda con consentimiento explícito de la persona.');return}
+      const responses=(miniIpipDefinition?.items||[]).map(item=>({itemId:item.id,value:Number(document.querySelector('input[name="vnxMiniIpip'+item.id+'"]:checked')?.value||0)}));
+      if(responses.some(x=>x.value<1||x.value>5)){alert('Completa los 20 ítems antes de guardar.');return}
+      miniSave.disabled=true;const old=miniSave.textContent;miniSave.textContent='Guardando…';
+      try{
+        const record=await window.vnx.directionSaveMiniIpip(directionToken,{businessId:businessId(),employeeId,roleId:role?.id||'',responses,consent:true});
+        roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderMiniIpipResult(record);alert('Mini‑IPIP guardado como autoinforme complementario de bajo peso.');
+      }catch(err){alert('No se pudo guardar el Mini‑IPIP: '+(err.message||err))}
+      finally{miniSave.disabled=false;miniSave.textContent=old}
+    };
     const humanSelect=$('#vnxDirHumanEmployee');if(humanSelect)humanSelect.onchange=renderHumanProfile;
     const humanForm=$('#vnxDirHumanForm');if(humanForm)humanForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
