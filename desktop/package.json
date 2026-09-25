@@ -1,12 +1,12 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.157",
+  "version": "0.6.158",
   "private": true,
-  "description": "VentaNexIA Desktop · Dirección privada con vault cifrado, demo aislada, test por puesto, Mini-IPIP oficial, gobernanza laboral y análisis local por defecto · 0.6.157",
+  "description": "VentaNexIA Desktop · producción reforzada: instancia única, estado seguro, vault privado, diagnóstico local, Electron 44 y actualización automática · 0.6.158",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "node build-edition.cjs && node verify-ipc-handlers.cjs && node verify-release-readiness.cjs && node verify-web-sellability.cjs && node verify-erp-synthetic.cjs && node verify-meta-jev.cjs && node verify-direction-146.cjs && node verify-security.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-secretary.cjs && node verify-quality-062.cjs && node verify-workbench-063.cjs && node verify-workbench-064.cjs && node verify-workflow-065.cjs && node verify-cloud-agent-isolation.cjs && node verify-private-portals.cjs && node verify-redesigns.cjs && node verify-shopify-stock.cjs && node verify-onboarding-stock.cjs && node verify-finance.cjs && node verify-complete-138.cjs && node verify-agent-navigation-139.cjs && node verify-140.cjs && node verify-business-141.cjs && node verify-stock-history-142.cjs && node verify-142.cjs && node --check ../lib/jev-client.js && node --check ../server/handlers/qualify.js && node --check ../server/handlers/lead.js && node --check ../lib/lead-qualification.js && node --check ../server/handlers/oauth-common.js && node --check ../server/handlers/oauth-callback.js && node --check ../server/lib/whatsapp-core.js && node --check direction-control.cjs && node --check direction-role-assessment.cjs && node --check direction-vault.cjs && node --check direction-demo.cjs && node --check runtime-health.cjs && node --check ../app/app.js && node --check renderer/business-onboarding.js && node --check state-store.cjs && node --check gmail-auth.cjs && node --check shopify-auth.cjs && node --check shopify-stores.cjs && node --check calendar.cjs && node --check external-agent.cjs && node --check agent-email.cjs && node --check agent-policy.cjs && node --check prospecting.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/agent-home.js && node --check renderer/direction-control.js && node --check renderer/adaptive.js && node --check renderer/export.js && node --check renderer/master-control.js && electron-builder --win nsis",
+    "dist:win": "node build-edition.cjs && node verify-ipc-handlers.cjs && node verify-release-readiness.cjs && node verify-web-sellability.cjs && node verify-erp-synthetic.cjs && node verify-meta-jev.cjs && node verify-direction-146.cjs && node verify-security.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-secretary.cjs && node verify-quality-062.cjs && node verify-workbench-063.cjs && node verify-workbench-064.cjs && node verify-workflow-065.cjs && node verify-cloud-agent-isolation.cjs && node verify-private-portals.cjs && node verify-redesigns.cjs && node verify-shopify-stock.cjs && node verify-onboarding-stock.cjs && node verify-finance.cjs && node verify-complete-138.cjs && node verify-agent-navigation-139.cjs && node verify-140.cjs && node verify-business-141.cjs && node verify-stock-history-142.cjs && node verify-142.cjs && node --check ../lib/jev-client.js && node --check ../server/handlers/qualify.js && node --check ../server/handlers/lead.js && node --check ../lib/lead-qualification.js && node --check ../server/handlers/oauth-common.js && node --check ../server/handlers/oauth-callback.js && node --check ../server/lib/whatsapp-core.js && node --check direction-control.cjs && node --check direction-role-assessment.cjs && node --check direction-vault.cjs && node --check direction-demo.cjs && node --check runtime-health.cjs && node --check ../app/app.js && node --check renderer/business-onboarding.js && node --check state-store.cjs && node --check gmail-auth.cjs && node --check shopify-auth.cjs && node --check shopify-stores.cjs && node --check calendar.cjs && node --check external-agent.cjs && node --check agent-email.cjs && node --check agent-policy.cjs && node --check prospecting.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/agent-home.js && node --check renderer/direction-control.js && node --check renderer/adaptive.js && node --check renderer/export.js && node --check renderer/master-control.js && electron-builder --win nsis --publish never",
     "dist:mac": "node build-edition.cjs && node verify-ipc-handlers.cjs && node verify-release-readiness.cjs && node verify-web-sellability.cjs && node verify-erp-synthetic.cjs && node verify-meta-jev.cjs && node verify-direction-146.cjs && node verify-security.cjs && node verify-ui.cjs && node verify-agent-routing.cjs && node verify-central-assistant.cjs && node verify-secretary.cjs && node verify-quality-062.cjs && node verify-workbench-063.cjs && node verify-workbench-064.cjs && node verify-workflow-065.cjs && node verify-cloud-agent-isolation.cjs && node verify-private-portals.cjs && node verify-redesigns.cjs && node verify-shopify-stock.cjs && node verify-onboarding-stock.cjs && node verify-finance.cjs && node verify-complete-138.cjs && node verify-agent-navigation-139.cjs && node verify-140.cjs && node verify-business-141.cjs && node verify-142.cjs && node --check ../lib/jev-client.js && node --check ../server/handlers/qualify.js && node --check ../server/handlers/lead.js && node --check ../lib/lead-qualification.js && node --check ../server/handlers/oauth-common.js && node --check ../server/handlers/oauth-callback.js && node --check ../server/lib/whatsapp-core.js && node --check direction-control.cjs && node --check runtime-health.cjs && node --check ../app/app.js && node --check renderer/business-onboarding.js && node --check agent-email.cjs && node --check master-entry.cjs && node --check master.cjs && node --check main.cjs && node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs && node --check portal-adaptive.cjs && node --check portal-pagination-fix.cjs && node --check export.cjs && node --check preload.cjs && node --check renderer/app.js && node --check renderer/master.js && node --check renderer/adaptive.js && node --check renderer/export.js && node --check renderer/master-control.js && electron-builder --mac dmg",
     "verify:ui": "node verify-ui.cjs",
     "verify:orders": "node --check orders.cjs && node --check erp.cjs && node --check orders-core.cjs && node --check order-files.cjs",
@@ -35,7 +35,7 @@
     "verify:direction-private": "node verify-direction-146.cjs"
   },
   "devDependencies": {
-    "electron": "^38.1.2",
+    "electron": "44.4.4",
     "electron-builder": "^26.0.12"
   },
   "build": {
@@ -70,6 +70,8 @@
       "direction-vault.cjs",
       "direction-demo.cjs",
       "runtime-health.cjs",
+      "updater.cjs",
+      "runtime-diagnostics.cjs",
       "main.cjs",
       "preload.cjs",
       "renderer/**/*",
@@ -103,9 +105,18 @@
       "enableNodeCliInspectArguments": false,
       "enableEmbeddedAsarIntegrityValidation": true,
       "onlyLoadAppFromAsar": true,
-      "loadBrowserProcessSpecificV8Snapshot": false
+      "loadBrowserProcessSpecificV8Snapshot": false,
+      "grantFileProtocolExtraPrivileges": false
     },
-    "compression": "maximum"
+    "compression": "maximum",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ventanexia",
+        "repo": "ventanexia",
+        "releaseType": "release"
+      }
+    ]
   },
   "dependencies": {
     "imapflow": "^1.0.195",
@@ -116,6 +127,7 @@
     "tesseract.js": "^6.0.1",
     "@napi-rs/canvas": "^0.1.80",
     "@tesseract.js-data/eng": "^1.0.0",
-    "@tesseract.js-data/spa": "^1.0.0"
+    "@tesseract.js-data/spa": "^1.0.0",
+    "electron-updater": "^6.6.2"
   }
 }

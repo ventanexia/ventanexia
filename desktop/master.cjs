@@ -2072,8 +2072,7 @@ async function contextForExplicitSource(s,src,question=''){
   return {local,portals};
 }
 
-ipcMain.removeHandler('chat:send');
-ipcMain.handle('chat:send',async(_e,payload={})=>{
+async function chatSendHandler(_e,payload={}){
   const messages=Array.isArray(payload)?payload:(Array.isArray(payload?.messages)?payload.messages:[]);
   const scope=normalizeChatScope(Array.isArray(payload)?null:(payload?.scope||null));
   const question=lastUserMessage(messages),s=await readState();
@@ -2238,7 +2237,9 @@ ipcMain.handle('chat:send',async(_e,payload={})=>{
   const images=[],seen=new Set();for(const p of portalContext)for(const img of p.images||[]){if(!img?.src||seen.has(img.src))continue;seen.add(img.src);images.push({src:img.src,alt:img.alt||p.name});if(images.length>=8)break}
   j.images=images;j.portalStatus=portalContext.map(p=>({name:p.name,status:p.status}));j.route=scope?.type==='agent'?'agent:'+scope.key:(scope?.type||null);
   await audit('ai.chat',`Consulta con ${localContext.length} fuente(s) autorizada(s)`);return j;
-});
+}
+
+module.exports={chatSendHandler};
 
 if(prospecting)app.whenReady().then(()=>prospecting.startScheduler());
 if(orders)app.whenReady().then(()=>orders.startScheduler());

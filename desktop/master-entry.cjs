@@ -1,8 +1,22 @@
-const {app,ipcMain}=require('electron');
+const {app,ipcMain,BrowserWindow}=require('electron');
 const {readState}=require('./state-store.cjs');
 const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
+const diagnostics=require('./runtime-diagnostics.cjs');
+
+diagnostics.install({app});
+const singleInstance=app.requestSingleInstanceLock();
+if(!singleInstance){
+  app.quit();
+  process.exit(0);
+}
+app.on('second-instance',()=>{
+  const windows=BrowserWindow.getAllWindows().filter(w=>!w.isDestroyed());
+  const win=windows.find(w=>w.isVisible())||windows[0];
+  if(!win)return;
+  try{if(win.isMinimized())win.restore();win.show();win.focus()}catch{}
+});
 let orders=null;
 try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
 let calendar=null;
@@ -11,33 +25,19 @@ let externalAgents=null;
 try{externalAgents=require('./external-agent.cjs')}catch(e){console.error('external_agent_load_error',String(e?.message||e).slice(0,200))}
 
 // --- Enrutado único del chat -------------------------------------------------
-// master.cjs y portal-adaptive.cjs registran ambos 'chat:send'.
-// Si se cargan sin arbitraje, portal-adaptive.cjs elimina el handler anterior
-// y termina atendiendo también los agentes de "Habla con tu equipo".
-// Capturamos ambos handlers durante la carga y registramos UN solo router final.
-const originalHandle=ipcMain.handle.bind(ipcMain);
-const registered=new Map();
-
-ipcMain.handle=function(channel,listener){
-  registered.set(channel,listener);
-  return originalHandle(channel,listener);
-};
-
+// Los módulos exportan funciones puras; solo este entrypoint registra chat:send.
 let agentChat=null;
 let portalChat=null;
 let portalAdaptive=null;
-
 try{
-  require('./master.cjs');
-  agentChat=registered.get('chat:send')||null;
-
+  const master=require('./master.cjs');
+  agentChat=master.chatSendHandler||null;
   portalAdaptive=require('./portal-adaptive.cjs');
-  portalChat=registered.get('chat:send')||null;
-
+  portalChat=portalAdaptive.chatSendHandler||null;
   require('./portal-pagination-fix.cjs');
   require('./export.cjs');
-}finally{
-  ipcMain.handle=originalHandle;
+}catch(e){
+  console.error('chat_module_load_error',String(e?.message||e).slice(0,300));
 }
 
 const PORTAL_SCOPE_TYPES=new Set(['portal','url','folder','shopify','integration']);
@@ -75,7 +75,7 @@ function centralActionHandoff(question=''){
 if(typeof agentChat==='function'&&typeof portalChat==='function'){
   ipcMain.removeHandler('chat:send');
 
-  originalHandle('chat:send',async(event,payload)=>{
+  ipcMain.handle('chat:send',async(event,payload)=>{
     const scope=scopeOf(payload);
     const type=scopeTypeOf(payload);
 
@@ -223,23 +223,9 @@ if(typeof agentChat==='function'&&typeof portalChat==='function'){
   });
 }
 
-// --- Inyección de la interfaz ------------------------------------------------
-app.on('browser-window-created',(_event,win)=>{
-  win.webContents.on('did-finish-load',async()=>{
-    const url=win.webContents.getURL();
-    if(!url.startsWith('file://')||!url.toLowerCase().includes('renderer/index.html'))return;
-    try{
-      const adaptive=await fs.readFile(path.join(__dirname,'renderer','adaptive.js'),'utf8');
-      await win.webContents.executeJavaScript(adaptive,true);
-      const exportsUi=await fs.readFile(path.join(__dirname,'renderer','export.js'),'utf8');
-      await win.webContents.executeJavaScript(exportsUi,true);
-      const masterControl=await fs.readFile(path.join(__dirname,'renderer','master-control.js'),'utf8');
-      await win.webContents.executeJavaScript(masterControl,true);
-    }catch(e){
-      console.error('master_renderer_inject_error',String(e?.message||e).slice(0,300));
-    }
-  });
-});
-
+// Renderer modules are loaded directly by renderer/index.html; no post-load code injection.
 
 if(orders)app.whenReady().then(()=>orders.startScheduler()).catch(e=>console.error('orders_scheduler_error',String(e?.message||e).slice(0,180)));
+
+// Auto-update is initialized only in packaged builds. Internal/dev builds stay offline.
+app.whenReady().then(()=>{try{require('./updater.cjs').start()}catch(e){console.error('updater_start_error',String(e?.message||e).slice(0,240))}});

@@ -1,5 +1,5 @@
 'use strict';
-const {safeStorage}=require('electron');
+const {safeStorage,app}=require('electron');
 const crypto=require('node:crypto');
 const {readState,writeState,audit}=require('./state-store.cjs');
 const {ownAgentLimit,isMaster}=require('./agent-policy.cjs');
@@ -44,7 +44,7 @@ async function mcpRequest(x,method,params,idValue){
 async function test(payload){
   const protocol=clean(payload.protocol,20).toLowerCase(),x={url:secureUrl(payload.url),token:clean(payload.token,4096),protocol};
   if(protocol==='mcp'){
-    await mcpRequest(x,'initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'VentaNexIA',version:'0.6.64'}},1);
+    await mcpRequest(x,'initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'VentaNexIA',version:app.getVersion()}},1);
     const tools=await mcpRequest(x,'tools/list',{},2);
     return {ok:true,tools:(tools?.tools||[]).slice(0,50).map(t=>({name:t.name,description:t.description||'',inputSchema:t.inputSchema||{}}))};
   }
@@ -90,7 +90,7 @@ async function chat(agentId,messages=[]){
   if(!x)throw new Error('Este agente propio ya no está conectado.');
   const prompt=String([...messages].reverse().find(m=>m?.role==='user')?.content||'').trim();
   if(x.protocol==='mcp'){
-    await mcpRequest(x,'initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'VentaNexIA',version:'0.6.64'}},1).catch(()=>{});
+    await mcpRequest(x,'initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'VentaNexIA',version:app.getVersion()}},1).catch(()=>{});
     const tools=await mcpRequest(x,'tools/list',{},2),tool=(tools?.tools||[]).find(t=>t.name===x.tool);
     if(!tool)throw new Error('La herramienta MCP configurada ya no está disponible.');
     const result=await mcpRequest(x,'tools/call',{name:x.tool,arguments:chooseMcpArgs(tool,prompt,messages)},3);

@@ -1,0 +1,135 @@
+name: Release signed Windows MASTER
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'desktop-v*'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  signed-windows:
+    runs-on: windows-latest
+    environment: production-signing
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and verify unsigned MASTER
+        run: npm run dist:win
+
+      - name: Azure login with GitHub OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign packaged VentaNexIA executable
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_PROFILE }}
+          files: ${{ github.workspace }}\\desktop\\dist\\win-unpacked\\VentaNexIA.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify packaged executable signature
+        shell: pwsh
+        run: |
+          $file = Join-Path $PWD 'dist\win-unpacked\VentaNexIA.exe'
+          $sig = Get-AuthenticodeSignature $file
+          $sig | Format-List *
+          if ($sig.Status -ne 'Valid') {
+            throw "VentaNexIA.exe signature is not valid: $($sig.Status)"
+          }
+          "### Internal executable signature" >> $env:GITHUB_STEP_SUMMARY
+          "- Status: **$($sig.Status)**" >> $env:GITHUB_STEP_SUMMARY
+          "- Subject: `$($sig.SignerCertificate.Subject)`" >> $env:GITHUB_STEP_SUMMARY
+          "- Thumbprint: `$($sig.SignerCertificate.Thumbprint)`" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Rebuild NSIS from signed packaged application
+        shell: pwsh
+        run: |
+          Get-ChildItem dist -Filter '*.exe' -File | Remove-Item -Force
+          Get-ChildItem dist -Filter '*.blockmap' -File | Remove-Item -Force
+          Get-ChildItem dist -Filter 'latest*.yml' -File | Remove-Item -Force
+          npx electron-builder --win nsis --prepackaged dist/win-unpacked --publish never
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Locate installer
+        id: installer
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem dist -Filter '*.exe' -File |
+            Where-Object { $_.Name -notmatch 'win-unpacked' } |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+          if (-not $installer) { throw 'No NSIS installer found in desktop/dist' }
+          "path=$($installer.FullName)" >> $env:GITHUB_OUTPUT
+          "name=$($installer.Name)" >> $env:GITHUB_OUTPUT
+
+      - name: Sign final NSIS installer
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_ARTIFACT_SIGNING_PROFILE }}
+          files: ${{ steps.installer.outputs.path }}
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify final installer signature
+        shell: pwsh
+        run: |
+          $installer = '${{ steps.installer.outputs.path }}'
+          $sig = Get-AuthenticodeSignature $installer
+          $sig | Format-List *
+          if ($sig.Status -ne 'Valid') {
+            throw "Installer signature is not valid: $($sig.Status)"
+          }
+          "### Final installer signature" >> $env:GITHUB_STEP_SUMMARY
+          "- File: `${{ steps.installer.outputs.name }}`" >> $env:GITHUB_STEP_SUMMARY
+          "- Status: **$($sig.Status)**" >> $env:GITHUB_STEP_SUMMARY
+          "- Subject: `$($sig.SignerCertificate.Subject)`" >> $env:GITHUB_STEP_SUMMARY
+          "- Thumbprint: `$($sig.SignerCertificate.Thumbprint)`" >> $env:GITHUB_STEP_SUMMARY
+
+      - name: Generate SHA256 checksum
+        shell: pwsh
+        run: |
+          $installer = '${{ steps.installer.outputs.path }}'
+          $hash = Get-FileHash -Algorithm SHA256 $installer
+          "$($hash.Hash) *$([IO.Path]::GetFileName($installer))" |
+            Set-Content -Encoding ascii (Join-Path $PWD 'dist\SHA256SUMS.txt')
+
+      - name: Upload signed MASTER
+        uses: actions/upload-artifact@v4
+        with:
+          name: VentaNexIA-Desktop-Windows-MASTER-SIGNED
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/*.blockmap
+            desktop/dist/latest*.yml
+            desktop/dist/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

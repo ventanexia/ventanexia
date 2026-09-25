@@ -490,8 +490,8 @@
           <h1>Dirección</h1>
           <p id="vnxDirGateText">Este espacio contiene información operativa sensible: responsables, tareas, incumplimientos, actividad registrada y trabajo recuperado por IA.</p>
           <form id="vnxDirPinForm" class="vnx-dir-pin-form">
-            <label id="vnxDirPinWrap">PIN de Dirección<input id="vnxDirPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required></label>
-            <label id="vnxDirPinConfirmWrap" hidden>Repite el PIN<input id="vnxDirPinConfirm" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••"></label>
+            <label id="vnxDirPinWrap">PIN de Dirección<input id="vnxDirPin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{4,6}" placeholder="••••••" required></label>
+            <label id="vnxDirPinConfirmWrap" hidden>Repite el PIN<input id="vnxDirPinConfirm" type="password" inputmode="numeric" autocomplete="off" maxlength="6" pattern="[0-9]{4,6}" placeholder="••••••"></label>
             <button class="btn primary" id="vnxDirPinSubmit" type="submit">Desbloquear Dirección</button>
           </form>
           <div id="vnxDirPinMsg" class="vnx-dir-pin-msg">Solo la persona que conozca el PIN podrá acceder.</div>
@@ -848,4 +848,7 @@
 <script src="master.js"></script>
 <script src="agent-home.js"></script>
 <script src="direction-control.js"></script>
+<script src="adaptive.js"></script>
+<script src="export.js"></script>
+<script src="master-control.js"></script>
 </body></html>

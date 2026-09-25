@@ -293,8 +293,7 @@ ipcMain.handle('portal:calibrate',async(_e,id)=>calibratePortal(clean(id,80)));
 ipcMain.handle('portal:profile',async(_e,id)=>{const p=await getPortal(clean(id,80));return p?.profile||null});
 ipcMain.handle('portal:adaptive-query',async(_e,id,question)=>{const p=await getPortal(clean(id,80));if(!p)throw new Error('Portal no encontrado');return queryPortal(p,String(question||''))});
 
-ipcMain.removeHandler('chat:send');
-ipcMain.handle('chat:send',async(_e,payload)=>{
+async function chatSendHandler(_e,payload){
   const input=Array.isArray(payload)?{messages:payload,scope:null}:(payload||{}),messages=input.messages||[],scope=input.scope||null;
   const question=lastUser(messages),s=await readState();let portals=(s.portals||[]).filter(p=>['read','write'].includes(p.mode)).slice(0,4),results=[];
   if(scope?.type==='portal')portals=portals.filter(p=>p.id===scope.id);
@@ -312,7 +311,7 @@ ipcMain.handle('chat:send',async(_e,payload)=>{
   const response=await fetch(CLOUD+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({messages:(messages||[]).slice(-20),localContext:combined,desktop:{customerId:s.secret?.customerId||null,deviceId:s.license?.deviceId||null,activationCode:s.secret?.activationCode||null,deviceKey:s.secret?.deviceKey||null,portalCount:portalFiles.length,scope:scope?{type:scope.type,name:scope.name||null}:null},scope:scope?.agentKey?'agent:'+scope.agentKey:(scope?.type==='shopify'?'agent:web_ecommerce':undefined)})});
   const j=await response.json().catch(()=>({}));if(!response.ok)throw new Error(j.error||'No se pudo contactar con VentaNexIA');
   j.images=images.slice(0,8);j.portalStatus=results.map(r=>({name:r.name,status:r.status}));await audit('ai.chat','Consulta dirigida a '+(scope?.name||'todas las conexiones')+': '+portalFiles.length+' fuente(s), '+local.length+' archivo(s)');return j;
-});
+}
 
 async function queryReadOnlyScope(scope,question,state=null){
   const s=state||await readState(),type=String(scope?.type||'');
@@ -327,4 +326,4 @@ async function queryReadOnlyScope(scope,question,state=null){
   return {status:'unsupported',name:scope?.name||type||'Conexión',category:categoryForQuestion(question)};
 }
 
-module.exports={calibratePortal,queryReadOnlyScope,queryPortal,queryShopifyAdmin,queryIntegrationData};
+module.exports={calibratePortal,queryReadOnlyScope,queryPortal,queryShopifyAdmin,queryIntegrationData,chatSendHandler};

@@ -43,7 +43,7 @@ function staticRuntimeChecks(base=__dirname){
   }
   const groups=new Map();
   for(const x of regs){if(!groups.has(x.channel))groups.set(x.channel,[]);groups.get(x.channel).push(x.rel)}
-  const duplicates=[...groups.entries()].filter(([ch,where])=>where.length>1&&ch!=='chat:send');
+  const duplicates=[...groups.entries()].filter(([ch,where])=>where.length>1);
   add('Registro único de comandos',duplicates.length===0,duplicates.length?duplicates.map(x=>x[0]+' ('+x[1].join(', ')+')').join(' · '):'Sin duplicados no autorizados');
   const bizOk=business.includes('data-biz-index="'+String.fromCharCode(39)+'+i+'+String.fromCharCode(39)+'">')
     &&!business.includes('data-biz-index="'+String.fromCharCode(39)+'+i+'+String.fromCharCode(39)+'>');

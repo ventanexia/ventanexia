@@ -2,7 +2,7 @@ name: Build VentaNexIA Desktop
 
 on:
   push:
-    branches: [main]
+    branches: [main, release/0.6.158-production-hardening]
     paths:
       - 'desktop/**'
       - 'app/**'
@@ -53,11 +53,50 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Verify 0.6.158 hardening sources
+        shell: pwsh
+        run: |
+          if (-not (Test-Path runtime-diagnostics.cjs)) { throw 'runtime-diagnostics.cjs missing' }
+          if (-not (Test-Path updater.cjs)) { throw 'updater.cjs missing' }
+          if (-not (Select-String -Path master-entry.cjs -Pattern 'requestSingleInstanceLock' -Quiet)) { throw 'single instance guard missing' }
+          if (-not (Select-String -Path state-store.cjs -Pattern 'SECURE_STORAGE_UNAVAILABLE' -Quiet)) { throw 'secure storage fail-closed guard missing' }
+          $pkg = Get-Content package.json | ConvertFrom-Json
+          if ($pkg.version -ne '0.6.158') { throw "Wrong version: $($pkg.version)" }
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
       - run: node smoke-renderer.cjs
-      - run: npm run dist:win
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          npm run dist:win 2>&1 | Tee-Object -FilePath build-desktop.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Launch packaged app smoke test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'dist\win-unpacked\VentaNexIA Desktop.exe'
+          if (-not (Test-Path $exe)) {
+            $exe = (Get-ChildItem (Join-Path $PWD 'dist\win-unpacked') -Filter '*.exe' -File | Select-Object -First 1).FullName
+          }
+          if (-not $exe -or -not (Test-Path $exe)) { throw 'Packaged VentaNexIA executable not found' }
+          $p = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($p.HasExited) {
+            $log = Join-Path $env:APPDATA 'VentaNexIA Desktop\logs\runtime-errors.jsonl'
+            if (Test-Path $log) { Get-Content $log -Tail 50 }
+            throw "VentaNexIA exited during startup with code $($p.ExitCode)"
+          }
+          Stop-Process -Id $p.Id -Force
+          Write-Host 'VENTANEXIA_LAUNCH_OK'
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VentaNexIA-0.6.158-build-log
+          path: desktop/build-desktop.log
+          if-no-files-found: warn
+          retention-days: 3
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: VentaNexIA-Desktop-Windows-MASTER
           path: desktop/dist/*.exe

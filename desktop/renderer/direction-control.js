@@ -58,7 +58,7 @@
       ?'Modo demo seguro: abre un entorno aislado con empleados, CV, tareas y tests 100 % ficticios. No lee ni modifica el archivo real de Dirección.'
       :(configured
         ?'Este agente está protegido. Introduce el PIN de Dirección para acceder a responsables, cumplimiento, retrasos y trabajo recuperado por IA.'
-        :'Primera configuración: crea un PIN de 4 dígitos. Se guardará protegido y no podrá verse desde la interfaz.');
+        :'Primera configuración: crea un PIN de 6 dígitos. Se guardará protegido y no podrá verse desde la interfaz.');
     if(demo){setGateMessage('Puedes probar todo el Agente Dirección. Los cambios desaparecen al cerrar la sesión demo.');return}
     const lockedUntil=Number(accessState?.lockedUntil||0);
     if(lockedUntil>Date.now()){
@@ -658,7 +658,8 @@
     if(pinForm)pinForm.onsubmit=async e=>{
       e.preventDefault();
       const pin=String($('#vnxDirPin')?.value||''),confirm=String($('#vnxDirPinConfirm')?.value||''),btn=$('#vnxDirPinSubmit'),demo=Boolean(accessState?.demoAvailable);
-      if(!demo&&!/^\d{4}$/.test(pin)){setGateMessage('El PIN debe tener exactamente 4 números.',true);return}
+      if(!demo&&accessState?.configured&&!/^\d{4,6}$/.test(pin)){setGateMessage('Introduce tu PIN actual de 4 o 6 números.',true);return}
+      if(!demo&&!accessState?.configured&&!/^\d{6}$/.test(pin)){setGateMessage('El nuevo PIN debe tener exactamente 6 números.',true);return}
       if(!demo&&!accessState?.configured&&pin!==confirm){setGateMessage('Los dos PIN no coinciden.',true);return}
       if(btn){btn.disabled=true;btn.textContent=demo?'Preparando demo…':(accessState?.configured?'Comprobando…':'Creando PIN…')}
       try{

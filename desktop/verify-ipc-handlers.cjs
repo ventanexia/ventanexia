@@ -19,22 +19,26 @@ for(const x of calls){
   if(!grouped.has(key))grouped.set(key,[]);
   grouped.get(key).push(x);
 }
-const allowed=new Set(['handle:chat:send']);
+const allowed=new Set();
 const bad=[...grouped.entries()].filter(([key,list])=>list.length>1&&!allowed.has(key));
 if(bad.length){
   console.error('IPC_DUPLICATE_VERIFY_FAIL:',bad.map(([key,list])=>key+' -> '+list.map(x=>x.file).join(', ')).join(' | '));
   process.exit(1);
 }
 const chat=grouped.get('handle:chat:send')||[];
-if(chat.length!==2){
-  console.error('IPC_DUPLICATE_VERIFY_FAIL: chat:send must have exactly the two captured source handlers; found '+chat.length);
+if(chat.length!==1||chat[0]?.file!=='master-entry.cjs'){
+  console.error('IPC_DUPLICATE_VERIFY_FAIL: chat:send must be registered exactly once in master-entry.cjs; found '+chat.map(x=>x.file).join(', '));
   process.exit(1);
 }
 const entry=fs.readFileSync(path.join(__dirname,'master-entry.cjs'),'utf8');
 function need(re,msg){if(!re.test(entry)){console.error('IPC_DUPLICATE_VERIFY_FAIL:',msg);process.exit(1)}}
 function forbid(re,msg){if(re.test(entry)){console.error('IPC_DUPLICATE_VERIFY_FAIL:',msg);process.exit(1)}}
-need(/ipcMain\.removeHandler\('chat:send'\)/,'final chat router must remove captured chat handler before registering');
-need(/originalHandle\('chat:send'/,'final chat router must register one canonical chat handler');
+need(/ipcMain\.handle\('chat:send'/,'master-entry.cjs must register the single canonical chat handler');
+forbid(/originalHandle\('chat:send'/,'chat routing must not depend on an ipcMain.handle monkeypatch');
+const master=fs.readFileSync(path.join(__dirname,'master.cjs'),'utf8');
+const portal=fs.readFileSync(path.join(__dirname,'portal-adaptive.cjs'),'utf8');
+if(!/module\.exports=\{chatSendHandler\}/.test(master)){console.error('IPC_DUPLICATE_VERIFY_FAIL: master.cjs must export chatSendHandler');process.exit(1)}
+if(!/chatSendHandler/.test(portal)||!/module\.exports=\{[^}]*chatSendHandler/.test(portal)){console.error('IPC_DUPLICATE_VERIFY_FAIL: portal-adaptive.cjs must export chatSendHandler');process.exit(1)}
 forbid(/ipcMain\.handle\('orders:export-ready'/,'orders:export-ready must be registered only in master.cjs');
 forbid(/ipcMain\.handle\('secretary:notify'/,'secretary:notify must be registered only in main.cjs');
 console.log('IPC_DUPLICATE_VERIFY_OK · '+calls.length+' static IPC registrations audited');
