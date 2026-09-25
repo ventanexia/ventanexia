@@ -538,6 +538,8 @@
       humanDecision:Boolean($('#vnxDirGovHumanDecision')?.checked),
       sameCriteria:Boolean($('#vnxDirGovSameCriteria')?.checked),
       sensitiveDataExcluded:Boolean($('#vnxDirGovSensitiveExcluded')?.checked),
+      cloudAiAllowed:Boolean($('#vnxDirGovCloudAiAllowed')?.checked),
+      cloudAiNoticeConfirmed:Boolean($('#vnxDirGovCloudAiNotice')?.checked),
       notes:String($('#vnxDirGovNotes')?.value||'').trim()
     };
   }
@@ -552,12 +554,13 @@
     set('vnxDirGovPurpose',g.purpose||'role_review');set('vnxDirGovLegalBasis',g.legalBasis||'');set('vnxDirGovReviewerRole',g.reviewerRole||'');
     set('vnxDirGovReviewerName',g.reviewerName||'');set('vnxDirGovLegalBasisNote',g.legalBasisNote||'');
     set('vnxDirGovRepresentativeReview',g.representativeReview||'pending');set('vnxDirGovDpiaStatus',g.dpiaStatus||'not_assessed');set('vnxDirGovNotes',g.notes||'');
-    const checks={vnxDirGovPersonInformed:g.personInformed,vnxDirGovHumanDecision:g.humanDecision,vnxDirGovSameCriteria:g.sameCriteria,vnxDirGovSensitiveExcluded:g.sensitiveDataExcluded};
+    const checks={vnxDirGovPersonInformed:g.personInformed,vnxDirGovHumanDecision:g.humanDecision,vnxDirGovSameCriteria:g.sameCriteria,vnxDirGovSensitiveExcluded:g.sensitiveDataExcluded,vnxDirGovCloudAiAllowed:g.cloudAiAllowed,vnxDirGovCloudAiNotice:g.cloudAiNoticeConfirmed};
     for(const [id,v] of Object.entries(checks)){const el=$('#'+id);if(el)el.checked=Boolean(v)}
     const complete=Boolean(g.confirmedAt&&g.legalBasis&&g.personInformed&&g.humanDecision&&g.sameCriteria&&g.sensitiveDataExcluded&&g.reviewerRole&&g.representativeReview!=='pending'&&!['not_assessed','pending'].includes(g.dpiaStatus));
     if(stateBox){
       stateBox.classList.toggle('ok',complete);
-      stateBox.textContent=complete?'Garantías documentadas · '+fmtDate(g.confirmedAt)+' · la decisión sigue siendo humana y revisable.':'Pendiente de completar. VentaNexIA bloqueará el análisis de una persona real hasta documentar estas garantías.';
+      const processing=(g.cloudAiAllowed&&g.cloudAiNoticeConfirmed)?'Análisis avanzado autorizado con extracto minimizado y sin identificadores directos.':'Procesamiento local por defecto: no se envían respuestas ni expediente del empleado a Carla.';
+      stateBox.textContent=complete?'Garantías documentadas · '+fmtDate(g.confirmedAt)+' · '+processing:'Pendiente de completar. VentaNexIA bloqueará el análisis de una persona real hasta documentar estas garantías.';
     }
     if(form)form.dataset.ready=complete?'1':'0';
   }
