@@ -48,14 +48,18 @@
     box.classList.toggle('error',Boolean(error));
   }
   function renderGate(){
-    const gate=$('#vnxDirGate'),protectedView=$('#vnxDirProtected'),confirm=$('#vnxDirPinConfirmWrap'),submit=$('#vnxDirPinSubmit'),text=$('#vnxDirGateText');
+    const gate=$('#vnxDirGate'),protectedView=$('#vnxDirProtected'),pinWrap=$('#vnxDirPinWrap'),confirm=$('#vnxDirPinConfirmWrap'),submit=$('#vnxDirPinSubmit'),text=$('#vnxDirGateText'),demo=Boolean(accessState?.demoAvailable);
     if(gate)gate.hidden=false;if(protectedView)protectedView.hidden=true;
     const configured=Boolean(accessState?.configured);
-    if(confirm)confirm.hidden=configured;
-    if(submit)submit.textContent=configured?'Desbloquear Dirección':'Crear PIN privado';
-    if(text)text.textContent=configured
-      ?'Este agente está protegido. Introduce el PIN de Dirección para acceder a responsables, cumplimiento, retrasos y trabajo recuperado por IA.'
-      :'Primera configuración: crea un PIN de 4 dígitos. Se guardará protegido y no podrá verse desde la interfaz.';
+    if(pinWrap)pinWrap.hidden=demo;
+    if(confirm)confirm.hidden=demo||configured;
+    if(submit)submit.textContent=demo?'Entrar en demo de Dirección':(configured?'Desbloquear Dirección':'Crear PIN privado');
+    if(text)text.textContent=demo
+      ?'Modo demo seguro: abre un entorno aislado con empleados, CV, tareas y tests 100 % ficticios. No lee ni modifica el archivo real de Dirección.'
+      :(configured
+        ?'Este agente está protegido. Introduce el PIN de Dirección para acceder a responsables, cumplimiento, retrasos y trabajo recuperado por IA.'
+        :'Primera configuración: crea un PIN de 4 dígitos. Se guardará protegido y no podrá verse desde la interfaz.');
+    if(demo){setGateMessage('Puedes probar todo el Agente Dirección. Los cambios desaparecen al cerrar la sesión demo.');return}
     const lockedUntil=Number(accessState?.lockedUntil||0);
     if(lockedUntil>Date.now()){
       const mins=Math.max(1,Math.ceil((lockedUntil-Date.now())/60000));
@@ -63,8 +67,9 @@
     }else setGateMessage(configured?'Solo Dirección puede acceder a este espacio.':'Crea un PIN que conozca únicamente Dirección.');
   }
   function renderProtected(){
-    const gate=$('#vnxDirGate'),protectedView=$('#vnxDirProtected');
+    const gate=$('#vnxDirGate'),protectedView=$('#vnxDirProtected'),badge=$('#vnxDirDemoBadge');
     if(gate)gate.hidden=true;if(protectedView)protectedView.hidden=false;
+    if(badge)badge.hidden=!Boolean(accessState?.demoAvailable);
   }
   async function refreshAccessStatus(){
     accessState=await window.vnx.directionAccessStatus();
@@ -604,27 +609,32 @@
     const pinForm=$('#vnxDirPinForm');
     if(pinForm)pinForm.onsubmit=async e=>{
       e.preventDefault();
-      const pin=String($('#vnxDirPin')?.value||''),confirm=String($('#vnxDirPinConfirm')?.value||''),btn=$('#vnxDirPinSubmit');
-      if(!/^\d{4}$/.test(pin)){setGateMessage('El PIN debe tener exactamente 4 números.',true);return}
-      if(!accessState?.configured&&pin!==confirm){setGateMessage('Los dos PIN no coinciden.',true);return}
-      if(btn){btn.disabled=true;btn.textContent=accessState?.configured?'Comprobando…':'Creando PIN…'}
+      const pin=String($('#vnxDirPin')?.value||''),confirm=String($('#vnxDirPinConfirm')?.value||''),btn=$('#vnxDirPinSubmit'),demo=Boolean(accessState?.demoAvailable);
+      if(!demo&&!/^\d{4}$/.test(pin)){setGateMessage('El PIN debe tener exactamente 4 números.',true);return}
+      if(!demo&&!accessState?.configured&&pin!==confirm){setGateMessage('Los dos PIN no coinciden.',true);return}
+      if(btn){btn.disabled=true;btn.textContent=demo?'Preparando demo…':(accessState?.configured?'Comprobando…':'Creando PIN…')}
       try{
-        if(!accessState?.configured){
-          await window.vnx.directionSetPin(pin);
-          accessState={...(accessState||{}),configured:true,lockedUntil:null};
+        let unlocked;
+        if(demo){
+          unlocked=await window.vnx.directionDemoUnlock({businessId:businessId()||'demo-business'});
+        }else{
+          if(!accessState?.configured){
+            await window.vnx.directionSetPin(pin);
+            accessState={...(accessState||{}),configured:true,lockedUntil:null};
+          }
+          unlocked=await window.vnx.directionUnlock(pin);
         }
-        const unlocked=await window.vnx.directionUnlock(pin);
         directionToken=String(unlocked?.token||'');
-        if(!directionToken)throw new Error('No se ha podido abrir la sesión privada de Dirección.');
-        $('#vnxDirPin').value='';if($('#vnxDirPinConfirm'))$('#vnxDirPinConfirm').value='';
-        setGateMessage('Acceso concedido.');
+        if(!directionToken)throw new Error('No se ha podido abrir la sesión de Dirección.');
+        if($('#vnxDirPin'))$('#vnxDirPin').value='';if($('#vnxDirPinConfirm'))$('#vnxDirPinConfirm').value='';
+        setGateMessage(demo?'Demo cargada con datos ficticios.':'Acceso concedido.');
         await load();
       }catch(err){
         directionToken='';
         await refreshAccessStatus().catch(()=>{});
         setGateMessage(String(err?.message||err),true);
       }finally{
-        if(btn){btn.disabled=false;btn.textContent=accessState?.configured?'Desbloquear Dirección':'Crear PIN privado'}
+        if(btn){btn.disabled=false;btn.textContent=accessState?.demoAvailable?'Entrar en demo de Dirección':(accessState?.configured?'Desbloquear Dirección':'Crear PIN privado')}
       }
     };
 
