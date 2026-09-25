@@ -8,15 +8,16 @@ const FORMAT='VNX-DIRECTION-1';
 const ITERATIONS=310000;
 const AAD=Buffer.from('VentaNexIA|Direccion|v1','utf8');
 
-const vaultDir=()=>path.join(app.getPath('documents'),'VentaNexIA','Direccion');
+const vaultDir=()=>path.join(app.getPath('userData'),'private','direction');
 const vaultFile=()=>path.join(vaultDir(),'direccion.vnxdir');
+const legacyVaultFile=()=>path.join(app.getPath('documents'),'VentaNexIA','Direccion','direccion.vnxdir');
 const backupFile=()=>vaultFile()+'.bak';
 const tmpFile=()=>vaultFile()+'.tmp';
 
 function b64(v){return Buffer.from(v).toString('base64')}
 function from64(v){return Buffer.from(String(v||''),'base64')}
 function deriveKey(pin,deviceSecret,salt){
-  if(!/^\d{4}$/.test(String(pin||'')))throw new Error('PIN de Dirección no válido.');
+  if(!/^\d{4,12}$/.test(String(pin||'')))throw new Error('PIN de Dirección no válido.');
   if(!String(deviceSecret||'').trim())throw new Error('Falta la clave local del archivo de Dirección.');
   return crypto.pbkdf2Sync(String(pin)+'|'+String(deviceSecret),salt,ITERATIONS,32,'sha256');
 }
@@ -37,7 +38,18 @@ function decryptWithKey(doc,key){
   const plain=Buffer.concat([decipher.update(from64(doc.ciphertext)),decipher.final()]).toString('utf8');
   return JSON.parse(plain);
 }
+async function existsAt(file){try{await fs.access(file);return true}catch{return false}}
+async function migrateLegacyIfNeeded(){
+  if(await existsAt(vaultFile()))return false;
+  const legacy=legacyVaultFile();
+  if(!(await existsAt(legacy)))return false;
+  await fs.mkdir(vaultDir(),{recursive:true});
+  await fs.copyFile(legacy,vaultFile());
+  try{await fs.copyFile(legacy,vaultFile()+'.migrated-source.bak')}catch{}
+  return true;
+}
 async function readDoc(){
+  await migrateLegacyIfNeeded();
   try{return JSON.parse(await fs.readFile(vaultFile(),'utf8'))}
   catch(e){
     if(e?.code==='ENOENT')return null;
@@ -50,7 +62,7 @@ async function writeDoc(doc){
   try{await fs.copyFile(vaultFile(),backupFile())}catch{}
   await fs.rename(tmpFile(),vaultFile());
 }
-async function exists(){try{await fs.access(vaultFile());return true}catch{return false}}
+async function exists(){await migrateLegacyIfNeeded();return existsAt(vaultFile())}
 async function create(pin,deviceSecret,data={}){
   const salt=crypto.randomBytes(24),key=deriveKey(pin,deviceSecret,salt);
   await writeDoc(encryptWithKey(data,key,salt));
@@ -70,7 +82,6 @@ async function readWithKey(key){
 async function writeWithKey(key,data){
   const doc=await readDoc();if(!doc)throw new Error('No existe el archivo privado de Dirección.');
   const salt=from64(doc.salt);
-  // Validate key against current file before replacing it.
   decryptWithKey(doc,key);
   await writeDoc(encryptWithKey(data,key,salt));
   return {ok:true,path:vaultFile()};
@@ -80,8 +91,9 @@ async function changePin(currentPin,newPin,deviceSecret){
   return create(newPin,deviceSecret,opened.data);
 }
 async function info(){
+  const migrated=await migrateLegacyIfNeeded();
   const doc=await readDoc();
-  return {exists:Boolean(doc),path:vaultFile(),format:doc?.format||null,updatedAt:doc?.updatedAt||null};
+  return {exists:Boolean(doc),path:vaultFile(),format:doc?.format||null,updatedAt:doc?.updatedAt||null,migratedFromDocuments:migrated};
 }
 
 module.exports={FORMAT,ITERATIONS,vaultDir,vaultFile,exists,create,open,readWithKey,writeWithKey,changePin,info};
