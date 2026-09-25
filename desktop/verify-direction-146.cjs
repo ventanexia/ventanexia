@@ -6,6 +6,7 @@ const directionDemo=require('./direction-demo.cjs');
 const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
 const errors=[],ok=(v,msg)=>{if(!v)errors.push(msg)};
 const vault=read('direction-vault.cjs');
+const publicTest=read('../test-profesional-puesto.html');
 
 const state={secret:{}};
 const d=dir.ensureDirection(state);
@@ -125,7 +126,10 @@ const roleQs=roleTests.replaceRoleQuestions(d,role.id,[
   {type:'role_knowledge',prompt:'¿Qué datos revisas antes de una reunión con una gran cuenta?',evaluates:['role_knowledge','prioritization'],evidenceFocus:['preparación']}
 ]);
 ok(roleQs.length===3&&roleQs.every(x=>x.roleId===role.id),'El test estructurado debe quedar ligado al puesto');
-const assessment=roleTests.createAssessment(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,answers:roleQs.map(q=>({questionId:q.id,answer:'Respuesta de prueba con pasos, comprobaciones y justificación.'}))});
+let governanceRefused=false;try{roleTests.createAssessment(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,answers:roleQs.map(q=>({questionId:q.id,answer:'Respuesta de prueba'}))})}catch{governanceRefused=true}
+ok(governanceRefused,'Una evaluación real debe bloquearse si no se han documentado garantías laborales');
+const governance=roleTests.saveAssessmentGovernance(d,'biz1',{purpose:'role_review',legalBasis:'employment_contract',legalBasisNote:'Prueba técnica: tratamiento documentado para revisar funciones laborales con supervisión humana.',personInformed:true,humanDecision:true,sameCriteria:true,sensitiveDataExcluded:true,reviewerRole:'director',reviewerName:'Dirección Prueba',representativeReview:'not_applicable',dpiaStatus:'not_required_documented',notes:'Prueba sintética del verificador'});
+const assessment=roleTests.createAssessment(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,answers:roleQs.map(q=>({questionId:q.id,answer:'Respuesta de prueba con pasos, comprobaciones y justificación.'})),governance});
 ok(assessment.answers.length===3&&assessment.employeeId===emp.id,'Debe registrar respuestas con empleado, puesto y fecha');
 const assessed=roleTests.saveAnalysis(d,assessment.id,{headline:'Hipótesis profesional',roleFitHypothesis:'Evidencia compatible con funciones comerciales; falta validar en trabajo real.',confidence:'medium',dimensions:[{key:'problem_solving',label:'Resolución de problemas',status:'consistent',confidence:'medium',evidence:['Caso práctico'],interpretation:'Propone comprobar datos y alternativas.'}],strengths:['Resolución aplicada'],developmentAreas:['Validar bajo carga real'],rolesToExplore:['Gestión comercial'],checksBeforeDecision:['Contrastar con evidencia operativa'],limitations:['No es una prueba de CI']});
 ok(assessed.analysis&&assessed.analysis.generatedAt,'El análisis del test debe conservar fecha');
@@ -133,23 +137,29 @@ ok(/No es una prueba de CI/i.test(assessed.analysis.sourceRule),'El sistema debe
 const ws=roleTests.listWorkspace(d,{businessId:'biz1'});
 ok(ws.roles.some(x=>x.id===role.id)&&ws.assessments.some(x=>x.id===assessment.id),'El espacio de Dirección debe recuperar perfiles y tests guardados');
 
-for(const ch of ['direction:role-workspace','direction:save-role-profile','direction:generate-role-test','direction:analyze-role-test'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
-for(const name of ['directionRoleWorkspace','directionSaveRoleProfile','directionGenerateRoleTest','directionAnalyzeRoleTest'])ok(preload.includes(name+':'),'Preload no expone '+name);
+for(const ch of ['direction:role-workspace','direction:save-assessment-governance','direction:save-role-profile','direction:generate-role-test','direction:analyze-role-test'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
+for(const name of ['directionRoleWorkspace','directionSaveAssessmentGovernance','directionSaveRoleProfile','directionGenerateRoleTest','directionAnalyzeRoleTest'])ok(preload.includes(name+':'),'Preload no expone '+name);
 for(const id of ['vnxDirRoleForm','vnxDirRoleName','vnxDirRoleEmployee','vnxDirRoleDescription','vnxDirRoleRequirements','vnxDirRolePriorities','vnxDirRoleGenerate','vnxDirRoleAnalyze','vnxDirRoleQuestions','vnxDirRoleAnalysis'])ok(html.includes('id="'+id+'"'),'Falta UI de test #'+id);
 ok(ui.includes('directionGenerateRoleTest')&&ui.includes('directionAnalyzeRoleTest'),'La UI no conecta generación y análisis del test');
+for(const id of ['vnxDirGovernanceForm','vnxDirGovLegalBasis','vnxDirGovReviewerRole','vnxDirGovPersonInformed','vnxDirGovHumanDecision','vnxDirGovSameCriteria','vnxDirGovSensitiveExcluded','vnxDirGovRepresentativeReview','vnxDirGovDpiaStatus'])ok(html.includes('id="'+id+'"'),'Falta garantía laboral #'+id);
+ok(ui.includes('saveGovernance')&&ui.includes('directionSaveAssessmentGovernance'),'La UI debe guardar garantías antes del análisis');
+ok(!ui.includes("$('[data-role-answer]').map")&&!ui.includes("$('[data-dir-employee]').forEach"),'Dirección no puede usar querySelector simple para colecciones de respuestas o empleados');
 ok(main.includes('No estimes CI ni inteligencia general')&&main.includes('No declares "apto/no apto"'),'El análisis IA debe impedir CI inventado y veredictos automáticos');
 ok(main.includes('perspective_taking')&&main.includes('razonamiento aplicado al trabajo'),'El análisis integral debe cubrir perspectiva ajena y razonamiento aplicado');
 ok(!/noAutomaticRanking\s*:\s*false/.test(main+ui),'El test no puede habilitar ranking automático');
 
-let miniRefused=false;try{roleTests.saveMiniIpip(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,responses:Array.from({length:20},(_,i)=>({itemId:i+1,value:3})),consent:false})}catch{miniRefused=true}
-ok(miniRefused,'Mini-IPIP debe exigir consentimiento explícito');
 const miniResponses=Array.from({length:20},(_,i)=>({itemId:i+1,value:3}));
 for(const x of miniResponses){if([1,11].includes(x.itemId))x.value=5;if([6,16].includes(x.itemId))x.value=1}
-const mini=roleTests.saveMiniIpip(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,responses:miniResponses,consent:true});
+const mini=roleTests.saveMiniIpip(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,responses:miniResponses,governance,consent:true});
 ok(mini.score?.factors?.E?.mean===5,'Mini-IPIP debe corregir correctamente los ítems inversos');
 ok(mini.weightPolicy==='supplemental_low'&&/No usar como filtro automático/i.test(mini.decisionRule),'Mini-IPIP debe quedar marcado como señal complementaria de bajo peso');
 ok(roleTests.latestMiniIpip(d,emp.id)?.id===mini.id,'Debe recuperar el último Mini-IPIP del empleado');
 ok(roleTests.miniIpipDefinition().items.length===20,'La batería Mini-IPIP española debe contener exactamente 20 ítems');
+const officialMiniIpip=[
+'Soy el alma de la fiesta','Soy sensible hacia las emociones de otros','Realizo mis tareas inmediatamente','Tengo frecuentes cambios de ánimo','Tengo mucha imaginación','No hablo mucho','No me interesan los problemas de otras personas','A menudo olvido poner las cosas en su lugar','Estoy relajado la mayor parte del tiempo','No estoy interesado en las ideas abstractas','En las fiestas hablo con muchas personas','Siento las emociones de los otros','Me gusta el orden','Me molesto fácilmente','Tengo dificultad para entender ideas abstractas','Prefiero pasar desapercibido','En realidad no estoy interesado en los demás','Soy desordenado','Rara vez me siento triste','No tengo buena imaginación'];
+ok(roleTests.miniIpipDefinition().items.map(x=>x.text).join('|')===officialMiniIpip.join('|'),'Los 20 ítems deben coincidir exactamente con la adaptación española oficial publicada por IPIP');
+ok(officialMiniIpip.every(x=>publicTest.includes(x)),'La página pública debe usar los mismos 20 ítems Mini-IPIP verificados');
+ok(roleTests.miniIpipDefinition().items.filter(x=>x.reverse).map(x=>x.id).join(',')==='6,7,8,9,10,15,16,17,18,19,20','La clave de ítems inversos Mini-IPIP debe coincidir con la adaptación oficial');
 for(const ch of ['direction:mini-ipip-definition','direction:save-mini-ipip'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
 for(const name of ['directionMiniIpipDefinition','directionSaveMiniIpip'])ok(preload.includes(name+':'),'Preload no expone '+name);
 for(const id of ['vnxDirMiniIpip','vnxDirMiniIpipItems','vnxDirMiniIpipConsent','vnxDirMiniIpipSave','vnxDirMiniIpipResult'])ok(html.includes('id="'+id+'"'),'Falta UI Mini-IPIP #'+id);
@@ -177,4 +187,4 @@ ok(html.includes('vnxDirDemoBadge')&&html.includes('DEMO · DATOS FICTICIOS'),'L
 ok(main.includes("if(demo)questions=directionRoles.fallbackQuestions(role)")&&main.includes('directionDemo.analyzeDemoAssessment(assessment)'),'Generación y análisis de test deben funcionar sin servicios cloud en demo');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · vault AES-256-GCM, expediente integral, Mini-IPIP, test estructurado y demo aislada 100 % sintética verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · vault cifrado, demo aislada, Mini-IPIP oficial, test estructurado, gobernanza laboral y UI de Dirección verificados.');
