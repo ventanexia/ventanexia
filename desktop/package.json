@@ -1,8 +1,8 @@
 {
   "name": "ventanexia-desktop",
-  "version": "0.6.154",
+  "version": "0.6.155",
   "private": true,
-  "description": "VentaNexIA Desktop · Dirección privada con vault cifrado y demo aislada con empleados ficticios, test por puesto y Mini-IPIP · 0.6.154",
+  "description": "VentaNexIA Desktop · Dirección privada con vault cifrado, demo aislada, test por puesto, Mini-IPIP oficial y gobernanza laboral · 0.6.155",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
