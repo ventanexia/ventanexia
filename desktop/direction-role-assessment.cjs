@@ -15,6 +15,7 @@ function ensure(d){
   d.roleProfiles=Array.isArray(d.roleProfiles)?d.roleProfiles:[];
   d.roleQuestions=Array.isArray(d.roleQuestions)?d.roleQuestions:[];
   d.roleAssessments=Array.isArray(d.roleAssessments)?d.roleAssessments:[];
+  d.miniIpipAssessments=Array.isArray(d.miniIpipAssessments)?d.miniIpipAssessments:[];
   return d;
 }
 function sanitizeRoleProfile(raw={}){
@@ -68,7 +69,8 @@ function listWorkspace(d,{businessId=''}={}){
   return {
     roles,
     questions:d.roleQuestions.filter(x=>roleIds.has(x.roleId)),
-    assessments:d.roleAssessments.filter(x=>roleIds.has(x.roleId)).slice(0,100)
+    assessments:d.roleAssessments.filter(x=>roleIds.has(x.roleId)).slice(0,100),
+    personalityAssessments:d.miniIpipAssessments.filter(x=>!businessId||x.businessId===businessId).slice(0,100)
   };
 }
 function createAssessment(d,{businessId='',employeeId='',roleId='',answers=[]}={}){
@@ -94,7 +96,7 @@ function createAssessment(d,{businessId='',employeeId='',roleId='',answers=[]}={
 function saveAnalysis(d,assessmentId,analysis={}){
   ensure(d);
   const a=d.roleAssessments.find(x=>x.id===assessmentId);if(!a)throw new Error('Evaluación no encontrada.');
-  a.analysis={...analysis,generatedAt:new Date().toISOString(),sourceRule:'Análisis limitado a CV profesional, confirmaciones de Dirección, respuestas del test y evidencia operativa registrada. No es una prueba de CI ni un diagnóstico psicológico.'};
+  a.analysis={...analysis,generatedAt:new Date().toISOString(),sourceRule:'Análisis limitado a CV profesional, confirmaciones de Dirección, respuestas del test, autoinforme Mini-IPIP cuando exista y evidencia operativa registrada. El Mini-IPIP es contexto complementario de bajo peso: no decide, no es una prueba de CI ni un diagnóstico psicológico.'};
   return a;
 }
 function getAssessmentBundle(d,assessmentId){
@@ -118,4 +120,65 @@ function fallbackQuestions(role){
   ];
 }
 
-module.exports={QUESTION_TYPES,DIMENSIONS,ensure,sanitizeRoleProfile,saveRoleProfile,sanitizeQuestion,replaceRoleQuestions,listWorkspace,createAssessment,saveAnalysis,getAssessmentBundle,fallbackQuestions};
+const MINI_IPIP_ITEMS=Object.freeze([
+  {id:1,factor:'E',reverse:false,text:'Soy el alma de la fiesta'},
+  {id:2,factor:'A',reverse:false,text:'Soy sensible hacia las emociones de otros'},
+  {id:3,factor:'C',reverse:false,text:'Realizo mis tareas inmediatamente'},
+  {id:4,factor:'N',reverse:false,text:'Tengo frecuentes cambios de ánimo'},
+  {id:5,factor:'O',reverse:false,text:'Tengo mucha imaginación'},
+  {id:6,factor:'E',reverse:true,text:'No hablo mucho'},
+  {id:7,factor:'A',reverse:true,text:'No me interesan los problemas de otras personas'},
+  {id:8,factor:'C',reverse:true,text:'A menudo olvido poner las cosas en su lugar'},
+  {id:9,factor:'N',reverse:true,text:'Estoy relajado la mayor parte del tiempo'},
+  {id:10,factor:'O',reverse:true,text:'No estoy interesado en las ideas abstractas'},
+  {id:11,factor:'E',reverse:false,text:'En las fiestas hablo con muchas personas'},
+  {id:12,factor:'A',reverse:false,text:'Siento las emociones de los otros'},
+  {id:13,factor:'C',reverse:false,text:'Me gusta el orden'},
+  {id:14,factor:'N',reverse:false,text:'Me molesto fácilmente'},
+  {id:15,factor:'O',reverse:true,text:'Tengo dificultad para entender ideas abstractas'},
+  {id:16,factor:'E',reverse:true,text:'Prefiero pasar desapercibido'},
+  {id:17,factor:'A',reverse:true,text:'En realidad no estoy interesado en los demás'},
+  {id:18,factor:'C',reverse:true,text:'Soy desordenado'},
+  {id:19,factor:'N',reverse:true,text:'Rara vez me siento triste'},
+  {id:20,factor:'O',reverse:true,text:'No tengo buena imaginación'}
+]);
+const MINI_IPIP_FACTOR_LABELS=Object.freeze({E:'Extraversión',A:'Amabilidad / orientación interpersonal',C:'Responsabilidad / organización',N:'Neuroticismo (autoinforme)',O:'Apertura / imaginación'});
+function miniIpipDefinition(){
+  return {
+    name:'Mini-IPIP español · 20 ítems',version:'Martínez-Molina & Arias (2018), adaptación española del Mini-IPIP de Donnellan et al. (2006)',
+    responseScale:[{value:1,label:'Nada de acuerdo'},{value:2,label:'Algo de acuerdo'},{value:3,label:'Medio acuerdo'},{value:4,label:'Mucho acuerdo'},{value:5,label:'Total acuerdo'}],
+    items:MINI_IPIP_ITEMS.map(x=>({...x})),
+    notice:'Autoinforme voluntario de personalidad Big Five. No es diagnóstico clínico, no mide CI y no debe usarse por sí solo para contratar, despedir, promocionar, ordenar o reasignar personas.',
+    scoringNote:'Las puntuaciones son medias 1–5 con ítems inversos corregidos. No se aplican percentiles ni puntos de corte normativos automáticos.'
+  };
+}
+function miniIpipScore(responses=[]){
+  const map=new Map();
+  if(Array.isArray(responses))for(const x of responses)map.set(Number(x?.itemId||x?.id),Number(x?.value));
+  else if(responses&&typeof responses==='object')for(const [k,v] of Object.entries(responses))map.set(Number(k),Number(v));
+  const missing=MINI_IPIP_ITEMS.filter(x=>!Number.isFinite(map.get(x.id))||map.get(x.id)<1||map.get(x.id)>5).map(x=>x.id);
+  if(missing.length)throw new Error('Completa los 20 ítems Mini-IPIP antes de guardar. Faltan: '+missing.join(', '));
+  const raw={E:[],A:[],C:[],N:[],O:[]};
+  const scored=MINI_IPIP_ITEMS.map(item=>{
+    const response=map.get(item.id),score=item.reverse?6-response:response;
+    raw[item.factor].push(score);return {itemId:item.id,response,score,factor:item.factor,reverse:item.reverse};
+  });
+  const mean=a=>Math.round((a.reduce((s,n)=>s+n,0)/a.length)*100)/100;
+  const factors={};for(const key of Object.keys(raw))factors[key]={label:MINI_IPIP_FACTOR_LABELS[key],mean:mean(raw[key]),scale:'1-5'};
+  factors.emotionalStability={label:'Estabilidad emocional (inversa de neuroticismo)',mean:Math.round((6-factors.N.mean)*100)/100,scale:'1-5'};
+  return {factors,scored,complete:true,normReference:false};
+}
+function saveMiniIpip(d,{businessId='',employeeId='',roleId='',responses=[],consent=false}={}){
+  ensure(d);if(consent!==true)throw new Error('El Mini-IPIP requiere consentimiento explícito de la persona que responde.');
+  const employee=(d.employees||[]).find(x=>x.id===employeeId);if(!employee)throw new Error('Empleado no encontrado.');
+  const role=roleId?(d.roleProfiles||[]).find(x=>x.id===roleId):null;
+  const score=miniIpipScore(responses),record={
+    id:id('miniipip'),businessId:txt(businessId||employee.businessId,120),employeeId:employee.id,employeeName:employee.name,employeeCode:employee.employeeCode||'',
+    roleId:role?.id||'',roleName:role?.name||'',submittedAt:new Date().toISOString(),consent:true,score,
+    weightPolicy:'supplemental_low',decisionRule:'No usar como filtro automático. Interpretar solo como autoinforme complementario junto a prueba de puesto, entrevista estructurada y evidencia operativa.'
+  };
+  d.miniIpipAssessments.unshift(record);d.miniIpipAssessments=d.miniIpipAssessments.slice(0,500);return record;
+}
+function latestMiniIpip(d,employeeId){ensure(d);return d.miniIpipAssessments.find(x=>x.employeeId===employeeId)||null}
+
+module.exports={QUESTION_TYPES,DIMENSIONS,MINI_IPIP_ITEMS,ensure,sanitizeRoleProfile,saveRoleProfile,sanitizeQuestion,replaceRoleQuestions,listWorkspace,createAssessment,saveAnalysis,getAssessmentBundle,fallbackQuestions,miniIpipDefinition,miniIpipScore,saveMiniIpip,latestMiniIpip};
