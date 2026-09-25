@@ -2443,3 +2443,21 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-standard-used{margin-top:9px;border-left:3px solid #58d9ef;background:#08243b;padding:8px 10px;border-radius:7px;color:#add0de;font-size:10px}
 .vnx-dir-standard-used.warn{border-left-color:#efb95c}
 @media(max-width:900px){.vnx-dir-standard-form,.vnx-dir-standard-criteria,.vnx-dir-standard-history article{grid-template-columns:1fr}.vnx-dir-standard-wide,.vnx-dir-standard-criteria,.vnx-dir-standard-confirm,.vnx-dir-standard-form>button{grid-column:1}.vnx-dir-standard-row{grid-template-columns:1fr}.vnx-dir-standard-row b{grid-column:1}}
+
+
+/* Dirección · expediente profesional */
+.vnx-dir-cv-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vnx-dir-cv-form label{display:grid;gap:5px;font-size:12px;color:#a9bed1}
+.vnx-dir-cv-form input,.vnx-dir-cv-form textarea,.vnx-dir-cv-form select{background:#071b32;color:#eef7ff;border:1px solid #1b557f;border-radius:9px;padding:10px}
+.vnx-dir-cv-wide,.vnx-dir-cv-form .vnx-dir-human-warning,.vnx-dir-cv-form .vnx-dir-note,.vnx-dir-cv-form>button{grid-column:1/-1}
+.vnx-dir-cv-file{align-self:end;border:1px solid #174c73;background:#071c31;border-radius:9px;padding:10px;color:#8fb1c9;font-size:11px}
+.vnx-dir-cv-comparison{margin-top:12px}
+.vnx-dir-role-compare-head,.vnx-dir-role-evidence{border:1px solid #245d82;border-radius:12px;background:#071c31;padding:12px}
+.vnx-dir-role-compare-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:8px}
+.vnx-dir-role-compare-head b{display:block}.vnx-dir-role-compare-head span,.vnx-dir-role-compare-head small{display:block;color:#8facbf;font-size:11px;margin-top:3px}
+.vnx-dir-role-compare-list{display:grid;gap:8px}.vnx-dir-role-compare-list article{border:1px solid #174968;border-radius:10px;padding:10px;background:#081d34}
+.vnx-dir-role-compare-list article>b{display:block;margin-bottom:5px}.vnx-dir-role-compare-list span,.vnx-dir-role-evidence span{display:block;font-size:11px;padding:4px 0;color:#abc4d5}
+.vnx-dir-role-compare-list .observado,.vnx-dir-role-evidence .observado{color:#7ce5b1}.vnx-dir-role-compare-list .confirmado,.vnx-dir-role-evidence .confirmado{color:#72ddf4}.vnx-dir-role-compare-list .declarado,.vnx-dir-role-evidence .declarado{color:#e6c979}.vnx-dir-role-compare-list .empty,.vnx-dir-role-evidence .por_comprobar{color:#df9ca2}
+.vnx-dir-role-team-details{margin-top:10px;border-top:1px solid #174969;padding-top:8px}.vnx-dir-role-team-details summary{cursor:pointer;color:#7de3f4;font-size:11px}.vnx-dir-role-team-details div{padding:7px 0;border-bottom:1px solid #123b59}.vnx-dir-role-team-details span{display:block;color:#9db7c9;font-size:10px;margin-top:3px}
+.vnx-dir-cv-behavior-note{margin-top:0}
+@media(max-width:900px){.vnx-dir-cv-form{grid-template-columns:1fr}.vnx-dir-cv-wide,.vnx-dir-cv-form .vnx-dir-human-warning,.vnx-dir-cv-form .vnx-dir-note,.vnx-dir-cv-form>button{grid-column:1}}
