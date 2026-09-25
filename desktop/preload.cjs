@@ -68,6 +68,8 @@ contextBridge.exposeInMainWorld('vnx',{
   directionSummary:(token,options={})=>ipcRenderer.invoke('direction:summary',{token,...options}),
   directionEmployees:(token,options={})=>ipcRenderer.invoke('direction:employees',{token,...options}),
   directionUpdateEmployeeContext:(token,employeeId,context={})=>ipcRenderer.invoke('direction:update-employee-context',{token,employeeId,context}),
+  directionImportEmployeeCv:(token,employeeId,fileName,text)=>ipcRenderer.invoke('direction:import-employee-cv',{token,employeeId,fileName,text}),
+  directionUpdateEmployeeCv:(token,employeeId,cv={})=>ipcRenderer.invoke('direction:update-employee-cv',{token,employeeId,cv}),
   directionImportCv:(token,employeeId,payload={})=>ipcRenderer.invoke('direction:import-cv',{token,employeeId,...payload}),
   directionUpdateCv:(token,employeeId,cv={})=>ipcRenderer.invoke('direction:update-cv',{token,employeeId,cv}),
   directionCompareTeamRole:(token,payload={})=>ipcRenderer.invoke('direction:compare-team-role',{token,...payload}),
