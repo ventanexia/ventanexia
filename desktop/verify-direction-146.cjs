@@ -8,6 +8,21 @@ const state={secret:{}};
 const d=dir.ensureDirection(state);
 d.settings={defaultSlaMinutes:60,aiTakeoverGraceMinutes:30,aiTakeoverEnabled:true};
 const emp=dir.addOrUpdateEmployee(d,{name:'Ana Prueba',role:'Administración',email:'ana@example.com',businessId:'biz1'});
+ok(/^VNX-EMP-[A-F0-9]{8}$/.test(emp.employeeCode),'Cada empleado debe recibir un código personal estable');
+const std1=dir.createDirectionStandardVersion(d,{
+  businessId:'biz1',directorName:'Dirección Prueba',confirmed:true,effectiveFrom:'2026-09-01T00:00:00.000Z',
+  nonNegotiables:['No faltar al respeto','No inventar información'],
+  criteria:[{key:'respect',label:'Respeto y educación',expectation:'Trato correcto para toda la plantilla',importance:'required'},{key:'accuracy',label:'Precisión y veracidad',expectation:'No inventar datos',importance:'required'}]
+});
+ok(std1.version===1&&std1.hash,'La primera política común debe quedar versionada y con huella');
+let refused=false;try{dir.createDirectionStandardVersion(d,{businessId:'biz1',directorName:'Dirección Prueba',confirmed:false})}catch{refused=true}
+ok(refused,'No debe poder crearse una directriz sin confirmación expresa de aplicación igualitaria');
+const std2=dir.createDirectionStandardVersion(d,{
+  businessId:'biz1',directorName:'Dirección Prueba',confirmed:true,effectiveFrom:'2026-10-01T00:00:00.000Z',
+  criteria:[{key:'respect',label:'Respeto y educación',expectation:'Nueva redacción futura',importance:'required'}]
+});
+ok(std2.version===2,'Cambiar una directriz debe crear una nueva versión');
+ok(dir.applicableDirectionStandard(d,{businessId:'biz1',at:'2026-09-24T10:00:00.000Z'}).id===std1.id,'Una directriz futura no puede aplicarse retrospectivamente');
 const duePast='2026-09-24T08:00:00.000Z',assigned='2026-09-24T06:00:00.000Z',now='2026-09-24T10:00:00.000Z';
 const t1=dir.addTask(d,{businessId:'biz1',title:'Responder clientes pendientes',assigneeId:emp.id,assigneeName:emp.name,module:'email',assignedAt:assigned,dueAt:duePast,aiTakeoverEligible:true,aiTakeoverEnabled:true});
 const t2=dir.addTask(d,{businessId:'biz1',title:'Revisar facturas',assigneeId:emp.id,assigneeName:emp.name,module:'administration',assignedAt:'2026-09-24T07:30:00.000Z',dueAt:'2026-09-24T12:00:00.000Z'});
@@ -35,6 +50,7 @@ ok(report.employees[0].roleFit&&report.employees[0].roleFit.interpretation,'El i
 ok(Array.isArray(report.employees[0].roleFit.contextQuestions),'El informe debe proponer comprobaciones contextuales antes de concluir');
 ok(['insuficiente','baja','media','alta'].includes(report.employees[0].roleFit.confidence),'La lectura de encaje debe declarar su confianza');
 ok(/hechos operativos registrados/i.test(report.note),'El informe debe explicar sus límites de interpretación');
+ok(report.directionStandard?.version===1,'El informe debe registrar la versión de directrices vigente en la fecha del análisis');
 
 const policy=dir.setManagementPolicy(d,{approach:'results_first',profitability:100,peopleDevelopment:25,requireEmployeeConversation:true,employeeVoiceRequired:true,requireSupportTrial:false,requireRoleAlternativeReview:true,improvementWindowDays:14});
 ok(policy.approach==='results_first','Dirección debe poder declarar un enfoque de resultados primero');
@@ -46,9 +62,9 @@ ok(reportPolicy.employees[0].humanContext.management.reviewSteps.some(x=>x.key==
 ok(reportPolicy.employees[0].humanContext.management.reviewSteps.some(x=>x.key==='human_decision'&&x.required),'La decisión final debe seguir siendo humana');
 
 const preload=read('preload.cjs'),main=read('main.cjs'),html=read('renderer/index.html'),ui=read('renderer/direction-control.js'),health=read('runtime-health.cjs');
-for(const name of ['directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionImportCv','directionUpdateCv','directionCompareTeamRole','directionAddEmployeeObservation','directionManagementPolicy','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'])ok(preload.includes(name+':'),'Preload no expone '+name);
-for(const ch of ['direction:access-status','direction:set-pin','direction:unlock','direction:lock','direction:summary','direction:employees','direction:update-employee-context','direction:import-cv','direction:update-cv','direction:compare-team-role','direction:add-employee-observation','direction:management-policy','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue','direction:report'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
-for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm','vnxDirCvForm','vnxDirCvEmployee','vnxDirCvCompare','vnxDirHumanForm','vnxDirObservationForm','vnxDirManagementForm','vnxDirApproach','vnxDirRequireConversation','vnxDirEmployeeVoice','vnxDirRequireSupport','vnxDirRequireRoleReview','vnxDirImprovementDays','vnxDirReportForm','vnxDirReportEmployee','vnxDirReportPeriod','vnxDirReportRows','vnxDirReportExcel','vnxDirReportPdf'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
+for(const name of ['directionAccessStatus','directionSetPin','directionUnlock','directionLock','directionSummary','directionEmployees','directionUpdateEmployeeContext','directionImportCv','directionUpdateCv','directionCompareTeamRole','directionAddEmployeeObservation','directionManagementPolicy','directionStandards','directionCreateStandard','directionSaveEmployee','directionCreateTask','directionUpdateTask','directionAddEvent','directionResolveTask','directionSettings','directionAiQueue','directionReport'])ok(preload.includes(name+':'),'Preload no expone '+name);
+for(const ch of ['direction:access-status','direction:set-pin','direction:unlock','direction:lock','direction:summary','direction:employees','direction:update-employee-context','direction:import-cv','direction:update-cv','direction:compare-team-role','direction:add-employee-observation','direction:management-policy','direction:standards','direction:create-standard','direction:save-employee','direction:create-task','direction:update-task','direction:add-event','direction:resolve-task','direction:settings','direction:ai-queue','direction:report'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
+for(const id of ['direction','vnxDirGate','vnxDirPinForm','vnxDirPin','vnxDirPinSubmit','vnxDirProtected','vnxDirLock','vnxDirKpis','vnxDirEmployees','vnxDirTaskRows','vnxDirSettingsForm','vnxDirCvForm','vnxDirCvEmployee','vnxDirCvCompare','vnxDirHumanForm','vnxDirObservationForm','vnxDirManagementForm','vnxDirApproach','vnxDirRequireConversation','vnxDirEmployeeVoice','vnxDirRequireSupport','vnxDirRequireRoleReview','vnxDirImprovementDays','vnxDirStandardForm','vnxDirStandardDirector','vnxDirStandardEffective','vnxDirStandardConfirmed','vnxDirStandardHistory','vnxDirReportForm','vnxDirReportEmployee','vnxDirReportPeriod','vnxDirReportRows','vnxDirReportExcel','vnxDirReportPdf'])ok(html.includes('id="'+id+'"'),'Falta UI #'+id);
 ok(html.includes('data-tab="direction"')&&html.includes('Agente privado protegido por PIN'),'Falta acceso privado de Dirección en menú');
 ok(ui.includes('directionResolveTask')&&ui.includes('Abrir en Carla')&&html.includes('sin actividad operativa registrada'),'La UI no cubre resolución/evidencia/semántica de inactividad');
 ok(ui.includes('directionReport')&&ui.includes('generateEmployeeReport')&&ui.includes('exportEmployeeReport'),'La UI no genera/exporta informes de empleados');
@@ -57,6 +73,9 @@ ok(ui.includes('Qué debería comprobar Dirección antes de concluir'),'Faltan p
 ok(html.includes('Entender el desempeño sin reducir a nadie a una nota')&&html.includes('No genera una nota global ni un ranking'),'El informe debe explicar su finalidad y límites');
 ok(html.includes('Fórmula intermedia')&&html.includes('Resultados empresariales primero')&&html.includes('Desarrollo y recuperación primero'),'Dirección debe preguntar cómo equilibrar resultados y personas');
 ok(ui.includes('approachLabel')&&ui.includes('Ruta de decisión equilibrada'),'El informe debe mostrar el contrato de Dirección y su ruta de revisión');
+ok(html.includes('Las mismas reglas para toda la plantilla')&&html.includes('Protección bilateral'),'Falta el marco común igualitario de Dirección');
+ok(ui.includes('directionCreateStandard')&&ui.includes('Historial inmutable'),'La UI debe versionar las directrices y conservar historial');
+ok(dir.listDirectionStandards(d,{businessId:'biz1'}).length===2,'Las versiones anteriores de directrices deben conservarse');
 ok(ui.includes("let directionToken=''")&&!/localStorage\s*\.\s*setItem\s*\(|sessionStorage\s*\.\s*setItem\s*\(/.test(ui),'El token privado de Dirección no debe persistirse en el navegador');
 ok(ui.includes('directionAccessStatus')&&ui.includes('directionUnlock')&&ui.includes('directionLock'),'La UI no aplica bloqueo/desbloqueo privado');
 ok(main.includes('DIRECTION_PIN_ITERATIONS=210000')&&main.includes('pbkdf2Sync('),'El PIN de Dirección debe almacenarse mediante hash robusto');
@@ -67,4 +86,4 @@ ok(!/pinHash\s*:\s*pin\b/.test(main),'El PIN de Dirección no puede guardarse en
 ok(health.includes('Agente privado de Dirección')&&health.includes('directionControl')&&health.includes('protección privada de Dirección'),'Autoreparación no cubre Dirección privada');
 
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, CV, códigos personales, tiempos, evaluación multidimensional, contrato de Dirección, voz del empleado, encaje, evidencia y autoreparación verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, directrices universales versionadas, protección bilateral, CV, códigos personales, evaluación multidimensional, voz del empleado, encaje, evidencia y autoreparación verificados.');
