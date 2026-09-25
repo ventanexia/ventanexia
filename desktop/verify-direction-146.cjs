@@ -2,6 +2,7 @@
 const fs=require('node:fs'),path=require('node:path');
 const dir=require('./direction-control.cjs');
 const roleTests=require('./direction-role-assessment.cjs');
+const directionDemo=require('./direction-demo.cjs');
 const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
 const errors=[],ok=(v,msg)=>{if(!v)errors.push(msg)};
 const vault=read('direction-vault.cjs');
@@ -155,5 +156,25 @@ for(const id of ['vnxDirMiniIpip','vnxDirMiniIpipItems','vnxDirMiniIpipConsent',
 ok(ui.includes('directionSaveMiniIpip')&&ui.includes('Completa los 20 ítems'),'La UI no guarda Mini-IPIP completo');
 ok(main.includes('autoinforme complementario de BAJO PESO')&&main.includes('no puede superar, contradecir ni sustituir'),'El análisis debe limitar el peso del Mini-IPIP');
 
+
+// Demo de Dirección: debe ser sintético, usable y estar aislado del vault real.
+const demoData=directionDemo.createDirectionDemo({businessId:'demo-biz'});
+ok(demoData?.demo?.synthetic===true,'El modo demo debe identificarse como datos sintéticos');
+ok((demoData.employees||[]).length>=3,'El demo debe cargar al menos 3 empleados ficticios');
+ok((demoData.employees||[]).every(x=>x.businessId==='demo-biz'),'Los empleados demo deben pertenecer al contexto demo solicitado');
+ok((demoData.tasks||[]).length>=6,'El demo debe incluir actividad operativa suficiente para enseñar Dirección');
+ok((demoData.roleProfiles||[]).length>=1&&(demoData.roleQuestions||[]).length>=3,'El demo debe incluir perfil de puesto y test estructurado');
+ok((demoData.roleAssessments||[]).some(x=>x.analysis),'El demo debe incluir al menos un resultado de test ya analizado');
+ok((demoData.miniIpipAssessments||[]).length>=1,'El demo debe incluir un Mini-IPIP ficticio para enseñar el expediente completo');
+const demoAssessment=(demoData.roleAssessments||[])[0];
+const demoAnalysis=directionDemo.analyzeDemoAssessment(demoAssessment);
+ok(demoAnalysis?.confidence==='low'&&/demo/i.test(demoAnalysis?.headline||''),'El análisis ejecutado dentro del demo debe quedar marcado como demostración y baja confianza');
+ok(main.includes("ipcMain.handle('direction:demo-unlock'")&&main.includes('directionDemoAllowed(state)'),'El backend debe ofrecer acceso demo solo sin licencia activada');
+ok(main.includes('session.demo?session.data')&&main.includes('if(session.demo)session.data=save'),'Las lecturas/escrituras demo deben permanecer solo en memoria');
+ok(preload.includes('directionDemoUnlock:'),'Preload debe exponer el acceso demo');
+ok(ui.includes('Entrar en demo de Dirección')&&ui.includes('directionDemoUnlock'),'La UI debe permitir entrar al demo sin PIN');
+ok(html.includes('vnxDirDemoBadge')&&html.includes('DEMO · DATOS FICTICIOS'),'La UI debe identificar claramente los datos de demostración');
+ok(main.includes("if(demo)questions=directionRoles.fallbackQuestions(role)")&&main.includes('directionDemo.analyzeDemoAssessment(assessment)'),'Generación y análisis de test deben funcionar sin servicios cloud en demo');
+
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · vault AES-256-GCM por PIN, expediente integral, CV, test estructurado, Mini-IPIP voluntario, análisis multidimensional y aislamiento del estado general verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · vault AES-256-GCM, expediente integral, Mini-IPIP, test estructurado y demo aislada 100 % sintética verificados.');
