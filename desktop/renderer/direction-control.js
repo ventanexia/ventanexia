@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,currentFilter='all',latestReport=null;
+  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,roleWorkspace={roles:[],questions:[],assessments:[]},currentRoleId='',currentFilter='all',latestReport=null;
   // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
   let directionToken='',accessState=null;
 
@@ -79,12 +79,13 @@
     if(!directionToken){await refreshAccessStatus();return}
     try{
       const opts={businessId:businessId()};
-      [snapshot,employees,settings,managementPolicy,directionStandards]=await Promise.all([
+      [snapshot,employees,settings,managementPolicy,directionStandards,roleWorkspace]=await Promise.all([
         window.vnx.directionSummary(directionToken,opts),
         window.vnx.directionEmployees(directionToken,opts),
         window.vnx.directionSettings(directionToken),
         window.vnx.directionManagementPolicy(directionToken),
-        window.vnx.directionStandards(directionToken,opts)
+        window.vnx.directionStandards(directionToken,opts),
+        window.vnx.directionRoleWorkspace(directionToken,opts)
       ]);
       renderProtected();render();
     }catch(e){
@@ -103,7 +104,7 @@
     cards.forEach((c,i)=>{const s=c.querySelector('strong');if(s)s.textContent=String(v[i]||0)});
   }
   function renderEmployees(){
-    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),osel=$('#vnxDirObservationEmployee'),csel=$('#vnxDirCvEmployee');
+    const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),osel=$('#vnxDirObservationEmployee'),csel=$('#vnxDirCvEmployee'),roleSel=$('#vnxDirRoleEmployee');
     if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small><small class="vnx-dir-employee-code">'+esc(e.employeeCode||'')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
     if(sel){
       const keep=sel.value;
@@ -129,6 +130,11 @@
       const keep=csel.value;
       csel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.employeeCode?' · '+esc(e.employeeCode):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))csel.value=keep;
+    }
+    if(roleSel){
+      const keep=roleSel.value;
+      roleSel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
+      if(employees.some(e=>e.id===keep))roleSel.value=keep;
     }
   }
   function renderEmployeeRows(){
@@ -436,7 +442,55 @@
     if(b)b.value=String(settings.aiTakeoverGraceMinutes??60);
     if(c)c.checked=Boolean(settings.aiTakeoverEnabled);
   }
-  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards()}
+  function roleSplit(id){return String($('#'+id)?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean)}
+  function activeRole(){
+    const roles=roleWorkspace?.roles||[],typed=String($('#vnxDirRoleName')?.value||'').trim();
+    return roles.find(x=>x.id===currentRoleId)||roles.find(x=>typed&&x.name===typed)||roles[0]||null;
+  }
+  function fillRoleForm(role){
+    if(!role)return;currentRoleId=role.id;
+    if($('#vnxDirRoleName'))$('#vnxDirRoleName').value=role.name||'';
+    if($('#vnxDirRoleDescription'))$('#vnxDirRoleDescription').value=role.description||'';
+    if($('#vnxDirRoleRequirements'))$('#vnxDirRoleRequirements').value=(role.requirements||[]).join('\n');
+    if($('#vnxDirRolePriorities'))$('#vnxDirRolePriorities').value=(role.priorities||[]).join('\n');
+  }
+  function roleTypeLabel(v){return v==='structured_interview'?'Entrevista estructurada':v==='role_knowledge'?'Conocimiento del puesto':'Caso práctico'}
+  function renderRoleQuestions(){
+    const box=$('#vnxDirRoleQuestions');if(!box)return;
+    const role=activeRole();if(role&&!currentRoleId)currentRoleId=role.id;
+    const qs=(roleWorkspace?.questions||[]).filter(x=>role&&x.roleId===role.id);
+    if(!qs.length){box.innerHTML='<div class="vnx-dir-empty">Guarda un puesto y pulsa «Generar test».</div>';return}
+    box.innerHTML=qs.map((q,i)=>'<article class="vnx-dir-role-question" data-role-q="'+esc(q.id)+'"><small>'+(i+1)+' · '+esc(roleTypeLabel(q.type))+'</small><b>'+esc(q.prompt)+'</b><textarea data-role-answer="'+esc(q.id)+'" placeholder="Respuesta de la persona evaluada"></textarea><span>Observa: '+esc((q.evidenceFocus||[]).join(' · '))+'</span></article>').join('');
+  }
+  function roleStatusLabel(v){return v==='consistent'?'Evidencia consistente':v==='mixed'?'Evidencia mixta':v==='to_verify'?'Por comprobar':'Evidencia insuficiente'}
+  function renderRoleAnalysis(a){
+    const box=$('#vnxDirRoleAnalysis');if(!box)return;
+    const x=a?.analysis;if(!x){box.innerHTML='<div class="vnx-dir-empty">Completa las respuestas y pulsa «Analizar respuestas».</div>';return}
+    const dims=Array.isArray(x.dimensions)?x.dimensions:[];
+    const listBlock=(title,arr)=>'<article><b>'+esc(title)+'</b>'+((arr||[]).length?(arr||[]).map(v=>'<span>• '+esc(v)+'</span>').join(''):'<span>—</span>')+'</article>';
+    box.innerHTML='<div class="vnx-dir-role-analysis-head"><b>'+esc(x.headline||'Hipótesis profesional')+'</b><span>'+esc(x.roleFitHypothesis||'')+'</span><span>Confianza: '+esc(x.confidence||'low')+' · No es una prueba de CI, un diagnóstico psicológico ni una decisión automática.</span></div>'+
+      '<div class="vnx-dir-role-dims">'+dims.map(d=>'<article class="vnx-dir-role-dim"><strong>'+esc(d.label||d.key)+'</strong><em>'+esc(roleStatusLabel(d.status))+' · confianza '+esc(d.confidence||'low')+'</em><p>'+esc(d.interpretation||'')+'</p></article>').join('')+'</div>'+
+      '<div class="vnx-dir-role-analysis-lists">'+listBlock('Fortalezas con evidencia',x.strengths)+listBlock('Áreas a desarrollar o comprobar',x.developmentAreas)+listBlock('Funciones a explorar',x.rolesToExplore)+listBlock('Comprobaciones antes de decidir',x.checksBeforeDecision)+'</div>'+
+      (Array.isArray(x.limitations)&&x.limitations.length?'<div class="vnx-dir-note"><b>Límites:</b> '+x.limitations.map(esc).join(' · ')+'</div>':'');
+  }
+  function renderRoleWorkspace(){
+    const role=activeRole();
+    if(role)fillRoleForm(role);
+    renderRoleQuestions();
+    const employeeId=$('#vnxDirRoleEmployee')?.value||'';
+    const latest=(roleWorkspace?.assessments||[]).find(a=>(!role||a.roleId===role.id)&&(!employeeId||a.employeeId===employeeId)&&a.analysis);
+    renderRoleAnalysis(latest||null);
+  }
+  async function saveRoleProfile(){
+    if(!directionToken)return null;
+    const role=await window.vnx.directionSaveRoleProfile(directionToken,{
+      id:currentRoleId||undefined,name:String($('#vnxDirRoleName')?.value||'').trim(),description:String($('#vnxDirRoleDescription')?.value||'').trim(),
+      requirements:roleSplit('vnxDirRoleRequirements'),priorities:roleSplit('vnxDirRolePriorities')
+    },{businessId:businessId()});
+    currentRoleId=role.id;roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});fillRoleForm(role);renderRoleQuestions();return role;
+  }
+
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards();renderRoleWorkspace()}
 
   async function promptEvent(taskId,kind){
     const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
@@ -564,6 +618,23 @@
         renderTeamRoleComparison(result);
       }catch(err){alert('No se pudo comparar la plantilla con el puesto: '+(err.message||err))}
     };
+    const roleForm=$('#vnxDirRoleForm');if(roleForm)roleForm.onsubmit=async e=>{e.preventDefault();try{await saveRoleProfile();alert('Perfil del puesto guardado.')}catch(err){alert(err.message||err)}};
+    const roleGenerate=$('#vnxDirRoleGenerate');if(roleGenerate)roleGenerate.onclick=async()=>{
+      if(!directionToken)return;roleGenerate.disabled=true;const old=roleGenerate.textContent;roleGenerate.textContent='Generando…';
+      try{const role=await saveRoleProfile();await window.vnx.directionGenerateRoleTest(directionToken,role.id,{businessId:businessId()});roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderRoleQuestions()}
+      catch(err){alert('No se pudo generar el test: '+(err.message||err))}
+      finally{roleGenerate.disabled=false;roleGenerate.textContent=old}
+    };
+    const roleAnalyze=$('#vnxDirRoleAnalyze');if(roleAnalyze)roleAnalyze.onclick=async()=>{
+      if(!directionToken)return;const role=activeRole(),employeeId=$('#vnxDirRoleEmployee')?.value||'';
+      if(!role){alert('Guarda primero el perfil del puesto.');return}if(!employeeId){alert('Selecciona la persona que ha respondido el test.');return}
+      const answers=$('[data-role-answer]').map(x=>({questionId:x.dataset.roleAnswer,answer:x.value||''}));
+      roleAnalyze.disabled=true;const old=roleAnalyze.textContent;roleAnalyze.textContent='Analizando…';
+      try{const result=await window.vnx.directionAnalyzeRoleTest(directionToken,{businessId:businessId(),roleId:role.id,employeeId,answers});roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderRoleAnalysis(result)}
+      catch(err){alert('No se pudo analizar el test: '+(err.message||err))}
+      finally{roleAnalyze.disabled=false;roleAnalyze.textContent=old}
+    };
+    const roleEmp=$('#vnxDirRoleEmployee');if(roleEmp)roleEmp.onchange=renderRoleWorkspace;
     const humanSelect=$('#vnxDirHumanEmployee');if(humanSelect)humanSelect.onchange=renderHumanProfile;
     const humanForm=$('#vnxDirHumanForm');if(humanForm)humanForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
