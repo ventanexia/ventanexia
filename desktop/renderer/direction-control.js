@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,roleWorkspace={roles:[],questions:[],assessments:[],personalityAssessments:[]},miniIpipDefinition=null,currentRoleId='',currentFilter='all',latestReport=null;
+  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,roleWorkspace={roles:[],questions:[],assessments:[],personalityAssessments:[]},miniIpipDefinition=null,currentEmployeeFile=null,currentRoleId='',currentFilter='all',latestReport=null;
   // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
   let directionToken='',accessState=null;
 
@@ -30,7 +30,7 @@
   }
 
   function clearSensitiveUi(){
-    snapshot=null;employees=[];settings=null;managementPolicy=null;directionStandards=null;roleWorkspace={roles:[],questions:[],assessments:[],personalityAssessments:[]};miniIpipDefinition=null;latestReport=null;
+    snapshot=null;employees=[];settings=null;managementPolicy=null;directionStandards=null;roleWorkspace={roles:[],questions:[],assessments:[],personalityAssessments:[]};miniIpipDefinition=null;currentEmployeeFile=null;latestReport=null;
     const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),csel=$('#vnxDirCvEmployee');
     if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
     if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
@@ -137,6 +137,7 @@
       roleSel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))roleSel.value=keep;
     }
+    $('[data-dir-employee]').forEach(b=>b.onclick=()=>openEmployeeFile(b.dataset.dirEmployee));
   }
   function renderEmployeeRows(){
     const body=$('#vnxDirEmployeeRows');if(!body)return;
@@ -145,6 +146,51 @@
       const inactive=e.pending||e.inProgress||e.blocked?fmtMinutes(e.minutesSinceLastRecordedActivity):'—';
       return '<tr class="'+(e.overdue?'vnx-dir-risk':'')+'"><td><b>'+esc(e.name)+'</b><small>'+esc(e.role||'')+'</small></td><td>'+e.assigned+'</td><td>'+e.done+'</td><td>'+e.pending+'</td><td>'+(e.overdue?'<b class="vnx-dir-red">'+e.overdue+'</b>':'0')+'</td><td>'+(e.doneAI?'<b class="vnx-dir-ai">'+e.doneAI+'</b>':'0')+'</td><td>'+inactive+'</td><td>'+fmtMinutes(e.overdueMinutesTotal)+'</td></tr>';
     }).join(''):'<tr><td colspan="8">Todavía no hay actividad asignada.</td></tr>';
+  }
+
+  function miniScoresHtml(record){
+    const f=record?.score?.factors;if(!f)return '<span>Sin Mini‑IPIP guardado</span>';
+    const rows=[['Extraversión',f.E?.mean],['Amabilidad / orientación interpersonal',f.A?.mean],['Responsabilidad / organización',f.C?.mean],['Apertura / imaginación',f.O?.mean],['Estabilidad emocional',f.emotionalStability?.mean]];
+    return '<div class="vnx-dir-file-tags">'+rows.map(([k,v])=>'<span>'+esc(k)+': <b>'+esc(v??'—')+'</b>/5</span>').join('')+'</div>';
+  }
+  function renderEmployeeFile(file){
+    const box=$('#vnxDirEmployeeFile');if(!box)return;
+    currentEmployeeFile=file||null;
+    if(!file?.employee){box.innerHTML='<div class="vnx-dir-empty">Pulsa sobre una persona en “Responsables” para abrir su expediente privado.</div>';return}
+    const e=file.employee,s=file.summary||{},cv=e.cvProfile||{},wp=e.workProfile||{},tests=file.structuredTests||[],personality=file.personalityTests||[];
+    const list=(title,arr)=>'<div class="vnx-dir-file-card"><h4>'+esc(title)+'</h4>'+((arr||[]).length?(arr||[]).slice(0,12).map(x=>'<span>• '+esc(typeof x==='string'?x:(x?.detail||x?.label||JSON.stringify(x)))+'</span>').join(''):'<span>Sin datos registrados</span>')+'</div>';
+    const structured=tests.length?tests.map(t=>'<article><strong>'+esc(t.roleName||'Test de puesto')+'</strong><small>'+fmtDate(t.submittedAt)+' · '+esc(t.analysis?.confidence||'sin análisis')+'</small><p>'+esc(t.analysis?.roleFitHypothesis||t.analysis?.headline||'Respuestas guardadas; análisis pendiente.')+'</p></article>').join(''):'<article><p>Sin test estructurado guardado.</p></article>';
+    const mini=personality[0]||null;
+    box.innerHTML='<div class="vnx-dir-file-grid">'+
+      '<div class="vnx-dir-file-hero"><div><h3>'+esc(e.name)+'</h3><p>'+esc(e.role||'Sin puesto asignado')+(e.email?' · '+esc(e.email):'')+'</p></div><div class="vnx-dir-file-code">'+esc(e.employeeCode||'')+'</div></div>'+
+      '<div class="vnx-dir-file-kpis">'+
+        '<article><span>Asignadas</span><strong>'+esc(s.assigned??0)+'</strong></article>'+
+        '<article><span>Completadas</span><strong>'+esc(s.done??0)+'</strong></article>'+
+        '<article><span>Pendientes</span><strong>'+esc(s.pending??0)+'</strong></article>'+
+        '<article><span>Vencidas</span><strong>'+esc(s.overdue??0)+'</strong></article>'+
+        '<article><span>Recuperadas IA</span><strong>'+esc(s.doneAI??0)+'</strong></article>'+
+      '</div>'+
+      list('Experiencia declarada en CV',cv.experience)+
+      list('Formación / estudios',cv.education)+
+      list('Competencias y herramientas',cv.skills)+
+      list('Confirmado por Dirección',cv.confirmedByManagement)+
+      list('Fortalezas laborales declaradas',wp.declaredStrengths)+
+      list('Funciones que le interesa explorar',wp.roleInterests)+
+      '<div class="vnx-dir-file-card"><h4>Test estructurados del puesto</h4><div class="vnx-dir-test-history">'+structured+'</div></div>'+
+      '<div class="vnx-dir-file-card"><h4>Mini‑IPIP · último autoinforme</h4>'+miniScoresHtml(mini)+(mini?'<span>'+fmtDate(mini.submittedAt)+' · uso complementario de bajo peso</span>':'')+'</div>'+
+      '<div class="vnx-dir-file-card"><h4>Evidencias registradas</h4><span>'+esc((file.events||[]).length)+' eventos · '+esc((file.tasks||[]).length)+' tareas en el expediente</span>'+(file.events||[]).slice(0,8).map(x=>'<span>• '+fmtDate(x.at)+' · '+esc(x.detail||x.type)+'</span>').join('')+'</div>'+
+      '<div class="vnx-dir-file-card"><h4>Contexto laboral</h4><span><b>Autonomía:</b> '+esc(wp.preferredAutonomy||'—')+'</span><span><b>Colaboración:</b> '+esc(wp.collaborationPreference||'—')+'</span><span>'+esc(wp.workContext||'Sin contexto adicional')+'</span></div>'+
+      '<div class="vnx-dir-file-note">Este expediente se lee desde <b>direccion.vnxdir</b>, cifrado localmente y accesible únicamente durante una sesión de Dirección desbloqueada con PIN. Los resultados de las pruebas son evidencia complementaria; no sustituyen la revisión humana de Dirección.</div>'+
+    '</div>';
+  }
+  async function openEmployeeFile(employeeId){
+    if(!directionToken||!employeeId)return;
+    const box=$('#vnxDirEmployeeFile');if(box)box.innerHTML='<div class="vnx-dir-empty">Abriendo expediente cifrado…</div>';
+    try{
+      const file=await window.vnx.directionEmployeeFile(directionToken,employeeId,{businessId:businessId()});
+      renderEmployeeFile(file);
+      $('#vnxDirEmployeeFilePanel')?.scrollIntoView({behavior:'smooth',block:'start'});
+    }catch(err){if(box)box.innerHTML='<div class="vnx-dir-empty">No se pudo abrir el expediente: '+esc(err.message||err)+'</div>'}
   }
   function actionButtons(t){
     if(t.status==='done'||t.status==='cancelled')return '<button class="btn mini outline" data-dir-event="'+esc(t.id)+'">Añadir evidencia</button>';
@@ -508,7 +554,7 @@
     currentRoleId=role.id;roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});fillRoleForm(role);renderRoleQuestions();return role;
   }
 
-  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards();renderRoleWorkspace();renderMiniIpip()}
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards();renderRoleWorkspace();renderMiniIpip();renderEmployeeFile(currentEmployeeFile)}
 
   async function promptEvent(taskId,kind){
     const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
