@@ -2506,3 +2506,20 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-miniipip-scores b{display:block;font-size:10px}.vnx-dir-miniipip-scores strong{display:block;margin-top:3px;font-size:18px;color:#6fe2f6}.vnx-dir-miniipip-scores small{display:block;color:#89a7b8;font-size:9px;margin-top:3px}
 @media(max-width:900px){.vnx-dir-miniipip-item{grid-template-columns:1fr}.vnx-dir-miniipip-scores{grid-template-columns:1fr 1fr}}
 @media(max-width:560px){.vnx-dir-miniipip>summary{display:block}.vnx-dir-miniipip>summary span{display:block;margin-top:4px}.vnx-dir-miniipip-scores{grid-template-columns:1fr}}
+
+
+/* Dirección · expediente integral cifrado */
+.vnx-dir-vault-badge{border:1px solid #2d6b88;background:#071b31;border-radius:999px;padding:7px 10px;color:#87e9f6;font-size:10px;font-weight:800;white-space:nowrap}
+.vnx-dir-file-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vnx-dir-file-hero{grid-column:1/-1;border:1px solid #225a7b;background:linear-gradient(145deg,#0a2948,#071c31);border-radius:13px;padding:14px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.vnx-dir-file-hero h3{margin:0 0 4px}.vnx-dir-file-hero p{margin:0;color:#9fb9c9;font-size:11px}.vnx-dir-file-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#72e4f6;font-size:10px}
+.vnx-dir-file-card{border:1px solid #174a6d;background:#071b31;border-radius:11px;padding:11px}
+.vnx-dir-file-card h4{margin:0 0 7px;font-size:12px}.vnx-dir-file-card p,.vnx-dir-file-card span{display:block;color:#a4bdcc;font-size:10px;line-height:1.5}.vnx-dir-file-card b{color:#eef7ff}
+.vnx-dir-file-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.vnx-dir-file-kpis article{border:1px solid #174a6d;border-radius:9px;background:#06182c;padding:8px}
+.vnx-dir-file-kpis span{font-size:9px;color:#88a9bb}.vnx-dir-file-kpis strong{display:block;font-size:18px;margin-top:2px}
+.vnx-dir-file-tags{display:flex;flex-wrap:wrap;gap:5px}.vnx-dir-file-tags span{display:inline-block;border:1px solid #225a7b;border-radius:999px;padding:4px 7px;font-size:9px}
+.vnx-dir-test-history{display:grid;gap:7px}.vnx-dir-test-history article{border:1px solid #174a6d;border-radius:9px;background:#06182c;padding:9px}
+.vnx-dir-test-history strong{display:block;font-size:11px}.vnx-dir-test-history small{display:block;color:#85a7ba;font-size:9px;margin-top:2px}.vnx-dir-test-history p{margin:5px 0 0;color:#a7bfce;font-size:10px;line-height:1.45}
+.vnx-dir-file-note{grid-column:1/-1;border-left:3px solid #5fe4f7;background:#08243b;border-radius:8px;padding:10px;color:#acc7d5;font-size:10px;line-height:1.5}
+@media(max-width:900px){.vnx-dir-file-grid{grid-template-columns:1fr}.vnx-dir-file-hero,.vnx-dir-file-note{grid-column:1}.vnx-dir-file-kpis{grid-template-columns:1fr 1fr}.vnx-dir-vault-badge{white-space:normal}}
