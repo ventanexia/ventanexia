@@ -1,6 +1,7 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path');
 const dir=require('./direction-control.cjs');
+const roleTests=require('./direction-role-assessment.cjs');
 const read=p=>fs.readFileSync(path.join(__dirname,p),'utf8');
 const errors=[],ok=(v,msg)=>{if(!v)errors.push(msg)};
 
@@ -106,5 +107,30 @@ ok(main.includes('a.failedAttempts>=5')&&main.includes('5*60*1000'),'Falta bloqu
 ok(!/pinHash\s*:\s*pin\b/.test(main),'El PIN de Dirección no puede guardarse en claro');
 ok(health.includes('Agente privado de Dirección')&&health.includes('directionControl')&&health.includes('protección privada de Dirección'),'Autoreparación no cubre Dirección privada');
 
+
+const role=roleTests.saveRoleProfile(d,{businessId:'biz1',name:'Comercial B2B',description:'Gestiona cartera y negocia acuerdos',requirements:['Negociación B2B','Priorización','Comunicación clara'],priorities:['Proteger margen','Retener clientes']});
+ok(role.name==='Comercial B2B'&&role.requirements.length===3,'El perfil de puesto debe guardar requisitos observables');
+const roleQs=roleTests.replaceRoleQuestions(d,role.id,[
+  {type:'practical_case',prompt:'Un cliente pide un descuento que destruye margen. ¿Qué haces?',evaluates:['reasoning','problem_solving','decision_quality'],evidenceFocus:['margen','alternativas']},
+  {type:'structured_interview',prompt:'Cuéntame una venta perdida y qué aprendiste.',evaluates:['learning','reasoning'],evidenceFocus:['aprendizaje']},
+  {type:'role_knowledge',prompt:'¿Qué datos revisas antes de una reunión con una gran cuenta?',evaluates:['role_knowledge','prioritization'],evidenceFocus:['preparación']}
+]);
+ok(roleQs.length===3&&roleQs.every(x=>x.roleId===role.id),'El test estructurado debe quedar ligado al puesto');
+const assessment=roleTests.createAssessment(d,{businessId:'biz1',employeeId:emp.id,roleId:role.id,answers:roleQs.map(q=>({questionId:q.id,answer:'Respuesta de prueba con pasos, comprobaciones y justificación.'}))});
+ok(assessment.answers.length===3&&assessment.employeeId===emp.id,'Debe registrar respuestas con empleado, puesto y fecha');
+const assessed=roleTests.saveAnalysis(d,assessment.id,{headline:'Hipótesis profesional',roleFitHypothesis:'Evidencia compatible con funciones comerciales; falta validar en trabajo real.',confidence:'medium',dimensions:[{key:'problem_solving',label:'Resolución de problemas',status:'consistent',confidence:'medium',evidence:['Caso práctico'],interpretation:'Propone comprobar datos y alternativas.'}],strengths:['Resolución aplicada'],developmentAreas:['Validar bajo carga real'],rolesToExplore:['Gestión comercial'],checksBeforeDecision:['Contrastar con evidencia operativa'],limitations:['No es una prueba de CI']});
+ok(assessed.analysis&&assessed.analysis.generatedAt,'El análisis del test debe conservar fecha');
+ok(/No es una prueba de CI/i.test(assessed.analysis.sourceRule),'El sistema debe limitar expresamente inferencias de inteligencia general');
+const ws=roleTests.listWorkspace(d,{businessId:'biz1'});
+ok(ws.roles.some(x=>x.id===role.id)&&ws.assessments.some(x=>x.id===assessment.id),'El espacio de Dirección debe recuperar perfiles y tests guardados');
+
+for(const ch of ['direction:role-workspace','direction:save-role-profile','direction:generate-role-test','direction:analyze-role-test'])ok(main.includes("ipcMain.handle('"+ch+"'"),'Falta handler '+ch);
+for(const name of ['directionRoleWorkspace','directionSaveRoleProfile','directionGenerateRoleTest','directionAnalyzeRoleTest'])ok(preload.includes(name+':'),'Preload no expone '+name);
+for(const id of ['vnxDirRoleForm','vnxDirRoleName','vnxDirRoleEmployee','vnxDirRoleDescription','vnxDirRoleRequirements','vnxDirRolePriorities','vnxDirRoleGenerate','vnxDirRoleAnalyze','vnxDirRoleQuestions','vnxDirRoleAnalysis'])ok(html.includes('id="'+id+'"'),'Falta UI de test #'+id);
+ok(ui.includes('directionGenerateRoleTest')&&ui.includes('directionAnalyzeRoleTest'),'La UI no conecta generación y análisis del test');
+ok(main.includes('No estimes CI ni inteligencia general')&&main.includes('No declares "apto/no apto"'),'El análisis IA debe impedir CI inventado y veredictos automáticos');
+ok(main.includes('perspective_taking')&&main.includes('razonamiento aplicado al trabajo'),'El análisis integral debe cubrir perspectiva ajena y razonamiento aplicado');
+ok(!/noAutomaticRanking\s*:\s*false/.test(main+ui),'El test no puede habilitar ranking automático');
+
 if(errors.length){console.error('\nDIRECTION_146_VERIFY_FAIL\n- '+errors.join('\n- '));process.exit(1)}
-console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, directrices universales versionadas, protección bilateral, CV, códigos personales, evaluación multidimensional, voz del empleado, encaje, evidencia y autoreparación verificados.');
+console.log('DIRECTION_PRIVATE_VERIFY_OK · PIN, directrices versionadas, CV, test estructurado por puesto, análisis profesional multidimensional, voz del empleado, encaje, evidencia y autoreparación verificados.');
