@@ -1120,21 +1120,24 @@ ipcMain.handle('direction:save-role-profile',async(_e,payload={})=>{
 });
 ipcMain.handle('direction:generate-role-test',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload),role=(d.roleProfiles||[]).find(x=>x.id===String(payload.roleId||'')&&(!businessId||x.businessId===businessId));
+  const {state:s,d,demo}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload),role=(d.roleProfiles||[]).find(x=>x.id===String(payload.roleId||'')&&(!businessId||x.businessId===businessId));
   if(!role)throw new Error('Puesto no encontrado.');
   const prompt='Genera un test profesional estructurado para el puesto descrito. Debe evaluar SOLO capacidades relacionadas con el trabajo mediante casos prácticos, entrevista estructurada y conocimiento del puesto. No hagas test de personalidad, no infieras inteligencia general, salud, emociones o rasgos sensibles, no generes ranking ni apto/no apto. Devuelve SOLO JSON con {"questions":[{"type":"practical_case|structured_interview|role_knowledge","prompt":"...","evaluates":["reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality"],"evidenceFocus":["..."]}]}. Crea entre 6 y 8 preguntas, comparables para todas las personas del mismo puesto.';
   let questions;
-  try{
-    const parsed=await directionAiJson(s,{prompt,localContext:[{path:'PERFIL DEL PUESTO',content:JSON.stringify(role)}]});questions=Array.isArray(parsed.questions)?parsed.questions:[];
-  }catch{questions=directionRoles.fallbackQuestions(role)}
+  if(demo)questions=directionRoles.fallbackQuestions(role);
+  else{
+    try{
+      const parsed=await directionAiJson(s,{prompt,localContext:[{path:'PERFIL DEL PUESTO',content:JSON.stringify(role)}]});questions=Array.isArray(parsed.questions)?parsed.questions:[];
+    }catch{questions=directionRoles.fallbackQuestions(role)}
+  }
   let saved=null;await directionPrivateUpdate(payload,(st,dd)=>{saved=directionRoles.replaceRoleQuestions(dd,role.id,questions);return st;});
-  await directionAudit('direction.role_test_generated',role.name+' · '+saved.length+' preguntas');return saved;
+  await directionAudit('direction.role_test_generated');return saved;
 });
 ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
   directionRequireSession(payload);
   const {state:s0}=await directionPrivateRead(payload),businessId=directionBusinessId(s0,payload);let assessment=null;
   await directionPrivateUpdate(payload,(s,d)=>{assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[]});return s;});
-  const {state:s,d}=await directionPrivateRead(payload),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
+  const {state:s,d,demo}=await directionPrivateRead(payload),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
   const observed=direction.employeeObservedEvidence(d,employee.id).slice(0,30);
   const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{}),miniIpip=directionRoles.latestMiniIpip(d,employee.id);
   const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Si existe Mini-IPIP, trátalo únicamente como autoinforme complementario de BAJO PESO: no puede superar, contradecir ni sustituir una muestra de trabajo, entrevista estructurada o evidencia operativa. No conviertas sus medias en percentiles, diagnósticos, inteligencia, estabilidad clínica ni pronósticos deterministas. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
@@ -1145,7 +1148,7 @@ ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
     ...(miniIpip?[{path:'MINI-IPIP · AUTOINFORME COMPLEMENTARIO DE BAJO PESO',content:JSON.stringify(miniIpip)}]:[]),
     {path:'EVIDENCIA OBSERVADA REGISTRADA',content:JSON.stringify(observed)}
   ];
-  const analysis=await directionAiJson(s,{prompt,localContext});
+  const analysis=demo?directionDemo.analyzeDemoAssessment(assessment):await directionAiJson(s,{prompt,localContext});
   let saved=null;await directionPrivateUpdate(payload,(st,dd)=>{saved=directionRoles.saveAnalysis(dd,assessment.id,analysis);return st;});
   await directionAudit('direction.role_test_analyzed',(employee.name||'Empleado')+' · '+assessment.roleName+' · hipótesis de encaje');return saved;
 });
@@ -1204,8 +1207,8 @@ ipcMain.handle('direction:save-employee',async(_e,payload={})=>{
     const email=String(payload.email||'').trim().toLowerCase(),id=String(payload.id||'');
     const exists=d.employees.some(x=>x.id===id||(email&&x.email===email));
     if(!exists){
-      const limit=employeeSlotLimit(s.license),used=d.employees.filter(x=>x.active!==false).length;
-      if(used>=limit){const e=new Error('Has alcanzado el número de empleados incluidos en tu plan.');e.code='EMPLOYEE_LIMIT_REACHED';e.limit=limit;throw e}
+      const session=directionRequireSession(payload),limit=session.demo?25:employeeSlotLimit(s.license),used=d.employees.filter(x=>x.active!==false).length;
+      if(used>=limit){const e=new Error(session.demo?'El demo admite hasta 25 empleados ficticios durante esta sesión.':'Has alcanzado el número de empleados incluidos en tu plan.');e.code='EMPLOYEE_LIMIT_REACHED';e.limit=limit;throw e}
     }
     saved=direction.addOrUpdateEmployee(d,{...payload,businessId:payload.businessId||businessId});
     return s;
