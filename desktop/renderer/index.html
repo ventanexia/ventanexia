@@ -490,7 +490,7 @@
           <h1>Dirección</h1>
           <p id="vnxDirGateText">Este espacio contiene información operativa sensible: responsables, tareas, incumplimientos, actividad registrada y trabajo recuperado por IA.</p>
           <form id="vnxDirPinForm" class="vnx-dir-pin-form">
-            <label>PIN de Dirección<input id="vnxDirPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required></label>
+            <label id="vnxDirPinWrap">PIN de Dirección<input id="vnxDirPin" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••" required></label>
             <label id="vnxDirPinConfirmWrap" hidden>Repite el PIN<input id="vnxDirPinConfirm" type="password" inputmode="numeric" autocomplete="off" maxlength="4" pattern="[0-9]{4}" placeholder="••••"></label>
             <button class="btn primary" id="vnxDirPinSubmit" type="submit">Desbloquear Dirección</button>
           </form>
@@ -499,7 +499,7 @@
 
         <div id="vnxDirProtected" hidden>
         <div class="vnx-dir-head">
-          <div><span class="eyebrow">CONTROL OPERATIVO DE DIRECCIÓN</span><h1>Qué debía ocurrir, qué ocurrió y qué tuvo que recuperar VentaNexIA</h1><p>Seguimiento basado en tareas, plazos y eventos registrados. “Sin actividad” significa sin actividad operativa registrada en las tareas asignadas; no mide teclado, ratón ni presencia física.</p></div>
+          <div><span class="eyebrow">CONTROL OPERATIVO DE DIRECCIÓN</span><div id="vnxDirDemoBadge" class="vnx-dir-demo-badge" hidden>DEMO · DATOS FICTICIOS</div><h1>Qué debía ocurrir, qué ocurrió y qué tuvo que recuperar VentaNexIA</h1><p>Seguimiento basado en tareas, plazos y eventos registrados. “Sin actividad” significa sin actividad operativa registrada en las tareas asignadas; no mide teclado, ratón ni presencia física.</p></div>
           <div class="vnx-dir-actions"><button class="btn outline" id="vnxDirRefresh">Actualizar</button><button class="btn primary" id="vnxDirExport">Exportar control</button><button class="btn outline vnx-dir-lock" id="vnxDirLock">🔒 Bloquear Dirección</button></div>
         </div>
 
