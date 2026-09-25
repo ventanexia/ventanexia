@@ -62,6 +62,7 @@ contextBridge.exposeInMainWorld('vnx',{
   agendaToday:()=>ipcRenderer.invoke('agenda:today'),
   agendaUpcoming:(minutes=180)=>ipcRenderer.invoke('agenda:upcoming',minutes),
   directionAccessStatus:()=>ipcRenderer.invoke('direction:access-status'),
+  directionDemoUnlock:(options={})=>ipcRenderer.invoke('direction:demo-unlock',options),
   directionSetPin:(pin,currentPin='')=>ipcRenderer.invoke('direction:set-pin',{pin,currentPin}),
   directionUnlock:(pin)=>ipcRenderer.invoke('direction:unlock',{pin}),
   directionLock:(token)=>ipcRenderer.invoke('direction:lock',{token}),
