@@ -86,8 +86,7 @@
     "win": {
       "target": [
         "nsis"
-      ],
-      "verifyUpdateCodeSignature": true
+      ]
     },
     "nsis": {
       "oneClick": false,
