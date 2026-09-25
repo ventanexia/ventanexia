@@ -355,6 +355,7 @@ function sanitizeTask(raw={},settings={}){
     status,
     createdAt,
     assignedAt,
+    dueAt,
     receivedAt:raw.receivedAt?iso(raw.receivedAt):assignedAt,
     firstActionAt:raw.firstActionAt?iso(raw.firstActionAt):null,
     firstResponseAt:raw.firstResponseAt?iso(raw.firstResponseAt):null,
