@@ -2422,3 +2422,24 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-management-contract .vnx-dir-management-window{display:grid;grid-template-columns:1fr 80px auto;align-items:center;gap:7px}
 .vnx-dir-management-window input{background:#06172a;color:#fff;border:1px solid #245b80;border-radius:8px;padding:7px}
 .vnx-dir-management-view details{margin-top:8px;border-top:1px solid #17455f;padding-top:6px}.vnx-dir-management-view summary{cursor:pointer;color:#75def0;font-size:11px}
+
+
+/* Dirección · marco común universal y versionado */
+.vnx-dir-standards-panel{position:relative}
+.vnx-dir-standard-current{min-width:220px;border:1px solid #2a6688;background:#071d33;border-radius:11px;padding:10px}
+.vnx-dir-standard-current b,.vnx-dir-standard-current span,.vnx-dir-standard-current small{display:block}
+.vnx-dir-standard-current b{color:#7ce6f7}.vnx-dir-standard-current span{font-size:11px;color:#b9cfdd;margin-top:3px}.vnx-dir-standard-current small{font-size:9px;color:#7896ad;margin-top:4px}
+.vnx-dir-standard-form{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.vnx-dir-standard-form>label{display:grid;gap:5px;color:#a9bed1;font-size:12px}
+.vnx-dir-standard-form input,.vnx-dir-standard-form textarea,.vnx-dir-standard-form select{background:#071b32;color:#eef7ff;border:1px solid #1b557f;border-radius:9px;padding:10px}
+.vnx-dir-standard-wide,.vnx-dir-standard-criteria,.vnx-dir-standard-confirm,.vnx-dir-standard-form>button{grid-column:1/-1}
+.vnx-dir-standard-criteria{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.vnx-dir-standard-row{display:grid;grid-template-columns:1fr 130px;gap:7px;border:1px solid #174b70;border-radius:10px;background:#071c31;padding:10px}
+.vnx-dir-standard-row b{grid-column:1/-1;font-size:12px}.vnx-dir-standard-row textarea{min-height:64px;resize:vertical}.vnx-dir-standard-row select{align-self:start}
+.vnx-dir-standard-confirm{display:flex!important;grid-template-columns:none!important;flex-direction:row;gap:8px!important;align-items:flex-start;padding:10px;border:1px solid #6c5c2f;background:#292315;border-radius:9px;color:#ead99d!important;line-height:1.45}
+.vnx-dir-standard-confirm input{margin-top:2px}
+.vnx-dir-standard-history{margin-top:12px}.vnx-dir-standard-history h3{margin:0 0 7px;font-size:13px}.vnx-dir-standard-history article{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;border:1px solid #174b70;background:#071b31;border-radius:9px;padding:9px;margin-top:6px}
+.vnx-dir-standard-history article b{font-size:11px}.vnx-dir-standard-history article span{font-size:10px;color:#a9bfce}.vnx-dir-standard-history article small{grid-column:1/-1;color:#708ba1;font-size:9px;word-break:break-all}
+.vnx-dir-standard-used{margin-top:9px;border-left:3px solid #58d9ef;background:#08243b;padding:8px 10px;border-radius:7px;color:#add0de;font-size:10px}
+.vnx-dir-standard-used.warn{border-left-color:#efb95c}
+@media(max-width:900px){.vnx-dir-standard-form,.vnx-dir-standard-criteria,.vnx-dir-standard-history article{grid-template-columns:1fr}.vnx-dir-standard-wide,.vnx-dir-standard-criteria,.vnx-dir-standard-confirm,.vnx-dir-standard-form>button{grid-column:1}.vnx-dir-standard-row{grid-template-columns:1fr}.vnx-dir-standard-row b{grid-column:1}}
