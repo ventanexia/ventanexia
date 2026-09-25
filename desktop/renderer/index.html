@@ -575,6 +575,25 @@
           <div id="vnxDirCvComparison" class="vnx-dir-cv-comparison"><div class="vnx-dir-empty">Selecciona una persona, importa su CV y define los requisitos del puesto para comparar declaraciones, confirmaciones y evidencias observadas.</div></div>
         </section>
 
+        <section class="card vnx-dir-panel vnx-dir-wide vnx-dir-test-panel">
+          <div class="vnx-dir-panel-head">
+            <div><span class="eyebrow">TEST ESTRUCTURADO DE PUESTO</span><h2>Medir capacidades profesionales sin convertir personas en una nota</h2><p>Define el puesto, genera preguntas comparables y analiza las respuestas junto al CV y la evidencia real. El resultado es una hipótesis profesional explicable, no un ranking ni un “apto/no apto” automático.</p></div>
+            <div class="vnx-dir-report-actions"><button class="btn outline" id="vnxDirRoleGenerate" type="button">Generar test</button><button class="btn primary" id="vnxDirRoleAnalyze" type="button">Analizar respuestas</button></div>
+          </div>
+          <div class="vnx-dir-source-legend"><span>CV declarado</span><span>Confirmado por Dirección</span><span>Test estructurado</span><span>Observado trabajando</span></div>
+          <form id="vnxDirRoleForm" class="vnx-dir-role-form">
+            <label>Puesto / función<input id="vnxDirRoleName" placeholder="Ej.: Responsable Comercial B2B" required></label>
+            <label>Empleado a evaluar<select id="vnxDirRoleEmployee"><option value="">Selecciona una persona</option></select></label>
+            <label class="vnx-dir-role-wide">Descripción del puesto<textarea id="vnxDirRoleDescription" rows="3" placeholder="Responsabilidades reales, contexto y decisiones habituales."></textarea></label>
+            <label>Requisitos observables<textarea id="vnxDirRoleRequirements" rows="6" placeholder="Uno por línea. Ej.: negociación B2B&#10;priorización&#10;comunicación clara"></textarea></label>
+            <label>Prioridades del puesto<textarea id="vnxDirRolePriorities" rows="6" placeholder="Uno por línea. Ej.: proteger margen&#10;retener clientes&#10;cumplir plazos"></textarea></label>
+            <button class="btn outline" id="vnxDirRoleSave" type="submit">Guardar perfil del puesto</button>
+          </form>
+          <div class="vnx-dir-note"><b>Análisis integral profesional:</b> razonamiento aplicado, resolución de problemas, priorización, aprendizaje, comunicación, comprensión de la perspectiva ajena, colaboración, autonomía, conocimiento del puesto y calidad de decisión. No estima CI ni diagnostica personalidad o emociones.</div>
+          <div id="vnxDirRoleQuestions" class="vnx-dir-role-questions"><div class="vnx-dir-empty">Guarda un puesto y genera el test para ver aquí las preguntas.</div></div>
+          <div id="vnxDirRoleAnalysis" class="vnx-dir-role-analysis"><div class="vnx-dir-empty">Cuando haya respuestas, VentaNexIA mostrará fortalezas, áreas por comprobar, nivel de confianza y funciones a explorar.</div></div>
+        </section>
+
         <div class="vnx-dir-human-grid">
           <section class="card vnx-dir-panel vnx-dir-human-panel">
             <div class="vnx-dir-panel-head"><div><span class="eyebrow">CONTEXTO HUMANO</span><h2>Entender antes de juzgar</h2><p>Registra preferencias y necesidades laborales declaradas o acordadas. Se mantienen separadas de los hechos observados.</p></div></div>
