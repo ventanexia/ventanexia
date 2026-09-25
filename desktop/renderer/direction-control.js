@@ -40,7 +40,7 @@
     if(rs)rs.innerHTML='<div class="vnx-dir-empty">Desbloquea Dirección para generar informes.</div>';
     if(rd)rd.innerHTML='';if(rw)rw.hidden=true;
     for(const id of ['vnxDirReportExcel','vnxDirReportPdf']){const b=$('#'+id);if(b)b.disabled=true}
-    $('#vnxDirKpis article strong').forEach(x=>x.textContent='0');
+    $$('#vnxDirKpis article strong').forEach(x=>x.textContent='0');
   }
   function setGateMessage(msg='',error=false){
     const box=$('#vnxDirPinMsg');if(!box)return;
@@ -356,7 +356,7 @@
     set('vnxDirHumanAutonomy',p.preferredAutonomy||'balanced');
     set('vnxDirHumanCollab',p.collaborationPreference||'balanced');
     set('vnxDirHumanContext',p.workContext||'');
-    $('.vnx-dir-motivators input[type="checkbox"]').forEach(x=>x.checked=(p.motivators||[]).includes(x.value));
+    $$('.vnx-dir-motivators input[type="checkbox"]').forEach(x=>x.checked=(p.motivators||[]).includes(x.value));
   }
   function updatePolicyLabels(){
     const pairs=[['vnxDirProfit','vnxDirProfitValue'],['vnxDirService','vnxDirServiceValue'],['vnxDirPeople','vnxDirPeopleValue'],['vnxDirGrowth','vnxDirGrowthValue'],['vnxDirStability','vnxDirStabilityValue']];
@@ -427,11 +427,11 @@
     },80);
   }
   function bindTaskActions(){
-    $$('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
-    $$('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
-    $$('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
-    $$('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
-    $$('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
+    $$$('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
+    $$$('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
+    $$$('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
+    $$$('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
+    $$$('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
   }
 
   async function lockDirection(){
@@ -527,7 +527,7 @@
       e.preventDefault();if(!directionToken)return;
       const employeeId=$('#vnxDirHumanEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
       const split=id=>String($('#'+id)?.value||'').split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
-      const motivators=$('.vnx-dir-motivators input[type="checkbox"]:checked').map(x=>x.value);
+      const motivators=$$('.vnx-dir-motivators input[type="checkbox"]:checked').map(x=>x.value);
       try{
         await window.vnx.directionUpdateEmployeeContext(directionToken,employeeId,{
           source:$('#vnxDirHumanSource')?.value||'agreed',
@@ -543,8 +543,8 @@
         await load();alert('Contexto laboral guardado.');
       }catch(err){alert(err.message||err)}
     };
-    $('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
-    $('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
+    $$('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
+    $$('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
     const observationForm=$('#vnxDirObservationForm');if(observationForm)observationForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
       const employeeId=$('#vnxDirObservationEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
