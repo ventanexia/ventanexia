@@ -1105,13 +1105,24 @@ ipcMain.handle('direction:role-workspace',async(_e,payload={})=>{
   const {state:s,d}=await directionPrivateRead(payload);
   return directionRoles.listWorkspace(d,{businessId:directionBusinessId(s,payload)});
 });
+ipcMain.handle('direction:save-assessment-governance',async(_e,payload={})=>{
+  const session=directionRequireSession(payload);let governance=null;
+  await directionPrivateUpdate(payload,(s,d)=>{
+    const businessId=directionBusinessId(s,payload);
+    governance=session.demo
+      ?directionRoles.sanitizeAssessmentGovernance({purpose:'role_review',legalBasis:'other_documented',legalBasisNote:'DEMO · no trata datos de una persona real',personInformed:true,humanDecision:true,sameCriteria:true,sensitiveDataExcluded:true,reviewerRole:'director',reviewerName:'Dirección Demo',representativeReview:'not_applicable',dpiaStatus:'not_required_documented',notes:'Entorno sintético'})
+      :directionRoles.saveAssessmentGovernance(d,businessId,payload.governance||{});
+    return s;
+  });
+  await directionAudit('direction.assessment_governance_saved');return governance;
+});
 ipcMain.handle('direction:mini-ipip-definition',async(_e,payload={})=>{
   directionRequireSession(payload);return directionRoles.miniIpipDefinition();
 });
 ipcMain.handle('direction:save-mini-ipip',async(_e,payload={})=>{
-  directionRequireSession(payload);let record=null;
-  await directionPrivateUpdate(payload,(s,d)=>{record=directionRoles.saveMiniIpip(d,{businessId:directionBusinessId(s,payload),employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),responses:Array.isArray(payload.responses)?payload.responses:[],consent:payload.consent===true});return s;});
-  await directionAudit('direction.mini_ipip_saved',(record?.employeeName||'Empleado')+' · Mini-IPIP voluntario guardado como contexto complementario');return record;
+  const session=directionRequireSession(payload);let record=null;
+  await directionPrivateUpdate(payload,(s,d)=>{record=directionRoles.saveMiniIpip(d,{businessId:directionBusinessId(s,payload),employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),responses:Array.isArray(payload.responses)?payload.responses:[],governance:payload.governance||null,demo:Boolean(session.demo),consent:payload.consent===true});return s;});
+  await directionAudit('direction.mini_ipip_saved');return record;
 });
 ipcMain.handle('direction:save-role-profile',async(_e,payload={})=>{
   directionRequireSession(payload);let role=null;
@@ -1135,9 +1146,9 @@ ipcMain.handle('direction:generate-role-test',async(_e,payload={})=>{
 });
 ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
   directionRequireSession(payload);
-  const {state:s0}=await directionPrivateRead(payload),businessId=directionBusinessId(s0,payload);let assessment=null;
-  await directionPrivateUpdate(payload,(s,d)=>{assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[]});return s;});
-  const {state:s,d,demo}=await directionPrivateRead(payload),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
+  const first=await directionPrivateRead(payload),businessId=directionBusinessId(first.state,payload),demo=Boolean(first.demo);let assessment=null;
+  await directionPrivateUpdate(payload,(s,d)=>{assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[],governance:payload.governance||null,demo});return s;});
+  const {state:s,d}=await directionPrivateRead(payload),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
   const observed=direction.employeeObservedEvidence(d,employee.id).slice(0,30);
   const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{}),miniIpip=directionRoles.latestMiniIpip(d,employee.id);
   const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Si existe Mini-IPIP, trátalo únicamente como autoinforme complementario de BAJO PESO: no puede superar, contradecir ni sustituir una muestra de trabajo, entrevista estructurada o evidencia operativa. No conviertas sus medias en percentiles, diagnósticos, inteligencia, estabilidad clínica ni pronósticos deterministas. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
