@@ -525,10 +525,55 @@
       '<div class="vnx-dir-role-analysis-lists">'+listBlock('Fortalezas con evidencia',x.strengths)+listBlock('Áreas a desarrollar o comprobar',x.developmentAreas)+listBlock('Funciones a explorar',x.rolesToExplore)+listBlock('Comprobaciones antes de decidir',x.checksBeforeDecision)+'</div>'+
       (Array.isArray(x.limitations)&&x.limitations.length?'<div class="vnx-dir-note"><b>Límites:</b> '+x.limitations.map(esc).join(' · ')+'</div>':'');
   }
+  function governanceFromForm(){
+    return {
+      purpose:$('#vnxDirGovPurpose')?.value||'role_review',
+      legalBasis:$('#vnxDirGovLegalBasis')?.value||'',
+      reviewerRole:$('#vnxDirGovReviewerRole')?.value||'',
+      reviewerName:String($('#vnxDirGovReviewerName')?.value||'').trim(),
+      legalBasisNote:String($('#vnxDirGovLegalBasisNote')?.value||'').trim(),
+      representativeReview:$('#vnxDirGovRepresentativeReview')?.value||'pending',
+      dpiaStatus:$('#vnxDirGovDpiaStatus')?.value||'not_assessed',
+      personInformed:Boolean($('#vnxDirGovPersonInformed')?.checked),
+      humanDecision:Boolean($('#vnxDirGovHumanDecision')?.checked),
+      sameCriteria:Boolean($('#vnxDirGovSameCriteria')?.checked),
+      sensitiveDataExcluded:Boolean($('#vnxDirGovSensitiveExcluded')?.checked),
+      notes:String($('#vnxDirGovNotes')?.value||'').trim()
+    };
+  }
+  function renderGovernance(){
+    const details=$('#vnxDirGovernance'),form=$('#vnxDirGovernanceForm'),stateBox=$('#vnxDirGovernanceState');
+    if(!details)return;
+    const demo=Boolean(accessState?.demoAvailable);
+    details.hidden=demo;
+    if(demo)return;
+    const g=roleWorkspace?.governance||{};
+    const set=(id,v)=>{const el=$('#'+id);if(el&&document.activeElement!==el)el.value=v??''};
+    set('vnxDirGovPurpose',g.purpose||'role_review');set('vnxDirGovLegalBasis',g.legalBasis||'');set('vnxDirGovReviewerRole',g.reviewerRole||'');
+    set('vnxDirGovReviewerName',g.reviewerName||'');set('vnxDirGovLegalBasisNote',g.legalBasisNote||'');
+    set('vnxDirGovRepresentativeReview',g.representativeReview||'pending');set('vnxDirGovDpiaStatus',g.dpiaStatus||'not_assessed');set('vnxDirGovNotes',g.notes||'');
+    const checks={vnxDirGovPersonInformed:g.personInformed,vnxDirGovHumanDecision:g.humanDecision,vnxDirGovSameCriteria:g.sameCriteria,vnxDirGovSensitiveExcluded:g.sensitiveDataExcluded};
+    for(const [id,v] of Object.entries(checks)){const el=$('#'+id);if(el)el.checked=Boolean(v)}
+    const complete=Boolean(g.confirmedAt&&g.legalBasis&&g.personInformed&&g.humanDecision&&g.sameCriteria&&g.sensitiveDataExcluded&&g.reviewerRole&&g.representativeReview!=='pending'&&!['not_assessed','pending'].includes(g.dpiaStatus));
+    if(stateBox){
+      stateBox.classList.toggle('ok',complete);
+      stateBox.textContent=complete?'Garantías documentadas · '+fmtDate(g.confirmedAt)+' · la decisión sigue siendo humana y revisable.':'Pendiente de completar. VentaNexIA bloqueará el análisis de una persona real hasta documentar estas garantías.';
+    }
+    if(form)form.dataset.ready=complete?'1':'0';
+  }
+  async function saveGovernance({silent=false}={}){
+    if(accessState?.demoAvailable)return roleWorkspace?.governance||null;
+    const governance=governanceFromForm();
+    const saved=await window.vnx.directionSaveAssessmentGovernance(directionToken,governance,{businessId:businessId()});
+    roleWorkspace=roleWorkspace||{};roleWorkspace.governance=saved;renderGovernance();
+    if(!silent)alert('Garantías de evaluación guardadas.');
+    return saved;
+  }
   function renderRoleWorkspace(){
     const role=activeRole();
     if(role)fillRoleForm(role);
     renderRoleQuestions();
+    renderGovernance();
     const employeeId=$('#vnxDirRoleEmployee')?.value||'';
     const latest=(roleWorkspace?.assessments||[]).find(a=>(!role||a.roleId===role.id)&&(!employeeId||a.employeeId===employeeId)&&a.analysis);
     renderRoleAnalysis(latest||null);
