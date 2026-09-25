@@ -2526,3 +2526,17 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 
 .vnx-dir-demo-badge{display:inline-block;margin:0 0 8px;border:1px solid #9a7a24;background:#2d2411;color:#f5d878;border-radius:999px;padding:5px 9px;font-size:9px;font-weight:900;letter-spacing:.08em}
 .vnx-dir-demo-badge[hidden]{display:none!important}
+
+
+/* Dirección · gobernanza de evaluaciones laborales */
+.vnx-dir-governance{margin-top:12px;border:1px solid #6e612a;border-radius:12px;background:#1f1a10;padding:10px}
+.vnx-dir-governance>summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;color:#f2df91}
+.vnx-dir-governance>summary span{font-size:10px;color:#c7b86d;font-weight:600}
+.vnx-dir-governance-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}
+.vnx-dir-governance-form label{display:grid;gap:5px;color:#c9d6df;font-size:10px}
+.vnx-dir-governance-form input,.vnx-dir-governance-form textarea,.vnx-dir-governance-form select{background:#07182b;color:#eef7ff;border:1px solid #315d72;border-radius:8px;padding:9px}
+.vnx-dir-gov-check{display:flex!important;grid-template-columns:none!important;gap:8px!important;align-items:flex-start!important;border:1px solid #3a5260;border-radius:9px;background:#0a1d2f;padding:9px;line-height:1.45}
+.vnx-dir-gov-check input{margin-top:2px;padding:0}
+.vnx-dir-governance-state{margin-top:9px;border-left:3px solid #d7b74d;background:#2b2312;border-radius:7px;padding:9px;color:#e6d38c;font-size:10px;line-height:1.45}
+.vnx-dir-governance-state.ok{border-left-color:#51d59b;background:#0d2b26;color:#a7edd1}
+@media(max-width:900px){.vnx-dir-governance-form{grid-template-columns:1fr}.vnx-dir-governance>summary{display:block}.vnx-dir-governance>summary span{display:block;margin-top:4px}}
