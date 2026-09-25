@@ -1,7 +1,7 @@
 'use strict';
 (()=>{
   const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-  let snapshot=null,employees=[],settings=null,managementPolicy=null,currentFilter='all',latestReport=null;
+  let snapshot=null,employees=[],settings=null,managementPolicy=null,directionStandards=null,currentFilter='all',latestReport=null;
   // El token de Dirección vive solo en memoria del renderer. Nunca localStorage/sessionStorage.
   let directionToken='',accessState=null;
 
@@ -30,7 +30,7 @@
   }
 
   function clearSensitiveUi(){
-    snapshot=null;employees=[];settings=null;managementPolicy=null;latestReport=null;
+    snapshot=null;employees=[];settings=null;managementPolicy=null;directionStandards=null;latestReport=null;
     const er=$('#vnxDirEmployeeRows'),tr=$('#vnxDirTaskRows'),list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),csel=$('#vnxDirCvEmployee');
     if(er)er.innerHTML='';if(tr)tr.innerHTML='';if(list)list.innerHTML='';
     if(sel)sel.innerHTML='<option value="">Selecciona una persona</option>';
@@ -79,11 +79,12 @@
     if(!directionToken){await refreshAccessStatus();return}
     try{
       const opts={businessId:businessId()};
-      [snapshot,employees,settings,managementPolicy]=await Promise.all([
+      [snapshot,employees,settings,managementPolicy,directionStandards]=await Promise.all([
         window.vnx.directionSummary(directionToken,opts),
         window.vnx.directionEmployees(directionToken,opts),
         window.vnx.directionSettings(directionToken),
-        window.vnx.directionManagementPolicy(directionToken)
+        window.vnx.directionManagementPolicy(directionToken),
+        window.vnx.directionStandards(directionToken,opts)
       ]);
       renderProtected();render();
     }catch(e){
@@ -103,7 +104,7 @@
   }
   function renderEmployees(){
     const list=$('#vnxDirEmployees'),sel=$('#vnxDirTaskEmployee'),rsel=$('#vnxDirReportEmployee'),hsel=$('#vnxDirHumanEmployee'),osel=$('#vnxDirObservationEmployee'),csel=$('#vnxDirCvEmployee');
-    if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
+    if(list)list.innerHTML=employees.length?employees.map(e=>'<button type="button" class="vnx-dir-person" data-dir-employee="'+esc(e.id)+'"><span>'+esc((e.name||'?').slice(0,1).toUpperCase())+'</span><p><b>'+esc(e.name)+'</b><small>'+esc(e.role||e.email||'Responsable')+'</small><small class="vnx-dir-employee-code">'+esc(e.employeeCode||'')+'</small></p></button>').join(''):'<div class="vnx-dir-empty">Añade responsables para empezar a medir cumplimiento operativo.</div>';
     if(sel){
       const keep=sel.value;
       sel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
@@ -186,7 +187,8 @@
       '<article><span>Terminadas tarde</span><strong>'+r.totals.lateDone+'</strong></article>'+
       '<article><span>Recuperadas IA</span><strong>'+r.totals.doneAI+'</strong></article>'+
       '<article><span>Bloqueadas</span><strong>'+r.totals.blocked+'</strong></article>'+
-      '</div><div class="vnx-dir-report-findings"><b>Hallazgos del periodo</b>'+r.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>';
+      '</div><div class="vnx-dir-report-findings"><b>Hallazgos del periodo</b>'+r.findings.map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>'+
+      (r.directionStandard?'<div class="vnx-dir-standard-used">Evaluado con Política General de Dirección v'+esc(r.directionStandard.version)+' · vigente desde '+fmtDate(r.directionStandard.effectiveFrom)+' · huella '+esc(String(r.directionStandard.hash||'').slice(0,12))+'</div>':'<div class="vnx-dir-standard-used warn">No existe una Política General de Dirección vigente para este informe.</div>');
     if(rows)rows.innerHTML=(r.employees||[]).map(e=>'<tr>'+
       '<td><b>'+esc(e.name)+'</b><small>'+esc(e.employeeCode||'')+' · '+esc(e.role||'')+'</small></td>'+
       '<td>'+e.assigned+'</td><td>'+fmtMinutes(e.timing?.averageReactionMinutes)+'</td><td>'+fmtMinutes(e.timing?.averageResponseMinutes)+'</td>'+
@@ -362,6 +364,46 @@
     const pairs=[['vnxDirProfit','vnxDirProfitValue'],['vnxDirService','vnxDirServiceValue'],['vnxDirPeople','vnxDirPeopleValue'],['vnxDirGrowth','vnxDirGrowthValue'],['vnxDirStability','vnxDirStabilityValue']];
     for(const [inputId,valueId] of pairs){const i=$('#'+inputId),v=$('#'+valueId);if(i&&v)v.textContent=i.value}
   }
+  function standardDateInput(v){
+    const d=v?new Date(v):new Date(),pad=x=>String(x).padStart(2,'0');
+    return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+  }
+  function renderDirectionStandards(){
+    const current=directionStandards?.current||null,box=$('#vnxDirStandardCurrent'),history=$('#vnxDirStandardHistory');
+    if(box)box.innerHTML=current
+      ?'<b>Versión '+esc(current.version)+'</b><span>Vigente desde '+fmtDate(current.effectiveFrom)+'</span><small>Confirmada por '+esc(current.directorName)+' · '+esc(String(current.hash||'').slice(0,12))+'</small>'
+      :'<b>Sin política confirmada</b><span>Las evaluaciones no deberían utilizar criterios no definidos.</span>';
+    if(current){
+      const director=$('#vnxDirStandardDirector'),effective=$('#vnxDirStandardEffective'),non=$('#vnxDirStandardNonNegotiables');
+      if(director&&!director.value)director.value=current.directorName||'';
+      if(effective&&!effective.value)effective.value=standardDateInput(new Date());
+      if(non&&!non.value)non.value=(current.nonNegotiables||[]).join('\n');
+      for(const row of $('.vnx-dir-standard-row')){
+        const item=(current.criteria||[]).find(x=>x.key===row.dataset.standardKey);if(!item)continue;
+        const ta=row.querySelector('textarea'),sel=row.querySelector('select');if(ta)ta.value=item.expectation||'';if(sel)sel.value=item.importance||'important';
+      }
+    }else{
+      const effective=$('#vnxDirStandardEffective');if(effective&&!effective.value)effective.value=standardDateInput(new Date());
+    }
+    if(history){
+      const versions=directionStandards?.versions||[];
+      history.innerHTML=versions.length?'<h3>Historial inmutable</h3>'+versions.map(v=>'<article><b>v'+esc(v.version)+' · '+esc(v.directorName)+'</b><span>Aplicable desde '+fmtDate(v.effectiveFrom)+' · confirmada '+fmtDate(v.confirmedAt)+'</span><small>Huella: '+esc(v.hash||'')+'</small></article>').join(''):'';
+    }
+  }
+  function collectDirectionStandard(){
+    return {
+      directorName:String($('#vnxDirStandardDirector')?.value||'').trim(),
+      effectiveFrom:$('#vnxDirStandardEffective')?.value?new Date($('#vnxDirStandardEffective').value).toISOString():new Date().toISOString(),
+      nonNegotiables:String($('#vnxDirStandardNonNegotiables')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),
+      criteria:$('.vnx-dir-standard-row').map(row=>({
+        key:row.dataset.standardKey||'',
+        label:String(row.querySelector('b')?.textContent||'').trim(),
+        expectation:String(row.querySelector('textarea')?.value||'').trim(),
+        importance:row.querySelector('select')?.value||'important'
+      }))
+    };
+  }
+
   function renderManagementPolicy(){
     const p=managementPolicy||{profitability:50,customerService:50,peopleDevelopment:50,growth:50,stability:50,approach:'balanced',requireEmployeeConversation:true,requireSupportTrial:true,requireRoleAlternativeReview:true,employeeVoiceRequired:true,improvementWindowDays:30};
     const set=(id,v)=>{const el=$('#'+id);if(el)el.value=String(v??50)},check=(id,v)=>{const el=$('#'+id);if(el)el.checked=v!==false};
@@ -394,7 +436,7 @@
     if(b)b.value=String(settings.aiTakeoverGraceMinutes??60);
     if(c)c.checked=Boolean(settings.aiTakeoverEnabled);
   }
-  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy()}
+  function render(){renderKpis();renderEmployees();renderEmployeeRows();renderTasks();renderSettings();renderHumanProfile();renderCvProfile();renderManagementPolicy();renderDirectionStandards()}
 
   async function promptEvent(taskId,kind){
     const task=snapshot?.tasks?.find(x=>x.id===taskId);if(!task||!directionToken)return;
@@ -427,11 +469,11 @@
     },80);
   }
   function bindTaskActions(){
-    $$$('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
-    $$$('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
-    $$$('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
-    $$$('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
-    $$$('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
+    $('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
+    $('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
+    $('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
+    $('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
+    $('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
   }
 
   async function lockDirection(){
@@ -545,6 +587,18 @@
     };
     $$('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
     $$('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
+    const standardForm=$('#vnxDirStandardForm');if(standardForm)standardForm.onsubmit=async e=>{
+      e.preventDefault();if(!directionToken)return;
+      if(!$('#vnxDirStandardConfirmed')?.checked){alert('Debes confirmar que la nueva versión se aplicará por igual a toda la plantilla.');return}
+      const nextVersion=(directionStandards?.versions?.[0]?.version||0)+1;
+      if(!confirm('Vas a crear la versión '+nextVersion+' de las directrices. La versión anterior no se modificará. ¿Confirmas?'))return;
+      try{
+        await window.vnx.directionCreateStandard(directionToken,collectDirectionStandard(),true,{businessId:businessId()});
+        $('#vnxDirStandardConfirmed').checked=false;
+        await load();
+        alert('Nueva versión de las directrices confirmada y registrada.');
+      }catch(err){alert(err.message||err)}
+    };
     const observationForm=$('#vnxDirObservationForm');if(observationForm)observationForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
       const employeeId=$('#vnxDirObservationEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
