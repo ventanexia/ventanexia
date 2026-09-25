@@ -15,6 +15,7 @@ const externalAgents=require('./external-agent.cjs');
 const erpConnectors=require('./erp.cjs');
 const {staticRuntimeChecks,sanitizeState}=require('./runtime-health.cjs');
 const direction=require('./direction-control.cjs');
+const directionRoles=require('./direction-role-assessment.cjs');
 
 const CLOUD='https://www.ventanexia.es';
 const META_GRAPH_BASE='https://graph.facebook.com/v26.0';
@@ -905,6 +906,23 @@ ipcMain.handle('direction:lock',async(_e,payload={})=>{
 function directionBusinessId(state,payload={}){
   return String(payload.businessId||state?.secret?.activeBusinessProfileId||'').trim().slice(0,120);
 }
+function directionParseJsonReply(reply=''){
+  const raw=String(reply||'').trim().replace(/^\`\`\`(?:json)?\s*/i,'').replace(/\s*\`\`\`$/,'');
+  try{return JSON.parse(raw)}catch{}
+  const a=raw.indexOf('{'),b=raw.lastIndexOf('}');
+  if(a>=0&&b>a){try{return JSON.parse(raw.slice(a,b+1))}catch{}}
+  return null;
+}
+async function directionAiJson(state,{prompt,localContext=[]}={}){
+  const r=await fetch(CLOUD+'/api/chat',{method:'POST',headers:{'Content-Type':'application/json','User-Agent':'VentaNexIA-Desktop/'+app.getVersion()},body:JSON.stringify({
+    messages:[{role:'user',content:String(prompt||'')}],localContext,
+    desktop:{customerId:state.secret?.customerId||null,deviceId:state.license?.deviceId||null,activationCode:state.secret?.activationCode||null,deviceKey:state.secret?.deviceKey||null,portalCount:0},
+    scope:'agent:core_ai'
+  })});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'No he podido completar el análisis de Dirección.');
+  const parsed=directionParseJsonReply(j.reply);if(!parsed)throw new Error('La IA no devolvió un análisis estructurado válido.');
+  return parsed;
+}
 ipcMain.handle('direction:summary',async(_e,payload={})=>{
   directionRequireSession(payload);
   const s=await readState(),d=direction.ensureDirection(s);
@@ -982,6 +1000,47 @@ ipcMain.handle('direction:compare-team-role',async(_e,payload={})=>{
     roleTarget:String(payload.roleTarget||'').trim().slice(0,180),
     requirements:Array.isArray(payload.requirements)?payload.requirements:[]
   });
+});
+
+ipcMain.handle('direction:role-workspace',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const s=await readState(),d=direction.ensureDirection(s);
+  return directionRoles.listWorkspace(d,{businessId:directionBusinessId(s,payload)});
+});
+ipcMain.handle('direction:save-role-profile',async(_e,payload={})=>{
+  directionRequireSession(payload);let role=null;
+  await updateState(s=>{const d=direction.ensureDirection(s);role=directionRoles.saveRoleProfile(d,{...(payload.role||{}),businessId:directionBusinessId(s,payload)});return s;});
+  await audit('direction.role_profile_saved',(role?.name||'Puesto')+' · perfil estructurado');return role;
+});
+ipcMain.handle('direction:generate-role-test',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const s=await readState(),d=direction.ensureDirection(s),businessId=directionBusinessId(s,payload),role=(d.roleProfiles||[]).find(x=>x.id===String(payload.roleId||'')&&(!businessId||x.businessId===businessId));
+  if(!role)throw new Error('Puesto no encontrado.');
+  const prompt='Genera un test profesional estructurado para el puesto descrito. Debe evaluar SOLO capacidades relacionadas con el trabajo mediante casos prácticos, entrevista estructurada y conocimiento del puesto. No hagas test de personalidad, no infieras inteligencia general, salud, emociones o rasgos sensibles, no generes ranking ni apto/no apto. Devuelve SOLO JSON con {"questions":[{"type":"practical_case|structured_interview|role_knowledge","prompt":"...","evaluates":["reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality"],"evidenceFocus":["..."]}]}. Crea entre 6 y 8 preguntas, comparables para todas las personas del mismo puesto.';
+  let questions;
+  try{
+    const parsed=await directionAiJson(s,{prompt,localContext:[{path:'PERFIL DEL PUESTO',content:JSON.stringify(role)}]});questions=Array.isArray(parsed.questions)?parsed.questions:[];
+  }catch{questions=directionRoles.fallbackQuestions(role)}
+  let saved=null;await updateState(st=>{const dd=direction.ensureDirection(st);saved=directionRoles.replaceRoleQuestions(dd,role.id,questions);return st;});
+  await audit('direction.role_test_generated',role.name+' · '+saved.length+' preguntas');return saved;
+});
+ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const s0=await readState(),businessId=directionBusinessId(s0,payload);let assessment=null;
+  await updateState(s=>{const d=direction.ensureDirection(s);assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[]});return s;});
+  const s=await readState(),d=direction.ensureDirection(s),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
+  const observed=direction.employeeObservedEvidence(d,employee.id).slice(0,30);
+  const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{});
+  const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
+  const localContext=[
+    {path:'PUESTO Y TEST',content:JSON.stringify(assessment)},
+    {path:'CV PROFESIONAL DECLARADO',content:JSON.stringify(cv)},
+    {path:'CONTEXTO LABORAL DECLARADO O ACORDADO',content:JSON.stringify(work)},
+    {path:'EVIDENCIA OBSERVADA REGISTRADA',content:JSON.stringify(observed)}
+  ];
+  const analysis=await directionAiJson(s,{prompt,localContext});
+  let saved=null;await updateState(st=>{const dd=direction.ensureDirection(st);saved=directionRoles.saveAnalysis(dd,assessment.id,analysis);return st;});
+  await audit('direction.role_test_analyzed',(employee.name||'Empleado')+' · '+assessment.roleName+' · hipótesis de encaje');return saved;
 });
 
 ipcMain.handle('direction:add-employee-observation',async(_e,payload={})=>{
