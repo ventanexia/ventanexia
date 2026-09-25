@@ -73,6 +73,8 @@ contextBridge.exposeInMainWorld('vnx',{
   directionCompareTeamRole:(token,payload={})=>ipcRenderer.invoke('direction:compare-team-role',{token,...payload}),
   directionAddEmployeeObservation:(token,employeeId,observation={})=>ipcRenderer.invoke('direction:add-employee-observation',{token,employeeId,observation}),
   directionManagementPolicy:(token,payload=null)=>ipcRenderer.invoke('direction:management-policy',payload?{token,update:true,policy:payload}:{token}),
+  directionStandards:(token,options={})=>ipcRenderer.invoke('direction:standards',{token,...options}),
+  directionCreateStandard:(token,standard={},confirmed=false,options={})=>ipcRenderer.invoke('direction:create-standard',{token,standard,confirmed,...options}),
   directionSaveEmployee:(token,payload={})=>ipcRenderer.invoke('direction:save-employee',{token,...payload}),
   directionCreateTask:(token,payload={})=>ipcRenderer.invoke('direction:create-task',{token,...payload}),
   directionUpdateTask:(token,id,patch={})=>ipcRenderer.invoke('direction:update-task',{token,id,patch}),
