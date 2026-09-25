@@ -2,7 +2,7 @@
   "name": "ventanexia-desktop",
   "version": "0.6.159",
   "private": true,
-  "description": "VentaNexIA Desktop · estado concurrente seguro, updater bloqueado hasta firma y hardening de producción · 0.6.159",
+  "description": "VentaNexIA Desktop · estado concurrente seguro y actualización bloqueada hasta firma · 0.6.159",
   "main": "master-entry.cjs",
   "scripts": {
     "start": "electron .",
