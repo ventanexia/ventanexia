@@ -1,8 +1,22 @@
-const {app,ipcMain}=require('electron');
+const {app,ipcMain,BrowserWindow}=require('electron');
 const {readState}=require('./state-store.cjs');
 const {isAgentIncluded}=require('./agent-policy.cjs');
 const fs=require('node:fs/promises');
 const path=require('node:path');
+const diagnostics=require('./runtime-diagnostics.cjs');
+
+diagnostics.install({app});
+const singleInstance=app.requestSingleInstanceLock();
+if(!singleInstance){
+  app.quit();
+  process.exit(0);
+}
+app.on('second-instance',()=>{
+  const windows=BrowserWindow.getAllWindows().filter(w=>!w.isDestroyed());
+  const win=windows.find(w=>w.isVisible())||windows[0];
+  if(!win)return;
+  try{if(win.isMinimized())win.restore();win.show();win.focus()}catch{}
+});
 let orders=null;
 try{orders=require('./orders.cjs')}catch(e){console.error('orders_load_error',String(e?.message||e).slice(0,200))}
 let calendar=null;
@@ -243,3 +257,6 @@ app.on('browser-window-created',(_event,win)=>{
 
 
 if(orders)app.whenReady().then(()=>orders.startScheduler()).catch(e=>console.error('orders_scheduler_error',String(e?.message||e).slice(0,180)));
+
+// Auto-update is initialized only in packaged builds. Internal/dev builds stay offline.
+app.whenReady().then(()=>{try{require('./updater.cjs').start()}catch(e){console.error('updater_start_error',String(e?.message||e).slice(0,240))}});
