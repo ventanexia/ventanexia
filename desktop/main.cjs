@@ -145,6 +145,7 @@ function createWindow(){
   mainWindow.removeMenu();
   mainWindow.loadFile(path.join(__dirname,'renderer','index.html'));
   if(process.argv.includes('--background'))mainWindow.hide();
+  mainWindow.on('closed',()=>{mainWindow=null;if(process.platform!=='darwin'&&!app.isQuitting){app.isQuitting=true;app.quit()}});
   mainWindow.webContents.setWindowOpenHandler(({url})=>{if(/^https:\/\//i.test(url)||/^ms-quick-assist:/i.test(url)){shell.openExternal(url);return {action:'deny'}}return {action:'deny'}});
   mainWindow.webContents.on('will-navigate',(e,url)=>{if(!url.startsWith('file://'))e.preventDefault()});
 }
@@ -348,8 +349,8 @@ ipcMain.handle('license:activate',async(_e,payload={})=>{
   s.secret.customerId=customerId;
   s.secret.activationCode=activationCode;
   s.license={customerId,deviceId:result.deviceId||null,plan:result.planKey||null,featurePolicy:result.featurePolicy||{},activeCount:result.activeCount||0,limit:result.limit||0,available:result.available||0,extraDeviceMonthlyEur:result.extraDeviceMonthlyEur||49,lastCheckedAt:new Date().toISOString()};
-  s.support=s.support||{};if(s.support.autoMode===undefined)s.support.autoMode=true;
-  if(s.support.autoMode)app.setLoginItemSettings({openAtLogin:true,args:['--background']});
+  s.support=s.support||{};if(s.support.autoMode===undefined)s.support.autoMode=false;
+  app.setLoginItemSettings({openAtLogin:Boolean(s.support.autoMode),args:s.support.autoMode?['--background']:[]});
   await writeState(s);await audit('license.device_activated',`Cliente ${customerId}; dispositivo ${result.deviceId||deviceKey}`);
   return publicLicenseState(await readState());
 });
@@ -932,12 +933,12 @@ ipcMain.handle('direction:demo-unlock',async(_e,payload={})=>{
 ipcMain.handle('direction:set-pin',async(_e,payload={})=>{
   const stateCheck=await readState();if(directionDemoAllowed(stateCheck))throw new Error('En modo demo no se crea el archivo real de Dirección. Activa VentaNexIA para configurar el PIN privado.');
   const pin=String(payload.pin||''),currentPin=String(payload.currentPin||'');
-  if(!/^\d{4}$/.test(pin))throw new Error('El PIN de Dirección debe tener exactamente 4 dígitos.');
+  if(!/^\d{6}$/.test(pin))throw new Error('El nuevo PIN de Dirección debe tener exactamente 6 dígitos.');
   const state=await readState(),meta=directionAccessMeta(state),vaultExists=await directionVault.exists();
   if(Number(meta.lockedUntil||0)>Date.now())throw new Error('Dirección está bloqueada temporalmente por demasiados intentos.');
   const deviceSecret=directionDeviceSecret(state,{create:true});
   if(vaultExists){
-    if(!/^\d{4}$/.test(currentPin))throw new Error('Introduce el PIN actual para cambiarlo.');
+    if(!/^\d{4,6}$/.test(currentPin))throw new Error('Introduce el PIN actual para cambiarlo.');
     await directionVault.changePin(currentPin,pin,deviceSecret);
   }else{
     const legacy=state.secret?.directionControl&&directionLegacyConfigured(state.secret.directionControl);
