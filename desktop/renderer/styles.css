@@ -2487,3 +2487,22 @@ body.vnx-focus-chat:not(.vnx-detached-workbench) #chat.tab.active{inset:0 0 0 24
 .vnx-dir-role-analysis-lists article{border:1px solid #174a6d;background:#071b31;border-radius:10px;padding:10px}
 .vnx-dir-role-analysis-lists b{display:block;font-size:11px;margin-bottom:5px}.vnx-dir-role-analysis-lists span{display:block;color:#a3bdcc;font-size:10px;padding:3px 0}
 @media(max-width:900px){.vnx-dir-role-form,.vnx-dir-role-dims,.vnx-dir-role-analysis-lists{grid-template-columns:1fr}.vnx-dir-role-wide,.vnx-dir-role-form>button{grid-column:1}}
+
+
+/* Dirección · Mini-IPIP */
+.vnx-dir-miniipip{margin-top:14px;border:1px solid #225b7e;border-radius:12px;background:#071b30;padding:10px}
+.vnx-dir-miniipip>summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;color:#dff7ff}
+.vnx-dir-miniipip>summary span{font-size:10px;color:#8fb4c8;font-weight:500}
+.vnx-dir-miniipip-items{display:grid;gap:8px;margin-top:12px}
+.vnx-dir-miniipip-item{display:grid;grid-template-columns:1fr 220px;gap:10px;align-items:center;border:1px solid #174a6a;border-radius:9px;background:#06182b;padding:10px}
+.vnx-dir-miniipip-item b{font-size:11px;line-height:1.45}
+.vnx-dir-miniipip-scale{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.vnx-dir-miniipip-scale label{display:grid;place-items:center;border:1px solid #1e5476;border-radius:7px;padding:5px 2px;color:#a9c3d1;font-size:9px;cursor:pointer}
+.vnx-dir-miniipip-scale input{margin:0 0 3px}
+.vnx-dir-miniipip-consent{display:flex!important;gap:8px!important;align-items:flex-start!important;margin-top:12px;padding:10px;border:1px solid #675d2e;border-radius:9px;background:#251f13;color:#e4d79c!important;font-size:10px!important;line-height:1.45}
+.vnx-dir-miniipip-result{margin-top:10px}
+.vnx-dir-miniipip-scores{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.vnx-dir-miniipip-scores article{border:1px solid #174a6a;border-radius:9px;background:#06182b;padding:9px}
+.vnx-dir-miniipip-scores b{display:block;font-size:10px}.vnx-dir-miniipip-scores strong{display:block;margin-top:3px;font-size:18px;color:#6fe2f6}.vnx-dir-miniipip-scores small{display:block;color:#89a7b8;font-size:9px;margin-top:3px}
+@media(max-width:900px){.vnx-dir-miniipip-item{grid-template-columns:1fr}.vnx-dir-miniipip-scores{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.vnx-dir-miniipip>summary{display:block}.vnx-dir-miniipip>summary span{display:block;margin-top:4px}.vnx-dir-miniipip-scores{grid-template-columns:1fr}}
