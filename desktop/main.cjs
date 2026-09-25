@@ -1007,6 +1007,14 @@ ipcMain.handle('direction:role-workspace',async(_e,payload={})=>{
   const s=await readState(),d=direction.ensureDirection(s);
   return directionRoles.listWorkspace(d,{businessId:directionBusinessId(s,payload)});
 });
+ipcMain.handle('direction:mini-ipip-definition',async(_e,payload={})=>{
+  directionRequireSession(payload);return directionRoles.miniIpipDefinition();
+});
+ipcMain.handle('direction:save-mini-ipip',async(_e,payload={})=>{
+  directionRequireSession(payload);let record=null;
+  await updateState(s=>{const d=direction.ensureDirection(s);record=directionRoles.saveMiniIpip(d,{businessId:directionBusinessId(s,payload),employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),responses:Array.isArray(payload.responses)?payload.responses:[],consent:payload.consent===true});return s;});
+  await audit('direction.mini_ipip_saved',(record?.employeeName||'Empleado')+' · Mini-IPIP voluntario guardado como contexto complementario');return record;
+});
 ipcMain.handle('direction:save-role-profile',async(_e,payload={})=>{
   directionRequireSession(payload);let role=null;
   await updateState(s=>{const d=direction.ensureDirection(s);role=directionRoles.saveRoleProfile(d,{...(payload.role||{}),businessId:directionBusinessId(s,payload)});return s;});
@@ -1030,12 +1038,13 @@ ipcMain.handle('direction:analyze-role-test',async(_e,payload={})=>{
   await updateState(s=>{const d=direction.ensureDirection(s);assessment=directionRoles.createAssessment(d,{businessId,employeeId:String(payload.employeeId||''),roleId:String(payload.roleId||''),answers:Array.isArray(payload.answers)?payload.answers:[]});return s;});
   const s=await readState(),d=direction.ensureDirection(s),bundle=directionRoles.getAssessmentBundle(d,assessment.id),employee=bundle.employee||{};
   const observed=direction.employeeObservedEvidence(d,employee.id).slice(0,30);
-  const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{});
-  const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
+  const cv=direction.sanitizeCvProfile(employee.cvProfile||{}),work=direction.sanitizeWorkProfile(employee.workProfile||{}),miniIpip=directionRoles.latestMiniIpip(d,employee.id);
+  const prompt='Analiza el test exclusivamente como evidencia profesional para orientar a Dirección. No diagnostiques personalidad ni emociones. No estimes CI ni inteligencia general: usa "razonamiento aplicado al trabajo". No declares "apto/no apto", no ordenes personas ni tomes decisiones laborales. Para habilidades interpersonales usa conductas observables como escucha, comprensión de la perspectiva ajena, claridad y colaboración; no afirmes que alguien "tiene" o "carece de empatía" como rasgo interno. Si existe Mini-IPIP, trátalo únicamente como autoinforme complementario de BAJO PESO: no puede superar, contradecir ni sustituir una muestra de trabajo, entrevista estructurada o evidencia operativa. No conviertas sus medias en percentiles, diagnósticos, inteligencia, estabilidad clínica ni pronósticos deterministas. Distingue lo demostrado, lo sugerido y lo que falta comprobar. Devuelve SOLO JSON con: {"headline":"...","roleFitHypothesis":"...","confidence":"low|medium|high","dimensions":[{"key":"reasoning|problem_solving|prioritization|learning|communication|perspective_taking|collaboration|autonomy|role_knowledge|decision_quality","label":"...","status":"consistent|mixed|to_verify|insufficient","confidence":"low|medium|high","evidence":["..."],"interpretation":"..."}],"strengths":["..."],"developmentAreas":["..."],"rolesToExplore":["..."],"checksBeforeDecision":["..."],"limitations":["..."]}. Cita en evidence fragmentos o hechos concretos de las fuentes, sin inventar.';
   const localContext=[
     {path:'PUESTO Y TEST',content:JSON.stringify(assessment)},
     {path:'CV PROFESIONAL DECLARADO',content:JSON.stringify(cv)},
     {path:'CONTEXTO LABORAL DECLARADO O ACORDADO',content:JSON.stringify(work)},
+    ...(miniIpip?[{path:'MINI-IPIP · AUTOINFORME COMPLEMENTARIO DE BAJO PESO',content:JSON.stringify(miniIpip)}]:[]),
     {path:'EVIDENCIA OBSERVADA REGISTRADA',content:JSON.stringify(observed)}
   ];
   const analysis=await directionAiJson(s,{prompt,localContext});
