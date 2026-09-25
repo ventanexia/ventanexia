@@ -143,7 +143,8 @@ for(const id of ['vnxDirRoleForm','vnxDirRoleName','vnxDirRoleEmployee','vnxDirR
 ok(ui.includes('directionGenerateRoleTest')&&ui.includes('directionAnalyzeRoleTest'),'La UI no conecta generación y análisis del test');
 for(const id of ['vnxDirGovernanceForm','vnxDirGovLegalBasis','vnxDirGovReviewerRole','vnxDirGovPersonInformed','vnxDirGovHumanDecision','vnxDirGovSameCriteria','vnxDirGovSensitiveExcluded','vnxDirGovRepresentativeReview','vnxDirGovDpiaStatus'])ok(html.includes('id="'+id+'"'),'Falta garantía laboral #'+id);
 ok(ui.includes('saveGovernance')&&ui.includes('directionSaveAssessmentGovernance'),'La UI debe guardar garantías antes del análisis');
-ok(!ui.includes("$('[data-role-answer]').map")&&!ui.includes("$('[data-dir-employee]').forEach"),'Dirección no puede usar querySelector simple para colecciones de respuestas o empleados');
+ok(!/(^|[^$])\$\('\[data-role-answer\]'\)\.map/.test(ui)&&!/(^|[^$])\$\('\[data-dir-employee\]'\)\.forEach/.test(ui),'Dirección no puede usar querySelector simple para colecciones de respuestas o empleados');
+ok(ui.includes("$('[data-role-answer]').map")&&ui.includes("$('[data-dir-employee]').forEach"),'Dirección debe usar selectores múltiples en respuestas y empleados');
 ok(main.includes('No estimes CI ni inteligencia general')&&main.includes('No declares "apto/no apto"'),'El análisis IA debe impedir CI inventado y veredictos automáticos');
 ok(main.includes('perspective_taking')&&main.includes('razonamiento aplicado al trabajo'),'El análisis integral debe cubrir perspectiva ajena y razonamiento aplicado');
 ok(!/noAutomaticRanking\s*:\s*false/.test(main+ui),'El test no puede habilitar ranking automático');
