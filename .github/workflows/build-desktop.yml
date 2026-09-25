@@ -65,8 +65,21 @@ jobs:
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
       - run: node smoke-renderer.cjs
-      - run: npm run dist:win
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          npm run dist:win 2>&1 | Tee-Object -FilePath build-desktop.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: VentaNexIA-0.6.158-build-log
+          path: desktop/build-desktop.log
+          if-no-files-found: warn
+          retention-days: 3
       - uses: actions/upload-artifact@v4
+        if: success()
         with:
           name: VentaNexIA-Desktop-Windows-MASTER
           path: desktop/dist/*.exe
