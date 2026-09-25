@@ -1003,6 +1003,21 @@ ipcMain.handle('direction:employees',async(_e,payload={})=>{
   return d.employees.filter(x=>!businessId||x.businessId===businessId);
 });
 
+ipcMain.handle('direction:employee-file',async(_e,payload={})=>{
+  directionRequireSession(payload);
+  const {state:s,d}=await directionPrivateRead(payload),businessId=directionBusinessId(s,payload),employeeId=String(payload.employeeId||'').trim();
+  const employee=d.employees.find(x=>x.id===employeeId&&(!businessId||x.businessId===businessId));if(!employee)throw new Error('Empleado no encontrado en el archivo privado de Dirección.');
+  const snapshot=direction.summarize(d,{businessId,now:new Date().toISOString()});
+  const summary=snapshot.employees.find(x=>x.employeeId===employeeId)||null;
+  const tasks=(d.tasks||[]).filter(x=>x.assigneeId===employeeId).slice().sort((a,b)=>new Date(b.updatedAt||b.assignedAt)-new Date(a.updatedAt||a.assignedAt));
+  const events=(d.events||[]).filter(x=>x.employeeId===employeeId).slice().sort((a,b)=>new Date(b.at)-new Date(a.at));
+  const structuredTests=(d.roleAssessments||[]).filter(x=>x.employeeId===employeeId).slice().sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+  const personalityTests=(d.miniIpipAssessments||[]).filter(x=>x.employeeId===employeeId).slice().sort((a,b)=>new Date(b.submittedAt)-new Date(a.submittedAt));
+  const roleIds=new Set([...structuredTests,...personalityTests].map(x=>x.roleId).filter(Boolean));
+  const roles=(d.roleProfiles||[]).filter(x=>roleIds.has(x.id));
+  return {employee,summary,tasks,events,structuredTests,personalityTests,roles,vault:{encrypted:true,localOnly:true}};
+});
+
 ipcMain.handle('direction:update-employee-context',async(_e,payload={})=>{
   directionRequireSession(payload);
   let employee=null;
