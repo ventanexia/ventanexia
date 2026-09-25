@@ -142,7 +142,7 @@
       roleSel.innerHTML='<option value="">Selecciona una persona</option>'+employees.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.name)+(e.role?' · '+esc(e.role):'')+'</option>').join('');
       if(employees.some(e=>e.id===keep))roleSel.value=keep;
     }
-    $('[data-dir-employee]').forEach(b=>b.onclick=()=>openEmployeeFile(b.dataset.dirEmployee));
+    $$('[data-dir-employee]').forEach(b=>b.onclick=()=>openEmployeeFile(b.dataset.dirEmployee));
   }
   function renderEmployeeRows(){
     const body=$('#vnxDirEmployeeRows');if(!body)return;
@@ -416,7 +416,7 @@
     set('vnxDirHumanAutonomy',p.preferredAutonomy||'balanced');
     set('vnxDirHumanCollab',p.collaborationPreference||'balanced');
     set('vnxDirHumanContext',p.workContext||'');
-    $$('.vnx-dir-motivators input[type="checkbox"]').forEach(x=>x.checked=(p.motivators||[]).includes(x.value));
+    $$$('.vnx-dir-motivators input[type="checkbox"]').forEach(x=>x.checked=(p.motivators||[]).includes(x.value));
   }
   function updatePolicyLabels(){
     const pairs=[['vnxDirProfit','vnxDirProfitValue'],['vnxDirService','vnxDirServiceValue'],['vnxDirPeople','vnxDirPeopleValue'],['vnxDirGrowth','vnxDirGrowthValue'],['vnxDirStability','vnxDirStabilityValue']];
@@ -453,7 +453,7 @@
       directorName:String($('#vnxDirStandardDirector')?.value||'').trim(),
       effectiveFrom:$('#vnxDirStandardEffective')?.value?new Date($('#vnxDirStandardEffective').value).toISOString():new Date().toISOString(),
       nonNegotiables:String($('#vnxDirStandardNonNegotiables')?.value||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean),
-      criteria:$('.vnx-dir-standard-row').map(row=>({
+      criteria:$$('.vnx-dir-standard-row').map(row=>({
         key:row.dataset.standardKey||'',
         label:String(row.querySelector('b')?.textContent||'').trim(),
         expectation:String(row.querySelector('textarea')?.value||'').trim(),
@@ -637,11 +637,11 @@
     },80);
   }
   function bindTaskActions(){
-    $('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
-    $('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
-    $('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
-    $('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
-    $('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
+    $$('[data-dir-progress]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirProgress,'activity'));
+    $$('[data-dir-human]').forEach(b=>b.onclick=()=>promptEvent(b.dataset.dirHuman,'done'));
+    $$('[data-dir-ai]').forEach(b=>b.onclick=()=>markAi(b.dataset.dirAi));
+    $$('[data-dir-event]').forEach(b=>b.onclick=()=>addEvidence(b.dataset.dirEvent));
+    $$('[data-dir-carla]').forEach(b=>b.onclick=()=>openInCarla(b.dataset.dirCarla));
   }
 
   async function lockDirection(){
@@ -738,6 +738,7 @@
       }catch(err){alert('No se pudo comparar la plantilla con el puesto: '+(err.message||err))}
     };
     const roleForm=$('#vnxDirRoleForm');if(roleForm)roleForm.onsubmit=async e=>{e.preventDefault();try{await saveRoleProfile();alert('Perfil del puesto guardado.')}catch(err){alert(err.message||err)}};
+    const govForm=$('#vnxDirGovernanceForm');if(govForm)govForm.onsubmit=async e=>{e.preventDefault();if(!directionToken)return;try{await saveGovernance()}catch(err){alert('No se pudieron guardar las garantías: '+(err.message||err))}};
     const roleGenerate=$('#vnxDirRoleGenerate');if(roleGenerate)roleGenerate.onclick=async()=>{
       if(!directionToken)return;roleGenerate.disabled=true;const old=roleGenerate.textContent;roleGenerate.textContent='Generando…';
       try{const role=await saveRoleProfile();await window.vnx.directionGenerateRoleTest(directionToken,role.id,{businessId:businessId()});roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderRoleQuestions()}
@@ -747,24 +748,25 @@
     const roleAnalyze=$('#vnxDirRoleAnalyze');if(roleAnalyze)roleAnalyze.onclick=async()=>{
       if(!directionToken)return;const role=activeRole(),employeeId=$('#vnxDirRoleEmployee')?.value||'';
       if(!role){alert('Guarda primero el perfil del puesto.');return}if(!employeeId){alert('Selecciona la persona que ha respondido el test.');return}
-      const answers=$('[data-role-answer]').map(x=>({questionId:x.dataset.roleAnswer,answer:x.value||''}));
+      const answers=$$('[data-role-answer]').map(x=>({questionId:x.dataset.roleAnswer,answer:x.value||''}));
       roleAnalyze.disabled=true;const old=roleAnalyze.textContent;roleAnalyze.textContent='Analizando…';
-      try{const result=await window.vnx.directionAnalyzeRoleTest(directionToken,{businessId:businessId(),roleId:role.id,employeeId,answers});roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderRoleAnalysis(result)}
+      try{const governance=accessState?.demoAvailable?null:await saveGovernance({silent:true});const result=await window.vnx.directionAnalyzeRoleTest(directionToken,{businessId:businessId(),roleId:role.id,employeeId,answers,governance});roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderRoleAnalysis(result);renderGovernance()}
       catch(err){alert('No se pudo analizar el test: '+(err.message||err))}
       finally{roleAnalyze.disabled=false;roleAnalyze.textContent=old}
     };
     const roleEmp=$('#vnxDirRoleEmployee');if(roleEmp)roleEmp.onchange=()=>{renderRoleWorkspace();renderMiniIpip()};
     const miniSave=$('#vnxDirMiniIpipSave');if(miniSave)miniSave.onclick=async()=>{
       if(!directionToken)return;
-      const employeeId=$('#vnxDirRoleEmployee')?.value||'',role=activeRole(),consent=Boolean($('#vnxDirMiniIpipConsent')?.checked);
+      const employeeId=$('#vnxDirRoleEmployee')?.value||'',role=activeRole(),voluntary=Boolean($('#vnxDirMiniIpipConsent')?.checked),demo=Boolean(accessState?.demoAvailable);
       if(!employeeId){alert('Selecciona primero a la persona que responde el Mini‑IPIP.');return}
-      if(!consent){alert('El Mini‑IPIP solo se guarda con consentimiento explícito de la persona.');return}
+      if(!demo&&!voluntary){alert('Confirma que la persona ha completado voluntariamente el autoinforme y conoce su finalidad. La base jurídica se documenta por separado.');return}
       const responses=(miniIpipDefinition?.items||[]).map(item=>({itemId:item.id,value:Number(document.querySelector('input[name="vnxMiniIpip'+item.id+'"]:checked')?.value||0)}));
       if(responses.some(x=>x.value<1||x.value>5)){alert('Completa los 20 ítems antes de guardar.');return}
       miniSave.disabled=true;const old=miniSave.textContent;miniSave.textContent='Guardando…';
       try{
-        const record=await window.vnx.directionSaveMiniIpip(directionToken,{businessId:businessId(),employeeId,roleId:role?.id||'',responses,consent:true});
-        roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderMiniIpipResult(record);alert('Mini‑IPIP guardado como autoinforme complementario de bajo peso.');
+        const governance=demo?null:await saveGovernance({silent:true});
+        const record=await window.vnx.directionSaveMiniIpip(directionToken,{businessId:businessId(),employeeId,roleId:role?.id||'',responses,governance,consent:voluntary});
+        roleWorkspace=await window.vnx.directionRoleWorkspace(directionToken,{businessId:businessId()});renderMiniIpipResult(record);renderGovernance();alert('Mini‑IPIP guardado como autoinforme complementario de bajo peso.');
       }catch(err){alert('No se pudo guardar el Mini‑IPIP: '+(err.message||err))}
       finally{miniSave.disabled=false;miniSave.textContent=old}
     };
@@ -773,7 +775,7 @@
       e.preventDefault();if(!directionToken)return;
       const employeeId=$('#vnxDirHumanEmployee')?.value||'';if(!employeeId){alert('Selecciona un empleado.');return}
       const split=id=>String($('#'+id)?.value||'').split(/\r?\n|,/).map(x=>x.trim()).filter(Boolean);
-      const motivators=$$('.vnx-dir-motivators input[type="checkbox"]:checked').map(x=>x.value);
+      const motivators=$$$('.vnx-dir-motivators input[type="checkbox"]:checked').map(x=>x.value);
       try{
         await window.vnx.directionUpdateEmployeeContext(directionToken,employeeId,{
           source:$('#vnxDirHumanSource')?.value||'agreed',
@@ -789,8 +791,8 @@
         await load();alert('Contexto laboral guardado.');
       }catch(err){alert(err.message||err)}
     };
-    $$('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
-    $$('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
+    $$$('#vnxDirManagementForm input[type="range"]').forEach(x=>x.addEventListener('input',updatePolicyLabels));
+    $$$('[data-dir-policy-preset]').forEach(b=>b.onclick=()=>applyPolicyPreset(b.dataset.dirPolicyPreset));
     const standardForm=$('#vnxDirStandardForm');if(standardForm)standardForm.onsubmit=async e=>{
       e.preventDefault();if(!directionToken)return;
       if(!$('#vnxDirStandardConfirmed')?.checked){alert('Debes confirmar que la nueva versión se aplicará por igual a toda la plantilla.');return}
