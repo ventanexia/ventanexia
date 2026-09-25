@@ -75,7 +75,7 @@ function centralActionHandoff(question=''){
 if(typeof agentChat==='function'&&typeof portalChat==='function'){
   ipcMain.removeHandler('chat:send');
 
-  originalHandle('chat:send',async(event,payload)=>{
+  ipcMain.handle('chat:send',async(event,payload)=>{
     const scope=scopeOf(payload);
     const type=scopeTypeOf(payload);
 
