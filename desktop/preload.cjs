@@ -67,6 +67,7 @@ contextBridge.exposeInMainWorld('vnx',{
   directionLock:(token)=>ipcRenderer.invoke('direction:lock',{token}),
   directionSummary:(token,options={})=>ipcRenderer.invoke('direction:summary',{token,...options}),
   directionEmployees:(token,options={})=>ipcRenderer.invoke('direction:employees',{token,...options}),
+  directionEmployeeFile:(token,employeeId,options={})=>ipcRenderer.invoke('direction:employee-file',{token,employeeId,...options}),
   directionUpdateEmployeeContext:(token,employeeId,context={})=>ipcRenderer.invoke('direction:update-employee-context',{token,employeeId,context}),
   directionImportEmployeeCv:(token,employeeId,fileName,text)=>ipcRenderer.invoke('direction:import-employee-cv',{token,employeeId,fileName,text}),
   directionUpdateEmployeeCv:(token,employeeId,cv={})=>ipcRenderer.invoke('direction:update-employee-cv',{token,employeeId,cv}),
